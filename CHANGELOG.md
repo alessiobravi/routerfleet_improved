@@ -10,7 +10,11 @@ release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Releases before 0.10.0 were withdrawn in 0.11.0 (see there); their entries
 below are kept as the record of what changed.
 
-## [0.11.0] - 2026-11-21
+## [0.11.1] - 2026-11-21
+
+0.11.0 was never released: its CI run stopped before publishing, on a check of
+its own — the stack test looked for the `Secure` cookie flag with a pattern
+that GNU grep reads differently. The cookie was correct.
 
 A security review of the code inherited from earlier projects, and what it
 found.

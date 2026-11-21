@@ -146,8 +146,10 @@ jobs:
           FONT=$(curl -fsSk -D - -o /dev/null https://localhost/static/fonts/source-sans-pro/SourceSansPro-Regular.woff2)
           grep -qi '^x-content-type-options: nosniff' <<< "${FONT}"
           # With HTTPS enforced, the CSRF cookie is only ever sent over HTTPS
+          # (two steps: in a bracket expression, \r is a backslash and an r)
           FIRST=$(curl -sSkL -D - -o /dev/null https://localhost/accounts/login/)
-          grep -qiE '^set-cookie: csrftoken=[^\r]*; *secure' <<< "${FIRST}"
+          CSRF_COOKIE=$(grep -i '^set-cookie: csrftoken=' <<< "${FIRST}")
+          grep -qiE '; *secure' <<< "${CSRF_COOKIE}"
           # nginx does not announce its version (an if, because set -e ignores "! command")
           HOME_HEADERS=$(curl -sSk -D - -o /dev/null https://localhost/)
           if grep -qiE '^server: nginx/[0-9]' <<< "${HOME_HEADERS}"; then
