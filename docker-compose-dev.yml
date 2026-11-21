@@ -95,6 +95,15 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    healthcheck:
+      # Listening on 443 - which on a first start is only after the
+      # self-signed certificate has been generated. Read from the kernel's
+      # socket table, so it needs no tool the image does not have.
+      test: ["CMD-SHELL", "grep -qE ': ?01BB +00000000:0000 +0A' /proc/net/tcp"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
     depends_on:
       routerfleet:
         condition: service_healthy

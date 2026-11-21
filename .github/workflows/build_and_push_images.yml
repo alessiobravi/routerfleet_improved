@@ -120,8 +120,14 @@ jobs:
       - name: The installation behaves
         run: |
           set -x
-          # Port 80 redirects to HTTPS
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)" = "301"
+          # Port 80 redirects to HTTPS. The healthchecks already waited for
+          # nginx to listen; a short retry covers the moment between the two.
+          for _ in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/ || true)
+            [ "${CODE}" != "000" ] && break
+            sleep 2
+          done
+          test "${CODE}" = "301"
           # Captured first and matched after: piping curl into grep -q under
           # pipefail fails whenever grep stops reading early
           # The sign-in flow renders; on an empty install it leads to the first-user page

@@ -7,7 +7,16 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
-## [0.9.1] - 2026-11-21
+## [0.9.2] - 2026-11-21
+
+0.9.1 was never released: its CI run stopped before publishing, on the race
+fixed below.
+
+### Fixed
+- **nginx has a healthcheck.** On a first start nginx generates its self-signed
+  certificate before it listens, so a container reported as running could still
+  refuse connections for a few seconds — which is how CI's stack test lost a
+  race. nginx now reports healthy only once it listens on 443.
 
 ### Added
 - 33 tests for branches the feature tests did not reach: every delete
