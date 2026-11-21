@@ -49,7 +49,7 @@ container).
 | `routerfleet-cron` | `ghcr.io/alessiobravi/routerfleet-cron` | Calls the application's scheduler endpoints every minute | none |
 | `routerfleet-monitoring` | `ghcr.io/alessiobravi/routerfleet-monitoring` | Pings the fleet and reports status changes | none |
 | `routerfleet-nginx` | `ghcr.io/alessiobravi/routerfleet-nginx` | TLS, static files, the only published service | 80, 443 |
-| `routerfleet-postgres` | `postgres:16` (official image) | The database — default compose file only | none |
+| `routerfleet-postgres` | `ghcr.io/alessiobravi/routerfleet-postgres` | The database: the official `postgres:16` with every available update installed — default compose file only | none |
 
 Also created: one Compose network (internal; containers reach each other by
 name) and six named volumes — see [Volumes](#volumes-and-what-to-back-up).
@@ -66,7 +66,7 @@ How the pieces talk to each other is in [Architecture](architecture.md).
 
 ## Images and versions
 
-Every push to `main` is a release. Each of the four images is published as:
+Every push to `main` is a release. Each of the five images is published as:
 
 | Tag | Meaning |
 |---|---|
@@ -83,14 +83,14 @@ also has a git tag `v<version>` and a GitHub Release with its
 [changelog](../CHANGELOG.md) section.
 
 **Pinning a version.** To stay on a release until you decide to move, replace
-`:latest` with the version in all four `image:` lines of your
+`:latest` with the version in all five `image:` lines of your
 `docker-compose.yml`:
 
 ```yaml
     image: ghcr.io/alessiobravi/routerfleet:0.8.0
 ```
 
-All four images must carry the same version.
+All five images must carry the same version.
 
 ## Choosing a compose file
 
@@ -305,7 +305,7 @@ cp .env.example .env    # edit it
 docker compose -f docker-compose-dev.yml up -d --build
 ```
 
-`build_and_push.sh` builds the four images and pushes them to a registry
+`build_and_push.sh` builds the five images and pushes them to a registry
 tagged with the current version and `latest`. It is the manual alternative to
 CI, which does this on every push to `main`.
 

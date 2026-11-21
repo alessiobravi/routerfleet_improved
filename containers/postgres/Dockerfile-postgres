@@ -1,0 +1,33 @@
+# The database image: the official postgres:16, with every update Debian has
+# published installed at build time.
+#
+# Debian and not Alpine on purpose: how PostgreSQL sorts text comes from the C
+# library, and glibc and musl sort differently. An existing database moved to
+# an image with the other library would keep indexes ordered the old way, and
+# silently answer wrong. Staying on the image family installations already run
+# keeps every upgrade in place.
+
+# gosu is how the official entrypoint drops root. The binary it ships was built
+# with an older Go whose standard library has known vulnerabilities, so it is
+# rebuilt from source with the current Go and current dependencies - cross-
+# compiled on the build machine, so the arm64 image does not compile under
+# emulation.
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS gosu
+ARG TARGETOS
+ARG TARGETARCH
+ARG GOSU_VERSION=1.20
+RUN apk add --no-cache git
+RUN git clone --depth 1 --branch "${GOSU_VERSION}" https://github.com/tianon/gosu.git /src
+WORKDIR /src
+RUN go get golang.org/x/sys@latest github.com/moby/sys/user@latest \
+    && go mod tidy \
+    && CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
+       go build -trimpath -ldflags="-s -w" -o /out/gosu .
+
+FROM postgres:16
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=gosu /out/gosu /usr/local/bin/gosu
+# The same check the official image runs after installing it
+RUN gosu --version && gosu nobody true

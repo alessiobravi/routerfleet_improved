@@ -1,5 +1,8 @@
 FROM nginx:alpine
-RUN apk --no-cache add openssl
+# Every available update at build time, so a release ships with no known
+# vulnerability whose fix exists; openssl generates the first certificate
+RUN apk upgrade --no-cache \
+    && apk add --no-cache openssl
 COPY nginx_entrypoint.sh /nginx_entrypoint.sh
 COPY virtualhost.conf /etc/nginx/virtualhost.conf.disabled
 COPY virtualhost_noredirect.conf /etc/nginx/virtualhost_noredirect.conf.disabled

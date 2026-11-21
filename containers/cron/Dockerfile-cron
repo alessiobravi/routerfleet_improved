@@ -1,12 +1,13 @@
-# Pinned, not :latest - a floating base tag means two builds of the same commit
-# can ship different userlands, and the scheduler is the piece that has to keep
-# working untouched for months at a time.
-FROM ubuntu:26.04
+# Pinned, not :latest - two builds of the same commit must not ship different
+# userlands. The scheduler is the piece that has to keep working untouched for
+# months at a time.
+FROM alpine:3.24
 
 # cron + curl are all this container needs: it calls the application's /cron/
-# endpoints on a schedule and does nothing else.
-
-RUN apt-get update && apt-get install -y cron curl
+# endpoints on a schedule and does nothing else. cronie, not BusyBox's crond,
+# because it reads /etc/cron.d with the user column the schedule is written in.
+RUN apk upgrade --no-cache \
+    && apk add --no-cache cronie curl tzdata
 
 # The schedule itself
 COPY cron_tasks /etc/cron.d/cron_tasks
@@ -21,5 +22,5 @@ RUN sed -i 's/\r$//' /etc/cron.d/cron_tasks
 # Where the output of every call is appended
 RUN touch /var/log/cron.log
 
-# In the foreground, and in exec form, so cron is PID 1 and receives the stop signal directly
-CMD ["cron", "-f"]
+# In the foreground, and in exec form, so crond is PID 1 and receives the stop signal directly
+CMD ["/usr/sbin/crond", "-n"]

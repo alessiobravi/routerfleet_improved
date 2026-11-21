@@ -73,6 +73,11 @@ The status page is the fastest health check:
 
 ## Troubleshooting
 
+The images carry only what they need, so there is no editor and no `ping` or
+`netstat` package inside them. A shell and BusyBox's basic tools are there:
+`docker compose exec routerfleet sh`. To test reachability from the
+installation's network, `docker compose exec routerfleet-monitoring fping <address>`.
+
 ### Nothing is happening — no backups, no commands
 
 Check the cron container. The application has no internal scheduler; the cron

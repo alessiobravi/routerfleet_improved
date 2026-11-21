@@ -1,17 +1,14 @@
-FROM python:3.14-slim
+FROM python:3.14-alpine
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    net-tools \
-    inetutils-ping \
-    inetutils-traceroute \
-    nano \
-    vim-nox \
-    fping \
-    && rm -rf /var/lib/apt/lists/*
+# Every available update at build time; fping does the checks, tzdata lets
+# TIMEZONE name a zone for the log timestamps
+RUN apk upgrade --no-cache \
+    && apk add --no-cache fping tzdata
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall --yes pip
 COPY monitoring.py .
 
 CMD ["python", "-u", "monitoring.py"]

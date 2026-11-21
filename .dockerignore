@@ -11,3 +11,18 @@ backups/
 containers/*/.venv
 .env
 .junie/
+# Never in an image: version control, local secrets and working notes. A local
+# build (build_and_push.sh) would otherwise copy them in and publish them.
+.git
+.github
+.gh_token
+*.token
+.env.*
+BACKLOG.md
+CLAUDE.local.md
+.claude
+# Not needed at runtime
+.coverage
+htmlcov
+test.sqlite3
+docs

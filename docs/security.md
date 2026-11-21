@@ -138,6 +138,55 @@ it is unreachable in a container deployment. The audit log additionally
 registers its own models read-only there, as a second layer should the admin
 ever be re-enabled.
 
+## Known vulnerabilities
+
+Every release is scanned with [Trivy](https://trivy.dev) before it is
+published, and a release that fails the scan is not published.
+
+```mermaid
+flowchart LR
+    build["CI builds the five images<br/>and boots the stack"] --> own{"RouterFleet images:<br/>any critical or high?"}
+    own -->|yes| stop["Release blocked"]
+    own -->|no| db{"Database image:<br/>any CVE with a fix?"}
+    db -->|yes| stop
+    db -->|no| repo{"Repository:<br/>critical/high in dependencies,<br/>or a committed secret?"}
+    repo -->|yes| stop
+    repo -->|no| publish["Images published;<br/>remaining findings listed<br/>in the release notes"]
+```
+
+| What | Blocks a release | Reported in the release notes |
+|---|---|---|
+| The application, scheduler, monitoring and nginx images | any critical or high vulnerability, with or without a fix | medium and low |
+| The database image | any vulnerability with a published fix | those its distribution has not fixed yet |
+| Python dependencies and bundled browser libraries | any critical or high vulnerability | — |
+| The repository | any committed secret (tokens, keys) | — |
+
+How the images stay clean:
+
+- **They are rebuilt for every release with every available update installed**
+  (`apk upgrade` / `apt-get upgrade`), so a release never ships a vulnerability
+  whose fix was already published.
+- **The four RouterFleet images are based on Alpine Linux.** On Alpine every
+  known vulnerability in the base comes with a fix, so updating reaches zero.
+  They carry nothing the application does not use: no editors, no network
+  tools, and no `pip` after the dependencies are installed — the tools that
+  were in them before brought most of the findings.
+- **The database image stays on Debian** — the official `postgres:16` with all
+  updates — because PostgreSQL's text ordering comes from the C library. Moving
+  an existing database to an image with a different C library would leave its
+  indexes ordered the old way and silently wrong; staying on Debian keeps every
+  upgrade in place. The official image's `gosu` is rebuilt from source with the
+  current Go, which removes the vulnerabilities its old Go runtime carried.
+  Debian publishes fixes on its own schedule, which is why the database image is
+  held to "nothing with a fix" and lists the rest.
+- **Browser libraries** are listed with their exact versions in
+  `third_party/browser-libraries/` so the scan can check them; a test keeps that
+  list equal to the files actually served. Only the files pages load are
+  shipped — no demo pages, documentation or unused plugins of the theme.
+
+A scan is a snapshot: a vulnerability disclosed after a release is not in it.
+Updating to the newest release is how an installation picks up fixes.
+
 ## Transport
 
 nginx terminates TLS and redirects port 80 to 443. It does not announce its

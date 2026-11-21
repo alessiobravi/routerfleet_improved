@@ -1,3 +1,5 @@
+# Nothing to mail: every job appends its output to /var/log/cron.log
+MAILTO=""
 */5 * * * *  root sleep 0 ; /usr/bin/curl -s http://routerfleet:8001/cron/generate_backup_schedule/  >> /var/log/cron.log 2>&1
 * * * * *    root sleep 5 ; /usr/bin/curl -s http://routerfleet:8001/cron/create_backup_tasks/       >> /var/log/cron.log 2>&1
 * * * * *    root sleep 10; /usr/bin/curl -s http://routerfleet:8001/cron/update_router_information/ >> /var/log/cron.log 2>&1

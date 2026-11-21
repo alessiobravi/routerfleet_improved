@@ -7,6 +7,44 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.10.0] - 2026-11-21
+
+### Added
+- **Vulnerability gate with Trivy.** Before anything is published, CI scans the
+  images it has just built and booted: RouterFleet's images may have no critical
+  or high vulnerability, the database image none with a published fix, and the
+  repository no critical or high finding in its dependencies and no committed
+  secret. A release that fails is not published. Each release's notes list what
+  the scan still found.
+- **`routerfleet-postgres`**, a fifth image: the official `postgres:16` with
+  every available update and `gosu` rebuilt with the current Go. Same Debian
+  base, so existing databases upgrade in place.
+- `third_party/browser-libraries/` lists the browser libraries with the versions
+  served, so the scan checks them; a test keeps it equal to the files.
+
+### Changed
+- **The application, scheduler, monitoring and nginx images are based on
+  Alpine** and installed with every available update at build time. They no
+  longer carry editors, network tools or `pip`.
+- The vendored AdminLTE theme is reduced from 2,434 files (124 MB) to the 34
+  pages use. Its demo pages, documentation and unused plugins — including old
+  jQuery copies with known XSS vulnerabilities, served from the installation's
+  own origin — are gone, as are Chosen's demo pages and archive.
+- Pages no longer load scripts they never use: jQuery UI, moment,
+  daterangepicker, tempusdominus, sparklines, jqvmap, jquery-knob, the table
+  export buttons with jszip and pdfmake, and AdminLTE's demo dashboard script.
+- jQuery 3.6.0 → 3.7.1, Bootstrap 4.6.1 → 4.6.2, diff2html → 3.4.56, each
+  verified against npm's published checksum.
+- CI checkouts no longer keep the job token in the working tree, and images no
+  longer contain the repository's `.git`.
+
+### Fixed
+- **The status page charts ran on Chart.js 2.9.4.** The page loads Chart.js 4,
+  but the base template loaded 2.9.4 after it and replaced it before the charts
+  were drawn; the charts now use the version they were written for.
+- A local image build would have copied `.git`, local secrets and working notes
+  into the image; `.dockerignore` excludes them.
+
 ## [0.9.3] - 2026-11-21
 
 ### Added

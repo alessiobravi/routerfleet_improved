@@ -292,3 +292,59 @@ class SecurityHeaderTests(TestCase):
         self.assertEqual(response['X-Frame-Options'], 'DENY')
         self.assertEqual(response['Referrer-Policy'], 'same-origin')
         self.assertEqual(response['Cross-Origin-Opener-Policy'], 'same-origin')
+
+
+class BrowserLibraryManifestTests(TestCase):
+    """third_party/browser-libraries lists what static_files really serves, so
+    that the vulnerability scan checks the versions that are deployed."""
+
+    HEADERS = {
+        # npm name: (file, pattern that reads the version from its header)
+        'jquery': ('AdminLTE-3.2.0/plugins/jquery/jquery.min.js', r'jQuery v([0-9.]+)'),
+        'bootstrap': ('AdminLTE-3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js', r'Bootstrap v([0-9.]+)'),
+        'admin-lte': ('AdminLTE-3.2.0/dist/js/adminlte.js', r'AdminLTE v([0-9.]+)'),
+        'datatables.net': ('AdminLTE-3.2.0/plugins/datatables/jquery.dataTables.min.js', r'\.version="([0-9.]+)"'),
+        'datatables.net-responsive': ('AdminLTE-3.2.0/plugins/datatables-responsive/js/dataTables.responsive.min.js',
+                                      r'version="([0-9.]+)"'),
+        'overlayscrollbars': ('AdminLTE-3.2.0/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js',
+                              r'Version: ([0-9.]+)'),
+        '@fortawesome/fontawesome-free': ('AdminLTE-3.2.0/plugins/fontawesome-free/css/all.min.css',
+                                          r'Font Awesome Free ([0-9.]+)'),
+        'chosen-js': ('plugins/chosen/chosen.jquery.min.js', r'v([0-9.]+)'),
+        'chart.js': ('vendor/chart.js-4.6.1/chart.umd.min.js', r'Chart\.js v([0-9.]+)'),
+    }
+    # diff2html's bundle has no version header; it is identified by its digest
+    DIFF2HTML_SHA256 = {'3.4.56': 'a2110a09cee157bd'}
+
+    def setUp(self):
+        import json
+        import pathlib
+        self.root = pathlib.Path(__file__).resolve().parent.parent
+        lock = json.loads((self.root / 'third_party/browser-libraries/package-lock.json').read_text())
+        self.locked = {k.removeprefix('node_modules/'): v['version']
+                       for k, v in lock['packages'].items() if k}
+
+    def test_versions_in_the_files_match_the_manifest(self):
+        import re
+        for name, (path, pattern) in self.HEADERS.items():
+            with self.subTest(library=name):
+                text = (self.root / 'static_files' / path).read_text(encoding='utf-8', errors='replace')
+                found = re.search(pattern, text)
+                self.assertIsNotNone(found, f'no version header in {path}')
+                self.assertEqual(found.group(1), self.locked[name])
+
+    def test_diff2html_is_the_listed_release(self):
+        import hashlib
+        digest = hashlib.sha256((self.root / 'static_files/plugins/diff2html/diff2html.min.js').read_bytes())
+        self.assertEqual(digest.hexdigest()[:16], self.DIFF2HTML_SHA256[self.locked['diff2html']])
+
+    def test_package_json_and_lock_agree(self):
+        import json
+        package = json.loads((self.root / 'third_party/browser-libraries/package.json').read_text())
+        self.assertEqual(package['dependencies'], self.locked)
+
+    def test_no_demo_pages_or_unused_bundles_are_served(self):
+        static = self.root / 'static_files'
+        html = [p for p in static.rglob('*.html') if p.name != 'index.html' or p.parent != static]
+        self.assertEqual(html, [], 'demo pages would be served from the installation\'s own origin')
+        self.assertEqual(list(static.rglob('*.zip')), [])

@@ -160,3 +160,26 @@ class ImagePruneTests(TestCase):
     def test_nothing_to_delete(self):
         versions = [{'id': 1, 'name': 'sha256:a', 'tags': ['0.9.0']}]
         self.assertEqual(self.script().plan(versions, lambda tag: [])[1], [])
+
+
+class CveReportTests(TestCase):
+    def script(self):
+        import importlib.util, pathlib
+        spec = importlib.util.spec_from_file_location(
+            'cve_report', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'cve_report.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_lists_what_remains_per_image(self):
+        clean = {'ArtifactName': 'ghcr.io/x/routerfleet:1.0.0', 'Results': [{'Vulnerabilities': []}]}
+        db = {'ArtifactName': 'ghcr.io/x/routerfleet-postgres:1.0.0', 'Results': [{'Vulnerabilities': [
+            {'VulnerabilityID': 'CVE-1', 'Severity': 'HIGH', 'PkgName': 'libfoo', 'InstalledVersion': '1'},
+            {'VulnerabilityID': 'CVE-2', 'Severity': 'LOW', 'PkgName': 'libbar', 'InstalledVersion': '2',
+             'FixedVersion': '3'},
+        ]}]}
+        text = self.script().section('0.76.2', [clean, db])
+        self.assertIn('**ghcr.io/x/routerfleet:1.0.0** — none', text)
+        self.assertIn('1 high, 1 low (1 without a published fix)', text)
+        self.assertIn('CVE-1 high — libfoo 1 (no fix yet)', text)
+        self.assertLess(text.index('CVE-1'), text.index('CVE-2'))

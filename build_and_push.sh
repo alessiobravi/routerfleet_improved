@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 VERSION=$(python3 scripts/version.py)
 REGISTRY=ghcr.io/alessiobravi
-IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx)
+IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres)
 
 if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
   echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin

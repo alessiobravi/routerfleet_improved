@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
 
+env:
+  TRIVY_VERSION: 0.76.2
+
 concurrency:
   group: ci-${{ github.ref }}
   # A newer push to a pull request makes the older run pointless. On main a
@@ -27,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -94,6 +99,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Environment
         run: |
@@ -156,6 +163,48 @@ jobs:
           echo "::error::no /cron/ request reached the application within 90 seconds"
           exit 1
 
+      - name: Install Trivy
+        run: scripts/install_trivy.sh "$HOME/.local/bin"
+
+      # The release gate. RouterFleet's own images: no critical or high
+      # vulnerability, fixed or not. The database image: none with a published
+      # fix, whatever its severity - the ones Debian has not fixed are reported
+      # in the release notes instead. Medium and low findings never block a
+      # release; they are listed in its notes.
+      - name: Vulnerability gate - RouterFleet images
+        run: |
+          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx; do
+            trivy image --quiet --scanners vuln --severity CRITICAL,HIGH --exit-code 1 \
+              "routerfleet-dev/${IMAGE}:local"
+            echo "routerfleet-dev/${IMAGE}:local: no critical or high vulnerability"
+          done
+
+      - name: Vulnerability gate - database image
+        run: |
+          trivy image --quiet --scanners vuln --ignore-unfixed --exit-code 1 \
+            routerfleet-dev/routerfleet-postgres:local
+          echo "routerfleet-postgres: no vulnerability with a published fix"
+
+      # Python requirements, the browser-library manifest, and any secret that
+      # should never have been committed
+      - name: Vulnerability and secret gate - repository
+        run: |
+          trivy fs --quiet --scanners vuln,secret --severity CRITICAL,HIGH --exit-code 1 .
+          echo "repository: no critical or high vulnerability, no secret"
+
+      - name: Full report
+        if: always()
+        run: |
+          {
+            echo "## Vulnerabilities, all severities"
+            for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres; do
+              echo "### ${IMAGE}"
+              echo '```'
+              trivy image --quiet --scanners vuln --format table "routerfleet-dev/${IMAGE}:local" || true
+              echo '```'
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Logs
         if: always()
         run: docker compose -f docker-compose-dev.yml ps -a && docker compose -f docker-compose-dev.yml logs --tail 60
@@ -190,9 +239,15 @@ jobs:
             context: ./containers/nginx
             file: ./containers/nginx/Dockerfile-nginx
             title: RouterFleet Improved web server
+          - image: routerfleet-postgres
+            context: ./containers/postgres
+            file: ./containers/postgres/Dockerfile-postgres
+            title: RouterFleet Improved database
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # arm64 is built under emulation on the amd64 runner
       - name: Set up QEMU
@@ -247,6 +302,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        run: scripts/install_trivy.sh "$HOME/.local/bin"
+
+      - name: Scan the published images
+        env:
+          VERSION: ${{ needs.test.outputs.version }}
+        run: |
+          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres; do
+            trivy image --quiet --scanners vuln --image-src remote --platform linux/amd64 \
+              --format json --output "scan-${IMAGE}.json" "ghcr.io/alessiobravi/${IMAGE}:${VERSION}"
+          done
 
       - name: Tag and GitHub Release
         env:
@@ -254,6 +323,11 @@ jobs:
           VERSION: ${{ needs.test.outputs.version }}
         run: |
           python scripts/version.py notes > release-notes.md
+          {
+            echo
+            python scripts/cve_report.py "${TRIVY_VERSION}" scan-routerfleet.json scan-routerfleet-cron.json \
+              scan-routerfleet-monitoring.json scan-routerfleet-nginx.json scan-routerfleet-postgres.json
+          } >> release-notes.md
           gh release create "v${VERSION}" --target "${GITHUB_SHA}" \
             --title "RouterFleet Improved ${VERSION}" --notes-file release-notes.md
 
@@ -285,10 +359,12 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx]
+        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-postgres]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Keeps every release-tagged version and every per-platform manifest
       # those reference; deletes nothing if anything looks wrong

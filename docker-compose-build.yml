@@ -21,3 +21,9 @@ services:
     build:
       context: ./containers/nginx
       dockerfile: Dockerfile-nginx
+
+  routerfleet-postgres:
+    image: ghcr.io/alessiobravi/routerfleet-postgres:latest
+    build:
+      context: ./containers/postgres
+      dockerfile: Dockerfile-postgres

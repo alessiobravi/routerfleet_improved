@@ -13,7 +13,7 @@ flowchart TB
         app["routerfleet<br/>gunicorn, 5 sync workers<br/>port 8001"]
         cron["routerfleet-cron<br/>cron + curl"]
         mon["routerfleet-monitoring<br/>python + fping"]
-        db[("routerfleet-postgres<br/>postgres:16")]
+        db[("routerfleet-postgres<br/>PostgreSQL 16")]
     end
 
     browser -->|HTTPS| nginx

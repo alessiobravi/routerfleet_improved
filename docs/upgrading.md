@@ -112,7 +112,8 @@ Existing data is adopted rather than reset, so after the upgrade:
 
 ## Moving the bundled PostgreSQL to a newer major version
 
-The default compose file runs `postgres:16`, and stays on it: the files a
+The default compose file runs `routerfleet-postgres`, which is the official
+`postgres:16` with every available update installed, and it stays on 16: the files a
 PostgreSQL major version writes cannot be opened by the next one, so changing
 the image of an existing installation would leave it unable to start. Patch
 releases of 16 arrive with `docker compose pull`. To move to a newer major
@@ -131,7 +132,8 @@ docker run --rm -v routerfleet_postgres_data:/from -v routerfleet_postgres_data_
   sh -c 'cp -a /from/. /to/'
 docker volume rm routerfleet_postgres_data
 
-# 3. Change "image: postgres:16" in docker-compose.yml to the new version, then
+# 3. Change the database "image:" line in docker-compose.yml to the new major
+#    version (for example postgres:17), then
 #    start only the database and restore into it
 docker compose up -d routerfleet-postgres
 docker exec -i -e PGPASSWORD=your_password routerfleet-postgres \
@@ -151,6 +153,14 @@ Once the installation has run on the new version for a while, remove
 `routerfleet_postgres_data_16_old`. Substitute your project name for
 `routerfleet` in the volume names — `docker volume ls` lists them.
 
+## The database image from 0.10.0
+
+From 0.10.0 the compose file runs `ghcr.io/alessiobravi/routerfleet-postgres`
+instead of the official `postgres:16`. It is the same PostgreSQL 16 on the same
+Debian base with every available update installed, so an existing database is
+used as it is: nothing to dump, nothing to restore. A compose file that still
+names `postgres:16` keeps working too.
+
 ## Version requirements
 
 The entrypoint refuses to start if `COMPOSE_VERSION` in your compose file is not
@@ -167,7 +177,7 @@ download the current compose file as shown above.
 
 Every release keeps its own image tag, so going back means naming the version
 you came from. Stop the stack, restore the database dump and the `app_secrets`
-archive, set the four `image:` lines of `docker-compose.yml` to that version —
+archive, set the five `image:` lines of `docker-compose.yml` to that version —
 for example `ghcr.io/alessiobravi/routerfleet:0.8.0` — and start it again.
 The versions are listed on the repository's Releases page and in the
 [changelog](../CHANGELOG.md). Note that migrations are **not** automatically

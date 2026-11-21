@@ -2,7 +2,8 @@ services:
   routerfleet-postgres:
     container_name: routerfleet-postgres
     restart: unless-stopped
-    image: postgres:16
+    # postgres:16 with every available update installed; see containers/postgres
+    image: ghcr.io/alessiobravi/routerfleet-postgres:latest
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:

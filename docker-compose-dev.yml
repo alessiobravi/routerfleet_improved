@@ -2,7 +2,10 @@ services:
   routerfleet-postgres:
     container_name: routerfleet-postgres
     restart: unless-stopped
-    image: postgres:16
+    image: routerfleet-dev/routerfleet-postgres:local
+    build:
+      context: ./containers/postgres
+      dockerfile: Dockerfile-postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -21,6 +24,7 @@ services:
   routerfleet:
     container_name: routerfleet
     restart: unless-stopped
+    image: routerfleet-dev/routerfleet:local
     build:
       context: .
     environment:
@@ -57,6 +61,7 @@ services:
   routerfleet-cron:
     container_name: routerfleet-cron
     restart: unless-stopped
+    image: routerfleet-dev/routerfleet-cron:local
     build:
       context: ./containers/cron
       dockerfile: Dockerfile-cron
@@ -69,6 +74,7 @@ services:
   routerfleet-monitoring:
     container_name: routerfleet-monitoring
     restart: unless-stopped
+    image: routerfleet-dev/routerfleet-monitoring:local
     build:
       context: ./containers/monitoring
       dockerfile: Dockerfile-monitoring
@@ -83,6 +89,7 @@ services:
   routerfleet-nginx:
     container_name: routerfleet-nginx
     restart: unless-stopped
+    image: routerfleet-dev/routerfleet-nginx:local
     build:
       context: ./containers/nginx
       dockerfile: Dockerfile-nginx
