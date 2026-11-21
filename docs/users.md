@@ -6,21 +6,27 @@ it reach.
 
 | Level | Name | Reaches |
 |---|---|---|
-| 10 | Viewer | Read-only access to devices, groups and backup listings |
+| 10 | Viewer | Nothing beyond what any signed-in account sees (see below) |
 | 20 | Backup Operator | Instant backups, download and compare backups, group membership, run/stop views in Fleet Commander listings, notification channel listings |
 | 30 | Host Manager | Create and edit devices, bulk edit, refresh inventory, delete backups |
 | 40 | Configuration Manager | Backup profiles, groups, SSH keys, commands, variants, schedules, schedule defaults, notification channels and settings |
 | 50 | Administrator | User management, audit log, import tool, external integrations |
 
+Some pages check only that you are signed in, with no level at all: the
+dashboard and status page, the device list and device details, groups, SSH key
+names, the backup list, backup profiles, the WireGuard launcher and *My
+Settings*. An account with no level — or level 10 — sees exactly these.
+
 ## What each page requires
 
 | Area | Action | Level |
 |---|---|---|
-| Devices | View | 10 |
+| Devices | View | signed in |
 | | Instant backup, group membership | 20 |
 | | Create/edit a device, bulk edit, refresh inventory | 30 |
 | | Groups, SSH keys | 40 |
-| Backups | View, compare, download | 20 |
+| Backups | Backup list, profile list | signed in |
+| | Details, compare, download | 20 |
 | | Delete a backup | 30 |
 | | Backup profiles | 40 |
 | Fleet Commander | View commands, jobs, tasks | 20 |

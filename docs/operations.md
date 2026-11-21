@@ -156,6 +156,34 @@ written that way cannot be read by a container with its own key.
 .venv/bin/python manage.py runserver
 ```
 
-There is no test suite. `manage.py check`, `makemigrations --check --dry-run`
-and applying the migration chain to an empty database are the available
-smoke tests.
+## Tests
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python manage.py test                 # the whole suite, a few seconds
+.venv/bin/coverage run manage.py test && .venv/bin/coverage report
+```
+
+The suite needs the same `production_settings.py` as above. It never touches the
+network: SSH, SCP and every HTTP call are replaced by fakes from
+`routerfleet/testing.py`, so it runs anywhere, offline included.
+
+What it covers:
+
+- **Every page's permission gate**, from three sides — anonymous, one level
+  below, and exactly at the level (`routerfleet/tests.py`). That table is the
+  permission model; [Users and permissions](users.md) describes the same one.
+- **The scheduler endpoints** refuse anything that came through a proxy.
+- **Fleet Commander**: the verification loop, the payload running once, abort
+  between lines, retry counting, missed runs, exclusions.
+- **Backups**: both phases for every device type, online gating, retention,
+  change detection.
+- **The upgrade from the original project's database**
+  (`routerfleet/test_upgrade.py`): the database is taken back to that state,
+  filled through the models as they were then, and migrated forward — passwords
+  must come out encrypted and readable, change flags backfilled, and a
+  user-written update command kept line for line.
+
+CI runs the system check, the migration-drift check and the suite on every push
+and pull request, and fails below 90% branch coverage. Docker images are only
+built and published once the tests have passed.

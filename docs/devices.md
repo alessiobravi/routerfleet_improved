@@ -203,15 +203,18 @@ URL length limit. Groups and Run Command use the same mechanism.
 ## Groups
 
 A group is a named set of devices, used by command schedules and to filter the
-list. A group may be marked as the **default group**, which new devices join
-automatically. Groups are also what schedule exclusions operate on — see
+list. One group may be marked as the **default group**: it is the group the
+device list is filtered to when you open it (pick *All* to see every device).
+Marking a group as the default takes the mark off whichever group had it. It
+does not add new devices to the group. Groups are also what schedule exclusions
+operate on — see
 [Fleet Commander](fleet-commander.md#which-devices-a-schedule-runs-on).
 
 ## Permissions
 
 | Action | Minimum level |
 |---|---|
-| View devices and groups | 10 — Viewer |
+| View the device list, device details, groups and SSH key names | signed in — no level needed |
 | Instant backup, group membership | 20 — Backup Operator |
 | Create or edit a device, bulk edit, refresh inventory | 30 — Host Manager |
 | Create or edit groups and SSH keys | 40 — Configuration Manager |

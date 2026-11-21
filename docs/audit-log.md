@@ -70,6 +70,9 @@ Watched objects:
 Each entry opens field by field — before and after — in a popup, without
 leaving the page.
 
+Both pages show the newest 1000 entries. Older ones stay in the database until
+they are pruned.
+
 ### What is deliberately not recorded
 
 - **A save that changed nothing writes nothing.** A save that names the fields
@@ -99,6 +102,7 @@ changed without holding a second copy of it.
 | user | A signed-in person, recorded with their account, level, address and user agent |
 | cron | A request with no user — the scheduler container calling a `/cron/` endpoint |
 | command line | No request at all — a management command or a shell |
+| anonymous | A refused sign-in, in the login history |
 
 The distinction is explicit: no request is not the same as a request without a
 user, and neither is mistaken for a person.

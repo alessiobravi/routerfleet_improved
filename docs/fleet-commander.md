@@ -163,8 +163,10 @@ sequenceDiagram
     App->>App: clear command_lock, update job counters
 ```
 
-`command_lock` on the device prevents two command tasks from working on the
-same device at once. Housekeeping clears a lock older than 2 hours.
+A task is only picked up while its device is free: `command_lock` keeps two
+command tasks off the same device at once, and a device with a backup in flight
+(`backup_lock`) is left alone until the backup has finished. Housekeeping clears
+a command lock older than 2 hours.
 
 ## Stopping a job or a task
 

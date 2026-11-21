@@ -200,7 +200,8 @@ not comparable.
 
 | Action | Minimum level |
 |---|---|
-| View backups, compare, download | 20 — Backup Operator |
+| Backup list and backup profile list | signed in — no level needed |
+| Backup details, compare, download | 20 — Backup Operator |
 | Take an instant backup | 20 — Backup Operator |
 | Delete a backup | 30 — Host Manager |
 | Create or edit backup profiles | 40 — Configuration Manager |

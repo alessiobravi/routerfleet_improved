@@ -2,17 +2,25 @@
 
 Bulk-create devices from a CSV. Requires permission level **50**.
 
-The import happens in two steps: the CSV is **pasted and validated** into a set
-of import tasks, then the tasks are **run** to create the devices. Nothing is
-created until the whole CSV validates, so a malformed line cannot leave half a
-fleet imported.
+The import happens in three steps:
+
+1. The CSV is **pasted and validated**. Every line is checked, and nothing is
+   stored unless all of them pass, so a malformed line cannot leave half a fleet
+   imported.
+2. **Create tasks** turns each row into an import task. Running it twice
+   creates nothing new.
+3. **Start import** runs the tasks one by one. Each connects to its device to
+   confirm the credentials and the device type before the device is created, and
+   a task that fails keeps its error message; failed tasks can be removed and
+   the CSV deleted from the same page. Devices that were imported stay.
 
 ```mermaid
 flowchart LR
     csv["CSV pasted in"] --> val["Validate every line"]
     val -->|"any error"| rej["Nothing is stored,<br/>the error names the line"]
-    val -->|"all lines valid"| store["CsvData + one ImportTask per row"]
-    store --> run["Run the import"]
+    val -->|"all lines valid"| store["CSV stored,<br/>passwords encrypted"]
+    store -->|"Create tasks"| tasks["One import task per row"]
+    tasks -->|"Start import"| run["Each task: test the login,<br/>then create the device"]
     run --> dev["Devices created"]
 ```
 

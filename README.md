@@ -76,7 +76,7 @@ Using SQLite or an external Postgres instead? Use `docker-compose-no-postgres.ym
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
 | [Security](docs/security.md) | Secrets at rest, the scheduler endpoints, the monitoring key |
-| [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting |
+| [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting, running the tests |
 
 ## License
 

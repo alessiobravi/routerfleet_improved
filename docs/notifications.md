@@ -37,6 +37,10 @@ Each channel independently selects which events it wants:
 So an on-call channel can take outages only, while a mailbox-style channel takes
 the daily reports.
 
+One message ignores these choices: when a backup task's lock expires (see
+[Backups](backups.md#when-a-backup-fails)), the warning goes to **every enabled
+channel**, because it means a backup has been stuck for hours.
+
 ## Concatenation
 
 A flapping link would otherwise send a message per transition. Two settings
@@ -52,8 +56,9 @@ notification pending, both its offline and online notifications are **deleted**
 rather than sent. A device that dropped and recovered inside the delay window
 produces no message at all, instead of two that cancel each other out.
 
-Messages are capped at `max_length` characters (default 2000); a batch that
-would exceed it is split across several messages.
+Messages are capped at `max_length` characters (default 2000). Notifications
+that do not fit stay queued and go into the next message a minute later, so
+nothing is cut off — a large outage simply arrives as several messages.
 
 ## Delivery and retries
 
@@ -83,8 +88,12 @@ that asked for them:
 - **Status report** — how the fleet currently stands.
 - **Backup report** — what happened to backups.
 
-The dispatcher runs every 10 minutes and records when each report last went
-out, so a report is sent once per day even though the check is frequent.
+The dispatcher runs every 10 minutes. A report goes out inside a window from
+one hour before to one hour after the report time, at most once every 12 hours,
+and one report per run — the backup report first, the status report on the next
+run ten minutes later. The time is read in the installation's `TIMEZONE`; if it
+cannot be worked out, midnight is used and both reports start with a warning
+saying so.
 
 ## A note on secrets in URLs
 
