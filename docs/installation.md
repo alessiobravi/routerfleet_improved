@@ -46,6 +46,14 @@ container).
 
 Also created: one Compose network (internal; containers reach each other by
 name) and six named volumes — see [Volumes](#volumes-and-what-to-back-up).
+
+**Start order and health.** PostgreSQL and the application have healthchecks,
+and the others wait for them: the application starts once PostgreSQL accepts
+connections, and the scheduler, the monitoring loop and nginx start once the
+application answers a real page — so nothing calls it while it is still
+migrating. `docker compose ps` shows `healthy` for both when the installation is
+up. The application is given three minutes for its first start, which is when a
+large database migrates.
 How the pieces talk to each other is in [Architecture](architecture.md).
 
 ## Images and versions
@@ -268,7 +276,7 @@ Backup commands are in [Upgrading](upgrading.md#before-you-start).
 ## Verifying the installation
 
 ```bash
-docker compose ps                                  # all containers "running"
+docker compose ps                                  # running; postgres and routerfleet "healthy"
 docker compose logs routerfleet --tail 50          # migrations, gunicorn started
 docker compose logs routerfleet-cron --tail 20     # JSON replies every minute
 docker compose logs routerfleet-monitoring --tail 20

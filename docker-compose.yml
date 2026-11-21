@@ -10,6 +10,13 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - TZ=${TIMEZONE}
+    healthcheck:
+      # Ready to accept connections, not merely started
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   routerfleet:
     container_name: routerfleet
@@ -33,8 +40,17 @@ services:
       - static_volume:/app_static_files/
       - app_secrets:/app_secrets/
     command: /bin/bash /app/init.sh
+    healthcheck:
+      # gunicorn answering a real page - migrations done, workers up
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/accounts/login/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # Migrations of a large database can take a while on the first start
+      start_period: 180s
     depends_on:
-      - routerfleet-postgres
+      routerfleet-postgres:
+        condition: service_healthy
 
   routerfleet-cron:
     container_name: routerfleet-cron
@@ -43,7 +59,8 @@ services:
     environment:
       - TZ=${TIMEZONE}
     depends_on:
-      - routerfleet
+      routerfleet:
+        condition: service_healthy
 
   routerfleet-monitoring:
     container_name: routerfleet-monitoring
@@ -54,7 +71,8 @@ services:
     volumes:
       - app_secrets:/app_secrets/
     depends_on:
-      - routerfleet
+      routerfleet:
+        condition: service_healthy
 
   routerfleet-nginx:
     container_name: routerfleet-nginx
@@ -70,7 +88,8 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      - routerfleet
+      routerfleet:
+        condition: service_healthy
 
 volumes:
   static_volume:

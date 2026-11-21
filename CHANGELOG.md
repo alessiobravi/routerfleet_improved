@@ -7,6 +7,27 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.8.3] - 2026-11-21
+
+### Added
+- **Healthchecks.** PostgreSQL reports healthy once it accepts connections, the
+  application once gunicorn answers a real page. The application waits for the
+  database, and the scheduler, monitoring and nginx wait for the application,
+  so nothing calls it while it is still migrating.
+- **CI boots the whole stack** from the commit before any image is published:
+  it waits for the healthchecks, then checks the HTTPS redirect, the sign-in
+  page, that `/cron/` is unreachable from outside, that static files are served
+  with `nosniff`, that nginx hides its version, and that the scheduler's calls
+  reach the application. All four compose files are validated.
+- `docs/upgrading.md` describes moving the bundled PostgreSQL to a newer major
+  version with a dump and restore, including the data path that changed with
+  PostgreSQL 18. The default stays on `postgres:16`, because changing the image
+  under an existing installation would leave it unable to start.
+
+### Fixed
+- Building with `docker-compose-dev.yml` tagged the RouterFleet nginx image as
+  `nginx:alpine`, replacing the official image of that name on the machine.
+
 ## [0.8.2] - 2026-11-21
 
 ### Changed

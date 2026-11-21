@@ -86,8 +86,80 @@ jobs:
               nginx:alpine nginx -t
           done
 
-  images:
+  # The whole stack, built from this commit and started the way an installation
+  # starts it. Images are only published when it comes up healthy and behaves.
+  stack:
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Environment
+        run: |
+          {
+            echo "SERVER_ADDRESS=localhost"
+            echo "DEBUG_MODE=False"
+            echo "TIMEZONE=Etc/UTC"
+            echo "DATABASE_ENGINE=postgres"
+            echo "POSTGRES_DB=routerfleet"
+            echo "POSTGRES_USER=routerfleet"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "HTTPS_REDIRECT_POLICY=always"
+          } > .env
+
+      - name: Every compose file is valid
+        run: |
+          for FILE in docker-compose.yml docker-compose-no-postgres.yml docker-compose-dev.yml docker-compose-build.yml; do
+            docker compose -f "${FILE}" config --quiet && echo "${FILE}: valid"
+          done
+
+      - name: Build and start, waiting for the healthchecks
+        run: docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 300
+
+      - name: The installation behaves
+        run: |
+          set -x
+          # Port 80 redirects to HTTPS
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)" = "301"
+          # Captured first and matched after: piping curl into grep -q under
+          # pipefail fails whenever grep stops reading early
+          # The sign-in flow renders; on an empty install it leads to the first-user page
+          PAGE=$(curl -fsSkL https://localhost/accounts/login/)
+          grep -q 'csrfmiddlewaretoken' <<< "${PAGE}"
+          # The scheduler endpoints are not reachable from outside
+          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/cron/housekeeping/)" = "404"
+          # Static files, including the bundled font, are served with nosniff
+          FONT=$(curl -fsSk -D - -o /dev/null https://localhost/static/fonts/source-sans-pro/SourceSansPro-Regular.woff2)
+          grep -qi '^x-content-type-options: nosniff' <<< "${FONT}"
+          # nginx does not announce its version (an if, because set -e ignores "! command")
+          HOME_HEADERS=$(curl -sSk -D - -o /dev/null https://localhost/)
+          if grep -qiE '^server: nginx/[0-9]' <<< "${HOME_HEADERS}"; then
+            echo "::error::nginx announces its version"; exit 1
+          fi
+
+      - name: The scheduler reaches the application
+        run: |
+          for _ in $(seq 1 18); do
+            LOGS=$(docker compose -f docker-compose-dev.yml logs routerfleet 2>/dev/null)
+            if grep -q 'GET /cron/' <<< "${LOGS}"; then
+              echo "cron calls arrive"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::no /cron/ request reached the application within 90 seconds"
+          exit 1
+
+      - name: Logs
+        if: always()
+        run: docker compose -f docker-compose-dev.yml ps -a && docker compose -f docker-compose-dev.yml logs --tail 60
+
+      - name: Stop
+        if: always()
+        run: docker compose -f docker-compose-dev.yml down -v
+
+  images:
+    needs: [test, stack]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

@@ -110,6 +110,47 @@ Existing data is adopted rather than reset, so after the upgrade:
   so version columns show as "no information" until the inventory cycle comes
   round. Use **Update Information** on the device list to force it.
 
+## Moving the bundled PostgreSQL to a newer major version
+
+The default compose file runs `postgres:16`, and stays on it: the files a
+PostgreSQL major version writes cannot be opened by the next one, so changing
+the image of an existing installation would leave it unable to start. Patch
+releases of 16 arrive with `docker compose pull`. To move to a newer major
+version, carry the data across with a dump:
+
+```bash
+# 1. Dump everything from the running 16
+docker exec -e PGPASSWORD=your_password routerfleet-postgres \
+  pg_dump -U routerfleet -d routerfleet --format=custom > routerfleet.dump
+
+# 2. Stop the stack and set the old data aside (rename, do not delete, until
+#    the new one is confirmed to work)
+docker compose down
+docker volume create routerfleet_postgres_data_16_old
+docker run --rm -v routerfleet_postgres_data:/from -v routerfleet_postgres_data_16_old:/to alpine \
+  sh -c 'cp -a /from/. /to/'
+docker volume rm routerfleet_postgres_data
+
+# 3. Change "image: postgres:16" in docker-compose.yml to the new version, then
+#    start only the database and restore into it
+docker compose up -d routerfleet-postgres
+docker exec -i -e PGPASSWORD=your_password routerfleet-postgres \
+  pg_restore -U routerfleet -d routerfleet --no-owner < routerfleet.dump
+
+# 4. Start the rest
+docker compose up -d
+```
+
+From PostgreSQL 18 on, the official image keeps its data under
+`/var/lib/postgresql` rather than `/var/lib/postgresql/data`: change the volume
+line of the database service accordingly, or the new server writes into a
+directory that is not on the volume. Read the image's notes for the version you
+move to.
+
+Once the installation has run on the new version for a while, remove
+`routerfleet_postgres_data_16_old`. Substitute your project name for
+`routerfleet` in the volume names — `docker volume ls` lists them.
+
 ## Version requirements
 
 The entrypoint refuses to start if `COMPOSE_VERSION` in your compose file is not
