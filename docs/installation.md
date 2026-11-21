@@ -75,11 +75,11 @@ images is published as:
 | Tag | Meaning |
 |---|---|
 | `:latest` | The current release. The compose files use this, and it is the tag to use |
-| `:<version>`, e.g. `:0.11.3` | The current release under its number — deleted when the next release is published |
+| `:<version>`, e.g. `:0.11.5` | The current release under its number — deleted when the next release is published |
 
 Releases are numbered MAJOR.MINOR.PATCH: a release that only fixes or maintains
-raises the last number (0.8.0 → 0.8.1), one that brings a new feature raises the
-middle one (→ 0.9.0). Moving between two releases with the same middle number
+raises the last number (0.11.5 → 0.11.6), one that brings a new feature raises
+the middle one (→ 0.12.0). Moving between two releases with the same middle number
 therefore never changes what the application does, only how well it does it.
 
 Images are public — no registry login is needed to pull them — and each tag holds an amd64 and an arm64 build. Each release

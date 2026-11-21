@@ -16,8 +16,8 @@ any advisory are coordinated with you before anything is made public.
 Only the **latest release** receives fixes. Every release is scanned for known
 vulnerabilities before it is published (see [docs/security.md](docs/security.md#known-vulnerabilities)),
 and upgrading to the newest release is how an installation picks up fixes —
-including from RouterFleet and RouterFleet Extended, whose databases upgrade in
-place ([docs/upgrading.md](docs/upgrading.md)).
+including an installation of an earlier RouterFleet project, whose database
+upgrades in place ([docs/upgrading.md](docs/upgrading.md)).
 
 ## Scope
 

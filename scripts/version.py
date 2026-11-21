@@ -10,6 +10,7 @@ and resets PATCH. Every push to main raises one of them.
     scripts/version.py notes              print the CHANGELOG.md section of it
     scripts/version.py newer-than TAG...  exit 1 unless it is above every vX.Y.Z tag given
     scripts/version.py bump patch|minor   raise it in settings.py
+    scripts/version.py title              the GitHub Release title
     scripts/version.py retired TAG        exit 0 if TAG is a release older than this one
 
 Standard library only, so CI can run it before anything is installed.
@@ -43,6 +44,15 @@ def changelog_section(version):
     return match.group(1).strip() if match else None
 
 
+def release_title(version):
+    """'RouterFleet Improved X.Y.Z', followed by the label of its changelog
+    heading when it has one: '## [X.Y.Z] - date - First public release'."""
+    text = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8')
+    match = re.search(rf'^## \[{re.escape(version)}\] - [0-9-]+(?: - (.+))?$', text, re.MULTILINE)
+    label = match.group(1).strip() if match and match.group(1) else ''
+    return f'RouterFleet Improved {version}' + (f' - {label}' if label else '')
+
+
 def main(argv):
     command = argv[1] if len(argv) > 1 else 'print'
     current = release()
@@ -68,6 +78,8 @@ def main(argv):
             sys.exit(f'{current} is not above the latest release {versioning.from_number(max(released))} '
                      f'- raise it with: scripts/version.py bump patch (or minor for a feature)')
         print(f'{current}: above every release')
+    elif command == 'title':
+        print(release_title(current))
     elif command == 'retired':
         # exit 0 when the tag given is a release older than the one in settings.py:
         # only the newest release is kept

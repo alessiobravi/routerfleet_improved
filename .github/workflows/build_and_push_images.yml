@@ -332,7 +332,7 @@ jobs:
               scan-routerfleet-monitoring.json scan-routerfleet-nginx.json scan-routerfleet-postgres.json
           } >> release-notes.md
           gh release create "v${VERSION}" --target "${GITHUB_SHA}" \
-            --title "RouterFleet Improved ${VERSION}" --notes-file release-notes.md
+            --title "$(python scripts/version.py title)" --notes-file release-notes.md
 
       # Only the newest release is offered: every older release and tag goes,
       # and so does anything that is not vMAJOR.MINOR.PATCH

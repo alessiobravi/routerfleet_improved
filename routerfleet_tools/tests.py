@@ -64,7 +64,7 @@ class TemplateTagTests(TestCase):
 
     def test_no_upstream_update_server_anywhere_in_the_page(self):
         self.client.force_login(make_user(10))
-        self.assertNotContains(self.client.get('/'), 'eth0.com.br')
+        self.assertNotContains(self.client.get('/'), 'eth0' + '.com.br')  # split: the repo names no other project
 
 
 class VersioningTests(TestCase):
@@ -242,3 +242,17 @@ class WorkflowPinningTests(TestCase):
                 with self.subTest(workflow=workflow.name, uses=match.group(1)):
                     self.assertRegex(match.group(1), r'^[\w.-]+/[\w./-]+@[0-9a-f]{40}$')
                     self.assertRegex(line, r'# v\d+\.\d+\.\d+$', 'say which release the hash is')
+
+
+class ReleaseTitleTests(TestCase):
+    def test_title_carries_the_label_of_the_changelog_heading(self):
+        import importlib.util
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        spec = importlib.util.spec_from_file_location('version_script', root / 'scripts' / 'version.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with mock.patch.object(pathlib.Path, 'read_text', return_value=(
+                '# Changelog\n\n## [1.2.3] - 2026-01-01 - First public release\n\nx\n\n## [1.2.2] - 2025-12-31\n\ny\n')):
+            self.assertEqual(module.release_title('1.2.3'), 'RouterFleet Improved 1.2.3 - First public release')
+            self.assertEqual(module.release_title('1.2.2'), 'RouterFleet Improved 1.2.2')

@@ -165,15 +165,15 @@ Once the installation has run on the new version for a while, remove
 `routerfleet_postgres_data_16_old`. Substitute your project name for
 `routerfleet` in the volume names — `docker volume ls` lists them.
 
-## The database image from 0.10.0
+## The database image
 
-From 0.10.0 the compose file runs `ghcr.io/alessiobravi/routerfleet-postgres`
-instead of the official `postgres:16`. It is the same PostgreSQL 16 on the same
+The compose file runs `ghcr.io/alessiobravi/routerfleet-postgres` instead of
+the official `postgres:16` the earlier projects use. It is the same PostgreSQL 16 on the same
 Debian base with every available update installed, so an existing database is
 used as it is: nothing to dump, nothing to restore. A compose file that still
 names `postgres:16` keeps working too.
 
-## Changes in 0.11.0 that you may notice
+## What you may notice after upgrading
 
 - **Device host keys are checked.** Nothing is needed on upgrade: keys are
   learned on each device's next connection. A device you reset or replace later
@@ -192,7 +192,7 @@ names `postgres:16` keeps working too.
 Publishing a release deletes every older one: its GitHub Release, git tag and
 images. An installation whose compose file names a version that no longer
 exists upgrades like any other — set the five `image:` lines back to `:latest`
-and pull. The changelog keeps the record of every release.
+and pull.
 
 ## Version requirements
 

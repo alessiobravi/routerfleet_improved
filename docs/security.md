@@ -106,18 +106,17 @@ volume, and compared in constant time.
 
 The monitoring container sends it in an `X-Monitoring-Key` header, never in a
 URL: an address ends up in access logs and in the text of connection errors,
-which the container prints. (Before 0.11.5 it was a `?key=` parameter, and an
-unreachable application put the key into the monitoring log.) `?key=` is still
-accepted, so a monitoring container that predates the header keeps working.
+which the container prints. `?key=` is still accepted, so the monitoring
+container of an earlier RouterFleet project keeps working during an upgrade.
 
 ## Notification channels
 
 The token and destination of a channel must look like what the service issues
 — a Telegram bot token, a chat id or @channel, a phone number, an ntfy topic —
 before the channel is saved, and requests are built with encoded parameters and
-quoted path segments, never by pasting text into a URL. A device name is part
-of the messages sent, so before 0.11.5 a name containing `&` could cut a
-message short or add a parameter to the request. The error text of a failed
+quoted path segments, never by pasting text into a URL — a device name is part
+of the messages sent, and a `&` in it must not cut a message short or add a
+parameter to the request. The error text of a failed
 send is stored with the channel's token removed: it names the request's URL,
 and for Telegram the token is part of that URL.
 
@@ -193,10 +192,10 @@ The limits are `LOGIN_LOCKOUT_ATTEMPTS` and `LOGIN_LOCKOUT_MINUTES` in
 Everything that changes something — deleting, aborting a task, starting a
 backup, refreshing inventory, signing out — is a POST carrying the
 installation's CSRF token. Loading an address, from a link, an image tag or
-another site, changes nothing: the same request as a GET is ignored. Before
-0.11.0 these actions were GET requests, which Django's CSRF protection does not
-check: another site could trigger them by navigating a signed-in user's browser
-to the address.
+another site, changes nothing: the same request as a GET is ignored. In the
+earlier RouterFleet projects these actions were GET requests, which Django's
+CSRF protection does not check: another site could trigger them by navigating a
+signed-in user's browser to the address.
 
 ## Hosts and CSRF
 
@@ -316,9 +315,10 @@ cleartext, and is not recommended.
 With HTTPS enforced — `HTTPS_REDIRECT_POLICY` is anything but `never` — the
 session and CSRF cookies are marked `Secure`: a browser only sends them over
 HTTPS, so they cannot be read off a plain-HTTP request. With `never` they are
-not, because signing in over plain HTTP has to keep working. A compose file from
-before 0.11.0 does not pass `HTTPS_REDIRECT_POLICY` to the application at all,
-and then the cookies stay as they were; the current compose file does.
+not, because signing in over plain HTTP has to keep working. A compose file of an
+earlier RouterFleet project does not pass `HTTPS_REDIRECT_POLICY` to the
+application at all, and then the cookies stay as they were; the current compose
+file does.
 
 The shipped certificate is self-signed and generated on first start. Replace
 `nginx.pem` and `nginx.key` in the `https_cert` volume with your own. The config

@@ -1,7 +1,7 @@
-"""A database left by the original RouterFleet upgrades in place.
+"""A database left by the original project upgrades in place.
 
 The migration history of this project is a strict superset of the original
-project's and of RouterFleet Extended's, so an installation of either is
+project's and of the later predecessor's, so an installation of either is
 upgraded by pointing this version at its database. This test makes that claim
 concrete: the database is taken back to the state the original project leaves
 it in, filled through the models as they were then, and migrated forward.
@@ -175,8 +175,8 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
                          (USER_UPDATE_PAYLOAD, '/my/check', 'my result'))
 
 
-# The last migration of every app in RouterFleet Extended
-EXTENDED_STATE = [
+# The last migration of every app in the later predecessor project (see docs/upgrading.md)
+LATER_PREDECESSOR_STATE = [
     ('audit_log', '0001_initial'),
     ('backup', '0009_backupprofile_parameter_sensitive_and_more'),
     ('backup_data', '0012_backfill_config_change_detected'),
@@ -191,8 +191,8 @@ EXTENDED_STATE = [
 ]
 
 
-class UpgradeFromExtendedTests(TransactionTestCase):
-    """A database left by RouterFleet Extended upgrades in place: what it had
+class UpgradeFromLaterPredecessorTests(TransactionTestCase):
+    """A database left by the later predecessor project (see docs/upgrading.md) upgrades in place: what it had
     encrypted stays readable, what it stored in cleartext is encrypted, and its
     audit trail and schedules come through untouched."""
 
@@ -204,7 +204,7 @@ class UpgradeFromExtendedTests(TransactionTestCase):
         return executor.loader.project_state([t for t in targets if t[1]]).apps
 
     def test_upgrade(self):
-        old = self.migrate(EXTENDED_STATE)
+        old = self.migrate(LATER_PREDECESSOR_STATE)
 
         Router = old.get_model('router_manager', 'Router')
         router = Router.objects.create(name='edge-01', address='10.0.0.1', router_type='routeros',

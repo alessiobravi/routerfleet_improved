@@ -89,7 +89,7 @@ encrypted with.
 ## Versions
 
 Releases are numbered MAJOR.MINOR.PATCH: fixes and maintenance raise the last
-number (0.8.0 → 0.8.1), a new feature raises the middle one (→ 0.9.0). Every
+number (0.11.5 → 0.11.6), a new feature raises the middle one (→ 0.12.0). Every
 push to `main` is a release, and **only the newest release is offered**: older
 releases, tags and images are deleted when it is published. Use `:latest`. What
 changed is in the [changelog](CHANGELOG.md).
