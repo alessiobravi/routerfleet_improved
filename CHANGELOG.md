@@ -10,6 +10,15 @@ release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. The entries below are the record of what changed.
 
+## [0.11.4] - 2026-11-22
+
+### Security
+- **Code scanning with CodeQL** on every push, on pull requests and weekly:
+  the Python code and the CI workflows, with the extended security queries.
+  Configured in the repository (`.github/workflows/codeql.yml`), with the
+  action pinned to a commit like the others. Findings appear under
+  Security → Code scanning.
+
 ## [0.11.3] - 2026-11-22
 
 ### Security

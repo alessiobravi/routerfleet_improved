@@ -268,6 +268,15 @@ How the images stay clean:
 A scan is a snapshot: a vulnerability disclosed after a release is not in it.
 Updating to the newest release is how an installation picks up fixes.
 
+### Code scanning
+
+Besides the image scan, GitHub's CodeQL reads the Python code and the CI
+workflows for security problems — injection, unsafe deserialisation, missing
+escaping, workflows that trust untrusted input — on every push, on pull
+requests and weekly (`.github/workflows/codeql.yml`, with the extended security
+queries). Its findings are listed under the repository's **Security → Code
+scanning**.
+
 ## Transport
 
 nginx terminates TLS and redirects port 80 to 443. It does not announce its
