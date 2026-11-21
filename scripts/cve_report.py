@@ -15,6 +15,8 @@ import sys
 from collections import Counter
 
 ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'UNKNOWN']
+# Longer lists than this are folded away in the release notes
+FOLD_AFTER = 10
 
 
 def findings(report):
@@ -40,10 +42,27 @@ def section(trivy_version, reports):
         summary = ', '.join(f'{counts[s]} {s.lower()}' for s in ORDER if counts[s])
         detail = f'{len(unfixed)} without a published fix' if unfixed else 'all with a fix'
         lines.append(f'- **{name}** — {summary} ({detail})')
-        for vuln in sorted(vulns, key=lambda v: (ORDER.index(v['Severity']), v['VulnerabilityID'])):
-            fixed = vuln.get('FixedVersion') or 'no fix yet'
-            lines.append(f'  - {vuln["VulnerabilityID"]} {vuln["Severity"].lower()} — '
-                         f'{vuln["PkgName"]} {vuln.get("InstalledVersion", "")} ({fixed})')
+        # One line per vulnerability, with every package it was found in: the
+        # same CVE in four libraries of one source package is one problem
+        grouped = {}
+        for vuln in vulns:
+            key = (vuln['VulnerabilityID'], vuln['Severity'], vuln.get('FixedVersion') or '')
+            grouped.setdefault(key, []).append(vuln['PkgName'])
+        entries = []
+        for (cve, severity, fixed), packages in sorted(
+                grouped.items(), key=lambda kv: (ORDER.index(kv[0][1]), kv[0][0])):
+            entries.append(f'  - {cve} {severity.lower()} — {", ".join(sorted(set(packages)))}'
+                           f' ({"fixed in " + fixed if fixed else "no fix yet"})')
+        if len(entries) > FOLD_AFTER:
+            lines.append('')
+            lines.append(f'  <details><summary>{len(entries)} vulnerabilities</summary>')
+            lines.append('')
+            lines.extend(entries)
+            lines.append('')
+            lines.append('  </details>')
+            lines.append('')
+        else:
+            lines.extend(entries)
     return '\n'.join(lines) + '\n'
 
 

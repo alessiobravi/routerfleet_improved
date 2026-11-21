@@ -7,6 +7,14 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.10.1] - 2026-11-21
+
+### Changed
+- The vulnerability section of the release notes lists each vulnerability once,
+  with every package it was found in, and folds long lists away: the database
+  image's 433 findings are 157 vulnerabilities in one collapsible block instead
+  of 433 lines.
+
 ## [0.10.0] - 2026-11-21
 
 ### Added

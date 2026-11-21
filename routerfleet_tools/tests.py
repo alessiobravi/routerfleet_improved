@@ -181,5 +181,14 @@ class CveReportTests(TestCase):
         text = self.script().section('0.76.2', [clean, db])
         self.assertIn('**ghcr.io/x/routerfleet:1.0.0** — none', text)
         self.assertIn('1 high, 1 low (1 without a published fix)', text)
-        self.assertIn('CVE-1 high — libfoo 1 (no fix yet)', text)
+        self.assertIn('CVE-1 high — libfoo (no fix yet)', text)
+        self.assertIn('CVE-2 low — libbar (fixed in 3)', text)
         self.assertLess(text.index('CVE-1'), text.index('CVE-2'))
+
+    def test_one_line_per_vulnerability_and_long_lists_fold(self):
+        vulns = [{'VulnerabilityID': 'CVE-K', 'Severity': 'HIGH', 'PkgName': p} for p in ('libkrb5-3', 'libk5crypto3')]
+        vulns += [{'VulnerabilityID': f'CVE-{i:02}', 'Severity': 'LOW', 'PkgName': 'x'} for i in range(12)]
+        text = self.script().section('0.76.2', [{'ArtifactName': 'db', 'Results': [{'Vulnerabilities': vulns}]}])
+        self.assertEqual(text.count('CVE-K'), 1)
+        self.assertIn('CVE-K high — libk5crypto3, libkrb5-3 (no fix yet)', text)
+        self.assertIn('<details><summary>13 vulnerabilities</summary>', text)
