@@ -120,3 +120,43 @@ class VersioningTests(TestCase):
         WebadminSettings.objects.create(name='webadmin_settings', update_available=True, latest_version=9999999)
         self.client.get('/cron/check_updates/')
         self.assertFalse(WebadminSettings.objects.get().update_available)
+
+
+class ImagePruneTests(TestCase):
+    """scripts/prune_images.py decides what may be deleted from the registry."""
+
+    def script(self):
+        import importlib.util, pathlib
+        spec = importlib.util.spec_from_file_location(
+            'prune_images', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'prune_images.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_multi_platform_parts_of_a_release_are_protected(self):
+        versions = [
+            {'id': 1, 'name': 'sha256:index-090', 'tags': ['0.9.0', 'latest']},
+            {'id': 2, 'name': 'sha256:amd64-090', 'tags': []},
+            {'id': 3, 'name': 'sha256:arm64-090', 'tags': []},
+            {'id': 4, 'name': 'sha256:single-083', 'tags': ['0.8.3']},
+            {'id': 5, 'name': 'sha256:leftover', 'tags': []},
+            {'id': 6, 'name': 'sha256:old-scheme', 'tags': ['0.7516']},
+            {'id': 7, 'name': 'sha256:untagged-index', 'tags': []},
+            {'id': 8, 'name': 'sha256:its-part', 'tags': []},
+        ]
+        children = {'0.9.0': ['sha256:amd64-090', 'sha256:arm64-090'], 'latest': [], '0.8.3': []}
+        kept, delete = self.script().plan(versions, lambda tag: children[tag])
+        self.assertEqual({v['id'] for v in kept}, {1, 4})
+        # 2 and 3 are untagged but belong to the 0.9.0 release
+        self.assertEqual({v['id'] for v in delete}, {5, 6, 7, 8})
+
+    def test_release_pattern(self):
+        pattern = self.script().RELEASE_TAG
+        for tag in ('latest', '0.9.0', '12.34.567'):
+            self.assertTrue(pattern.match(tag), tag)
+        for tag in ('0.7516', 'v0.9.0', 'sha-abc', '0.9', ''):
+            self.assertFalse(pattern.match(tag), tag)
+
+    def test_nothing_to_delete(self):
+        versions = [{'id': 1, 'name': 'sha256:a', 'tags': ['0.9.0']}]
+        self.assertEqual(self.script().plan(versions, lambda tag: [])[1], [])

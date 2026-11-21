@@ -11,7 +11,7 @@ to be pinged.
 
 ## Quick install
 
-Needs an x86-64 host with Docker and the Compose plugin, and ports 80/443 free.
+Needs Docker with the Compose plugin on an x86-64 or 64-bit ARM host, and ports 80/443 free.
 
 ```bash
 mkdir routerfleet && cd routerfleet

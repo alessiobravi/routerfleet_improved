@@ -7,6 +7,22 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.9.0] - 2026-11-21
+
+### Added
+- **arm64 images.** Every image is published for amd64 and 64-bit ARM under the
+  same tags, so RouterFleet installs on a Raspberry Pi 4/5 running a 64-bit OS,
+  on ARM servers and on ARM cloud instances with the same compose file; Docker
+  picks the right build.
+
+### Changed
+- The cleanup of old image versions understands multi-platform images: it keeps
+  every release-tagged version together with the per-platform manifests it
+  references, which are untagged versions of their own, and deletes only what
+  no release needs. It deletes nothing when the release just published is
+  missing or a manifest cannot be read. The logic lives in
+  `scripts/prune_images.py` and is covered by tests.
+
 ## [0.8.3] - 2026-11-21
 
 ### Added

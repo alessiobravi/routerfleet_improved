@@ -25,7 +25,7 @@ and every variant. For the three-command version, see the
 | Requirement | Detail |
 |---|---|
 | Docker Engine with the Compose v2 plugin | `docker compose` (with a space). The legacy `docker-compose` binary is not supported |
-| CPU architecture | **x86-64 (amd64).** The published images are built for amd64 only; on ARM hosts build them yourself, see [below](#building-the-images-yourself) |
+| CPU architecture | **x86-64 (amd64) or 64-bit ARM (arm64)** — Raspberry Pi 4/5 with a 64-bit OS, ARM servers and cloud instances. Every image is published for both; Docker picks the right one. 32-bit ARM is not supported |
 | Free ports | 80 and 443 on the host, or others you choose — see [Ports](#ports) |
 | Outbound from the host | TCP to your devices' SSH ports; ICMP to devices you monitor; HTTPS to `downloads.openwrt.org` for OpenWrt update checks; HTTPS to your notification services |
 | A name or address | The address users will type in the browser — it becomes `SERVER_ADDRESS` |
@@ -70,7 +70,7 @@ raises the last number (0.8.0 → 0.8.1), one that brings a new feature raises t
 middle one (→ 0.9.0). Moving between two releases with the same middle number
 therefore never changes what the application does, only how well it does it.
 
-Images are public — no registry login is needed to pull them. Each release
+Images are public — no registry login is needed to pull them — and each tag holds an amd64 and an arm64 build. Each release
 also has a git tag `v<version>` and a GitHub Release with its
 [changelog](../CHANGELOG.md) section.
 
@@ -288,7 +288,7 @@ working, and the matching background work has stopped.
 
 ## Building the images yourself
 
-For ARM hosts, or to run local changes, build from a checkout:
+To run local changes, build from a checkout:
 
 ```bash
 git clone https://github.com/alessiobravi/routerfleet_improved.git

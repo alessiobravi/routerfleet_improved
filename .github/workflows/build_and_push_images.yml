@@ -188,6 +188,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # arm64 is built under emulation on the amd64 runner
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -222,8 +226,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # One plain manifest per build, without attestation manifests beside
-          # it - which is what makes "untagged" mean "left over" in the cleanup
+          # One index per release with a manifest per platform, and no
+          # attestation manifests beside them
+          platforms: linux/amd64,linux/arm64
           provenance: false
           sbom: false
 
@@ -270,51 +275,18 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: write
     strategy:
       matrix:
         image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx]
     steps:
-      # Only delete when the image just published is a single manifest: if it
-      # were an index, its parts would be untagged too and deleting them would
-      # break the image itself
-      - name: Check the published image is a single manifest
-        id: guard
-        env:
-          VERSION: ${{ needs.test.outputs.version }}
-        run: |
-          TOKEN=$(curl -fsS "https://ghcr.io/token?scope=repository:alessiobravi/${{ matrix.image }}:pull" \
-            | python3 -c 'import json, sys; print(json.load(sys.stdin)["token"])')
-          TYPE=$(curl -fsSI -H "Authorization: Bearer ${TOKEN}" \
-            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
-            "https://ghcr.io/v2/alessiobravi/${{ matrix.image }}/manifests/${VERSION}" \
-            | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type" {print $2}')
-          echo "Published as: ${TYPE}"
-          case "${TYPE}" in
-            *index*|*list*) echo "::notice::${{ matrix.image }}:${VERSION} is an index - untagged versions kept"
-                            echo "safe=false" >> "$GITHUB_OUTPUT" ;;
-            *manifest*)     echo "safe=true" >> "$GITHUB_OUTPUT" ;;
-            *)              echo "::error::Unexpected manifest type '${TYPE}'"; exit 1 ;;
-          esac
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      # Plain API calls rather than an action: every deleted version is named
-      # in the log, and there is no third-party code holding the token
-      - name: Delete image versions that are not releases
-        if: steps.guard.outputs.safe == 'true'
+      # Keeps every release-tagged version and every per-platform manifest
+      # those reference; deletes nothing if anything looks wrong
+      - name: Delete image versions no release needs
         env:
           GH_TOKEN: ${{ github.token }}
-          IMAGE: ${{ matrix.image }}
-        run: |
-          API="/users/alessiobravi/packages/container/${IMAGE}/versions"
-          # Kept: versions carrying a MAJOR.MINOR.PATCH tag or latest. Everything
-          # else - untagged leftovers and the old four-digit tags - goes.
-          gh api --paginate "${API}" --jq '.[]
-            | select(.metadata.container.tags | map(test("^(latest|[0-9]+\\.[0-9]+\\.[0-9]+)$")) | any | not)
-            | "\(.id) \(.name) \(.metadata.container.tags | join(","))"' > obsolete.txt
-          echo "${IMAGE}: $(wc -l < obsolete.txt | tr -d ' ') versions to delete"
-          while read -r ID DIGEST TAGS; do
-            gh api -X DELETE "${API}/${ID}" > /dev/null
-            echo "deleted ${IMAGE} version ${ID} (${DIGEST}) tags: ${TAGS:-none}"
-          done < obsolete.txt
-          echo "${IMAGE}: tagged versions kept: $(gh api --paginate "${API}" \
-            --jq '[.[] | select((.metadata.container.tags | length) > 0) | .metadata.container.tags[]] | join(", ")')"
+        run: python3 scripts/prune_images.py "${{ matrix.image }}" "${{ needs.test.outputs.version }}"
