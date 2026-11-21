@@ -1,0 +1,280 @@
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse, FileResponse
+from django.shortcuts import render, get_object_or_404, redirect, Http404
+from django.contrib import messages
+
+from routerfleet_tools.models import WebadminSettings
+from routerlib.backup_functions import perform_backup
+from .models import BackupProfile
+from .forms import BackupProfileForm
+from router_manager.models import Router, BackupSchedule
+from backup_data.models import RouterBackup
+import difflib
+import unicodedata
+from routerlib.functions import gen_backup_name, get_router_backup_file_extension
+from django.conf import settings
+from user_manager.models import UserAcl
+from django.utils import timezone
+
+
+@login_required()
+def view_backup_profile_list(request):
+    default_backup_profile, _ = BackupProfile.objects.get_or_create(name='default')
+    context = {
+        'backup_profile_list': BackupProfile.objects.all().order_by('name'),
+        'page_title': 'Backup Profiles'
+    }
+    return render(request, 'backup/backup_profile_list.html', context)
+
+
+@login_required()
+def view_manage_backup_profile(request):
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=40).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    if request.GET.get('uuid'):
+        backup_profile = get_object_or_404(BackupProfile, uuid=request.GET.get('uuid'))
+        if request.GET.get('action') == 'delete':
+            if request.GET.get('confirmation') == 'delete':
+                if backup_profile.name == 'default':
+                    messages.warning(request, 'Backup profile not deleted|Default profile cannot be deleted')
+                    return redirect('backup_profile_list')
+                else:
+                    if Router.objects.filter(backup_profile=backup_profile).exists():
+                        messages.warning(request, 'Backup profile in use|Backup profile is in use and cannot be deleted')
+                        return redirect('backup_profile_list')
+                    else:
+                        backup_profile.delete()
+                        messages.success(request, 'Backup profile deleted successfully')
+                return redirect('backup_profile_list')
+            else:
+                messages.warning(request, 'Backup profile not deleted|Invalid confirmation')
+                return redirect('backup_profile_list')
+    else:
+        backup_profile = None
+
+    form = BackupProfileForm(request.POST or None, instance=backup_profile)
+    if form.is_valid():
+        form.instance.profile_error_information = ''
+        form.save()
+        BackupSchedule.objects.filter(router__backup_profile=form.instance).delete()
+        messages.success(request, 'Backup Profile saved successfully')
+        return redirect('backup_profile_list')
+
+    context = {
+        'form': form,
+        'page_title': 'Manage Backup Profile',
+        'instance': backup_profile
+    }
+    return render(request, 'backup/backup_profile_form.html', context=context)
+
+
+@login_required()
+def view_backup_list(request):
+    backup_list = RouterBackup.objects.all().order_by('-created')
+    if request.GET.get('type') == 'queue':
+        backup_list = backup_list.filter(error=False, success=False).order_by('next_retry')
+        view_type = 'queue'
+    elif request.GET.get('type') == 'errors':
+        backup_list = backup_list.filter(error=True).order_by('-created')
+        view_type = 'errors'
+    else:
+        backup_list = backup_list.filter(success=True).order_by('-created')
+        view_type = 'success'
+
+    context = {
+        'backup_list': backup_list,
+        'page_title': 'Backup List',
+        'view_type': view_type
+    }
+    return render(request, 'backup/backup_list.html', context)
+
+
+@login_required()
+def view_backup_details(request):
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
+
+    if request.GET.get('show_console') == 'true':
+        show_console = True
+    else:
+        show_console = False
+
+    if request.GET.get('action') == 'anticipate':
+        if not backup.success and not backup.error:
+            backup.next_retry = timezone.now()
+            backup.save()
+            messages.success(request, 'Backup task anticipated|Backup task will be retried shortly')
+        else:
+            messages.warning(request, 'Backup task not anticipated|Task is already completed')
+        return redirect(f'/backup/backup_details/?uuid={backup.uuid}&show_console={str(show_console).lower()}')
+    hash_list = [backup.backup_text_hash]
+    backup_list = []
+    for backup_item in RouterBackup.objects.filter(router=backup.router, success=True).order_by('-created'):
+        if backup_item.backup_text_hash and backup_item.backup_text_hash not in hash_list:
+            hash_list.append(backup_item.backup_text_hash)
+            backup_list.append(backup_item)
+    webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+    context = {
+        'backup': backup,
+        'backup_list': backup_list,
+        'page_title': 'Backup Details',
+        'webadmin_settings': webadmin_settings,
+        'now': timezone.now(),
+        '5_minutes_ago': timezone.now() - timezone.timedelta(minutes=5),
+        'show_console': show_console
+    }
+    return render(request, 'backup/backup_details.html', context)
+
+
+def normalize_text(text):
+    text = unicodedata.normalize('NFC', text)
+    text = text.replace('\r\n', '\n')
+    text = text.replace('\r', '')
+    text = '\n'.join([line.rstrip() for line in text.splitlines()])
+    return text
+
+
+@login_required()
+def view_compare_backups(request):
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    backup1 = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
+    backup2 = get_object_or_404(RouterBackup, uuid=request.GET.get('compare_uuid'))
+    if request.GET.get('display') == 'all':
+        show_lines = 100000
+        show_all = True
+    else:
+        show_lines = 3
+        show_all = False
+
+    # A backup that brought no configuration compares as an empty one, so a
+    # pending or failed backup does not end the page in an error
+    diff = difflib.unified_diff(normalize_text(backup1.backup_text or '').splitlines(),
+                                normalize_text(backup2.backup_text or '').splitlines(),
+                                fromfile=backup1.backup_text_hash[:16] + '...',
+                                tofile=backup2.backup_text_hash[:16] + '...',
+                                lineterm='', n=show_lines)
+    diff_str = '\n'.join(list(diff))
+
+    context = {
+        'backup1': backup1,
+        'backup2': backup2,
+        'diff_str': diff_str,
+        'page_title': 'Compare Backups',
+        'show_all': show_all
+    }
+
+    return render(request, 'backup/compare_backups.html', context)
+
+
+def backup_moment(backup) -> str:
+    """When the configuration of a backup was read from the device. A backup that
+    was retrieved from the router afterwards has a finish_time, one that failed
+    early has only the time it was created.
+    """
+    moment = backup.finish_time or backup.created
+    if moment is None:
+        return ''
+    if timezone.is_aware(moment):
+        moment = timezone.localtime(moment)
+    return moment.strftime('%Y-%m-%d %H:%M')
+
+
+@login_required()
+def view_backup_config_change(request):
+    """What a backup changed, as the JSON the popup shows.
+
+    The backup is compared against the one before it — the one it is a change of,
+    which is why only backups that carry a change are linked to this view.
+    """
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
+        return JsonResponse({'error': 'You are not allowed to see backups.'}, status=403)
+
+    backup = RouterBackup.objects.filter(uuid=request.GET.get('uuid')).first()
+    if backup is None:
+        return JsonResponse({'error': 'Backup not found.'}, status=404)
+
+    previous = backup.previous_backup()
+    if previous is None:
+        return JsonResponse({
+            'error': 'Nothing to compare this backup with. It is the first backup that '
+                     'brought a configuration of this device.',
+        }, status=404)
+
+    diff = difflib.unified_diff(normalize_text(previous.backup_text or '').splitlines(),
+                                normalize_text(backup.backup_text or '').splitlines(),
+                                fromfile=previous.backup_text_hash[:16] + '...',
+                                tofile=backup.backup_text_hash[:16] + '...',
+                                lineterm='', n=3)
+
+    return JsonResponse({
+        'router': backup.router.name,
+        'previous': {
+            'id': previous.id,
+            'uuid': str(previous.uuid),
+            'date': backup_moment(previous),
+        },
+        'backup': {
+            'id': backup.id,
+            'uuid': str(backup.uuid),
+            'date': backup_moment(backup),
+        },
+        'compare_url': f'/backup/compare/?uuid={previous.uuid}&compare_uuid={backup.uuid}',
+        'diff': '\n'.join(diff),
+    })
+
+
+def view_debug_run_backups(request):
+    data = {
+        'backup_count': 0,
+    }
+    if settings.DEBUG:
+        for backup in RouterBackup.objects.filter(success=False, error=False):
+            data['backup_count'] += 1
+            perform_backup(backup)
+    else:
+        data['error'] = 'Debug mode is not enabled'
+    return JsonResponse(data)
+
+
+@login_required()
+def view_backup_download(request):
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
+    if request.GET.get('type') == 'text':
+        response = HttpResponse(backup.backup_text, content_type='text/plain')
+        if backup.backup_text_filename:
+            filename = backup.backup_text_filename
+        else:
+            filename = gen_backup_name(backup)
+            filename += f'.missing_backup_name.{get_router_backup_file_extension(backup.router.router_type)["text"]}'
+        print(filename)
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
+    elif request.GET.get('type') == 'binary':
+        response = FileResponse(backup.backup_binary, as_attachment=True)
+        return response
+    else:
+        raise Http404
+
+
+@login_required()
+def view_backup_delete(request):
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=30).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
+    router = backup.router
+    redirect_url = f'/router/details/?uuid={backup.router.uuid}'
+    if request.GET.get('confirmation') == f'delete{backup.id}':
+        backup.delete()
+        messages.success(request, 'Backup deleted successfully')
+        if router.routerstatus.backup_lock:
+            if not RouterBackup.objects.filter(router=router, success=False, error=False).exists():
+                router.routerstatus.backup_lock = None
+                router.routerstatus.save()
+        return redirect(redirect_url)
+    else:
+        messages.warning(request, 'Backup not deleted|Invalid confirmation')
+        return redirect(f'/backup/backup_details/?uuid={backup.uuid}')

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class='row'>
+        <div class='col-lg-12'>
+            <div class="card card-primary card-outline">
+                {% if page_title %}
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                {% endif %}
+                <div class="card-body">
+                    {% include 'backup/backup_nav_tabs.html' %}
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <table class="table table-hover datatables-no-export">
+                                <thead>
+                                <tr>
+                                    <th class="min-width">ID</th>
+                                    <th>Router</th>
+                                    <th>Address</th>
+                                    <th>Schedule Type</th>
+                                    <th>Task Created</th>
+                                    <th>Finish Time</th>
+                                    <th class="min-width" title="Whether this backup brought a different configuration than the one before it">Config Change</th>
+                                    <th class="min-width" title="Backup hash"><i class="fas fa-code-branch" title="Configuration has changed"></i></th>
+                                    <th class="min-width">Status</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for backup in backup_list %}
+                                    <tr>
+                                        <td class="min-width">
+                                            <a href="/backup/backup_details/?uuid={{ backup.uuid }}">
+                                            {{ backup.id }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="/router/details/?uuid={{ backup.router.uuid }}">
+                                                {{ backup.router.name }}
+                                            </a>
+                                        </td>
+                                    <td>{{ backup.router.address }}</td>
+                                    <td>{{ backup.get_schedule_type_display }}</td>
+                                    <td>{{ backup.created|default_if_none:"" }}</td>
+                                    <td>{% if backup.finish_time %}{{ backup.finish_time }}{% else %}
+                                        <i class="far fa-clock text-warning"></i>{% endif %}</td>
+
+                                    <td class="min-width">
+                                        {% if backup.config_change_detected %}
+                                            <a href="#" class="config-change-link" data-uuid="{{ backup.uuid }}"
+                                               title="Show what this backup changed">
+                                                <i class="fas fa-code-branch"></i> Changed
+                                            </a>
+                                        {% else %}
+                                            ---
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="min-width">
+                                        {% if backup.backup_text_hash %}
+                                        <a href="#" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":12" }}...</a>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="min-width" style="text-align: center;">
+                                        {% if backup.success %}
+                                            <i class="far fa-check-circle text-success"></i>
+                                        {% elif backup.error %}
+                                            <i class="far fa-times-circle text-danger"
+                                               title="{{ backup.error_message }}"></i>
+                                        {% elif backup.backup_pending_retrieval %}
+                                            <i class="fas fa-cloud-download-alt text-info"
+                                               title="Backup pending Retrieval"></i>
+                                        {% else %}
+                                            <i class="far fa-clock text-warning"></i>
+                                        {% endif %}
+                                    </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                    </div>
+                    
+
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

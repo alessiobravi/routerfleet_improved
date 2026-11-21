@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class='row'>
+        <div class='col-lg-8'>
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">{{ task.job }}</h3>
+                </div>
+                <div class="card-body row">
+                    <div class="col-lg-12">
+                        <ul class="list-group list-group-unbordered mb-3">
+                            <li class="list-group-item">
+                                <b>Job</b>
+                                <span class="float-right">
+                                <a href="/fleet_commander/job/details/?uuid={{ task.job.uuid }}">
+                                    {{ task.job }}
+                                </a>
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Router</b>
+                                <span class="float-right">
+                                {% comment %}
+                                    The same place the router list leads to: the settings of the
+                                    device, with its address on them
+                                {% endcomment %}
+                                {% if task.router %}
+                                    <a href="/router/details/?uuid={{ task.router.uuid }}">{{ task.router.name }}</a>
+                                {% else %}
+                                    {{ task.router_name|default_if_none:task.router_uuid }}
+                                {% endif %}
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Variant</b>
+                                <span class="float-right">{{ task.command_variant|default_if_none:"—" }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Status</b>
+                                <span class="float-right">
+                                {% if task.status == 'success' %}
+                                    <span class="badge badge-success">{{ task.get_status_display }}</span>
+                                {% elif task.status == 'error' %}
+                                    <span class="badge badge-danger">{{ task.get_status_display }}</span>
+                                {% elif task.status == 'aborted' %}
+                                    <span class="badge badge-secondary">{{ task.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge badge-warning">{{ task.get_status_display }}</span>
+                                {% endif %}
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Verified</b>
+                                <span class="float-right">
+                                {% if task.verified %}
+                                    <i class="far fa-check-circle text-success"
+                                       title="The router answered as expected"></i>
+                                {% elif task.verify_deadline %}
+                                    <i class="fas fa-search text-info"
+                                       title="Waiting for the verification to match"></i>
+                                {% else %}
+                                    <i class="far fa-minus-circle text-muted"
+                                       title="No verification defined for this command"></i>
+                                {% endif %}
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Retry Count</b>
+                                <span class="float-right">{{ task.retry_count }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Next Retry</b>
+                                <span class="float-right">{{ task.next_retry|default_if_none:"—" }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Started</b>
+                                <span class="float-right">{{ task.started_at|default_if_none:"—" }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Finished</b>
+                                <span class="float-right">{{ task.finished_at|default_if_none:"—" }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Created</b>
+                                <span class="float-right">{{ task.created }}</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            {% if task.command_payload %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">Command Payload</h3>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0">{{ task.command_payload }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if task.command_executed %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">Command Executed</h3>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0">{{ task.command_executed }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if task.command_output %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">Command Output</h3>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0">{{ task.command_output }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if verification_expectations or task.verification_output %}
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">Verification</h3>
+                        <span class="float-right">
+                            {% if task.verify_deadline %}
+                                Attempt {{ task.verification_attempts }} until {{ task.verify_deadline }}
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        {% if task.command_variant.verify_payload %}
+                            <p class="mb-1"><b>Verification Commands</b></p>
+                            <pre class="mb-3">{{ task.command_variant.verify_payload }}</pre>
+                        {% endif %}
+                        {% if verification_expectations %}
+                            <p class="mb-1"><b>Expected Result</b></p>
+                            <ul class="mb-3">
+                                {% for expectation in verification_expectations %}
+                                    <li>
+                                        <code>{{ expectation.0 }}</code>
+                                        {% if expectation.1 != expectation.0 %}
+                                            <span class="text-muted">checked as <code>{{ expectation.1 }}</code></span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        {% if task.verification_output %}
+                            <p class="mb-1"><b>Output</b></p>
+                            <pre class="mb-0">{{ task.verification_output }}</pre>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if task.error_message %}
+                <div class="card {% if task.status == 'aborted' %}card-secondary{% else %}card-danger{% endif %} card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            {% if task.status == 'aborted' %}Aborted{% else %}Error Message{% endif %}
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <pre class="mb-0">{{ task.error_message }}</pre>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <a href="/fleet_commander/job/details/?uuid={{ task.job.uuid }}" class="btn btn-secondary">Back</a>
+            {% if task.status == 'pending' %}
+                <a href="javascript:void(0)" class="btn btn-outline-danger"
+                   onclick="abortTask('{{ task.uuid }}')"
+                   title="Stops this task. A command that is already running on the router is not interrupted, the task stops before its next command.">
+                    <i class="fas fa-hand-paper"></i> Abort Task
+                </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    // A command that is already running on the router is not interrupted, the
+    // task stops before the next command or verification
+    function abortTask(uuid) {
+        var confirmation = prompt("Please type 'abort' to proceed.");
+        if (confirmation !== null) {
+            window.location.href = "/fleet_commander/task/abort/?uuid=" + uuid +
+                "&confirmation=" + encodeURIComponent(confirmation);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block page_custom_head %}
+    <link rel="stylesheet" type="text/css" href="/static/plugins/diff2html/diff2html.min.css"/>
+    <script type="text/javascript" src="/static/plugins/diff2html/diff2html.min.js"></script>
+
+    <style>
+        .d2h-file-list-wrapper {
+            display: none;
+        }
+
+        .d2h-file-header {
+            display: none;
+        }
+    </style>
+
+{% endblock %}
+
+{% block content %}
+
+    <div class='row'>
+        <div class='col-xl-12'>
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <a href="/router/details/?uuid={{ backup1.router.uuid }}">{{ backup1.router }}</a> -
+                        Comparing backup
+                        <a href="/backup/backup_details/?uuid={{ backup1.uuid }}" title="hash: {{ backup1.backup_text_hash }}">{{ backup1.id }}</a>
+                        with
+                        <a href="/backup/backup_details/?uuid={{ backup2.uuid }}" title="hash: {{ backup2.backup_text_hash }}">{{ backup2.id }}</a>
+                    </h3>
+                </div>
+                <div class="card-body row">
+                    <div class="col-lg-12">
+                        <button class="btn btn-outline-primary" onclick="renderDiff('side-by-side')">Side by Side
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="renderDiff('inline')">Inline</button>
+                        <a class="btn btn-outline-primary"
+                           href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}">Diff only</a>
+                        <a class="btn btn-outline-primary"
+                           href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&display=all">Complete file</a>
+                        <div id="diff-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+{% endblock %}
+
+{% block custom_page_scripts %}
+    {{ diff_str|json_script:"diff-data" }}
+    <script type="text/javascript">
+        // Read as data, not written into the script: a configuration line can hold
+        // anything, a backtick or a closing script tag included
+        var diffString = JSON.parse(document.getElementById('diff-data').textContent);
+        function renderDiff(viewType) {
+            var targetElement = document.getElementById('diff-container');
+            var processedDiffString = diffString.split('\n').filter(line => {
+                return !line.startsWith('--- a/') && !line.startsWith('+++ b/');
+            }).join('\n');
+            var configuration = {
+                inputFormat: 'diff',
+                showFiles: false,
+                matching: 'lines',
+                outputFormat: viewType,
+            };
+
+            var diffHtml = Diff2Html.html(processedDiffString, configuration);
+            targetElement.innerHTML = diffHtml;
+        }
+        //renderDiff('inline');
+        renderDiff('side-by-side');
+    </script>
+{% endblock %}

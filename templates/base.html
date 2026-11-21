@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page_title %}{{ page_title }} | {% endif %}routerfleet</title>
+
+    <!-- Google Font: Source Sans Pro -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/fontawesome-free/css/all.min.css">
+    <!-- DataTables -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+    <!-- Ionicons -->
+    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <!-- Tempusdominus Bootstrap 4 -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css">
+    <!-- iCheck -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/icheck-bootstrap/icheck-bootstrap.min.css">
+    <!-- JQVMap -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/jqvmap/jqvmap.min.css">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/dist/css/adminlte.min.css">
+    <!-- overlayScrollbars -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
+    <!-- Daterange picker -->
+    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/daterangepicker/daterangepicker.css">
+    <!-- chosen -->
+    <link rel="stylesheet" href="/static/plugins/chosen/bootstrap-chosen.css">
+
+    <style>
+        .dataTables_filter, .dataTables_length{
+            padding-top: 10px;
+        }
+        .datatables-with-export, .datatables-no-export{
+            display: none;
+        }
+        .min-width {
+            width: 1%;
+            white-space: nowrap;
+        }
+        .preloader{
+            display: none;
+        }
+    </style>
+
+    {% block page_custom_head %}{% endblock%}
+</head>
+{% load custom_tags %}
+{% tag_webadmin_version as webadmin_version %}
+
+<body class="hold-transition sidebar-mini layout-fixed {% if request.COOKIES.sidebarState == 'collapsed' %}sidebar-collapse{% endif %}">
+<div class="wrapper">
+
+    <!-- Preloader -->
+    <div class="preloader flex-column justify-content-center align-items-center">
+    </div>
+
+    <!-- Navbar -->
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+        <!-- Left navbar links -->
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+            </li>
+            <li class="nav-item d-none d-sm-inline-block">
+                <a href="/" class="nav-link">Home</a>
+            </li>
+            <li class="nav-item d-none d-sm-inline-block">
+                <a href="/status/" class="nav-link">Status</a>
+            </li>
+        </ul>
+
+        <!-- Right navbar links -->
+        <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a href="/user/settings/" class="nav-link" title="My Settings">
+                    <i class="fas fa-user-cog"></i>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="/accounts/logout/" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <!-- /.navbar -->
+
+    <!-- Main Sidebar Container -->
+    <aside class="main-sidebar sidebar-dark-primary elevation-4">
+        <!-- Brand Logo -->
+        <a href="/" class="brand-link">
+            <span class="brand-text font-weight-light">routerfleet</span>
+        </a>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Sidebar Menu -->
+            <nav class="mt-2">
+                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    <!-- Add icons to the links using the .nav-icon class with font-awesome or any other icon font library -->
+                    <li class="nav-item">
+                        <a href="/" class="nav-link {% if '/' == request.path %}active{% endif %}">
+                            <i class="fas fa-home nav-icon"></i>
+                            <p>
+                                Home
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/status/" class="nav-link {% if '/status/' in request.path %}active{% endif %}">
+                            <i class="fas fa-tachometer-alt nav-icon"></i>
+                            <p>
+                                Status
+                            </p>
+                        </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                        <a href="/router/list/" class="nav-link {% if '/router/' in request.path %}active{% endif %}">
+                            <i class="fas fa-network-wired nav-icon"></i>
+                            <p>
+                                Router Manager
+                            </p>
+                        </a>
+                    </li>
+
+
+                    <li class="nav-item">
+                        <a href="/backup/profile_list/" class="nav-link {% if '/backup/' in request.path %}active{% endif %}">
+                            <i class="fas fa-box-open"></i>
+                            <p>
+                                Backup
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/fleet_commander/"
+                            class="nav-link {% if '/fleet_commander/' in request.path %}active{% endif %}">
+                            <i class="fas fa-terminal nav-icon"></i>
+                            <p>
+                                Fleet Commander
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/user/list/" class="nav-link {% if '/user/' in request.path %}active{% endif %}">
+                            <i class="fas fa-users nav-icon"></i>
+                            <p>
+                                User Manager
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/message_center/channel_list/" class="nav-link {% if '/message_center/' in request.path %}active{% endif %}">
+                            <i class="far fa-envelope nav-icon"></i>
+                            <p>
+                                Message Center
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/wireguard_webadmin/" class="nav-link {% if '/wireguard_webadmin/' in request.path %}active{% endif %}">
+                            <i class="fas fa-project-diagram nav-icon"></i>
+                            <p>
+                                WireGuard WebAdmin
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/audit_log/login_history/" class="nav-link {% if '/audit_log/' in request.path %}active{% endif %}">
+                            <i class="fas fa-clipboard-list nav-icon"></i>
+                            <p>
+                                Audit Log
+                            </p>
+                        </a>
+                    </li>
+
+                </ul>
+            </nav>
+            <!-- /.sidebar-menu -->
+        </div>
+        <!-- /.sidebar -->
+    </aside>
+
+    <!-- Content Wrapper. Contains page content -->
+    <div class="content-wrapper">
+        <!-- Content Header (Page header) -->
+        <div class="content-header">
+            <div class="container-fluid">
+
+            </div><!-- /.container-fluid -->
+        </div>
+        <!-- /.content-header -->
+
+        <!-- Generic Modal Structure -->
+        <div class="modal fade" id="genericModal" tabindex="-1" aria-labelledby="genericModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="genericModalLabel">Modal Title</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="genericModalBody">
+                        <!-- Content will be loaded here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="genericModalCloseButton">Close</button>
+                        <a href="#" class="btn btn-primary" id="genericModalActionButton">Action</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- End modal -->
+
+        <!-- Main content -->
+
+
+
+
+        <section class="content">
+            <div class="container-fluid">
+                {% block content %}{% endblock %}
+            </div><!-- /.container-fluid -->
+        </section>
+        <!-- /.content -->
+    </div>
+    <!-- /.content-wrapper -->
+    <footer class="main-footer">
+        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-danger' id="btn_update_changelog">Update Available</a>{% else %}routerfleet {% endif %}
+        <div class="float-right d-none d-sm-inline-block">
+            <b>Version</b> {{ webadmin_version.current_version }}
+        </div>
+    </footer>
+
+    <!-- Control Sidebar -->
+    <aside class="control-sidebar control-sidebar-dark">
+        <!-- Control sidebar content goes here -->
+    </aside>
+    <!-- /.control-sidebar -->
+</div>
+<!-- ./wrapper -->
+
+<!-- jQuery -->
+<script src="/static/AdminLTE-3.2.0/plugins/jquery/jquery.min.js"></script>
+<!-- jQuery UI 1.11.4 -->
+<script src="/static/AdminLTE-3.2.0/plugins/jquery-ui/jquery-ui.min.js"></script>
+<!-- Resolve conflict in jQuery UI tooltip with Bootstrap tooltip -->
+<script>
+    $.widget.bridge('uibutton', $.ui.button)
+</script>
+<!-- Bootstrap 4 -->
+<script src="/static/AdminLTE-3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<!-- ChartJS -->
+<script src="/static/AdminLTE-3.2.0/plugins/chart.js/Chart.min.js"></script>
+<!-- Sparkline -->
+<script src="/static/AdminLTE-3.2.0/plugins/sparklines/sparkline.js"></script>
+<!-- JQVMap -->
+<script src="/static/AdminLTE-3.2.0/plugins/jqvmap/jquery.vmap.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/jqvmap/maps/jquery.vmap.usa.js"></script>
+<!-- jQuery Knob Chart -->
+<script src="/static/AdminLTE-3.2.0/plugins/jquery-knob/jquery.knob.min.js"></script>
+<!-- daterangepicker -->
+<script src="/static/AdminLTE-3.2.0/plugins/moment/moment.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/daterangepicker/daterangepicker.js"></script>
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="/static/AdminLTE-3.2.0/plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+{% comment %}<!-- Summernote -->
+<script src="/static/AdminLTE-3.2.0/plugins/summernote/summernote-bs4.min.js"></script>
+{% endcomment %}
+<!-- overlayScrollbars -->
+<script src="/static/AdminLTE-3.2.0/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js"></script>
+<!-- DataTables  & Plugins -->
+<script src="/static/AdminLTE-3.2.0/plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/jszip/jszip.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/pdfmake/pdfmake.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/pdfmake/vfs_fonts.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="/static/AdminLTE-3.2.0/plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+<!-- AdminLTE App -->
+<script src="/static/AdminLTE-3.2.0/dist/js/adminlte.js"></script>
+<!-- chosen -->
+<script src="/static/plugins/chosen/chosen.jquery.min.js"></script>
+{% comment %}<script src="/static/AdminLTE-3.2.0/dist/js/pages/dashboard.js"></script>{% endcomment %}
+<script>
+    $('.selectmultiple').chosen();
+    $('.select').chosen();
+</script>
+<script>
+    var dataTable;
+    $(function () {
+        $(".datatables-with-export").DataTable({
+            "responsive": true, "lengthChange": false, "autoWidth": false,
+            "buttons": ["copy", "csv", "excel", "pdf", "print", "colvis"]
+        }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
+        dataTable = $('.datatables-no-export').DataTable({
+            "paging": true,
+            "lengthChange": true,
+            "searching": true,
+            "ordering": true,
+            "order": [],
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+            "columnDefs": [
+                { "orderable": false, "targets": [ 0, -1 ] }
+            ]
+        });
+    });
+    $('.datatables-with-export').show();
+    $('.datatables-no-export').show();
+</script>
+<script>
+    $(document).ready(function() {
+        const webadminVersion = '{{ webadmin_version.current_version }}';
+        const changelogUrl = '{{ webadmin_version.changelog_url|escapejs }}';
+        $('#btn_update_changelog').on('click', function() {
+            if (!changelogUrl) {
+                // No changelog endpoint configured for this installation, so
+                // there is nothing to fetch and nothing to show.
+                return;
+            }
+            $.ajax({
+                url: `${changelogUrl}${changelogUrl.includes('?') ? '&' : '?'}app=routerfleet&version=${webadminVersion}`,
+                type: 'GET',
+                success: function(response) {
+                    const updates = response.updates.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
+                    let updatesHtml = '';
+                    updates.forEach(update => {
+                        updatesHtml += `<div class="update">
+                                        <h5>Version ${update.version}</h5>
+                                        <p>${update.release_notes.replace(/\r\n/g, "<br>")}</p>
+                                    </div>`;
+                    });
+
+                    // Update modal content
+                    $('#genericModalLabel').text('routerfleet Updates');
+                    $('#genericModalBody').html(updatesHtml);
+                    $('#genericModalCloseButton').text('Close');
+                    $('#genericModalActionButton').text('Update Instructions').attr('href', '{% tag_project_repository_url %}').attr('target', '_blank');
+
+                    // Show modal
+                    $('#genericModal').modal('show');
+                },
+                error: function(xhr, status, error) {
+                    // Update modal for error display
+                    $('#genericModalLabel').text('Error');
+                    $('#genericModalBody').html('<p>An error occurred while fetching the update information. Please try again later.</p>');
+                    $('#genericModalCloseButton').text('Close');
+                    $('#genericModalActionButton').hide(); // Hide the action button in case of error
+
+                    // Show modal
+                    $('#genericModal').modal('show');
+                    console.error("An error occurred while fetching updates: ", error);
+                }
+            });
+        });
+    });
+
+
+</script>
+
+<script>
+    function setCookie(name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days*24*60*60*1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+    }
+</script>
+
+
+
+<script>
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0;i < ca.length;i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1,c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        }
+        return null;
+    }
+</script>
+
+<script>
+    $(document).ready(function() {
+        var sidebarState = getCookie('sidebarState');
+        if (sidebarState === 'collapsed') {
+            $('body').addClass('sidebar-collapse');
+        }
+
+        $('[data-widget="pushmenu"]').on('click', function(event) {
+            event.preventDefault();
+            setTimeout(function() {
+                if ($('body').hasClass('sidebar-collapse')) {
+                    setCookie('sidebarState', 'collapsed', 7);
+                } else {
+                    setCookie('sidebarState', 'opened', 7);
+                }
+            }, 500);
+        });
+    });
+</script>
+
+
+{% include "template_messages.html" %}
+
+<style>
+    /* The popup of a configuration change shows the lines of the diff, not the
+       name of the file, and a configuration line can be wider than the popup */
+    #genericModalBody .d2h-file-header,
+    #genericModalBody .d2h-file-list-wrapper {
+        display: none;
+    }
+
+    #genericModalBody {
+        overflow-x: auto;
+    }
+
+    /* A change in the audit trail can hold a whole command payload, and a payload
+       has lines that are longer than the popup */
+    #genericModalBody .audit-change-value {
+        word-break: break-word;
+    }
+</style>
+
+<script>
+    // What a configuration change was, in the generic popup. Everything that
+    // shows such a change links to it with class="config-change-link" and the
+    // uuid of the backup in data-uuid, so no page leaves the page.
+    var diff2HtmlState = 'not loaded';
+    var pendingDiff = null;
+
+    function withDiff2Html(callback) {
+        // diff2html is only needed when somebody asks what changed, so it is
+        // fetched on the first click instead of on every page
+        if (diff2HtmlState === 'loaded') {
+            callback();
+            return;
+        }
+        pendingDiff = callback;
+        if (diff2HtmlState === 'loading') {
+            return;
+        }
+        diff2HtmlState = 'loading';
+        $('<link rel="stylesheet" type="text/css" href="/static/plugins/diff2html/diff2html.min.css"/>')
+            .appendTo(document.head);
+        // The closing tag is written with a backslash in front of its slash, and
+        // that is not a style choice: an inline script ends at the first literal
+        // "</script" wherever it stands, inside a string as well. Written plain,
+        // the browser ended this block right here, the rest of it was shown as
+        // text at the bottom of every page, and the popup never got defined.
+        $('<script type="text/javascript" src="/static/plugins/diff2html/diff2html.min.js"><\/script>')
+            .on('load', function () {
+                diff2HtmlState = 'loaded';
+                if (pendingDiff) {
+                    pendingDiff();
+                }
+            })
+            .appendTo(document.head);
+    }
+
+    function showConfigChange(uuid) {
+        $('#genericModalLabel').text('Configuration change');
+        $('#genericModalBody').html('<p class="text-muted">Loading…</p>');
+        $('#genericModalCloseButton').text('Close');
+        $('#genericModalActionButton').hide();
+        $('#genericModal').modal('show');
+
+        $.ajax({
+            url: '/backup/config_change/?uuid=' + encodeURIComponent(uuid),
+            type: 'GET',
+            success: function (response) {
+                $('#genericModalLabel').text('Configuration change of ' + response.router);
+                $('#genericModalActionButton')
+                    .text('Open the full comparison')
+                    .attr('href', response.compare_url)
+                    // The update popup opens its link in a new tab, this one belongs here
+                    .attr('target', '_self')
+                    .show();
+                withDiff2Html(function () {
+                    var header = $('<p class="text-muted"></p>').text(
+                        'Backup ' + response.previous.id + ' of ' + response.previous.date
+                        + ' → backup ' + response.backup.id + ' of ' + response.backup.date);
+                    var diffHtml = Diff2Html.html(response.diff, {
+                        inputFormat: 'diff', showFiles: false, matching: 'lines',
+                        outputFormat: 'side-by-side',
+                    });
+                    $('#genericModalBody').empty().append(header).append(diffHtml);
+                });
+            },
+            error: function (xhr) {
+                var message = 'The change could not be loaded.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    message = xhr.responseJSON.error;
+                }
+                $('#genericModalLabel').text('Configuration change');
+                $('#genericModalBody').empty().append(
+                    $('<p class="text-muted"></p>').text(message));
+            }
+        });
+    }
+
+    $(document).on('click', '.config-change-link', function (event) {
+        event.preventDefault();
+        showConfigChange($(this).attr('data-uuid'));
+    });
+    // End of the configuration change popup
+</script>
+
+<script>
+    // What an entry of the change log was, field by field, in the same generic
+    // popup. Each row links to it with class="audit-change-link" and the uuid of
+    // the entry in data-uuid, so nothing leaves the page.
+    function auditValue(value) {
+        if (value === true) {
+            return 'yes';
+        }
+        if (value === false) {
+            return 'no';
+        }
+        if (value === null || value === undefined) {
+            return '';
+        }
+        if (Array.isArray(value)) {
+            return value.join(', ');
+        }
+        return String(value);
+    }
+
+    function auditActor(response) {
+        if (!response.actor) {
+            return response.actor_kind ? 'by ' + response.actor_kind : '';
+        }
+        if (response.level === null || response.level === undefined) {
+            return 'by ' + response.actor;
+        }
+        return 'by ' + response.actor + ' (level ' + response.level + ')';
+    }
+
+    function auditAddress(response) {
+        if (!response.ip) {
+            return '';
+        }
+        var text = 'from ' + response.ip;
+        if (response.forwarded && response.forwarded !== response.ip) {
+            text += ' (' + response.forwarded + ')';
+        }
+        if (response.user_agent) {
+            text += ' — ' + response.user_agent;
+        }
+        return text;
+    }
+
+    function showAuditChange(uuid) {
+        $('#genericModalLabel').text('Change');
+        $('#genericModalBody').html('<p class="text-muted">Loading…</p>');
+        $('#genericModalCloseButton').text('Close');
+        $('#genericModalActionButton').hide();
+        $('#genericModal').modal('show');
+
+        $.ajax({
+            url: '/audit_log/change_detail/?uuid=' + encodeURIComponent(uuid),
+            type: 'GET',
+            success: function (response) {
+                $('#genericModalLabel').text(response.action + ' ' + response.model);
+                var body = $('#genericModalBody').empty();
+
+                var headline = [];
+                if (response.object) {
+                    headline.push(response.object);
+                }
+                var actor = auditActor(response);
+                if (actor) {
+                    headline.push(actor);
+                }
+                headline.push(response.moment);
+                body.append($('<p class="text-muted"></p>').text(headline.join(' · ')));
+
+                var address = auditAddress(response);
+                if (address) {
+                    body.append($('<p class="text-muted"></p>').text(address));
+                }
+
+                if (!response.changes.length) {
+                    // A bulk entry counts rows instead of naming fields, and a
+                    // deletion of something that had nothing set has none either
+                    body.append($('<p class="text-muted"></p>').text(
+                        response.count
+                            ? response.count + ' rows were affected.'
+                            : 'Nothing was recorded for this entry.'));
+                    return;
+                }
+
+                var table = $('<table class="table table-sm"></table>');
+                var head = $('<tr></tr>');
+                ['Field', 'Before', 'After'].forEach(function (title) {
+                    head.append($('<th></th>').text(title));
+                });
+                table.append($('<thead></thead>').append(head));
+                var rows = $('<tbody></tbody>');
+                response.changes.forEach(function (change) {
+                    var row = $('<tr></tr>');
+                    // Text only, never markup: a router named <script> is a name
+                    row.append($('<td class="audit-change-value"></td>').text(change.field));
+                    row.append($('<td class="audit-change-value"></td>').text(auditValue(change.old)));
+                    row.append($('<td class="audit-change-value"></td>').text(auditValue(change.new)));
+                    rows.append(row);
+                });
+                table.append(rows);
+                body.append(table);
+            },
+            error: function (xhr) {
+                var message = 'The change could not be loaded.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    message = xhr.responseJSON.error;
+                }
+                $('#genericModalLabel').text('Change');
+                $('#genericModalBody').empty().append(
+                    $('<p class="text-muted"></p>').text(message));
+            }
+        });
+    }
+
+    $(document).on('click', '.audit-change-link', function (event) {
+        event.preventDefault();
+        showAuditChange($(this).attr('data-uuid'));
+    });
+    // End of the audit change popup
+</script>
+
+{% block custom_page_scripts %}
+
+{% endblock %}
+
+</body>
+</html>

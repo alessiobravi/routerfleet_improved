@@ -1,0 +1,90 @@
+services:
+  routerfleet-postgres:
+    container_name: routerfleet-postgres
+    restart: unless-stopped
+    image: postgres:16
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=${TIMEZONE}
+
+  routerfleet:
+    container_name: routerfleet
+    restart: unless-stopped
+    build:
+      context: .
+    environment:
+      - SERVER_ADDRESS=${SERVER_ADDRESS}
+      - DEBUG_MODE=${DEBUG_MODE}
+      - DATABASE_ENGINE=${DATABASE_ENGINE}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - TZ=${TIMEZONE}
+      - COMPOSE_VERSION=08a
+      - COMPOSE_TYPE=with-postgres
+
+    volumes:
+      - sqlite_volume:/var/lib/routerfleet_sqlite/
+      - media_root:/var/lib/routerfleet/
+      - static_volume:/app_static_files/
+      - app_secrets:/app_secrets/
+    command: /bin/bash /app/init.sh
+    depends_on:
+      - routerfleet-postgres
+
+  routerfleet-cron:
+    container_name: routerfleet-cron
+    restart: unless-stopped
+    build:
+      context: ./containers/cron
+      dockerfile: Dockerfile-cron
+    environment:
+      - TZ=${TIMEZONE}
+    depends_on:
+      - routerfleet
+
+  routerfleet-monitoring:
+    container_name: routerfleet-monitoring
+    restart: unless-stopped
+    build:
+      context: ./containers/monitoring
+      dockerfile: Dockerfile-monitoring
+    environment:
+      - TZ=${TIMEZONE}
+    volumes:
+      - app_secrets:/app_secrets/
+    depends_on:
+      - routerfleet
+
+  routerfleet-nginx:
+    container_name: routerfleet-nginx
+    restart: unless-stopped
+    image: nginx:alpine
+    build:
+      context: ./containers/nginx
+      dockerfile: Dockerfile-nginx
+    environment:
+      - HTTPS_REDIRECT_POLICY=${HTTPS_REDIRECT_POLICY}
+      - TZ=${TIMEZONE}
+    volumes:
+      - static_volume:/static
+      - https_cert:/certificate
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - routerfleet
+
+volumes:
+  static_volume:
+  https_cert:
+  media_root:
+  postgres_data:
+  sqlite_volume:
+  app_secrets:

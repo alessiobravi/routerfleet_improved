@@ -1,0 +1,1019 @@
+{% extends 'base.html' %}
+{% load router_tags %}
+
+
+{% block page_custom_head %}
+    <style>
+        /* The filter of a column sits in its header cell, under the title */
+        .router-column-filter-box {
+            margin-top: .4rem;
+        }
+        .router-column-filter {
+            min-width: 5rem;
+            font-weight: 400;
+        }
+        /* The address of a router opens SSH and/or Winbox, see the address cell */
+        .address-dropdown:hover .dropdown-menu {
+            display: block;
+        }
+        /*
+         * The labels of the two entries come from the attribute, not from text in
+         * the cell: the export and the column filter read the text of a cell, and
+         * an address cell that carries the words 'SSH Winbox' would show them in
+         * the CSV and match a search for them.
+         */
+        .address-dropdown .dropdown-item::after {
+            content: attr(data-label);
+        }
+        /* A filter whose regular expression does not compile yet */
+        .router-column-filter.is-invalid,
+        .dataTables_filter input.is-invalid {
+            border-color: #dc3545;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+    <div class='row'>
+        <div class='col-lg-12'>
+            <div class="card card-primary card-outline">
+                {% if page_title %}
+                    <div class="card-header">
+                        <h3 class="card-title">{{ page_title }}</h3>
+                    </div>
+                {% endif %}
+                <div class="card-body">
+                    {% include 'router_manager/router_nav_tabs.html' %}
+
+                    <!-- Column Visibility Modal -->
+                    <div class="modal fade" id="columnVisibilityModal" tabindex="-1" role="dialog" aria-labelledby="columnVisibilityModalLabel" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="columnVisibilityModalLabel">Show/Hide Columns</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div id="columnCheckboxes">
+                                        <!-- Checkboxes will be added here dynamically -->
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-danger" id="resetColumnVisibility">Reset</button>
+                                    <button type="button" class="btn btn-primary" id="applyColumnVisibility">Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <table class="table table-hover datatables-no-export">
+                                <thead>
+                                <tr>
+                                    <th></th>
+                                    {% if "name" in visible_columns %}
+                                    <th data-column="name">Name</th>
+                                    {% endif %}
+                                    {% if "type" in visible_columns %}
+                                    <th data-column="type">Type</th>
+                                    {% endif %}
+                                    {% if "address" in visible_columns %}
+                                    <th data-column="address">Address</th>
+                                    {% endif %}
+                                    {% if "status" in visible_columns %}
+                                    <th data-column="status">Status</th>
+                                    {% endif %}
+                                    {% if "backup" in visible_columns %}
+                                    <th data-column="backup">Backup</th>
+                                    {% endif %}
+                                    {% if "last_backup" in visible_columns %}
+                                    <th data-column="last_backup">Last Backup</th>
+                                    {% endif %}
+                                    {% if "last_config_change" in visible_columns %}
+                                    <th data-column="last_config_change">Last Config Change</th>
+                                    {% endif %}
+                                    {% if "next_daily_backup" in visible_columns %}
+                                    <th data-column="next_daily_backup">Next Daily Backup</th>
+                                    {% endif %}
+                                    {% if "next_weekly_backup" in visible_columns %}
+                                    <th data-column="next_weekly_backup">Next Weekly Backup</th>
+                                    {% endif %}
+                                    {% if "next_monthly_backup" in visible_columns %}
+                                    <th data-column="next_monthly_backup">Next Monthly Backup</th>
+                                    {% endif %}
+                                    {% if "lock_information" in visible_columns %}
+                                        <th data-column="lock_information">Backup Lock</th>
+                                        <th data-column="lock_information">Command Lock</th>
+                                    {% endif %}
+                                    {% if "groups" in visible_columns %}
+                                    <th data-column="groups">Groups</th>
+                                    {% endif %}
+                                    {% if "auth" in visible_columns %}
+                                    <th data-column="auth">Auth</th>
+                                    {% endif %}
+                                    {% if "os_version" in visible_columns %}
+                                    <th data-column="os_version">OS Version</th>
+                                    {% endif %}
+                                    {% if "model_name" in visible_columns %}
+                                    <th data-column="model_name">Model Name</th>
+                                    {% endif %}
+                                    {% if "model_version" in visible_columns %}
+                                    <th data-column="model_version">Model Version</th>
+                                    {% endif %}
+                                    {% if "serial_number" in visible_columns %}
+                                    <th data-column="serial_number">Serial Number</th>
+                                    {% endif %}
+                                    {% if "firmware_version" in visible_columns %}
+                                    <th data-column="firmware_version">Firmware Version</th>
+                                    {% endif %}
+                                    {% if "available_version" in visible_columns %}
+                                    <th data-column="available_version">Available Version</th>
+                                    {% endif %}
+                                    {% if "architecture" in visible_columns %}
+                                    <th data-column="architecture">Architecture</th>
+                                    {% endif %}
+                                    {% if "cpu" in visible_columns %}
+                                    <th data-column="cpu">CPU</th>
+                                    {% endif %}
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for router in router_list %}
+                                    <tr {% if not router.enabled %}style="text-decoration: line-through;"{% endif %}>
+                                        <td><input type="checkbox" class="router-checkbox" data-uuid="{{ router.uuid }}"></td>
+                                        {% if "name" in visible_columns %}
+                                        <td data-column="name"><a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a></td>
+                                        {% endif %}
+                                        {% if "type" in visible_columns %}
+                                        <td data-column="type">{{ router.get_router_type_display }}</td>
+                                        {% endif %}
+                                        {% if "address" in visible_columns %}
+                                        <td data-column="address">
+                                            {# What a click on the address does is a per user setting #}
+                                            {% if address_link == 'none' or not router.username or router.router_type == 'monitoring' %}
+                                                {{ router.address }}
+                                            {% elif address_link == 'ssh' %}
+                                                <a href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}">{{ router.address }}</a>
+                                            {% elif address_link == 'winbox' %}
+                                                {% if router.router_type == 'routeros' or router.router_type == 'routeros-branded' %}
+                                                    <a href="winbox://{{ router.address }}">{{ router.address }}</a>
+                                                {% else %}
+                                                    {{ router.address }}
+                                                {% endif %}
+                                            {% elif router.router_type == 'routeros' or router.router_type == 'routeros-branded' %}
+                                                <div class="dropdown d-inline address-dropdown">
+                                                    <a class="dropdown-toggle" href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ router.address }}</a>
+                                                    <div class="dropdown-menu">
+                                                        <a class="dropdown-item" href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}" aria-label="Open SSH" data-label="SSH"></a>
+                                                        <a class="dropdown-item" href="winbox://{{ router.address }}" aria-label="Open Winbox" data-label="Winbox"></a>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <a href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}">{{ router.address }}</a>
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "status" in visible_columns %}
+                                        <td data-column="status" id="status-{{ router.uuid }}">
+                                            {% if router.monitoring %}
+                                                {% if router.routerstatus.status_online %}
+                                                    <span style="display: none">online</span><i class="far fa-check-circle text-success" title="Host is Online"></i>
+                                                {% else %}
+                                                    <span style="display: none">offline</span><i class="far fa-times-circle text-danger" title="Host is unavailable"></i>
+                                                {% endif %}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "backup" in visible_columns %}
+                                        <td data-column="backup">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {% if router.backup_profile %}
+                                                    {{ router.backup_profile }} {% if router.routerstatus.last_backup_failed %}<i class="fas fa-exclamation-triangle text-danger" title="Last backup failed to complete"></i>{% endif %}
+                                                {% else %}
+                                                    <i class="fas fa-exclamation-triangle text-warning" title="No backup profile selected"></i>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "last_backup" in visible_columns %}
+                                        <td data-column="last_backup">
+                                            {% if router.router_type != 'monitoring' and router.routerstatus.last_backup %}
+                                                {{ router.routerstatus.last_backup|date:"Y-m-d H:i:s" }}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "last_config_change" in visible_columns %}
+                                        <td data-column="last_config_change">
+                                            {% if router.last_config_change_uuid %}
+                                                <a href="#" class="config-change-link"
+                                                   data-uuid="{{ router.last_config_change_uuid }}"
+                                                   title="Show what changed in this backup">
+                                                    {{ router.last_config_change_time|date:"Y-m-d H:i:s" }}
+                                                </a>
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "next_daily_backup" in visible_columns %}
+                                        <td data-column="next_daily_backup">
+                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_daily_backup %}
+                                                {{ router.backupschedule.next_daily_backup|date:"Y-m-d H:i:s" }}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "next_weekly_backup" in visible_columns %}
+                                        <td data-column="next_weekly_backup">
+                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_weekly_backup %}
+                                                {{ router.backupschedule.next_weekly_backup|date:"Y-m-d H:i:s" }}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "next_monthly_backup" in visible_columns %}
+                                        <td data-column="next_monthly_backup">
+                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_monthly_backup %}
+                                                {{ router.backupschedule.next_monthly_backup|date:"Y-m-d H:i:s" }}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "lock_information" in visible_columns %}
+                                            <td data-column="lock_information">{{ router.routerstatus.backup_lock|default_if_none:'' }}</td>
+                                            <td data-column="lock_information">{{ router.routerstatus.command_lock|default_if_none:'' }}</td>
+                                        {% endif %}
+                                        {% if "groups" in visible_columns %}
+                                        <td data-column="groups">
+                                            {% if router.routergroup_set.exists %}
+                                                {% for group in router.routergroup_set.all %}
+                                                    {{ group.name }}{% if not forloop.last %}, {% endif %}
+                                                {% endfor %}
+                                            {% else %}
+                                                ---
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "auth" in visible_columns %}
+                                        <td data-column="auth" class="min-width">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {% if router.ssh_key %}
+                                                    <span style="display: none">sshkey</span><i class="fas fa-key" title="SSH Key: {{ router.ssh_key }}"></i>
+                                                {% elif router.password %}
+                                                    <span style="display: none">password</span><i class="fas fa-keyboard" title="Password Authentication"></i>
+                                                {% else %}
+                                                    <i class="fas fa-exclamation-triangle text-warning" title="Missing authentication"></i>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "os_version" in visible_columns %}
+                                        <td data-column="os_version">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {% with state=router.routerinformation|os_version_state %}
+                                                    <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.os_version|default_if_none:'' }}</span>
+                                                {% endwith %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "model_name" in visible_columns %}
+                                        <td data-column="model_name">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {{ router.routerinformation.model_name|default_if_none:'' }}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "model_version" in visible_columns %}
+                                        <td data-column="model_version">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {{ router.routerinformation.model_version|default_if_none:'' }}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "serial_number" in visible_columns %}
+                                        <td data-column="serial_number">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {{ router.routerinformation.serial_number|default_if_none:'' }}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "firmware_version" in visible_columns %}
+                                        <td data-column="firmware_version">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {% with state=router.routerinformation|firmware_state %}
+                                                    <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.firmware_version|default_if_none:'' }}</span>
+                                                {% endwith %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "available_version" in visible_columns %}
+                                        <td data-column="available_version">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {% if router.routerinformation.update_available %}
+                                                    <span class="text-warning" title="Upgrade available">{{ router.routerinformation.available_version }}
+                                                        <i class="fas fa-arrow-up"></i></span>
+                                                {% else %}
+                                                    {{ router.routerinformation.available_version|default_if_none:'' }}
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "architecture" in visible_columns %}
+                                        <td data-column="architecture">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {{ router.routerinformation.architecture|default_if_none:'' }}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        {% if "cpu" in visible_columns %}
+                                        <td data-column="cpu">
+                                            {% if router.router_type != 'monitoring' %}
+                                                {{ router.routerinformation.cpu|default_if_none:'' }}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        <td class="min-width">
+                                            <a href="/router/manage/?uuid={{ router.uuid }}"><i class="fas fa-edit"></i></a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-lg-12 text-right">
+                                <a href="/router/manage/" class="btn btn-primary">Add Router</a>
+                                <a href="/router/import_tool/" class="btn btn-primary">Import Tool</a>
+                                <button id="select-all" class="btn btn-outline-primary" title="Select All"><i class="fas fa-check-square"></i></button>
+                                <button id="select-none" class="btn btn-outline-primary" title="Select None"><i class="fas fa-square"></i></button>
+                                <button id="export-csv" class="btn btn-outline-primary" title="Export the filtered list as CSV"><i class="fas fa-file-csv"></i></button>
+                                <button id="update-information" class="btn btn-info" style="display: none;">Update Information</button>
+                                <button id="create-backup" class="btn btn-warning" style="display: none;">Create Backup Task</button>
+                                <button id="run-command" class="btn btn-info" style="display: none;">Run Command</button>
+                                <button id="manage-groups" class="btn btn-primary" style="display: none;">Groups</button>
+                                <button id="edit-multiple" class="btn btn-primary" style="display: none;">Edit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+    <script>
+        var last_status_change = "{{ last_status_change_timestamp }}";
+        var group_uuid = "{{ filter_group.uuid|default_if_none:'' }}";
+        var status_online_text = '<span style="display: none">online</span><i class="far fa-check-circle text-success" title="Host is Online"></i>';
+        var status_offline_text = '<span style="display: none">offline</span><i class="far fa-times-circle text-danger" title="Host is unavailable"></i>';
+
+        // Column definitions for the router table
+        var columnDefinitions = [
+            { name: "name", label: "Name", default: true },
+            { name: "type", label: "Type", default: true },
+            { name: "address", label: "Address", default: false },
+            { name: "status", label: "Status", default: true },
+            { name: "backup", label: "Backup", default: true },
+            { name: "last_backup", label: "Last Backup", default: false },
+            { name: "last_config_change", label: "Last Config Change", default: false },
+            { name: "next_daily_backup", label: "Next Daily Backup", default: false },
+            { name: "next_weekly_backup", label: "Next Weekly Backup", default: false },
+            { name: "next_monthly_backup", label: "Next Monthly Backup", default: false },
+            { name: "lock_information", label: "Router Lock Information", default: false },
+            { name: "groups", label: "Groups", default: true },
+            { name: "auth", label: "Auth", default: false },
+            { name: "os_version", label: "OS Version", default: false },
+            { name: "model_name", label: "Model Name", default: false },
+            { name: "model_version", label: "Model Version", default: false },
+            { name: "serial_number", label: "Serial Number", default: false },
+            { name: "firmware_version", label: "Firmware Version", default: false },
+            { name: "available_version", label: "Available Version", default: true },
+            { name: "architecture", label: "Architecture", default: false },
+            { name: "cpu", label: "CPU", default: false }
+        ];
+
+        function checkStatusChange() {
+            $.ajax({
+                url: "/monitoring/last_status_change/",
+                success: function(data) {
+                    if (data.last_status_change !== last_status_change) {
+                        // Update last_status_change and fetch new router list
+                        last_status_change = data.last_status_change;
+                        fetchRouterList();
+                    }
+                }
+            });
+        }
+
+        function fetchRouterList() {
+            var url = group_uuid ? "/monitoring/export_router_list/?filter_group=" + group_uuid : "/monitoring/export_router_list/";
+            $.ajax({
+                url: url,
+                success: function(data) {
+                    updateRouterStatuses(data.router_list);
+                }
+            });
+        }
+        function updateRouterStatuses(routerList) {
+            for (var uuid in routerList) {
+                var router = routerList[uuid];
+                var cells = dataTable.$('td#status-' + uuid);
+
+                if (cells.length) {
+                    cells.each(function () {
+                        var $cell = $(this);
+                        var currentStatusContent = $cell.html(); 
+                        var $currentSpan = $cell.find('span');
+                        var currentStatus = $currentSpan.length ? $currentSpan.text().trim() : '';
+
+                        var newStatus = router.online ? 'online' : 'offline';
+                        var newStatusHtml = router.online ? status_online_text : status_offline_text;
+
+                        if (currentStatus !== newStatus) {
+                            $cell.html(newStatusHtml);
+
+                            $(document).Toasts('create', {
+                                class: router.online ? 'bg-success' : 'bg-danger',
+                                title: 'Host status updated',
+                                body: 'Host ' + router.name + ' is now ' + newStatus,
+                                delay: 10000,
+                                autohide: true
+                            });
+                        }
+                    });
+                }
+            }
+
+            // No need to reapply column visibility as it's now handled by Django template tags
+        }
+
+        setInterval(checkStatusChange, 30000);
+        $(document).ready(function() {
+            checkStatusChange();
+        });
+    </script>
+
+<script>
+$(document).ready(function() {
+    var table = dataTable;
+
+    setupColumnFilters(table);
+
+    // The search box of DataTables is replaced by one that understands '!'. The
+    // handler of DataTables keeps the text of the search and writes it back into
+    // the box whenever something else filters the table; with a negation that
+    // text is a regular expression, so the text the user typed is kept aside
+    // and put back.
+    var globalSearchInput = $('.dataTables_filter input', table.table().container());
+    var rawGlobalSearch = globalSearchInput.val();
+
+    globalSearchInput
+        // The namespaces are those DataTables binds; the mouseup that clears the
+        // search field has no namespace and is named on its own
+        .off('keyup.DT search.DT input.DT paste.DT cut.DT keypress.DT mouseup')
+        .on('input', function() {
+            rawGlobalSearch = this.value;
+            var applied = applyRouterSearch(table, rawGlobalSearch, true);
+            // A regular expression that is not finished yet
+            globalSearchInput.toggleClass('is-invalid', applied === false);
+            restoreGlobalSearchText();
+        });
+
+    // Bound after the handler of DataTables, so this one has the last word
+    $(table.table().node()).on('search.dt', function(event, settings) {
+        if (settings === table.settings()[0] && globalSearchInput[0] !== document.activeElement) {
+            restoreGlobalSearchText();
+        }
+    });
+
+    // Only write when the text differs: writing the same text again would put
+    // the cursor to the end while somebody is typing in the middle of it
+    function restoreGlobalSearchText() {
+        if (globalSearchInput.val() !== rawGlobalSearch) {
+            globalSearchInput.val(rawGlobalSearch);
+        }
+    }
+
+    // The export button writes the rows the search currently shows, with the
+    // columns that are visible - the ones without a data-column (checkbox and
+    // edit) are not part of a router list. The Buttons extension of DataTables
+    // does the writing, it has to be given an instance of its own first: the
+    // table was created without one, and button().add() on a table without a
+    // Buttons instance does nothing at all.
+    var csvButtonAdded = false;
+    $('#export-csv').on('click', function(event) {
+        event.preventDefault();
+
+        if (!csvButtonAdded) {
+            new $.fn.dataTable.Buttons(table, []);
+            table.button().add(0, {
+                extend: 'csv',
+                filename: 'router-list-' + new Date().toISOString().slice(0, 10),
+                bom: true,
+                exportOptions: {
+                    columns: function(index, data, node) {
+                        return $(node).attr('data-column') !== undefined;
+                    }
+                }
+            });
+            csvButtonAdded = true;
+        }
+
+        table.button(0).trigger();
+    });
+
+    // Column visibility functions
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + encodeURIComponent(value) + expires + "; path=/";
+    }
+
+    function getVisibleColumns() {
+        var cookieValue = getCookie('router_visible_columns');
+        if (cookieValue) {
+            return JSON.parse(cookieValue);
+        }
+        // Default columns if cookie doesn't exist
+        return columnDefinitions.filter(function(col) {
+            return col.default;
+        }).map(function(col) {
+            return col.name;
+        });
+    }
+
+    // No need for applyColumnVisibility function as column visibility is now handled by Django template tags
+
+    function populateColumnModal() {
+        var visibleColumns = getVisibleColumns();
+        var $container = $('#columnCheckboxes');
+        $container.empty();
+
+        columnDefinitions.forEach(function(col) {
+            var isChecked = visibleColumns.includes(col.name);
+            var $div = $('<div class="form-check">');
+            var $input = $('<input class="form-check-input" type="checkbox" id="col-' + col.name + '" value="' + col.name + '"' + (isChecked ? ' checked' : '') + '>');
+            var $label = $('<label class="form-check-label" for="col-' + col.name + '">' + col.label + '</label>');
+
+            $div.append($input).append($label);
+            $container.append($div);
+        });
+    }
+
+    // No need to initialize column visibility as it's now handled by Django template tags
+
+    // Show/Hide Columns button click handler
+    $('#showHideColumnsBtn').on('click', function(e) {
+        e.preventDefault();
+        populateColumnModal();
+        $('#columnVisibilityModal').modal('show');
+    });
+
+    // Apply button click handler
+    $('#applyColumnVisibility').on('click', function() {
+        var selectedColumns = [];
+        $('#columnCheckboxes input:checked').each(function() {
+            selectedColumns.push($(this).val());
+        });
+
+        // Save to cookie
+        setCookie('router_visible_columns', JSON.stringify(selectedColumns), 365);
+
+        // Reload the page with the same GET parameters
+        var currentUrl = window.location.href;
+        window.location.href = currentUrl;
+    });
+
+    // Function to delete a cookie
+    function deleteCookie(name) {
+        document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+
+    // Reset button click handler
+    $('#resetColumnVisibility').on('click', function() {
+        // Delete the router_visible_columns cookie
+        deleteCookie('router_visible_columns');
+
+        // Reload the page with the same GET parameters
+        var currentUrl = window.location.href;
+        window.location.href = currentUrl;
+    });
+
+    // A term that starts with '!' excludes everything that contains it, the way
+    // the router list search should have always worked. DataTables has no
+    // negation, so it is a regular expression with a negative lookahead: smart
+    // search would wrap that into a word lookahead and break it, and the term
+    // itself has to be escaped so that a dot or a bracket stays a character.
+    // A term that starts with '^' is a regular expression of the user's own, and
+    // '(empty)' stands for a column that has no value. A bare '!' clears the
+    // search again.
+    var emptyWord = '(empty)';
+
+    // A column without a value is not an empty cell in the page: this list writes
+    // '---' where there is nothing, and the text DataTables reads out of a cell has
+    // the tags taken out of it and its edges trimmed.
+    var emptyValue = '\\s*(---)?\\s*$';
+
+    function applyRouterSearch(searchable, value, smart) {
+        var escapeRegex = $.fn.dataTable.util.escapeRegex;
+        var excludes = value.charAt(0) === '!';
+        var term = excludes ? value.slice(1) : value;
+
+        if (term === '') {
+            searchable.search('', false, false, true).draw();
+            return true;
+        }
+
+        if (term.toLowerCase() === emptyWord) {
+            // 'Has no value' and 'has a value' are the two sides of one pattern
+            return applyRegexSearch(searchable,
+                excludes ? '^(?!' + emptyValue + ')' : '^' + emptyValue);
+        }
+
+        if (term.charAt(0) === '^') {
+            // The rest of the term is a regular expression. The search box (smart)
+            // looks at the whole row at once and a row starts with the empty
+            // checkbox column, so there the expression is looked for anywhere in
+            // the row; a column filter keeps the anchor, '^7' means the cell
+            // starts with a 7.
+            var expression = term.slice(1);
+            return applyRegexSearch(searchable, excludes
+                ? '^(?!' + (smart ? '.*' : '') + expression + ')'
+                : (smart ? expression : '^' + expression));
+        }
+
+        if (excludes) {
+            return applyRegexSearch(searchable, '^(?!.*' + escapeRegex(term) + ')');
+        }
+
+        // caseInsen is passed explicitly: left out it counts as false and the
+        // search would be case sensitive, unlike the search box of DataTables
+        searchable.search(term, false, smart, true).draw();
+        return true;
+    }
+
+    // A pattern is only handed to DataTables once it compiles: half typed, '^(' is
+    // an error, and the list is left as it is until the pattern is finished.
+    function applyRegexSearch(searchable, pattern) {
+        var compiles = true;
+        try {
+            new RegExp(pattern);
+        }
+        catch (error) {
+            compiles = false;
+        }
+        if (!compiles) {
+            return false;
+        }
+
+        // smart stays off here: with it DataTables wraps the pattern into a
+        // lookahead for every single word and the pattern is destroyed
+        searchable.search(pattern, true, false, true).draw();
+        return true;
+    }
+
+    // One filter per column, in the header cell under the title of the column.
+    // Every column keeps its filter above itself, also when columns are hidden
+    // or the window is narrow.
+    //
+    // The row of filters and what stands in it are remembered in the browser, so
+    // that a reload does not lose them. A remembered filter names its column by
+    // its data-column: which columns the list has is decided on the server, so an
+    // index can point at a different column on the next page load.
+    var filterStateKey = 'router_list_filters';
+
+    function readFilterState() {
+        var state = {};
+        try {
+            state = JSON.parse(window.localStorage.getItem(filterStateKey)) || {};
+        }
+        catch (error) {
+            // Nothing stored yet, or a browser that keeps no storage at all
+            state = {};
+        }
+        return typeof state === 'object' && state !== null ? state : {};
+    }
+
+    function setupColumnFilters(tableApi) {
+        var filterInputs = $();
+        var filterBoxes = $();
+        var filterFields = [];
+
+        tableApi.columns().every(function() {
+            var index = this.index();
+            var header = $(this.header());
+            var columnName = header.attr('data-column');
+            if (!columnName) {
+                // The checkbox and the edit column have nothing to filter
+                return;
+            }
+
+            var input = $('<input type="text" class="router-column-filter form-control form-control-sm" placeholder="Filter (! excludes, (empty) blank, ^ regex)">');
+            input.attr('data-column-index', index);
+            input.attr('data-column-name', columnName);
+            input.attr('title', 'text finds it, !text excludes it, ^pattern is a regular ' +
+                'expression, (empty) shows the rows without a value');
+            input.on('click', function(event) {
+                // A click in the header would sort the column instead
+                event.stopPropagation();
+            });
+            input.on('input', function() {
+                var applied = applyRouterSearch(tableApi.column(index), input.val(), false);
+                // A regular expression that is not finished yet
+                input.toggleClass('is-invalid', applied === false);
+                // Somebody is typing in a filter, so the row of them is in use
+                saveFilterState(true);
+            });
+
+            var box = $('<div class="router-column-filter-box"></div>');
+            box.append(input);
+            box.appendTo(header);
+            box.hide();
+
+            filterInputs = filterInputs.add(input);
+            filterBoxes = filterBoxes.add(box);
+            filterFields.push({name: columnName, index: index, input: input});
+        });
+
+        function saveFilterState(visible) {
+            // What stands in the fields now wins. The term of a column the list
+            // does not have at the moment is left where it is, so showing that
+            // column again brings its filter back.
+            var terms = readFilterState().terms;
+            if (typeof terms !== 'object' || terms === null) {
+                terms = {};
+            }
+            filterFields.forEach(function(field) {
+                var value = field.input.val();
+                if (value) {
+                    terms[field.name] = value;
+                } else {
+                    delete terms[field.name];
+                }
+            });
+
+            try {
+                window.localStorage.setItem(filterStateKey, JSON.stringify({
+                    visible: visible, terms: terms,
+                }));
+            }
+            catch (error) {
+                // A browser that keeps no storage (private mode) simply forgets
+            }
+        }
+
+        function setVisible(visible) {
+            if (visible) {
+                filterBoxes.show();
+                return;
+            }
+            // A filter that is hidden would keep the list filtered without
+            // showing why, so hiding the filters clears them
+            filterInputs.val('');
+            filterBoxes.hide();
+            tableApi.columns().every(function() {
+                this.search('');
+            });
+            tableApi.draw();
+        }
+
+        $('#toggleColumnFilters').on('click', function(event) {
+            event.preventDefault();
+            var visible = filterBoxes.is(':hidden');
+            setVisible(visible);
+            $(this).toggleClass('active', visible);
+            // What the next page load has to bring back
+            saveFilterState(visible);
+        });
+
+        // What the last visit left behind: whether the row of filters was open,
+        // and what stood in them. A term whose column the list does not have at
+        // this moment is left out and stays in the storage, so hiding a column
+        // for one visit does not throw its filter away.
+        var remembered = readFilterState();
+        if (remembered.visible) {
+            setVisible(true);
+            $('#toggleColumnFilters').addClass('active');
+
+            var rememberedTerms = remembered.terms || {};
+            filterFields.forEach(function(field) {
+                var value = rememberedTerms[field.name];
+                if (!value) {
+                    return;
+                }
+                field.input.val(value);
+                var applied = applyRouterSearch(tableApi.column(field.index), value, false);
+                field.input.toggleClass('is-invalid', applied === false);
+            });
+        }
+
+        return setVisible;
+    }
+
+    // Router selection functions
+    // A filtered out row stays in the page (hidden), so the rows have to be
+    // taken from the table instead of the document: selecting all only selects
+    // what the search filter currently shows, across all of its pages.
+    function updateCheckboxes(checked) {
+         var rows = checked ? table.rows({search: 'applied'}) : table.rows();
+         rows.nodes().to$().find('.router-checkbox').prop('checked', checked).trigger('change');
+    }
+
+    $('#select-all').on('click', function(e) {
+         e.preventDefault();
+         updateCheckboxes(true);
+    });
+
+    $('#select-none').on('click', function(e) {
+         e.preventDefault();
+         updateCheckboxes(false);
+    });
+
+    $(document).on('change', '.router-checkbox', function() {
+         var checkedCount = table.$('.router-checkbox:checked').length;
+         if (checkedCount >= 1) {
+             $('#update-information').show();
+             $('#create-backup').show();
+             $('#run-command').show();
+             $('#manage-groups').show();
+             $('#edit-multiple').show();
+         } else {
+             $('#update-information').hide();
+             $('#create-backup').hide();
+             $('#run-command').hide();
+             $('#manage-groups').hide();
+             $('#edit-multiple').hide();
+         }
+    });
+
+    $('#update-information').on('click', function(e) {
+         e.preventDefault();
+         var selectedRouters = table.$('.router-checkbox:checked').map(function() {
+              return $(this).data('uuid');
+         }).get();
+
+         if (!selectedRouters.length) {
+              return;
+         }
+
+         $.ajax({
+              url: '/router/update_information/multiple/',
+              method: 'POST',
+              data: {
+                   routers: selectedRouters,
+                   csrfmiddlewaretoken: '{{ csrf_token }}'
+              },
+              success: function(response) {
+                   $(document).Toasts('create', {
+                        class: 'bg-success',
+                        title: 'Information Update Started',
+                        body: 'Updating information for ' + response.requested + ' router(s). The list will show the new values shortly.',
+                        delay: 10000,
+                        autohide: true
+                   });
+                   updateCheckboxes(false);
+              },
+              error: function(xhr) {
+                   $(document).Toasts('create', {
+                        class: 'bg-danger',
+                        title: 'Error',
+                        body: 'Error: ' + xhr.responseJSON.error,
+                        delay: 10000,
+                        autohide: true
+                   });
+                   updateCheckboxes(false);
+              }
+         });
+    });
+
+    $('#create-backup').on('click', function(e) {
+         e.preventDefault();
+         var selectedRouters = table.$('.router-checkbox:checked').map(function() {
+              return $(this).data('uuid');
+         }).get();
+
+         $.ajax({
+              url: '/router/create_instant_backup/multiple/',
+              method: 'POST',
+              data: {
+                   routers: selectedRouters,
+                   csrfmiddlewaretoken: '{{ csrf_token }}'
+              },
+              success: function(response) {
+                   var successRouters = [];
+                   var errorMessages = [];
+
+                   response.results.forEach(function(item) {
+                         if (!item.status) {
+                              successRouters.push(item.router);
+                         } else {
+                              errorMessages.push(item.router + ': ' + item.status);
+                         }
+                   });
+
+                   if (successRouters.length > 0) {
+                         $(document).Toasts('create', {
+                              class: 'bg-success',
+                              title: 'Backup Started',
+                              body: 'Backup started for:<br>' + successRouters.join('<br>'),
+                              delay: 10000,
+                              autohide: true
+                         });
+                   }
+
+                   if (errorMessages.length > 0) {
+                         $(document).Toasts('create', {
+                              class: 'bg-danger',
+                              title: 'Backup Errors',
+                              body: 'Problems:<br>' + errorMessages.join('<br>'),
+                              delay: 10000,
+                              autohide: true
+                         });
+                   }
+
+                   updateCheckboxes(false);
+              },
+              error: function(xhr) {
+                   $(document).Toasts('create', {
+                        class: 'bg-danger',
+                        title: 'Error',
+                        body: 'Error: ' + xhr.responseJSON.error,
+                        delay: 10000,
+                        autohide: true
+                   });
+                   updateCheckboxes(false);
+              }
+         });
+    });
+
+    // Post the selected router uuids to the given url via a hidden form so the
+    // selection never ends up in the URL (large selections would exceed the
+    // server's maximum request line length)
+    function postSelectedRouters(url) {
+        var selectedRouters = table.$('.router-checkbox:checked').map(function() {
+            return $(this).data('uuid');
+        }).get();
+        if (!selectedRouters.length) {
+            return;
+        }
+
+        var $form = $('<form>', {method: 'POST', action: url, style: 'display: none;'});
+        selectedRouters.forEach(function(uuid) {
+            $form.append($('<input>', {type: 'hidden', name: 'routers[]', value: uuid}));
+        });
+        $form.append($('<input>', {type: 'hidden', name: 'csrfmiddlewaretoken', value: '{{ csrf_token }}'}));
+        $('body').append($form);
+        $form.submit();
+    }
+
+    $('#manage-groups').on('click', function(e) {
+         e.preventDefault();
+         postSelectedRouters('/router/manage_groups/multiple/');
+    });
+
+    $('#run-command').on('click', function (e) {
+        e.preventDefault();
+        postSelectedRouters('/fleet_commander/command/execute_multiple/');
+    });
+
+    $('#edit-multiple').on('click', function(e) {
+        e.preventDefault();
+        postSelectedRouters('/router/edit/multiple/');
+    });
+});
+</script>
+
+
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% if job.schedule and job.schedule.enabled %}
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="callout callout-warning">
+                    <p>
+                        This job was created by a schedule that is switched on, so it will run again
+                        {% if job.schedule.next_run %}at {{ job.schedule.next_run }}{% endif %}.
+                        Stopping this job stops this one run only. The schedule itself is switched
+                        off on the
+                        <a href="/fleet_commander/command/details/?uuid={{ job.command.uuid }}">page
+                            of its command</a>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+    <div class='row'>
+        <div class='col-xl-5'>
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">{{ job }}</h3>
+                    <span class="float-right">
+                        {% if not job.completed %}
+                            <a href="javascript:void(0)" class="btn btn-outline-danger btn-sm"
+                               onclick="abortJob('{{ job.uuid }}')"
+                               title="Stops the tasks of this job that have not finished yet. A command that is already running on a router is not interrupted, the task stops before its next command.">
+                                <i class="fas fa-hand-paper"></i> Abort Job
+                            </a>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="card-body row">
+                    <div class="col-lg-12">
+                        <ul class="list-group list-group-unbordered mb-3">
+                            <li class="list-group-item">
+                                <b>Job ID</b>
+                                <span class="float-right">
+                                {{ job.id }}
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Command</b>
+                                <span class="float-right">
+                                <a href="/fleet_commander/command/details/?uuid={{ job.command.uuid }}">
+                                    {{ job.command.name }}
+                                </a>
+                            </span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Execution Source</b>
+                                <span class="float-right">{{ job.get_exec_source_display }}</span>
+                            </li>
+                            {% if job.schedule or job.exec_source == 'schedule' %}
+                                <li class="list-group-item">
+                                    <b>Schedule</b>
+                                    <span class="float-right">
+                                        {% if job.schedule and job.schedule.enabled %}
+                                            <i class="fas fa-sync text-success"></i> switched on
+                                            {% if job.schedule.next_run %}, next run {{ job.schedule.next_run }}{% endif %}
+                                        {% elif job.schedule %}
+                                            <i class="fas fa-stop-circle text-secondary"></i> switched off
+                                        {% else %}
+                                            <i class="fas fa-times-circle text-secondary"></i> removed
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endif %}
+                            <li class="list-group-item">
+                                <b>User</b>
+                                <span class="float-right">{{ job.user_source_name|default_if_none:"—" }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Created</b>
+                                <span class="float-right">{{ job.created }}</span>
+                            </li>
+                            <li class="list-group-item">
+                                <b>Completed</b>
+                                <span class="float-right">
+                                {% if job.completed %}
+                                    {{ job.completed }}
+                                {% else %}
+                                    <i class="far fa-clock text-warning"></i> Pending
+                                {% endif %}
+                            </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row">
+        <div class='col-lg-12'>
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">Tasks</h3>
+                </div>
+                <div class="card-body row">
+                    <div class="col-lg-12">
+                        <table class="table table-hover">
+                            <thead>
+                            <tr>
+                                <th>Router</th>
+                                <th>Status</th>
+                                <th>Started</th>
+                                <th>Finished</th>
+                                <th class="min-width">Run count</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for task in task_list %}
+                                <tr>
+                                    <td>
+                                        {% comment %}
+                                            The device opens the way it does in the router list, so
+                                            that its address and everything else about it is one
+                                            click away from a job. A task outlives its router - the
+                                            row keeps the name the device had - and a device that is
+                                            gone has no page to open.
+                                        {% endcomment %}
+                                        {% if task.router %}
+                                            <a href="/router/details/?uuid={{ task.router.uuid }}">{{ task.router.name }}</a>
+                                        {% else %}
+                                            {{ task.router_name|default_if_none:task.router_uuid }}
+                                        {% endif %}
+                                        {% if task.router.routerstatus.command_lock or task.router.routerstatus.backup_lock %}
+                                            <span style="text-decoration: underline" title="Router is currently locked ||| Backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'------' }} ||| Command Lock: {{ task.router.routerstatus.command_lock|default_if_none:'------' }}">(locked)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if task.status == 'success' %}
+                                            <span class="badge badge-success">{{ task.get_status_display }}</span>
+                                        {% elif task.status == 'error' %}
+                                            <span class="badge badge-danger">{{ task.get_status_display }}</span>
+                                        {% elif task.status == 'aborted' %}
+                                            <span class="badge badge-secondary">{{ task.get_status_display }}</span>
+                                        {% elif task.router.routerstatus.command_lock or task.router.routerstatus.backup_lock %}
+                                            <span class="badge badge-warning" title="Router is currently locked ||| Backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'------' }} ||| Command Lock: {{ task.router.routerstatus.command_lock|default_if_none:'------' }}">Execution locked</span>
+                                        {% else %}
+                                            <span class="badge badge-warning">{{ task.get_status_display }}</span>
+                                        {% endif %}
+                                        {% if task.verified %}
+                                            <i class="fas fa-check-double text-success ml-1"
+                                               title="Result verified on the router"></i>
+                                        {% elif task.verify_deadline and task.status == 'pending' %}
+                                            <i class="fas fa-search text-info ml-1"
+                                               title="Verifying the result on the router"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.started_at|default_if_none:"—" }}</td>
+                                    <td>{{ task.finished_at|default_if_none:"—" }}</td>
+                                    <td>{{ task.retry_count }}</td>
+                                    <td class="min-width">
+                                        <a href="/fleet_commander/task/details/?uuid={{ task.uuid }}">
+                                            <i class="fas fa-search"></i>
+                                        </a>
+                                        {% if task.status == 'pending' %}
+                                            <a href="javascript:void(0)" class="ml-1"
+                                               onclick="abortTask('{{ task.uuid }}')"
+                                               title="Stop this task. A command that is already running on the router is not interrupted, the task stops before its next command.">
+                                                <i class="fas fa-hand-paper text-danger"></i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-muted">No tasks found.</td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <a href="/fleet_commander/job/list/" class="btn btn-secondary">Back</a>
+        </div>
+    </div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    // Stopping a job cannot interrupt an SSH command that is already running on
+    // the router, it takes effect before the next command or verification
+    function abortPrompt() {
+        return prompt("Please type 'abort' to proceed.");
+    }
+
+    function abortJob(uuid) {
+        var confirmation = abortPrompt();
+        if (confirmation !== null) {
+            window.location.href = "/fleet_commander/job/abort/?uuid=" + uuid +
+                "&confirmation=" + encodeURIComponent(confirmation);
+        }
+    }
+
+    function abortTask(uuid) {
+        var confirmation = abortPrompt();
+        if (confirmation !== null) {
+            window.location.href = "/fleet_commander/task/abort/?uuid=" + uuid +
+                "&confirmation=" + encodeURIComponent(confirmation);
+        }
+    }
+</script>
+{% endblock %}
