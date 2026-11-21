@@ -72,6 +72,20 @@ jobs:
       - name: Coverage
         run: coverage report
 
+      # A typo in an nginx config still builds into an image; it only fails when
+      # the container starts. Both configs are checked in the real image.
+      - name: nginx configuration
+        run: |
+          mkdir -p /tmp/cert
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost" \
+            -keyout /tmp/cert/nginx.key -out /tmp/cert/nginx.pem 2> /dev/null
+          for CONF in virtualhost.conf virtualhost_noredirect.conf; do
+            docker run --rm --add-host routerfleet:127.0.0.1 \
+              -v /tmp/cert:/certificate:ro \
+              -v "$PWD/containers/nginx/${CONF}:/etc/nginx/conf.d/default.conf:ro" \
+              nginx:alpine nginx -t
+          done
+
   images:
     needs: test
     if: github.event_name != 'pull_request'

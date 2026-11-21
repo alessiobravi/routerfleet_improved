@@ -7,6 +7,26 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.8.1] - 2026-11-21
+
+### Changed
+- **Pages load nothing from another host.** The Source Sans Pro font is bundled
+  (Adobe's release 3.006R, unmodified, SIL Open Font License 1.1) instead of
+  fetched from Google Fonts; Chart.js 4.6.1 (MIT) is bundled for the status page
+  instead of an unpinned CDN copy that followed whatever version was newest; and
+  the Ionicons stylesheet, which no template used, is gone. No page view tells a
+  third party who is looking, and the interface renders completely offline.
+- nginx no longer announces its version, and sends `nosniff` and a same-origin
+  referrer policy for the static files it serves.
+
+### Fixed
+- A malformed `?uuid=` was a server error on 25 pages; it is now a 404.
+
+### Added
+- Tests that fail if a template references an external host or a static file
+  that does not exist, and a CI check of both nginx configurations in the real
+  image.
+
 ## [0.8.0] - 2026-11-21
 
 First release of RouterFleet Improved.

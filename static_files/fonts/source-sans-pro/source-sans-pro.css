@@ -1,0 +1,35 @@
+/*
+ * Source Sans Pro, served by this installation instead of a font CDN, so no
+ * page view contacts a third party. The files are Adobe's release 3.006R,
+ * unmodified, under the SIL Open Font License 1.1 - see LICENSE.md beside them.
+ * The four faces are the ones the interface has always used: 300, 400, 400
+ * italic and 700.
+ */
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 300;
+  font-display: fallback;
+  src: url('SourceSansPro-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: fallback;
+  src: url('SourceSansPro-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: italic;
+  font-weight: 400;
+  font-display: fallback;
+  src: url('SourceSansPro-It.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Sans Pro';
+  font-style: normal;
+  font-weight: 700;
+  font-display: fallback;
+  src: url('SourceSansPro-Bold.woff2') format('woff2');
+}

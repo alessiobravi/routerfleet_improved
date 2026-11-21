@@ -135,7 +135,22 @@ ever be re-enabled.
 
 ## Transport
 
-nginx terminates TLS and redirects port 80 to 443. Set
+nginx terminates TLS and redirects port 80 to 443. It does not announce its
+version.
+
+### Response headers
+
+Django sends, on every page it renders: `X-Content-Type-Options: nosniff`,
+`X-Frame-Options: DENY` (no page can be framed by another site),
+`Referrer-Policy: same-origin` and `Cross-Origin-Opener-Policy: same-origin`.
+nginx adds the first and third to the static files it serves itself.
+
+**HSTS is deliberately not sent.** With the self-signed certificate an
+installation starts with, a browser that has seen HSTS refuses to let the user
+past the certificate warning — the installation would lock itself out. If you
+run a certificate browsers trust, you can add
+`add_header Strict-Transport-Security "max-age=31536000" always;` to the HTTPS
+server block of your nginx configuration. Set
 `HTTPS_REDIRECT_POLICY=never` to serve both — which sends passwords in
 cleartext, and is not recommended.
 
@@ -153,10 +168,22 @@ What the installation contacts, and why:
 | MikroTik's update servers | **The device** checks its own channel; RouterFleet only reads the result | Device-side |
 | `downloads.openwrt.org` | OpenWrt release index and per-board image availability | Only by not using OpenWrt devices |
 | Telegram / ntfy.sh / CallMeBot | Whichever notification channels you configure | Yes — configure none |
-| `fonts.googleapis.com` | A web font referenced by the interface's stylesheet, loaded by the **browser** | Not currently configurable |
 | Application update check | Disabled by default; off unless `UPDATE_CHECK_URL` is set | Yes, and it is off |
 
-Note the last two rows. The update check makes **no outbound request at all**
-unless you configure an endpoint. The Google Fonts reference is fetched by each
-visitor's browser, not by the server, and is the one remaining third-party call
-in a default install.
+The update check makes **no outbound request at all** unless you configure an
+endpoint.
+
+### What the browser loads
+
+Nothing from another host. Every font, script and stylesheet a page uses is
+served by the installation itself, so a page view tells no third party who is
+looking at what, and the interface renders completely on a network without
+internet access:
+
+- the **Source Sans Pro** font is bundled under `static/fonts/` — Adobe's
+  release 3.006R, unmodified, under the SIL Open Font License 1.1;
+- **Chart.js 4.6.1** (MIT), used by the status page, is bundled under
+  `static/vendor/`, pinned to that version;
+- the AdminLTE theme and its plugins were already bundled.
+
+The test suite fails if a template ever references an external host again.

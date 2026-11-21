@@ -221,3 +221,74 @@ class AdminTests(TestCase):
         # in a checkout it is still there, which is what this documents
         routes = [str(p.pattern) for p in get_resolver().url_patterns]
         self.assertIn('admin/', routes)
+
+
+class MalformedIdentifierTests(Fixture):
+    def test_every_page_answers_404_for_a_malformed_id(self):
+        import re
+        self.client.force_login(make_user(50))
+        paths = [p for p, _, _ in self.gated()] + self.login_only_with_objects()
+        checked = 0
+        for path in paths:
+            if 'uuid=' not in path:
+                continue
+            bad = re.sub(r'((?:^|[?&])(?:uuid|compare_uuid|command_uuid)=)[^&]+', r'\1not-a-uuid', path, count=1)
+            with self.subTest(path=bad):
+                self.assertEqual(self.client.get(bad).status_code, 404)
+                checked += 1
+        self.assertGreater(checked, 25)
+
+    def test_other_validation_errors_are_not_hidden(self):
+        from django.core.exceptions import ValidationError
+        from routerfleet.middleware import is_malformed_uuid
+        self.assertFalse(is_malformed_uuid(ValidationError('Enter a valid value.', code='invalid')))
+        self.assertFalse(is_malformed_uuid(ValidationError({'name': ['This field is required.']})))
+        self.assertTrue(is_malformed_uuid(ValidationError('“x” is not a valid UUID.', code='invalid')))
+
+
+class NoThirdPartyAssetsTests(TestCase):
+    """Pages load nothing from another host: fonts, scripts and styles are
+    served by the installation itself."""
+
+    def template_files(self):
+        import pathlib
+        return sorted(pathlib.Path(__file__).resolve().parent.parent.joinpath('templates').rglob('*.html'))
+
+    def test_templates_reference_no_external_host(self):
+        import re
+        for path in self.template_files():
+            with self.subTest(template=path.name):
+                text = path.read_text(encoding='utf-8')
+                self.assertEqual(re.findall(r'''(?:src|href)=["']https?://[^"']+''', text), [])
+                self.assertNotIn('fonts.googleapis', text)
+
+    def test_every_static_file_a_template_loads_exists(self):
+        import pathlib
+        import re
+        root = pathlib.Path(__file__).resolve().parent.parent / 'static_files'
+        for path in self.template_files():
+            for ref in re.findall(r'''(?:src|href)=["']/static/([^"'?#]+)''', path.read_text(encoding='utf-8')):
+                with self.subTest(template=path.name, ref=ref):
+                    self.assertTrue((root / ref).is_file(), ref)
+
+    def test_bundled_font_and_chart_library_carry_their_licenses(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent / 'static_files'
+        font = root / 'fonts' / 'source-sans-pro'
+        self.assertIn('SIL Open Font License', (font / 'LICENSE.md').read_text(encoding='utf-8'))
+        css = (font / 'source-sans-pro.css').read_text(encoding='utf-8')
+        for face in ('Light', 'Regular', 'It', 'Bold'):
+            self.assertIn(f'SourceSansPro-{face}.woff2', css)
+            self.assertEqual((font / f'SourceSansPro-{face}.woff2').read_bytes()[:4], b'wOF2')
+        chart = root / 'vendor' / 'chart.js-4.6.1'
+        self.assertIn('MIT', (chart / 'LICENSE.md').read_text(encoding='utf-8'))
+        self.assertIn('Chart.js v4.6.1', (chart / 'chart.umd.min.js').read_text(encoding='utf-8')[:200])
+
+
+class SecurityHeaderTests(TestCase):
+    def test_django_sends_its_security_headers(self):
+        response = self.client.get('/accounts/login/')
+        self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(response['X-Frame-Options'], 'DENY')
+        self.assertEqual(response['Referrer-Policy'], 'same-origin')
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'same-origin')
