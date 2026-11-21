@@ -1,7 +1,7 @@
 from django.http import JsonResponse, Http404
 from django.shortcuts import render, redirect, Http404, get_object_or_404
 from django.contrib import messages
-import pytz
+from zoneinfo import ZoneInfo
 from router_manager.models import Router
 from routerfleet_tools.models import WebadminSettings
 from routerlib.decorators import cron_endpoint
@@ -59,7 +59,7 @@ def view_cron_daily_reports(request):
             report_hour = 0
         if not 0 <= report_minute <= 59:
             report_minute = 0
-        user_timezone = pytz.timezone(settings.TIME_ZONE)
+        user_timezone = ZoneInfo(settings.TIME_ZONE)
         local_now = now.astimezone(user_timezone)
         report_time = local_now.replace(hour=report_hour, minute=report_minute, second=0, microsecond=0)
     except:

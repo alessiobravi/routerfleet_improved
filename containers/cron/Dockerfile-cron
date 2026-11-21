@@ -1,6 +1,11 @@
-FROM ubuntu:latest
+# Pinned, not :latest - a floating base tag means two builds of the same commit
+# can ship different userlands, and the scheduler is the piece that has to keep
+# working untouched for months at a time.
+FROM ubuntu:26.04
 
-# Instalar cron
+# cron + curl are all this container needs: it calls the application's /cron/
+# endpoints on a schedule and does nothing else.
+
 RUN apt-get update && apt-get install -y cron curl
 
 # Adicionar seus scripts de cron

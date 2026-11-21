@@ -56,7 +56,17 @@ def decrypt_value(value):
     try:
         return get_fernet().decrypt(value.encode()).decode()
     except InvalidToken:
-        logger.warning('Could not decrypt stored value: the ENCRYPTION_KEY does not match this value')
+        # Two different things land here and they cannot be told apart from the
+        # token alone: a value that is not encrypted yet - which is normal while
+        # the migration that encrypts the column is still running, and harmless,
+        # because the value is handed back unchanged - and a value encrypted
+        # under a different key, which is the case worth worrying about. The
+        # message therefore names both instead of asserting the alarming one at
+        # every upgrade.
+        logger.warning(
+            'Could not decrypt a stored value. Either it is not encrypted yet '
+            '(normal while the upgrade that encrypts it is running), or it was '
+            'encrypted with a different key than the configured ENCRYPTION_KEY.')
         return value
 
 
