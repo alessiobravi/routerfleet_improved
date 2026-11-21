@@ -1,3 +1,5 @@
+from unittest import mock
+
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
@@ -93,3 +95,50 @@ class MonitoringApiTests(TestCase):
         router = make_router()
         RouterStatus.objects.filter(router=router).update(last_status_change=timezone.now())
         self.assertNotEqual(self.get('/monitoring/last_status_change/').json()['last_status_change'], '0')
+
+
+@override_settings(MONITORING_KEY=KEY)
+class MonitoringKeyTransportTests(TestCase):
+    PATH = '/monitoring/router_config_timestamp/'
+
+    def test_the_key_is_accepted_in_a_header(self):
+        self.assertEqual(self.client.get(self.PATH, HTTP_X_MONITORING_KEY=KEY).status_code, 200)
+        self.assertEqual(self.client.get(self.PATH, HTTP_X_MONITORING_KEY='wrong').status_code, 403)
+
+    def test_the_query_parameter_still_works_for_older_containers(self):
+        self.assertEqual(self.client.get(self.PATH, {'key': KEY}).status_code, 200)
+
+    @override_settings(MONITORING_KEY='')
+    def test_an_unset_key_admits_nobody(self):
+        self.assertEqual(self.client.get(self.PATH, {'key': ''}).status_code, 403)
+        self.assertEqual(self.client.get(self.PATH, HTTP_X_MONITORING_KEY='').status_code, 403)
+
+    def test_the_monitoring_container_never_puts_the_key_in_a_url(self):
+        import importlib.util
+        import pathlib
+        import requests
+        path = pathlib.Path(__file__).resolve().parent.parent / 'containers' / 'monitoring' / 'monitoring.py'
+        spec = importlib.util.spec_from_file_location('monitoring_container', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.api_key = KEY
+        module.host_list = {'u1': {'address': '10.0.0.1', 'online': True}}
+        calls = []
+
+        def fail(url, **kwargs):
+            calls.append((url, kwargs))
+            # What requests really raises: its message names the URL
+            raise requests.exceptions.ConnectionError(f'Max retries exceeded with url: {url}')
+        printed = []
+        with mock.patch.object(module.requests, 'get', side_effect=fail), \
+                mock.patch('builtins.print', side_effect=lambda *a, **k: printed.append(' '.join(map(str, a)))):
+            module.update_router_config_timestamp()
+            module.fetch_host_list()
+            module.update_host_status('u1', True)
+        self.assertEqual(len(calls), 3)
+        for url, kwargs in calls:
+            self.assertNotIn(KEY, url)
+            self.assertNotIn(KEY, str(kwargs.get('params')))
+            self.assertEqual(kwargs['headers'], {'X-Monitoring-Key': KEY})
+        self.assertTrue(printed)
+        self.assertFalse([line for line in printed if KEY in line], 'the key reached the log')

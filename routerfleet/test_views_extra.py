@@ -256,7 +256,7 @@ class MessageViewBranchTests(TestCase):
         MessageChannel.objects.create(name='c', channel_type='ntfy', destination='t')
         router = make_router(status_online=False)
         backup = RouterBackup.objects.create(router=router, schedule_type='daily')
-        with mock.patch('message_center.functions.requests.post', return_value=mock.Mock(status_code=200)):
+        with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=200)):
             data = self.client.get(f'/debug/test_messages/?router_uuid={router.uuid}').json()
             self.assertIn(router.name, data['message'])
             data = self.client.get(f'/debug/test_messages/?backup_id={backup.id}').json()
@@ -291,7 +291,7 @@ class MessageViewBranchTests(TestCase):
             'backup_fails_delay': 600, 'daily_report_time': '06:30', 'concatenate_status_change': 'on'})
         self.assertRedirects(response, '/message_center/channel_list/', fetch_redirect_response=False)
         self.assertEqual(MessageSettings.objects.get().daily_report_time, '06:30')
-        with mock.patch('message_center.forms.requests.post', return_value=mock.Mock(status_code=200)):
+        with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=200)):
             response = self.client.post('/message_center/manage_channel/', {
                 'name': 'alerts', 'channel_type': 'ntfy', 'destination': 'my-topic', 'enabled': 'on'})
         self.assertRedirects(response, '/message_center/channel_list/', fetch_redirect_response=False)

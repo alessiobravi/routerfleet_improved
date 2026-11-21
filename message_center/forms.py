@@ -1,4 +1,6 @@
 import requests
+
+from . import channels
 from .models import MessageSettings, MessageChannel
 
 from django import forms
@@ -153,39 +155,23 @@ class MessageChannelForm(forms.ModelForm):
             if token:
                  self.cleaned_data['token'] = ''
 
-        test_message = 'Test message from RouterFleet'
-        remote_error = 'No error message received'
+        for field, error in channels.format_errors(channel_type, token, destination).items():
+            self.add_error(field, error)
+        if self.errors or not enabled or channel_type not in channels.FORMATS:
+            return cleaned_data
 
-        if channel_type == 'callmebot' and enabled:
-            if not token or not destination:
-                raise forms.ValidationError('CallMeBot requires a token and destination.')
+        required = {'callmebot': ('CallMeBot', True), 'telegram': ('Telegram', True), 'ntfy': ('ntfy.sh', False)}
+        label, needs_token = required[channel_type]
+        if not destination or (needs_token and not token):
+            raise forms.ValidationError(f'{label} requires {"a token and " if needs_token else "a "}destination.')
 
-            message = requests.get(f'https://api.callmebot.com/whatsapp.php?phone={destination}&text={test_message}&apikey={token}', timeout=15)
-            if message.status_code != 200:
-                if message.text:
-                    remote_error = message.text[:200]
-                raise forms.ValidationError(f'Test message failed. CallMeBot API status code {message.status_code}. Error: {remote_error}')
-
-        elif channel_type == 'telegram' and enabled:
-            if not token or not destination:
-                raise forms.ValidationError('Telegram requires a token and destination.')
-            message = requests.get(f'https://api.telegram.org/bot{token}/sendMessage?chat_id={destination}&text={test_message}', timeout=15)
-            if message.status_code != 200:
-                if message.text:
-                    remote_error = message.text[:200]
-                raise forms.ValidationError(f'Test message failed. Telegram API status code {message.status_code}. Error: {remote_error}')
-
-        elif channel_type == 'ntfy' and enabled:
-            if not destination:
-                raise forms.ValidationError('ntfy.sh requires a destination.')
-
-            try:
-                message = requests.post(f'https://ntfy.sh/{destination}', data=test_message.encode('utf-8'), timeout=15)
-                if message.status_code != 200:
-                   if message.text:
-                       remote_error = message.text[:200]
-                   raise forms.ValidationError(f'Test message failed. ntfy.sh API status code {message.status_code}. Error: {remote_error}')
-            except requests.exceptions.RequestException as e:
-                raise forms.ValidationError(f'Test message failed. Network error: {str(e)}') from e
+        # A message is sent before the channel is saved, so a wrong setting shows now
+        try:
+            message = channels.send(channel_type, token, destination, 'Test message from RouterFleet')
+        except requests.exceptions.RequestException as e:
+            raise forms.ValidationError(f'Test message failed. Network error: {channels.scrub(e, token)}') from None
+        if message.status_code != 200:
+            remote_error = channels.scrub(message.text[:200], token) if message.text else 'No error message received'
+            raise forms.ValidationError(f'Test message failed. {label} API status code {message.status_code}. Error: {remote_error}')
 
         return cleaned_data

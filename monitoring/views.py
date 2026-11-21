@@ -1,3 +1,4 @@
+import hmac
 from django.shortcuts import get_object_or_404
 
 from message_center.functions import notify_router_status_update
@@ -9,8 +10,18 @@ from django.conf import settings
 from routerfleet_tools.models import WebadminSettings
 
 
+
+def has_monitoring_key(request):
+    """The monitoring container sends the key in the X-Monitoring-Key header, so it
+    is never part of a URL - an address ends up in error messages and logs. The
+    ?key= parameter is still accepted for a monitoring container that predates
+    the header."""
+    sent = request.headers.get('X-Monitoring-Key') or request.GET.get('key') or ''
+    expected = getattr(settings, "MONITORING_KEY", "") or ""
+    return bool(expected) and hmac.compare_digest(str(sent), str(expected))
+
 def view_router_config_timestamp(request):
-    if not request.user.is_authenticated and request.GET.get('key') != settings.MONITORING_KEY:
+    if not request.user.is_authenticated and not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     if not webadmin_settings.router_config_last_updated:
@@ -21,7 +32,7 @@ def view_router_config_timestamp(request):
 
 
 def view_router_last_status_change(request):
-    if not request.user.is_authenticated and request.GET.get('key') != settings.MONITORING_KEY:
+    if not request.user.is_authenticated and not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     last_router_status_change = RouterStatus.objects.filter(last_status_change__isnull=False).order_by('-last_status_change').first()
     if last_router_status_change:
@@ -32,7 +43,7 @@ def view_router_last_status_change(request):
 
 
 def view_export_router_list(request):
-    if not request.user.is_authenticated and request.GET.get('key') != settings.MONITORING_KEY:
+    if not request.user.is_authenticated and not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     # Not updating the monitoring last run here, as this view is also used on the dashboard
@@ -62,7 +73,7 @@ def view_export_router_list(request):
 
 
 def view_update_router_status(request):
-    if not request.user.is_authenticated and request.GET.get('key') != settings.MONITORING_KEY:
+    if not request.user.is_authenticated and not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     router = Router.objects.get(uuid=request.GET.get('uuid'))
     new_status = request.GET.get('status')

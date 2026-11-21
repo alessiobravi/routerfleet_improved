@@ -132,27 +132,57 @@ class SendTests(TestCase):
 
     def test_ntfy_posts_with_title(self):
         message = Message.objects.create(channel=channel(destination='my-topic'), subject='S', message='body')
-        with mock.patch('message_center.functions.requests.post', return_value=self.response()) as post:
+        with mock.patch('message_center.channels.requests.post', return_value=self.response()) as post:
             message = self.send(message)
         post.assert_called_once_with('https://ntfy.sh/my-topic', data=b'body', headers={'Title': 'S'}, timeout=15)
         self.assertEqual(message.status, 'sent')
         self.assertIsNotNone(message.completed)
 
     def test_telegram_and_callmebot_use_get(self):
-        tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='T'), message='hi')
+        tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='123:ABC'), message='hi')
         cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+39', token='K'), message='yo')
-        with mock.patch('message_center.functions.requests.get', return_value=self.response()) as get:
+        with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
             self.send(tg)
             self.send(cb)
-        urls = [c.args[0] for c in get.call_args_list]
-        self.assertEqual(urls[0], 'https://api.telegram.org/botT/sendMessage?chat_id=42&text=hi')
-        self.assertEqual(urls[1], 'https://api.callmebot.com/whatsapp.php?phone=+39&text=yo&apikey=K')
+        (tg_call, cb_call) = get.call_args_list
+        self.assertEqual(tg_call.args[0], 'https://api.telegram.org/bot123:ABC/sendMessage')
+        self.assertEqual(tg_call.kwargs['params'], {'chat_id': '42', 'text': 'hi'})
+        self.assertEqual(cb_call.args[0], 'https://api.callmebot.com/whatsapp.php')
+        self.assertEqual(cb_call.kwargs['params'], {'phone': '+39', 'text': 'yo', 'apikey': 'K'})
+
+    def test_message_text_cannot_add_parameters(self):
+        # A device called "edge&apikey=other": the text stays one value
+        import requests
+        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+39', token='K'),
+                                    message='edge&apikey=other #1 is offline')
+        with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
+            self.send(cb)
+        prepared = requests.Request('GET', get.call_args.args[0], params=get.call_args.kwargs['params']).prepare()
+        self.assertIn('text=edge%26apikey%3Dother+%231+is+offline', prepared.url)
+        self.assertEqual(prepared.url.count('apikey='), 1)
+
+    def test_a_failed_send_never_stores_the_token(self):
+        import requests
+        tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='123:SECRET'), message='hi')
+        boom = requests.exceptions.ConnectionError(
+            "HTTPSConnectionPool(host='api.telegram.org'): Max retries exceeded with url: /bot123:SECRET/sendMessage")
+        with mock.patch('message_center.channels.requests.get', side_effect=boom):
+            tg = self.send(tg)
+        self.assertEqual(tg.status, 'pending')
+        self.assertNotIn('SECRET', tg.error_message)
+        self.assertIn('***', tg.error_message)
+
+    def test_a_topic_cannot_leave_its_path(self):
+        message = Message.objects.create(channel=channel(destination='../v1/account'), message='x')
+        with mock.patch('message_center.channels.requests.post', return_value=self.response()) as post:
+            self.send(message)
+        self.assertEqual(post.call_args.args[0], 'https://ntfy.sh/..%2Fv1%2Faccount')
 
     def test_failure_is_stored_and_retried(self):
         MessageSettings.objects.create(retry_interval=60)
         message = Message.objects.create(channel=channel(), message='m')
         now = timezone.now()
-        with at(now), mock.patch('message_center.functions.requests.post',
+        with at(now), mock.patch('message_center.channels.requests.post',
                                  return_value=self.response(401, 'bad token')):
             message = self.send(message)
         self.assertEqual((message.status, message.retry_count), ('pending', 1))
@@ -161,20 +191,20 @@ class SendTests(TestCase):
 
     def test_request_exception(self):
         message = Message.objects.create(channel=channel(), message='m')
-        with mock.patch('message_center.functions.requests.post', side_effect=OSError('dns')):
+        with mock.patch('message_center.channels.requests.post', side_effect=OSError('dns')):
             message = self.send(message)
         self.assertIn('Request exception dns', message.error_message)
 
     def test_gives_up_after_max_retry(self):
         message = Message.objects.create(channel=channel(), message='m', retry_count=4)
-        with mock.patch('message_center.functions.requests.post') as post:
+        with mock.patch('message_center.channels.requests.post') as post:
             message = self.send(message)
         post.assert_not_called()
         self.assertEqual(message.status, 'failed')
 
     def test_only_pending_messages_are_sent(self):
         message = Message.objects.create(channel=channel(), message='m', status='sent')
-        with mock.patch('message_center.functions.requests.post') as post:
+        with mock.patch('message_center.channels.requests.post') as post:
             self.send(message)
         post.assert_not_called()
 
@@ -182,7 +212,7 @@ class SendTests(TestCase):
         ch = channel()
         fresh = Message.objects.create(channel=ch, message='new')
         Message.objects.create(channel=ch, message='retry', next_retry=timezone.now() - datetime.timedelta(seconds=1))
-        with mock.patch('message_center.functions.requests.post', return_value=self.response()):
+        with mock.patch('message_center.channels.requests.post', return_value=self.response()):
             data = self.client.get('/cron/send_messages/').json()
         self.assertEqual(data['messages_sent'], 1)
         fresh.refresh_from_db()
@@ -191,14 +221,14 @@ class SendTests(TestCase):
     def test_update_notice_is_appended_only_when_an_update_is_known(self):
         ch = channel()
         message = Message.objects.create(channel=ch, message='hello')
-        with mock.patch('message_center.functions.requests.post', return_value=self.response()):
+        with mock.patch('message_center.channels.requests.post', return_value=self.response()):
             self.client.get('/cron/send_messages/')
         message.refresh_from_db()
         self.assertEqual(message.message, 'hello')
 
         WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={'update_available': True})
         second = Message.objects.create(channel=ch, message='again')
-        with mock.patch('message_center.functions.requests.post', return_value=self.response()):
+        with mock.patch('message_center.channels.requests.post', return_value=self.response()):
             self.client.get('/cron/send_messages/')
         second.refresh_from_db()
         self.assertIn('A new version of RouterFleet is available', second.message)
@@ -279,13 +309,13 @@ class FormTests(TestCase):
         self.assertIn('destination', form.errors)
 
     def test_telegram_sends_a_test_message_before_saving(self):
-        data = {'name': 'tg', 'channel_type': 'telegram', 'destination': '1', 'token': 'T', 'enabled': True}
-        with mock.patch('message_center.forms.requests.get',
+        data = {'name': 'tg', 'channel_type': 'telegram', 'destination': '1', 'token': '123:ABC', 'enabled': True}
+        with mock.patch('message_center.channels.requests.get',
                         return_value=mock.Mock(status_code=401, text='Unauthorized')):
             form = MessageChannelForm(data)
             self.assertFalse(form.is_valid())
             self.assertIn('Unauthorized', str(form.errors))
-        with mock.patch('message_center.forms.requests.get', return_value=mock.Mock(status_code=200)):
+        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=200)):
             self.assertTrue(MessageChannelForm(data).is_valid())
 
 
@@ -297,31 +327,56 @@ class ChannelFormTests(TestCase):
 
     def test_callmebot_needs_token_and_destination_and_a_working_test(self):
         self.assertIn('requires a token', str(self.form(channel_type='callmebot').errors))
-        with mock.patch('message_center.forms.requests.get', return_value=mock.Mock(status_code=500, text='quota')):
-            self.assertIn('quota', str(self.form(channel_type='callmebot', destination='1', token='k').errors))
-        with mock.patch('message_center.forms.requests.get', return_value=mock.Mock(status_code=200)):
-            self.assertTrue(self.form(channel_type='callmebot', destination='1', token='k').is_valid())
+        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=500, text='quota')):
+            self.assertIn('quota', str(self.form(channel_type='callmebot', destination='+391234', token='k').errors))
+        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=200)):
+            self.assertTrue(self.form(channel_type='callmebot', destination='+391234', token='k').is_valid())
 
     def test_telegram_needs_token(self):
         self.assertIn('requires a token', str(self.form(channel_type='telegram', destination='1').errors))
 
     def test_ntfy_test_message_and_failures(self):
         import requests
-        with mock.patch('message_center.forms.requests.post', return_value=mock.Mock(status_code=200)) as post:
+        with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=200)) as post:
             form = self.form(channel_type='ntfy', destination='topic', token='ignored')
             self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['token'], '')
         self.assertEqual(post.call_args.args[0], 'https://ntfy.sh/topic')
-        with mock.patch('message_center.forms.requests.post', return_value=mock.Mock(status_code=429, text='slow down')):
+        with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=429, text='slow down')):
             self.assertIn('slow down', str(self.form(channel_type='ntfy', destination='t').errors))
-        with mock.patch('message_center.forms.requests.post',
+        with mock.patch('message_center.channels.requests.post',
                         side_effect=requests.exceptions.ConnectionError('offline')):
             self.assertIn('Network error', str(self.form(channel_type='ntfy', destination='t').errors))
 
     def test_disabled_channel_sends_no_test(self):
-        with mock.patch('message_center.forms.requests.get') as get:
-            self.assertTrue(self.form(channel_type='telegram', destination='1', token='t', enabled=False).is_valid())
+        with mock.patch('message_center.channels.requests.get') as get:
+            self.assertTrue(self.form(channel_type='telegram', destination='1', token='1:t', enabled=False).is_valid())
         get.assert_not_called()
+
+    def test_values_must_look_like_what_the_service_issues(self):
+        cases = [
+            ({'channel_type': 'telegram', 'token': 'not-a-token', 'destination': '42'}, 'token'),
+            ({'channel_type': 'telegram', 'token': '1:a', 'destination': '42&text=x'}, 'destination'),
+            ({'channel_type': 'callmebot', 'token': 'k&x=1', 'destination': '+391234'}, 'token'),
+            ({'channel_type': 'callmebot', 'token': 'k', 'destination': '12'}, 'destination'),
+            ({'channel_type': 'ntfy', 'destination': '../v1/account'}, 'destination'),
+        ]
+        for data, field in cases:
+            with self.subTest(data=data), mock.patch('message_center.channels.requests.get') as get, \
+                    mock.patch('message_center.channels.requests.post') as post:
+                form = self.form(**data)
+                self.assertFalse(form.is_valid())
+                self.assertIn(field, form.errors)
+                get.assert_not_called()
+                post.assert_not_called()
+
+    def test_a_network_error_in_the_test_does_not_show_the_token(self):
+        import requests
+        boom = requests.exceptions.ConnectionError('Max retries exceeded with url: /bot99:TOPSECRET/sendMessage')
+        with mock.patch('message_center.channels.requests.get', side_effect=boom):
+            errors = str(self.form(channel_type='telegram', destination='42', token='99:TOPSECRET').errors)
+        self.assertIn('Network error', errors)
+        self.assertNotIn('TOPSECRET', errors)
 
     def test_length_limits(self):
         form = self.form(channel_type='ntfy', destination='x' * 101, enabled=False)

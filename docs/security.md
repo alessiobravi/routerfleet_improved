@@ -99,14 +99,27 @@ it and must keep those paths to itself.
 
 ## The monitoring endpoints
 
-`/monitoring/` accepts either a signed-in session or `?key=<MONITORING_KEY>`.
-The key is a UUID generated on first container start and kept in
+`/monitoring/` accepts either a signed-in session or the monitoring key. The
+key is a UUID generated on first container start and kept in
 `app_secrets/monitoring_key`, shared with the monitoring container through that
-volume.
+volume, and compared in constant time.
 
-Because it is passed as a query parameter, it will appear in the access logs of
-anything that logs full URLs. On the internal Compose network that is nginx-free
-and direct; if you expose the application port, treat the key as exposed too.
+The monitoring container sends it in an `X-Monitoring-Key` header, never in a
+URL: an address ends up in access logs and in the text of connection errors,
+which the container prints. (Before 0.11.5 it was a `?key=` parameter, and an
+unreachable application put the key into the monitoring log.) `?key=` is still
+accepted, so a monitoring container that predates the header keeps working.
+
+## Notification channels
+
+The token and destination of a channel must look like what the service issues
+— a Telegram bot token, a chat id or @channel, a phone number, an ntfy topic —
+before the channel is saved, and requests are built with encoded parameters and
+quoted path segments, never by pasting text into a URL. A device name is part
+of the messages sent, so before 0.11.5 a name containing `&` could cut a
+message short or add a parameter to the request. The error text of a failed
+send is stored with the channel's token removed: it names the request's URL,
+and for Telegram the token is part of that URL.
 
 ## Device host keys
 

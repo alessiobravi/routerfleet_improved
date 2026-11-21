@@ -3,7 +3,7 @@ import datetime
 from router_manager.models import Router
 from .models import MessageChannel, Notification, MessageSettings, Message
 from backup_data.models import RouterBackup
-import requests
+from . import channels
 from django.utils import timezone
 
 
@@ -135,43 +135,25 @@ def send_notification_message(message: Message):
 
     message_response = {'status': 'pending', 'error_message': '', 'error_status_code': 0}
     
-    url = ''
-    method = 'GET'
-    headers = {}
-    data = None
-
-    if message.channel.channel_type == 'callmebot':
-        url = f'https://api.callmebot.com/whatsapp.php?phone={message.channel.destination}&text={message.message}&apikey={message.channel.token}'
-    elif message.channel.channel_type == 'telegram':
-        url = f'https://api.telegram.org/bot{message.channel.token}/sendMessage?chat_id={message.channel.destination}&text={message.message}'
-    elif message.channel.channel_type == 'ntfy':
-        url = f'https://ntfy.sh/{message.channel.destination}'
-        method = 'POST'
-        data = message.message.encode('utf-8')
-        if message.subject:
-             headers = {'Title': message.subject}
-    else:
+    channel = message.channel
+    try:
+        response = channels.send(channel.channel_type, channel.token, channel.destination,
+                                 message.message, message.subject)
+        if response.status_code == 200:
+            message_response['status'] = 'sent'
+        else:
+            message_response['status'] = 'failed'
+            message_response['error_message'] = channels.scrub(response.text, channel.token)
+            message_response['error_status_code'] = response.status_code
+    except ValueError:
         message_response['status'] = 'failed'
         message_response['error_message'] = 'Failed to send message: Invalid channel type'
         message_response['error_status_code'] = 0
-
-    if message_response['status'] == 'pending':
-        try:
-            if method == 'GET':
-                response = requests.get(url, timeout=15)
-            elif method == 'POST':
-                response = requests.post(url, data=data, headers=headers, timeout=15)
-            
-            if response.status_code == 200:
-                message_response['status'] = 'sent'
-            else:
-                message_response['status'] = 'failed'
-                message_response['error_message'] = response.text
-                message_response['error_status_code'] = response.status_code
-        except Exception as e:
-            message_response['status'] = 'failed'
-            message_response['error_message'] = f'Failed to send message: Request exception {str(e)}'
-            message_response['error_status_code'] = 0
+    except Exception as e:
+        # The exception names the URL, which carries the token: never stored as is
+        message_response['status'] = 'failed'
+        message_response['error_message'] = 'Failed to send message: Request exception ' + channels.scrub(e, channel.token)
+        message_response['error_status_code'] = 0
 
     if message_response['status'] == 'sent':
         message.status = 'sent'

@@ -47,10 +47,16 @@ def get_api_key():
     return api_key_temp
 
 
+def auth_headers():
+    # In a header, not in the URL: requests puts the URL into the message of a
+    # connection error, and those messages are printed to the log
+    return {"X-Monitoring-Key": api_key}
+
+
 def update_router_config_timestamp():
     global remote_router_config_timestamp, api_key
     try:
-        response = requests.get(f"{CONFIG_TIMESTAMP_URL}?key={api_key}", timeout=30)
+        response = requests.get(CONFIG_TIMESTAMP_URL, headers=auth_headers(), timeout=30)
         if response.status_code == 200:
             remote_router_config_timestamp_temp = response.json()['router_config']
             if remote_router_config_timestamp_temp != remote_router_config_timestamp:
@@ -68,7 +74,7 @@ def update_router_config_timestamp():
 def fetch_host_list():
     global host_list_update_timestamp, current_router_config_timestamp, remote_router_config_timestamp, api_key
     try:
-        response = requests.get(f"{HOST_LIST_URL}?key={api_key}", timeout=30)
+        response = requests.get(HOST_LIST_URL, headers=auth_headers(), timeout=30)
         if response.status_code == 200:
             host_list_update_timestamp = time.time()
             remote_router_config_timestamp = response.json()['router_config']
@@ -87,7 +93,7 @@ def update_host_status(uuid, status):
         print(f"{datetime.now()} - Notification limit reached. Skipping Remote API update for {host_list[uuid]['address']}")
         return  # Skip if notification limit is reached
     try:
-        response = requests.get(f"{UPDATE_STATUS_URL}?key={api_key}&uuid={uuid}&status={get_verbose_status(status)}", timeout=30)
+        response = requests.get(UPDATE_STATUS_URL, params={"uuid": uuid, "status": get_verbose_status(status)}, headers=auth_headers(), timeout=30)
         if response.status_code == 200:
             print(f"{datetime.now()} - Remote API Status updated for {host_list[uuid]['address']} to {get_verbose_status(status)}")
             notification_count += 1

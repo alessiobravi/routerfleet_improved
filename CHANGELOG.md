@@ -10,6 +10,36 @@ release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. The entries below are the record of what changed.
 
+## [0.11.5] - 2026-11-22
+
+The first code scan's findings, read one by one: what was real is fixed here.
+
+### Security
+- **The monitoring key could reach the monitoring log.** It travelled in the
+  URL (`?key=`), and `requests` puts the URL into the message of a connection
+  error, which the container prints — every time the application was
+  unreachable, a restart included. The container now sends it in an
+  `X-Monitoring-Key` header; the application compares it in constant time and
+  still accepts `?key=` from an older container.
+- **A failed notification stored the channel's token in clear text.** The error
+  text names the request's URL, which carries the Telegram bot token or the
+  CallMeBot key, and it was saved with the message and shown in the interface.
+  The token is now removed before anything is stored or shown.
+- **Message text could add parameters to the request.** Notifications were
+  built by pasting text into the URL; a device named `x&apikey=…` changed the
+  request, and a `&` or `#` cut the message short. Requests are now built with
+  encoded parameters and quoted path segments, in one place
+  (`message_center/channels.py`) for the test message and the real send, and a
+  channel's token and destination must look like what the service issues
+  before it is saved.
+
+### Not changed, on purpose
+- The other code-scanning findings are false positives: the monitoring
+  container's status lines print addresses and states, not the key it
+  traces them to; the WireGuard WebAdmin URL is the administrator's own
+  setting (https only); an import shows the administrator why an SSH test
+  failed, which is the message, not a stack trace.
+
 ## [0.11.4] - 2026-11-22
 
 ### Security
