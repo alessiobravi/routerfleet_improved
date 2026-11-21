@@ -23,6 +23,8 @@ from routerlib.actions import posted_action, posted_confirmation
 def view_debug_test_messages(request):
     if not settings.DEBUG:
         raise Http404
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     data = {'status': 'success', 'message': ''}
     router = None
     router_backup = None

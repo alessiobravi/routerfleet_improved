@@ -226,16 +226,18 @@ def view_backup_config_change(request):
     })
 
 
+@login_required()
 def view_debug_run_backups(request):
-    data = {
-        'backup_count': 0,
-    }
-    if settings.DEBUG:
-        for backup in RouterBackup.objects.filter(success=False, error=False):
-            data['backup_count'] += 1
-            perform_backup(backup)
-    else:
-        data['error'] = 'Debug mode is not enabled'
+    # A troubleshooting aid: only with debug mode on, only for administrators.
+    # It used to answer anyone, signed in or not, whenever DEBUG_MODE was True.
+    if not settings.DEBUG:
+        raise Http404
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    data = {'backup_count': 0}
+    for backup in RouterBackup.objects.filter(success=False, error=False):
+        data['backup_count'] += 1
+        perform_backup(backup)
     return JsonResponse(data)
 
 

@@ -10,6 +10,19 @@ release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Releases before 0.10.0 were withdrawn in 0.11.0 (see there); their entries
 below are kept as the record of what changed.
 
+## [0.11.2] - 2026-11-21
+
+### Security
+- **`/debug/run_backups/` answered anyone** — no sign-in, no permission — and
+  ran every pending backup whenever `DEBUG_MODE` was `True`. Both debug
+  endpoints now need an administrator (level 50), and answer 404 outside debug
+  mode.
+
+### Changed
+- The 0.11.1 entry describes the CSRF exposure precisely: a cross-site
+  navigation, not an image tag (the session cookie is `SameSite=Lax`), and most
+  actions needed the object's identifier.
+
 ## [0.11.1] - 2026-11-21
 
 0.11.0 was never released: its CI run stopped before publishing, on a check of
@@ -23,8 +36,10 @@ found.
 - **Cross-site request forgery on every destructive action.** Deleting devices,
   groups, SSH keys, backups, users, commands, schedules and channels; aborting
   tasks; starting backups and imports; refreshing inventory; signing out — all
-  were GET requests, so any page a signed-in user opened could trigger them with
-  an image tag. Each is now a POST that needs the installation's CSRF token, and
+  were GET requests, which Django's CSRF protection does not check: another
+  site could trigger them by sending a signed-in user's browser to the address
+  (most also needed the object's identifier, which every signed-in user can
+  see). Each is now a POST that needs the installation's CSRF token, and
   the same request as a GET changes nothing. Tests check all three: a GET does
   nothing, a POST without the token is refused, a POST with it works.
 - **Device SSH host keys are trusted on first use and checked on every

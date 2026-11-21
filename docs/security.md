@@ -181,8 +181,9 @@ Everything that changes something — deleting, aborting a task, starting a
 backup, refreshing inventory, signing out — is a POST carrying the
 installation's CSRF token. Loading an address, from a link, an image tag or
 another site, changes nothing: the same request as a GET is ignored. Before
-0.11.0 these actions were GET requests, and any page a signed-in user opened
-could trigger them.
+0.11.0 these actions were GET requests, which Django's CSRF protection does not
+check: another site could trigger them by navigating a signed-in user's browser
+to the address.
 
 ## Hosts and CSRF
 

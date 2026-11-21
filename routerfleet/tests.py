@@ -199,10 +199,29 @@ class CronEndpointTests(TestCase):
 class DebugEndpointTests(TestCase):
     def test_run_backups_does_nothing_outside_debug(self):
         RouterBackup.objects.create(router=make_router(), schedule_type='instant')
+        self.client.force_login(make_user(50))
         with mock.patch('backup.views.perform_backup') as perform:
             response = self.client.get('/debug/run_backups/')
         perform.assert_not_called()
-        self.assertEqual(response.json()['error'], 'Debug mode is not enabled')
+        self.assertEqual(response.status_code, 404)
+
+    @override_settings(DEBUG=True)
+    def test_run_backups_in_debug_needs_an_administrator(self):
+        RouterBackup.objects.create(router=make_router(), schedule_type='instant')
+        with mock.patch('backup.views.perform_backup') as perform:
+            # Nobody signed in: this used to run every pending backup
+            self.assertEqual(self.client.get('/debug/run_backups/').status_code, 302)
+            self.client.force_login(make_user(40))
+            self.assertContains(self.client.get('/debug/run_backups/'), 'Access Denied')
+            perform.assert_not_called()
+            self.client.force_login(make_user(50, username='admin2'))
+            self.assertEqual(self.client.get('/debug/run_backups/').json()['backup_count'], 1)
+        perform.assert_called_once()
+
+    @override_settings(DEBUG=True)
+    def test_test_messages_in_debug_needs_an_administrator(self):
+        self.client.force_login(make_user(40))
+        self.assertContains(self.client.get('/debug/test_messages/'), 'Access Denied')
 
     def test_test_messages_is_not_found_outside_debug(self):
         self.client.force_login(make_user(50))
