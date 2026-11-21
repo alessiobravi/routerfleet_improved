@@ -10,7 +10,7 @@ and resets PATCH. Every push to main raises one of them.
     scripts/version.py notes              print the CHANGELOG.md section of it
     scripts/version.py newer-than TAG...  exit 1 unless it is above every vX.Y.Z tag given
     scripts/version.py bump patch|minor   raise it in settings.py
-    scripts/version.py retired TAG        exit 0 if TAG is a release below the floor
+    scripts/version.py retired TAG        exit 0 if TAG is a release older than this one
 
 Standard library only, so CI can run it before anything is installed.
 """
@@ -69,9 +69,10 @@ def main(argv):
                      f'- raise it with: scripts/version.py bump patch (or minor for a feature)')
         print(f'{current}: above every release')
     elif command == 'retired':
-        # exit 0 when the tag given is a release below the floor
+        # exit 0 when the tag given is a release older than the one in settings.py:
+        # only the newest release is kept
         tag = argv[2].removeprefix('refs/tags/').removeprefix('v') if len(argv) > 2 else ''
-        sys.exit(0 if versioning.is_retired(tag) else 1)
+        sys.exit(0 if versioning.is_retired(tag, release()) else 1)
     elif command == 'bump':
         part = argv[2] if len(argv) > 2 else ''
         new = versioning.bump(current, part)

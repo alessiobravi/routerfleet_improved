@@ -90,8 +90,13 @@ encrypted with.
 
 Releases are numbered MAJOR.MINOR.PATCH: fixes and maintenance raise the last
 number (0.8.0 → 0.8.1), a new feature raises the middle one (→ 0.9.0). Every
-push to `main` is a release with its own git tag, GitHub Release and image
-tags. What changed is in the [changelog](CHANGELOG.md).
+push to `main` is a release, and **only the newest release is offered**: older
+releases, tags and images are deleted when it is published. Use `:latest`. What
+changed is in the [changelog](CHANGELOG.md).
+
+## Security
+
+Report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
 
 ## Disclaimer
 

@@ -18,6 +18,14 @@ docker run --rm -v <project>_app_secrets:/secrets -v "$PWD":/backup alpine \
 
 A database backup without `app_secrets` cannot restore the stored passwords.
 
+If you may want to go back, also keep the images you are running now — only
+the newest release is published, so the one you have will not be downloadable
+again (see [Rolling back](#rolling-back)):
+
+```bash
+docker save $(docker compose config --images) | gzip > routerfleet-images-$(date +%F).tar.gz
+```
+
 ## The upgrade
 
 ```bash
@@ -179,13 +187,12 @@ names `postgres:16` keeps working too.
   POSTs; an address such as `...?action=delete&confirmation=delete` only
   shows the page.
 
-## Releases before 0.10.0
+## Only the newest release is published
 
-Releases 0.8.0 to 0.9.3 were published before every release was scanned for
-known vulnerabilities, and their images carried hundreds. They have been
-withdrawn: their releases, tags and images no longer exist. An installation
-pinned to one of them upgrades like any other — set the `image:` lines to a
-current release or `latest`.
+Publishing a release deletes every older one: its GitHub Release, git tag and
+images. An installation whose compose file names a version that no longer
+exists upgrades like any other — set the five `image:` lines back to `:latest`
+and pull. The changelog keeps the record of every release.
 
 ## Version requirements
 
@@ -201,14 +208,18 @@ download the current compose file as shown above.
 
 ## Rolling back
 
-Every release keeps its own image tag, so going back means naming the version
-you came from. Stop the stack, restore the database dump and the `app_secrets`
-archive, set the five `image:` lines of `docker-compose.yml` to that version —
-for example `ghcr.io/alessiobravi/routerfleet:0.10.1` — and start it again.
-The versions are listed on the repository's Releases page and in the
-[changelog](../CHANGELOG.md). Note that migrations are **not** automatically
-reversed by downgrading the image — restore the database rather than relying on
-reverse migrations.
+Only the newest release can be downloaded, so going back means using the images
+you saved before upgrading ([Before you start](#before-you-start)). Stop the
+stack, restore the database dump and the `app_secrets` archive, load the saved
+images and point the five `image:` lines at them, then start it again:
+
+```bash
+docker load < routerfleet-images-YYYY-MM-DD.tar.gz
+docker image ls ghcr.io/alessiobravi/routerfleet   # the version you came from
+```
+
+Note that migrations are **not** automatically reversed by downgrading the
+image — restore the database rather than relying on reverse migrations.
 
 The two data migrations that encrypt passwords define a no-op reverse, which
 means reversing them leaves the values encrypted. This is another reason to roll

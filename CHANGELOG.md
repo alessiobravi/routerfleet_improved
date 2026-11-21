@@ -7,8 +7,27 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
-Releases before 0.10.0 were withdrawn in 0.11.0 (see there); their entries
-below are kept as the record of what changed.
+Only the newest release is published: each release deletes the older ones,
+with their tags and images. The entries below are the record of what changed.
+
+## [0.11.3] - 2026-11-22
+
+### Security
+- **Every action CI runs is pinned to a commit**, with the release it is in
+  as a comment (`actions/checkout@3d3c42e… # v7.0.1`). A version tag can be
+  moved to other code by whoever controls the action's repository — including
+  someone who has compromised it — and the next build would run that code with
+  the right to publish images and releases. A test keeps every `uses:` pinned.
+- **`SECURITY.md`**: vulnerabilities are reported privately through GitHub's
+  vulnerability reporting, and only the latest release is supported.
+
+### Changed
+- **Only the newest release is offered.** Publishing a release now deletes
+  every older GitHub Release, tag and image — not only those before 0.10.0. A
+  superseded release is superseded because the new one fixes something. Use
+  `:latest`; pinning a version tag is no longer supported, and the upgrade
+  guide shows how to keep the running images with `docker save` to be able to
+  roll back.
 
 ## [0.11.2] - 2026-11-21
 

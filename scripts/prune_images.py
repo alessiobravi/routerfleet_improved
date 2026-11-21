@@ -2,13 +2,13 @@
 """Delete the image versions on ghcr.io that no release needs.
 
 Kept:
-  - every version tagged `latest` or with a release number (MAJOR.MINOR.PATCH)
-    at or above RELEASE_FLOOR in routerfleet/versioning.py;
+  - the versions tagged `latest` and with the release just published - only
+    the newest release is offered;
   - every manifest such a version references. A multi-platform image is an
     index whose per-platform manifests are versions of their own, untagged -
     deleting them would break the image they belong to.
-Deleted: everything else - leftovers of earlier builds, old tag schemes,
-withdrawn releases.
+Deleted: everything else - older releases, leftovers of earlier builds, old
+tag schemes.
 
 It refuses to delete anything when the release just published is not among
 the versions, or when a referenced manifest cannot be read: a partial view of
@@ -43,24 +43,23 @@ def _versioning():
     return module
 
 
-def is_kept_tag(tag, retired=None):
-    """latest, or a release at or above the floor."""
-    retired = retired or _versioning().is_retired
-    return bool(RELEASE_TAG.match(tag)) and not retired(tag)
+def is_kept_tag(tag, current):
+    """latest, or the current release (or, defensively, a newer one)."""
+    return bool(RELEASE_TAG.match(tag)) and not _versioning().is_retired(tag, current)
 
 
-def plan(versions, children_of, retired=None):
+def plan(versions, children_of, current):
     """Which versions to delete.
 
     versions: [{'id': int, 'name': 'sha256:...', 'tags': [...]}, ...]
     children_of: callable(tag) -> digests the manifest under that tag references
+    current: the release being published; every older release goes
     Returns (kept, delete), each a list of versions.
     """
-    retired = retired or _versioning().is_retired
-    kept = [v for v in versions if any(is_kept_tag(t, retired) for t in v['tags'])]
+    kept = [v for v in versions if any(is_kept_tag(t, current) for t in v['tags'])]
     protected = set()
     for version in kept:
-        tag = next(t for t in version['tags'] if is_kept_tag(t, retired))
+        tag = next(t for t in version['tags'] if is_kept_tag(t, current))
         protected.update(children_of(tag))
     delete = [v for v in versions if v not in kept and v['name'] not in protected]
     return kept, delete
@@ -116,7 +115,7 @@ def main(argv):
     versions = list_versions(owner, image, token)
     if not any(release in v['tags'] for v in versions):
         sys.exit(f'{image}:{release} is not among the versions - nothing deleted')
-    kept, delete = plan(versions, registry_children(owner, image))
+    kept, delete = plan(versions, registry_children(owner, image), release)
 
     print(f'{image}: {len(versions)} versions, keeping {len(kept)} tagged '
           f'({", ".join(sorted(t for v in kept for t in v["tags"]))}) and the manifests they reference')

@@ -66,12 +66,16 @@ How the pieces talk to each other is in [Architecture](architecture.md).
 
 ## Images and versions
 
-Every push to `main` is a release. Each of the five images is published as:
+Every push to `main` is a release, and **only the newest release is offered**:
+publishing a release deletes every older one — its GitHub Release, git tag and
+images. A release that was superseded was superseded because the new one fixes
+something, so the old one is not left around to be installed. Each of the five
+images is published as:
 
 | Tag | Meaning |
 |---|---|
-| `:latest` | The most recent release. The compose files use this |
-| `:<version>`, e.g. `:0.11.0` | That exact release, never moved |
+| `:latest` | The current release. The compose files use this, and it is the tag to use |
+| `:<version>`, e.g. `:0.11.3` | The current release under its number — deleted when the next release is published |
 
 Releases are numbered MAJOR.MINOR.PATCH: a release that only fixes or maintains
 raises the last number (0.8.0 → 0.8.1), one that brings a new feature raises the
@@ -82,15 +86,17 @@ Images are public — no registry login is needed to pull them — and each tag 
 also has a git tag `v<version>` and a GitHub Release with its
 [changelog](../CHANGELOG.md) section.
 
-**Pinning a version.** To stay on a release until you decide to move, replace
-`:latest` with the version in all five `image:` lines of your
-`docker-compose.yml`:
+**Pinning a version is not supported.** A version tag disappears with the next
+release, so a compose file that names one stops pulling. To stay on a release
+until you decide to move, keep the images you run: Docker keeps what it pulled
+until you remove it, and `docker compose pull` is what moves you forward —
+simply do not run it until you want to. To keep a copy outside Docker:
 
-```yaml
-    image: ghcr.io/alessiobravi/routerfleet:0.11.0
+```bash
+docker save $(docker compose config --images) | gzip > routerfleet-images-$(date +%F).tar.gz
+# and to restore it later
+docker load < routerfleet-images-YYYY-MM-DD.tar.gz
 ```
-
-All five images must carry the same version.
 
 ## Choosing a compose file
 

@@ -145,29 +145,40 @@ class ImagePruneTests(TestCase):
             {'id': 8, 'name': 'sha256:its-part', 'tags': []},
         ]
         children = {'1.1.0': ['sha256:amd64-110', 'sha256:arm64-110'], 'latest': [], '1.0.0': []}
-        kept, delete = self.script().plan(versions, lambda tag: children[tag])
-        self.assertEqual({v['id'] for v in kept}, {1, 4})
-        # 2 and 3 are untagged but belong to the 1.1.0 release
-        self.assertEqual({v['id'] for v in delete}, {5, 6, 7, 8})
+        kept, delete = self.script().plan(versions, lambda tag: children[tag], '1.1.0')
+        self.assertEqual({v['id'] for v in kept}, {1})
+        # 2 and 3 are untagged but belong to the 1.1.0 release; 1.0.0 is older
+        self.assertEqual({v['id'] for v in delete}, {4, 5, 6, 7, 8})
 
-    def test_releases_below_the_floor_go_with_their_parts(self):
+    def test_older_releases_go_with_their_parts(self):
         versions = [
-            {'id': 1, 'name': 'sha256:new', 'tags': ['0.10.0', 'latest']},
-            {'id': 2, 'name': 'sha256:withdrawn-index', 'tags': ['0.9.3']},
-            {'id': 3, 'name': 'sha256:withdrawn-part', 'tags': []},
+            {'id': 1, 'name': 'sha256:new', 'tags': ['0.11.3', 'latest']},
+            {'id': 2, 'name': 'sha256:older-index', 'tags': ['0.11.2']},
+            {'id': 3, 'name': 'sha256:older-part', 'tags': []},
         ]
-        children = {'0.10.0': [], 'latest': [], '0.9.3': ['sha256:withdrawn-part']}
-        kept, delete = self.script().plan(versions, lambda tag: children[tag])
+        children = {'0.11.3': [], 'latest': [], '0.11.2': ['sha256:older-part']}
+        kept, delete = self.script().plan(versions, lambda tag: children[tag], '0.11.3')
         self.assertEqual({v['id'] for v in kept}, {1})
         self.assertEqual({v['id'] for v in delete}, {2, 3})
 
-    def test_floor(self):
-        from routerfleet.versioning import RELEASE_FLOOR, is_retired, to_number
-        self.assertTrue(is_retired('0.9.3'))
-        self.assertFalse(is_retired(RELEASE_FLOOR))
-        self.assertFalse(is_retired('latest'))
+    def test_only_the_newest_release_is_kept(self):
+        from routerfleet.versioning import is_retired
+        self.assertTrue(is_retired('0.11.2', '0.11.3'))
+        self.assertTrue(is_retired('0.9.3', '0.11.3'))
+        self.assertFalse(is_retired('0.11.3', '0.11.3'))
+        self.assertFalse(is_retired('0.12.0', '0.11.3'), 'a newer one is never deleted')
+        self.assertFalse(is_retired('latest', '0.11.3'))
+
+    def test_retired_command(self):
+        import subprocess
+        import sys
         from django.conf import settings
-        self.assertGreaterEqual(to_number(settings.ROUTERFLEET_RELEASE), to_number(RELEASE_FLOOR))
+        from routerfleet.versioning import bump
+        def run(tag):
+            return subprocess.run([sys.executable, '-I', 'scripts/version.py', 'retired', tag]).returncode
+        self.assertEqual(run('v0.0.1'), 0)
+        self.assertNotEqual(run(f'v{settings.ROUTERFLEET_RELEASE}'), 0)
+        self.assertNotEqual(run('v' + bump(settings.ROUTERFLEET_RELEASE, 'minor')), 0)
 
     def test_release_pattern(self):
         pattern = self.script().RELEASE_TAG
@@ -178,7 +189,7 @@ class ImagePruneTests(TestCase):
 
     def test_nothing_to_delete(self):
         versions = [{'id': 1, 'name': 'sha256:a', 'tags': ['1.0.0']}]
-        self.assertEqual(self.script().plan(versions, lambda tag: [])[1], [])
+        self.assertEqual(self.script().plan(versions, lambda tag: [], '1.0.0')[1], [])
 
 
 class CveReportTests(TestCase):
@@ -211,3 +222,23 @@ class CveReportTests(TestCase):
         self.assertEqual(text.count('CVE-K'), 1)
         self.assertIn('CVE-K high — libk5crypto3, libkrb5-3 (no fix yet)', text)
         self.assertIn('<details><summary>13 vulnerabilities</summary>', text)
+
+
+class WorkflowPinningTests(TestCase):
+    """Every action CI runs is pinned to a commit. A tag can be moved to other
+    code by whoever controls the action's repository; a commit cannot. The
+    comment after the hash says which release it is."""
+
+    def test_every_action_is_pinned_to_a_commit(self):
+        import pathlib
+        import re
+        workflows = list(pathlib.Path(__file__).resolve().parent.parent.glob('.github/workflows/*.yml'))
+        self.assertTrue(workflows)
+        for workflow in workflows:
+            for line in workflow.read_text().splitlines():
+                match = re.search(r'uses:\s*(\S+)', line)
+                if not match or match.group(1).startswith('./'):
+                    continue
+                with self.subTest(workflow=workflow.name, uses=match.group(1)):
+                    self.assertRegex(match.group(1), r'^[\w.-]+/[\w./-]+@[0-9a-f]{40}$')
+                    self.assertRegex(line, r'# v\d+\.\d+\.\d+$', 'say which release the hash is')
