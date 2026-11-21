@@ -46,7 +46,7 @@ flowchart TB
 | [Installation](installation.md) | Full specification: containers, images and versions, every option and variant |
 | [Upgrading](upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
 | [Operations](operations.md) | Management commands, housekeeping, troubleshooting, local development, tests |
-| [Security](security.md) | Secrets at rest, the scheduler endpoints, hosts and CSRF, outbound calls |
+| [Security](security.md) | Secrets at rest, device host keys, sign-in limits, CSRF, outbound calls |
 
 **Using it**
 

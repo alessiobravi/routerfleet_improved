@@ -15,6 +15,12 @@ import re
 
 RELEASE_PATTERN = re.compile(r'^(\d+)\.(\d+)\.(\d+)$')
 
+# The oldest release that is kept. Releases before 0.10.0 were published
+# before every release was scanned for known vulnerabilities, and shipped
+# images with hundreds of them, so they were withdrawn: CI deletes releases,
+# tags and images below this.
+RELEASE_FLOOR = '0.10.0'
+
 
 def parse(release):
     match = RELEASE_PATTERN.match(str(release).strip())
@@ -45,3 +51,12 @@ def bump(release, part):
     if part == 'major':
         return f'{major + 1}.0.0'
     raise ValueError('part is patch, minor or major')
+
+
+def is_retired(release):
+    """True for a release number below RELEASE_FLOOR; False for anything that is
+    not a release number at all, which other rules deal with."""
+    try:
+        return to_number(release) < to_number(RELEASE_FLOOR)
+    except ValueError:
+        return False

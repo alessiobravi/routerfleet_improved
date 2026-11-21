@@ -158,9 +158,9 @@ def send_notification_message(message: Message):
     if message_response['status'] == 'pending':
         try:
             if method == 'GET':
-                response = requests.get(url)
+                response = requests.get(url, timeout=15)
             elif method == 'POST':
-                response = requests.post(url, data=data, headers=headers)
+                response = requests.post(url, data=data, headers=headers, timeout=15)
             
             if response.status_code == 200:
                 message_response['status'] = 'sent'

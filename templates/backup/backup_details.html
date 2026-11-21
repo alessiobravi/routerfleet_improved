@@ -85,7 +85,7 @@
                                     <span class="float-right">
                                     {% if backup.next_retry %}
                                         {% if backup.next_retry > now %}
-                                            <a href="/backup/backup_details/?uuid={{ backup.uuid }}&action=anticipate&show_console={{ show_console|yesno:"true,false" }}">
+                                            <a href="#" onclick="postAction('/backup/backup_details/?uuid={{ backup.uuid }}&show_console={{ show_console|yesno:"true,false" }}', {action: 'anticipate'}); return false;">
                                             (anticipate)
                                             </a>
                                             <span class="text-success" style="text-decoration: underline" title="This backup is scheduled to execute after {{ backup.next_retry }}">
@@ -298,7 +298,7 @@
             var command = element.getAttribute('data-command');
             var confirmation = prompt("Please type 'delete{{ backup.id }}' to proceed.");
             if (confirmation) {
-                var url = "/backup/delete/?uuid={{ backup.uuid }}&action=delete&confirmation=" + encodeURIComponent(confirmation);
+                postAction("/backup/delete/?uuid={{ backup.uuid }}", {confirmation: confirmation});;
                 window.location.href = url;
             }
         }

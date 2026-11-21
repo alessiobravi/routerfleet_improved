@@ -37,7 +37,7 @@ class MonitoringApiTests(TestCase):
         self.assertTrue(data['router_config'])
 
     def test_export_can_filter_by_group(self):
-        a, b = make_router(), make_router()
+        a, _other = make_router(), make_router()
         group = make_group(routers=[a])
         data = self.get('/monitoring/export_router_list/', filter_group=str(group.uuid)).json()
         self.assertEqual(list(data['router_list']), [str(a.uuid)])

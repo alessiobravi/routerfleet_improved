@@ -135,20 +135,39 @@ class ImagePruneTests(TestCase):
 
     def test_multi_platform_parts_of_a_release_are_protected(self):
         versions = [
-            {'id': 1, 'name': 'sha256:index-090', 'tags': ['0.9.0', 'latest']},
-            {'id': 2, 'name': 'sha256:amd64-090', 'tags': []},
-            {'id': 3, 'name': 'sha256:arm64-090', 'tags': []},
-            {'id': 4, 'name': 'sha256:single-083', 'tags': ['0.8.3']},
+            {'id': 1, 'name': 'sha256:index-110', 'tags': ['1.1.0', 'latest']},
+            {'id': 2, 'name': 'sha256:amd64-110', 'tags': []},
+            {'id': 3, 'name': 'sha256:arm64-110', 'tags': []},
+            {'id': 4, 'name': 'sha256:single-100', 'tags': ['1.0.0']},
             {'id': 5, 'name': 'sha256:leftover', 'tags': []},
             {'id': 6, 'name': 'sha256:old-scheme', 'tags': ['0.7516']},
             {'id': 7, 'name': 'sha256:untagged-index', 'tags': []},
             {'id': 8, 'name': 'sha256:its-part', 'tags': []},
         ]
-        children = {'0.9.0': ['sha256:amd64-090', 'sha256:arm64-090'], 'latest': [], '0.8.3': []}
+        children = {'1.1.0': ['sha256:amd64-110', 'sha256:arm64-110'], 'latest': [], '1.0.0': []}
         kept, delete = self.script().plan(versions, lambda tag: children[tag])
         self.assertEqual({v['id'] for v in kept}, {1, 4})
-        # 2 and 3 are untagged but belong to the 0.9.0 release
+        # 2 and 3 are untagged but belong to the 1.1.0 release
         self.assertEqual({v['id'] for v in delete}, {5, 6, 7, 8})
+
+    def test_releases_below_the_floor_go_with_their_parts(self):
+        versions = [
+            {'id': 1, 'name': 'sha256:new', 'tags': ['0.10.0', 'latest']},
+            {'id': 2, 'name': 'sha256:withdrawn-index', 'tags': ['0.9.3']},
+            {'id': 3, 'name': 'sha256:withdrawn-part', 'tags': []},
+        ]
+        children = {'0.10.0': [], 'latest': [], '0.9.3': ['sha256:withdrawn-part']}
+        kept, delete = self.script().plan(versions, lambda tag: children[tag])
+        self.assertEqual({v['id'] for v in kept}, {1})
+        self.assertEqual({v['id'] for v in delete}, {2, 3})
+
+    def test_floor(self):
+        from routerfleet.versioning import RELEASE_FLOOR, is_retired, to_number
+        self.assertTrue(is_retired('0.9.3'))
+        self.assertFalse(is_retired(RELEASE_FLOOR))
+        self.assertFalse(is_retired('latest'))
+        from django.conf import settings
+        self.assertGreaterEqual(to_number(settings.ROUTERFLEET_RELEASE), to_number(RELEASE_FLOOR))
 
     def test_release_pattern(self):
         pattern = self.script().RELEASE_TAG
@@ -158,7 +177,7 @@ class ImagePruneTests(TestCase):
             self.assertFalse(pattern.match(tag), tag)
 
     def test_nothing_to_delete(self):
-        versions = [{'id': 1, 'name': 'sha256:a', 'tags': ['0.9.0']}]
+        versions = [{'id': 1, 'name': 'sha256:a', 'tags': ['1.0.0']}]
         self.assertEqual(self.script().plan(versions, lambda tag: [])[1], [])
 
 

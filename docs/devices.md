@@ -37,6 +37,12 @@ A branded unit declared as `routeros` is rejected with the reason, and so is the
 reverse — the two need different handling, so the distinction is enforced rather
 than trusted.
 
+That first connection also stores the device's **SSH host key**. From then on
+RouterFleet refuses to talk to anything at that address and port presenting a
+different key, before sending any credential. After resetting or replacing a
+device, use **Forget host key** on its page — see [Device host
+keys](security.md#device-host-keys).
+
 ## Inventory
 
 RouterFleet reads each device and stores model, serial number, OS version,

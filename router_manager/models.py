@@ -121,3 +121,23 @@ class RouterInformation(models.Model):
 
     def __str__(self):
         return str(self.router)
+
+
+class SSHHostKey(models.Model):
+    """The host key a device presented the first time RouterFleet connected to
+    it (trust on first use). Afterwards a connection to the same address and
+    port is refused, before anything is sent, unless the device presents this
+    key again. Kept by address and port rather than by device, because the
+    connection test runs before the device is saved."""
+    address = models.CharField(max_length=100)
+    port = models.IntegerField()
+    key_type = models.CharField(max_length=100)
+    key_base64 = models.TextField()
+    fingerprint = models.CharField(max_length=100)
+    first_seen = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['address', 'port'], name='unique_ssh_host_key_address_port')]
+
+    def __str__(self):
+        return f'{self.address}:{self.port} {self.key_type} {self.fingerprint}'

@@ -12,6 +12,7 @@ from .forms import CsvDataForm
 from django.contrib import messages
 import ipaddress
 import socket
+from routerlib.actions import posted_action
 
 SUPPORTED_ROUTER_TYPES = [rt[0] for rt in SUPPORTED_ROUTER_TYPES]
 
@@ -20,6 +21,9 @@ SUPPORTED_ROUTER_TYPES = [rt[0] for rt in SUPPORTED_ROUTER_TYPES]
 def run_import_task(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=50).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    if request.method != 'POST':
+        # It logs in to a device and creates a router: not something a link may do
+        return JsonResponse({'status': 'error', 'error_message': 'POST required'}, status=405)
     import_task = get_object_or_404(ImportTask, uuid=request.GET.get('uuid'), import_success=False, import_error=False)
     ssh_key = None
     backup_profile = None
@@ -172,7 +176,7 @@ def view_import_details(request):
     else:
         import_view = 'tasks'
 
-    if request.GET.get('action') == 'create_tasks':
+    if posted_action(request, 'create_tasks'):
         tasks_created = 0
         for task in csv_data.import_data:
             import_task, import_task_created = ImportTask.objects.get_or_create(
@@ -202,7 +206,7 @@ def view_import_details(request):
         import_view = 'tasks'
         pass
 
-    elif request.GET.get('action') == 'delete_errors':
+    elif posted_action(request, 'delete_errors'):
         tasks_deleted = 0
         for task in import_task_list.filter(import_error=True):
             task.delete()
@@ -213,7 +217,7 @@ def view_import_details(request):
             messages.warning(request, 'No error tasks deleted.')
         return redirect(f'/router/import_tool/details/?uuid={csv_data.uuid}')
 
-    elif request.GET.get('action') == 'delete':
+    elif posted_action(request, 'delete'):
         import_task_list.delete()
         csv_data.delete()
         messages.success(request, 'CSV data and all tasks deleted.')

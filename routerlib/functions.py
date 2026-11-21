@@ -3,6 +3,8 @@ from io import StringIO
 import re
 import paramiko
 
+from routerlib import host_keys
+
 
 def get_router_features(router_type):
     if router_type in ['openwrt', 'routeros', 'routeros-branded', 'ubiquiti-airos']:
@@ -43,12 +45,22 @@ def load_private_key_from_string(key_str):
 
 def connect_to_ssh(address, port, username, password, sshkey=None):
     ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    if sshkey:
-        private_key = load_private_key_from_string(sshkey.private_key)
-        ssh_client.connect(address, port=port, username=username, pkey=private_key, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
-    else:
-        ssh_client.connect(address, port=port, username=username, password=password, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
+    # The device must present the host key it presented the first time
+    stored = host_keys.prepare(ssh_client, address, port)
+    try:
+        if sshkey:
+            private_key = load_private_key_from_string(sshkey.private_key)
+            ssh_client.connect(address, port=port, username=username, pkey=private_key, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
+        else:
+            ssh_client.connect(address, port=port, username=username, password=password, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
+    except paramiko.BadHostKeyException as error:
+        # A different key than the stored one (of any type): refused before authentication
+        ssh_client.close()
+        raise host_keys.HostKeyChanged(host_keys.changed_message(stored, error.key)) from None
+    except Exception:
+        ssh_client.close()
+        raise
+    host_keys.remember(ssh_client, address, port, stored)
     return ssh_client
 
 

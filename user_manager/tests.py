@@ -48,9 +48,9 @@ class UserManagerTests(TestCase):
     def test_delete_needs_the_username_as_confirmation(self):
         user = make_user(10, username='dave')
         acl = UserAcl.objects.get(user=user)
-        self.client.get(f'/user/manage/?uuid={acl.uuid}&action=delete&confirmation=wrong')
+        self.client.post(f'/user/manage/?uuid={acl.uuid}', {'action': 'delete', 'confirmation': 'wrong'})
         self.assertTrue(User.objects.filter(pk=user.pk).exists())
-        self.client.get(f'/user/manage/?uuid={acl.uuid}&action=delete&confirmation=dave')
+        self.client.post(f'/user/manage/?uuid={acl.uuid}', {'action': 'delete', 'confirmation': 'dave'})
         self.assertFalse(User.objects.filter(pk=user.pk).exists())
 
     def test_list(self):

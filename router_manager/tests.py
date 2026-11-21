@@ -146,7 +146,7 @@ class ListAndDetailTests(TestCase):
         self.assertEqual(listed.last_config_change_uuid, changed.uuid)
 
     def test_list_creates_the_default_profile_and_filters_to_the_default_group(self):
-        a, b = make_router(), make_router()
+        a, _other = make_router(), make_router()
         make_group(routers=[a], default_group=True)
         response = self.client.get('/router/list/')
         self.assertTrue(response.context['filter_group'].default_group)
@@ -157,7 +157,7 @@ class ListAndDetailTests(TestCase):
         self.assertIsNone(response.context['filter_group'])
 
     def test_list_filter_by_group(self):
-        a, b = make_router(), make_router()
+        a, _other = make_router(), make_router()
         group = make_group(routers=[a])
         response = self.client.get(f'/router/list/?filter_group={group.uuid}')
         self.assertEqual(list(response.context['router_list']), [a])
@@ -264,15 +264,15 @@ class ManageRouterTests(TestCase):
 
     def test_delete_needs_confirmation(self, _auth, _dns):
         router = make_router()
-        self.client.get(f'/router/manage/?uuid={router.uuid}&action=delete&confirmation=nope')
+        self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'delete', 'confirmation': 'nope'})
         self.assertTrue(Router.objects.filter(pk=router.pk).exists())
-        self.client.get(f'/router/manage/?uuid={router.uuid}&action=delete&confirmation=delete')
+        self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         self.assertFalse(Router.objects.filter(pk=router.pk).exists())
 
     def test_refresh_information_runs_now(self, _auth, _dns):
         router = make_router()
         with mock.patch('router_manager.views.update_router_information', return_value=(False, 'a|b')):
-            response = self.client.get(f'/router/manage/?uuid={router.uuid}&action=refresh_information',
+            response = self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'refresh_information'},
                                        follow=True)
         # The toast is "title|body", so a pipe in the body is replaced
         messages = [str(m) for m in response.context['messages']]
@@ -395,7 +395,7 @@ class InstantBackupTests(TestCase):
         self.router = make_router(backup_profile=make_profile())
 
     def test_creates_and_locks(self):
-        self.client.get(f'/router/create_instant_backup/?uuid={self.router.uuid}')
+        self.client.post(f'/router/create_instant_backup/?uuid={self.router.uuid}')
         backup = RouterBackup.objects.get(router=self.router)
         self.assertEqual(backup.schedule_type, 'instant')
         self.assertIsNotNone(RouterStatus.objects.get(router=self.router).backup_lock)

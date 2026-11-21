@@ -86,6 +86,16 @@ if [ -n "$TZ" ]; then
     echo "TIME_ZONE = '$TZ'" >> $PRODUCTION_SETTINGS_FILE
 fi
 
+# The session and CSRF cookies only travel over HTTPS when the installation
+# enforces HTTPS - which it does unless HTTPS_REDIRECT_POLICY is 'never', where
+# sign-in over plain HTTP has to keep working. A compose file from before this
+# setting reached the application does not pass it at all; for those nothing
+# changes.
+if [ "${HTTPS_REDIRECT_POLICY+set}" = "set" ] && [[ "${HTTPS_REDIRECT_POLICY,,}" != "never" ]]; then
+    echo "SESSION_COOKIE_SECURE = True" >> $PRODUCTION_SETTINGS_FILE
+    echo "CSRF_COOKIE_SECURE = True" >> $PRODUCTION_SETTINGS_FILE
+fi
+
 if [ ! -f /app_secrets/monitoring_key ]; then
     cat /proc/sys/kernel/random/uuid > /app_secrets/monitoring_key
 fi

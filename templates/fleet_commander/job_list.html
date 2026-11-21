@@ -106,8 +106,7 @@
     function abortJob(uuid) {
         var confirmation = prompt("Please type 'abort' to proceed.");
         if (confirmation !== null) {
-            window.location.href = "/fleet_commander/job/abort/?uuid=" + uuid +
-                "&confirmation=" + encodeURIComponent(confirmation);
+            postAction("/fleet_commander/job/abort/?uuid=" + uuid, {confirmation: confirmation});
         }
     }
 </script>

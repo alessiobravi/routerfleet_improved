@@ -46,7 +46,6 @@ class WireGuardWebAdminForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         integration_url = cleaned_data.get('integration_url')
-        wireguard_webadmin_default_user_level = cleaned_data.get('wireguard_webadmin_default_user_level')
         token = cleaned_data.get('token')
         if not integration_url:
             # The field carries its own error already; nothing below can work
@@ -64,17 +63,17 @@ class WireGuardWebAdminForm(forms.ModelForm):
         api_test_url += f"&username={self.user.username}&action=test"
 
         try:
-            api_test = requests.get(api_test_url)
-        except:
-            raise forms.ValidationError('Error connecting to API')
+            api_test = requests.get(api_test_url, timeout=15)
+        except Exception:
+            raise forms.ValidationError('Error connecting to API') from None
 
         try:
             if api_test.status_code == 403:
                 api_response = {}
             else:
                 api_response = api_test.json()
-        except:
-            raise forms.ValidationError('Error parsing API response')
+        except Exception:
+            raise forms.ValidationError('Error parsing API response') from None
 
         if api_test.status_code == 403:
             raise forms.ValidationError('Invalid token')

@@ -2,9 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from user_manager.models import UserAcl
 from .forms import UserAclForm, UserAddressLinkForm
-from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.sessions.models import Session
+from routerlib.actions import posted_action, posted_confirmation
 
 
 @login_required
@@ -41,9 +41,9 @@ def view_manage_user(request):
         user = user_acl.user
         form = UserAclForm(instance=user, initial={'user_level': user_acl.user_level}, user_id=user.id)
         page_title = 'Edit User ' + user.username
-        if request.GET.get('action') == 'delete':
+        if posted_action(request, 'delete'):
             username = user.username
-            if request.GET.get('confirmation') == username:
+            if posted_confirmation(request) == username:
                 user.delete()
                 messages.success(request, 'User deleted|The user ' + username + ' has been deleted.')
                 return redirect('/user/list/')

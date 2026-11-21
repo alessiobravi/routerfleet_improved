@@ -234,7 +234,10 @@ class MalformedIdentifierTests(Fixture):
                 continue
             bad = re.sub(r'((?:^|[?&])(?:uuid|compare_uuid|command_uuid)=)[^&]+', r'\1not-a-uuid', path, count=1)
             with self.subTest(path=bad):
-                self.assertEqual(self.client.get(bad).status_code, 404)
+                # An endpoint that only answers POST refuses the GET before it
+                # looks at the id at all - 405, which is just as safe
+                expected = (404, 405) if '/run_import_task/' in bad else (404,)
+                self.assertIn(self.client.get(bad).status_code, expected)
                 checked += 1
         self.assertGreater(checked, 25)
 
@@ -348,3 +351,76 @@ class BrowserLibraryManifestTests(TestCase):
         html = [p for p in static.rglob('*.html') if p.name != 'index.html' or p.parent != static]
         self.assertEqual(html, [], 'demo pages would be served from the installation\'s own origin')
         self.assertEqual(list(static.rglob('*.zip')), [])
+
+
+class CsrfTests(Fixture):
+    """Actions that change something cannot be triggered from a foreign page:
+    a GET does nothing, and a POST needs the CSRF token of this installation."""
+
+    def setUp(self):
+        from django.test import Client
+        self.browser = Client(enforce_csrf_checks=True)
+        self.browser.force_login(make_user(50))
+        self.browser.get('/')  # receives the CSRF cookie, as a real browser would
+        self.token = self.browser.cookies['csrftoken'].value
+
+    def actions(self):
+        """(url, POST body, check that it happened)"""
+        from router_manager.models import Router, RouterGroup, SSHKey
+        return [
+            (f'/router/manage/?uuid={self.router.uuid}', {'action': 'delete', 'confirmation': 'delete'},
+             lambda: not Router.objects.filter(pk=self.router.pk).exists()),
+            (f'/router/manage_group/?uuid={self.group.uuid}', {'action': 'delete', 'confirmation': 'delete'},
+             lambda: not RouterGroup.objects.filter(pk=self.group.pk).exists()),
+            (f'/router/manage_sshkey/?uuid={self.sshkey.uuid}', {'action': 'delete', 'confirmation': 'delete'},
+             lambda: not SSHKey.objects.filter(pk=self.sshkey.pk).exists()),
+            (f'/backup/delete/?uuid={self.backup.uuid}', {'confirmation': f'delete{self.backup.id}'},
+             lambda: not RouterBackup.objects.filter(pk=self.backup.pk).exists()),
+            (f'/fleet_commander/task/abort/?uuid={self.task.uuid}', {'confirmation': 'abort'},
+             lambda: CommandTask.objects.get(pk=self.task.pk).status == 'aborted'),
+            (f'/message_center/manage_channel/?uuid={self.channel.uuid}', {'action': 'delete', 'confirmation': 'delete'},
+             lambda: not MessageChannel.objects.filter(pk=self.channel.pk).exists()),
+            (f'/router/import_tool/details/?uuid={self.csv.uuid}', {'action': 'delete'},
+             lambda: not CsvData.objects.filter(pk=self.csv.pk).exists()),
+        ]
+
+    def test_a_get_never_changes_anything(self):
+        from urllib.parse import urlencode
+        for url, body, happened in self.actions():
+            with self.subTest(url=url):
+                self.browser.get(url + '&' + urlencode(body))
+                self.assertFalse(happened(), f'GET {url} changed something')
+
+    def test_a_post_without_the_token_is_refused(self):
+        for url, body, happened in self.actions():
+            with self.subTest(url=url):
+                self.assertEqual(self.browser.post(url, body).status_code, 403)
+                self.assertFalse(happened())
+
+    def test_a_post_with_the_token_works(self):
+        for url, body, happened in self.actions():
+            with self.subTest(url=url):
+                self.browser.post(url, {**body, 'csrfmiddlewaretoken': self.token})
+                self.assertTrue(happened(), f'POST {url} did not act')
+
+    def test_user_delete_instant_backup_and_sign_out(self):
+        from router_manager.models import RouterStatus
+        victim = make_user(10, username='victim')
+        acl = UserAcl.objects.get(user=victim)
+        self.browser.get(f'/user/manage/?uuid={acl.uuid}&action=delete&confirmation=victim')
+        self.assertTrue(victim.__class__.objects.filter(pk=victim.pk).exists())
+
+        RouterStatus.objects.filter(router=self.router).update(backup_lock=None)
+        count = RouterBackup.objects.count()
+        self.browser.get(f'/router/create_instant_backup/?uuid={self.router.uuid}')
+        self.assertEqual(RouterBackup.objects.count(), count)
+
+        self.browser.get('/accounts/logout/')
+        self.assertEqual(self.browser.get('/user/list/').status_code, 200, 'a GET must not sign out')
+        self.assertEqual(self.browser.post('/accounts/logout/').status_code, 403)
+        self.browser.post('/accounts/logout/', {'csrfmiddlewaretoken': self.token})
+        self.assertEqual(self.browser.get('/user/list/').status_code, 302)
+
+    def test_import_run_needs_post(self):
+        self.assertEqual(self.browser.get(
+            f'/router/import_tool/run_import_task/?uuid={self.import_task.uuid}').status_code, 405)

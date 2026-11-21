@@ -2,6 +2,8 @@ import datetime
 from django.utils import timezone
 from backup_data.models import RouterBackup
 import os
+import shutil
+import tempfile
 from scp import SCPClient
 from django.core.files.base import ContentFile
 
@@ -199,11 +201,16 @@ def retrieve_backup(router_backup: RouterBackup):
     success = False
     file_extension = get_router_backup_file_extension(router.router_type)
     ssh_client = None
+    # A directory of its own for the files on their way into the database: not a
+    # name another process can predict in the shared /tmp, and removed in the
+    # finally below whether the retrieval worked or not - a failed one used to
+    # leave the device's configuration behind
+    work = tempfile.mkdtemp(prefix='routerfleet-backup-')
 
     try:
         if router_backup.router.router_type == 'routeros' or router_backup.router.router_type == 'routeros-branded':
-            rsc_file_path = f'/tmp/{backup_name}.{file_extension["text"]}'
-            backup_file_path = f'/tmp/{backup_name}.{file_extension["binary"]}'
+            rsc_file_path = os.path.join(work, f'{backup_name}.{file_extension["text"]}')
+            backup_file_path = os.path.join(work, f'{backup_name}.{file_extension["binary"]}')
             ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
             scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
             run_scp_get(scp_client, f'/{backup_name}.{file_extension["text"]}', rsc_file_path, router_backup)
@@ -220,8 +227,6 @@ def retrieve_backup(router_backup: RouterBackup):
                 router_backup.backup_binary.save(f"{backup_name}.{file_extension['binary']}", ContentFile(backup_file.read()))
 
             router_backup.save()
-            os.remove(rsc_file_path)
-            os.remove(backup_file_path)
             command = f'/file remove "{backup_name}.{file_extension["text"]}"'
             run_ssh_command(ssh_client, command, router_backup)
             command = f'/file remove "{backup_name}.{file_extension["binary"]}"'
@@ -230,21 +235,20 @@ def retrieve_backup(router_backup: RouterBackup):
 
         elif router_backup.router.router_type == 'openwrt':
             remote_backup_file_path = f'/tmp/{backup_name}.{file_extension["binary"]}'
-            local_backup_file_path = f'/tmp/{backup_name}.{file_extension["binary"]}'
+            local_backup_file_path = os.path.join(work, f'{backup_name}.{file_extension["binary"]}')
             ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
             scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
             run_scp_get(scp_client, remote_backup_file_path, local_backup_file_path, router_backup)
             with open(local_backup_file_path, 'rb') as backup_file:
                 router_backup.backup_binary.save(f"{backup_name}.{file_extension['binary']}", ContentFile(backup_file.read()))
             router_backup.save()
-            os.remove(local_backup_file_path)
             command = f'rm {remote_backup_file_path}'
             run_ssh_command(ssh_client, command, router_backup)
             success = True
 
         elif router_backup.router.router_type == 'ubiquiti-airos':
             remote_path = '/tmp/system.cfg'
-            local_path = f'/tmp/{backup_name}.{file_extension["text"]}'
+            local_path = os.path.join(work, f'{backup_name}.{file_extension["text"]}')
             ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
             scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
             run_scp_get(scp_client, remote_path, local_path, router_backup)
@@ -261,7 +265,6 @@ def retrieve_backup(router_backup: RouterBackup):
             router_backup.backup_text = text
             router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
             router_backup.save()
-            os.remove(local_path)
             success = True
 
         else:
@@ -271,6 +274,7 @@ def retrieve_backup(router_backup: RouterBackup):
     except Exception as e:
         return success, f"Failed to retrieve backup files: {str(e)}"
     finally:
+        shutil.rmtree(work, ignore_errors=True)
         if ssh_client:
             ssh_client.close()
 

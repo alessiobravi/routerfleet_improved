@@ -108,6 +108,82 @@ Because it is passed as a query parameter, it will appear in the access logs of
 anything that logs full URLs. On the internal Compose network that is nginx-free
 and direct; if you expose the application port, treat the key as exposed too.
 
+## Device host keys
+
+RouterFleet trusts a device's SSH host key **on first use**, as OpenSSH does.
+The first successful connection to an address and port stores the key the
+device presented, with its SHA256 fingerprint — shown on the device's page as
+**SSH Host Key**. Every later connection must see that same key. paramiko
+compares it before authenticating, so when it differs the connection is refused
+with both fingerprints in the error, and **the device never receives the
+password or a signature made with the SSH key**. A key of another algorithm is
+refused just the same.
+
+```mermaid
+sequenceDiagram
+    participant RF as RouterFleet
+    participant DB as Database
+    participant D as Device
+    RF->>DB: stored key for address:port?
+    RF->>D: connect
+    D-->>RF: host key
+    alt nothing stored (first use)
+        RF->>D: authenticate
+        RF->>DB: store key and fingerprint
+    else stored key matches
+        RF->>D: authenticate
+    else different key
+        RF--xD: disconnect, nothing sent
+        Note over RF: backup, inventory or command fails<br/>with both fingerprints
+    end
+```
+
+Keys are kept by address and port, not by device: the connection test runs
+before a new device is saved, and that first connection is the one that is
+trusted.
+
+**A device that was reset or replaced** presents a new key on purpose. After
+confirming that is what happened, use the eraser next to the fingerprint
+(**Forget host key**, level 30 or above): the key presented on the next
+connection is then trusted. A key change you cannot explain is what this exists
+to catch — do not forget the key until you know why it changed.
+
+An installation upgraded from a release that did not check host keys has none
+stored; each device's key is learned on its next connection.
+
+## Sign-in attempts
+
+After **5 refused sign-in attempts for one account, or from one address, within
+15 minutes**, further attempts are turned away without the password being
+checked — even the right one — until the oldest of those attempts is more than
+15 minutes old. A successful sign-in starts the count again. The answer is the
+same whether the account exists or not.
+
+Attempts turned away are recorded in the [login history](audit-log.md#login-history)
+with a lock icon. They do not count towards the limit: someone who keeps
+trying while locked out gets back in 15 minutes after their last real attempt.
+
+Two consequences to be aware of:
+
+- Anyone who can reach the sign-in page can lock a known account for 15 minutes
+  by failing on purpose. That is the price of limiting guesses per account.
+- The address is the one nginx sees (see [Where the address comes
+  from](audit-log.md#where-the-address-comes-from)). Behind another reverse
+  proxy that does not pass the client's address on, every visitor shares the
+  proxy's address and one person's failures lock out everyone.
+
+The limits are `LOGIN_LOCKOUT_ATTEMPTS` and `LOGIN_LOCKOUT_MINUTES` in
+`routerfleet/settings.py`; `LOGIN_LOCKOUT_ATTEMPTS = 0` turns it off.
+
+## Actions are POSTs
+
+Everything that changes something — deleting, aborting a task, starting a
+backup, refreshing inventory, signing out — is a POST carrying the
+installation's CSRF token. Loading an address, from a link, an image tag or
+another site, changes nothing: the same request as a GET is ignored. Before
+0.11.0 these actions were GET requests, and any page a signed-in user opened
+could trigger them.
+
 ## Hosts and CSRF
 
 The container writes `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` from
@@ -128,6 +204,10 @@ that is the symptom to expect.
 `SECRET_KEY` is regenerated every time the application container starts. The
 practical consequence: **everyone is signed out by a restart**. Session data is
 not recoverable across restarts.
+
+`settings.py` itself carries no key: start-up is refused with an explanation
+when `production_settings.py` does not set one, rather than running on a key
+anyone can read in the repository.
 
 The two keys in `app_secrets` are **not** rotated, because they must not be.
 
@@ -208,6 +288,15 @@ server block of your nginx configuration. Set
 `HTTPS_REDIRECT_POLICY=never` to serve both — which sends passwords in
 cleartext, and is not recommended.
 
+### Cookies
+
+With HTTPS enforced — `HTTPS_REDIRECT_POLICY` is anything but `never` — the
+session and CSRF cookies are marked `Secure`: a browser only sends them over
+HTTPS, so they cannot be read off a plain-HTTP request. With `never` they are
+not, because signing in over plain HTTP has to keep working. A compose file from
+before 0.11.0 does not pass `HTTPS_REDIRECT_POLICY` to the application at all,
+and then the cookies stay as they were; the current compose file does.
+
 The shipped certificate is self-signed and generated on first start. Replace
 `nginx.pem` and `nginx.key` in the `https_cert` volume with your own. The config
 also carries commented-out settings for Cloudflare authenticated origin pulls.
@@ -226,6 +315,9 @@ What the installation contacts, and why:
 
 The update check makes **no outbound request at all** unless you configure an
 endpoint.
+
+Every outbound HTTP request has a timeout, so a service that stops answering
+cannot hold a worker of the application, or the monitoring loop, indefinitely.
 
 ### What the browser loads
 

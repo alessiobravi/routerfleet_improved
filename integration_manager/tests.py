@@ -40,9 +40,9 @@ class WireGuardIntegrationTests(TestCase):
 
     def test_delete_needs_confirmation(self):
         self.integration()
-        self.client.get('/wireguard_webadmin/manage/?action=delete&confirmation=no')
+        self.client.post('/wireguard_webadmin/manage/', {'action': 'delete', 'confirmation': 'no'})
         self.assertTrue(ExternalIntegration.objects.exists())
-        self.client.get('/wireguard_webadmin/manage/?action=delete&confirmation=delete')
+        self.client.post('/wireguard_webadmin/manage/', {'action': 'delete', 'confirmation': 'delete'})
         self.assertFalse(ExternalIntegration.objects.exists())
 
     def test_manage_page(self):

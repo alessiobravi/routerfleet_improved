@@ -64,6 +64,9 @@ encrypted with.
   by field, in an append-only trail.
 - **Secrets encrypted at rest** — device passwords are stored with Fernet
   symmetric encryption, never in cleartext.
+- **Hardened** — device SSH host keys are trusted on first use and checked on
+  every connection, sign-in attempts are limited, and every action needs a POST
+  with the CSRF token.
 
 ## Documentation
 
@@ -80,7 +83,7 @@ encrypted with.
 | [Audit log](docs/audit-log.md) | Login history and the change log |
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
-| [Security](docs/security.md) | Secrets at rest, the scheduler endpoints, the monitoring key |
+| [Security](docs/security.md) | Secrets at rest, host keys, sign-in limits, the scheduler endpoints |
 | [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting, running the tests |
 
 ## Versions

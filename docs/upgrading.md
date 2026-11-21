@@ -45,15 +45,15 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 3 migrations apply: they encrypt the SSH keys and tokens it stored as text |
-| **RouterFleet** (the original project) | In place | 16 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 4 migrations apply: three encrypt the SSH keys and tokens it stored as text, one adds the table of device host keys |
+| **RouterFleet** (the original project) | In place | 17 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
 here, byte-identical. Nothing was renumbered, squashed or rewritten, which is
 what makes the upgrade a no-drama `migrate`.
 
-### What the 16 migrations do when coming from the original
+### What the 17 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -106,6 +106,10 @@ Existing data is adopted rather than reset, so after the upgrade:
   `expected-version` line and the matching expectation. **A payload you wrote
   yourself is never replaced** — the missing line is inserted into it — and a
   variant that already defines its own verification is left alone.
+- No device has a stored SSH host key yet. Each one's key is stored on its next
+  connection and checked on every one after that — see [Device host
+  keys](security.md#device-host-keys). A device that answers with a key that
+  later changes is refused from then on.
 - Device inventory has no *available version* until each device is next read,
   so version columns show as "no information" until the inventory cycle comes
   round. Use **Update Information** on the device list to force it.
@@ -161,6 +165,28 @@ Debian base with every available update installed, so an existing database is
 used as it is: nothing to dump, nothing to restore. A compose file that still
 names `postgres:16` keeps working too.
 
+## Changes in 0.11.0 that you may notice
+
+- **Device host keys are checked.** Nothing is needed on upgrade: keys are
+  learned on each device's next connection. A device you reset or replace later
+  must have its key forgotten on its page before it can be reached again.
+- **Sign-in attempts are limited**: 5 refused attempts for an account or from an
+  address within 15 minutes, then 15 minutes of refusals.
+- **Secure cookies** need the current compose file, which passes
+  `HTTPS_REDIRECT_POLICY` to the application. An older compose file keeps
+  working, without them.
+- **Bookmarked action links no longer act.** Every action is a button that
+  POSTs; an address such as `...?action=delete&confirmation=delete` only
+  shows the page.
+
+## Releases before 0.10.0
+
+Releases 0.8.0 to 0.9.3 were published before every release was scanned for
+known vulnerabilities, and their images carried hundreds. They have been
+withdrawn: their releases, tags and images no longer exist. An installation
+pinned to one of them upgrades like any other — set the `image:` lines to a
+current release or `latest`.
+
 ## Version requirements
 
 The entrypoint refuses to start if `COMPOSE_VERSION` in your compose file is not
@@ -178,7 +204,7 @@ download the current compose file as shown above.
 Every release keeps its own image tag, so going back means naming the version
 you came from. Stop the stack, restore the database dump and the `app_secrets`
 archive, set the five `image:` lines of `docker-compose.yml` to that version —
-for example `ghcr.io/alessiobravi/routerfleet:0.8.0` — and start it again.
+for example `ghcr.io/alessiobravi/routerfleet:0.10.1` — and start it again.
 The versions are listed on the repository's Releases page and in the
 [changelog](../CHANGELOG.md). Note that migrations are **not** automatically
 reversed by downgrading the image — restore the database rather than relying on

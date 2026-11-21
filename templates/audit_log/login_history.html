@@ -30,6 +30,8 @@
                                         <td class="min-width">
                                             {% if record.successful %}
                                                 <i class="fas fa-check-circle text-success" title="Signed in"></i>
+                                            {% elif record.actor_kind == 'locked-out' %}
+                                                <i class="fas fa-lock text-danger" title="Turned away: too many failed attempts"></i>
                                             {% else %}
                                                 <i class="fas fa-times-circle text-danger" title="Refused"></i>
                                             {% endif %}

@@ -40,7 +40,7 @@ def parse_interval(value) -> int:
     try:
         number = int(text[:-1].strip())
     except ValueError:
-        raise ValueError('Invalid number before the unit.')
+        raise ValueError('Invalid number before the unit.') from None
     if number < 0:
         raise ValueError('Repeat interval must not be negative.')
     if number == 0:

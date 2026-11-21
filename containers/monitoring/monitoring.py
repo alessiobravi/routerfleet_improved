@@ -42,7 +42,7 @@ def get_api_key():
 
                 if str(uuid_test) == api_file_content:
                     api_key_temp = str(uuid_test)
-            except:
+            except Exception:
                 pass
     return api_key_temp
 
@@ -50,7 +50,7 @@ def get_api_key():
 def update_router_config_timestamp():
     global remote_router_config_timestamp, api_key
     try:
-        response = requests.get(f"{CONFIG_TIMESTAMP_URL}?key={api_key}")
+        response = requests.get(f"{CONFIG_TIMESTAMP_URL}?key={api_key}", timeout=30)
         if response.status_code == 200:
             remote_router_config_timestamp_temp = response.json()['router_config']
             if remote_router_config_timestamp_temp != remote_router_config_timestamp:
@@ -68,7 +68,7 @@ def update_router_config_timestamp():
 def fetch_host_list():
     global host_list_update_timestamp, current_router_config_timestamp, remote_router_config_timestamp, api_key
     try:
-        response = requests.get(f"{HOST_LIST_URL}?key={api_key}")
+        response = requests.get(f"{HOST_LIST_URL}?key={api_key}", timeout=30)
         if response.status_code == 200:
             host_list_update_timestamp = time.time()
             remote_router_config_timestamp = response.json()['router_config']
@@ -87,7 +87,7 @@ def update_host_status(uuid, status):
         print(f"{datetime.now()} - Notification limit reached. Skipping Remote API update for {host_list[uuid]['address']}")
         return  # Skip if notification limit is reached
     try:
-        response = requests.get(f"{UPDATE_STATUS_URL}?key={api_key}&uuid={uuid}&status={get_verbose_status(status)}")
+        response = requests.get(f"{UPDATE_STATUS_URL}?key={api_key}&uuid={uuid}&status={get_verbose_status(status)}", timeout=30)
         if response.status_code == 200:
             print(f"{datetime.now()} - Remote API Status updated for {host_list[uuid]['address']} to {get_verbose_status(status)}")
             notification_count += 1

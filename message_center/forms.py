@@ -3,9 +3,7 @@ from .models import MessageSettings, MessageChannel
 
 from django import forms
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, Fieldset, ButtonHolder, Submit, Div, Field, HTML
-from crispy_forms.bootstrap import FormActions, StrictButton
-from django.core.exceptions import ValidationError
+from crispy_forms.layout import Layout, Fieldset, Submit, Div, Field, HTML
 from datetime import datetime
 
 
@@ -137,7 +135,6 @@ class MessageChannelForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        name = cleaned_data.get('name')
         enabled = cleaned_data.get('enabled')
 
         destination = cleaned_data.get('destination')
@@ -163,7 +160,7 @@ class MessageChannelForm(forms.ModelForm):
             if not token or not destination:
                 raise forms.ValidationError('CallMeBot requires a token and destination.')
 
-            message = requests.get(f'https://api.callmebot.com/whatsapp.php?phone={destination}&text={test_message}&apikey={token}')
+            message = requests.get(f'https://api.callmebot.com/whatsapp.php?phone={destination}&text={test_message}&apikey={token}', timeout=15)
             if message.status_code != 200:
                 if message.text:
                     remote_error = message.text[:200]
@@ -172,7 +169,7 @@ class MessageChannelForm(forms.ModelForm):
         elif channel_type == 'telegram' and enabled:
             if not token or not destination:
                 raise forms.ValidationError('Telegram requires a token and destination.')
-            message = requests.get(f'https://api.telegram.org/bot{token}/sendMessage?chat_id={destination}&text={test_message}')
+            message = requests.get(f'https://api.telegram.org/bot{token}/sendMessage?chat_id={destination}&text={test_message}', timeout=15)
             if message.status_code != 200:
                 if message.text:
                     remote_error = message.text[:200]
@@ -183,12 +180,12 @@ class MessageChannelForm(forms.ModelForm):
                 raise forms.ValidationError('ntfy.sh requires a destination.')
 
             try:
-                message = requests.post(f'https://ntfy.sh/{destination}', data=test_message.encode('utf-8'))
+                message = requests.post(f'https://ntfy.sh/{destination}', data=test_message.encode('utf-8'), timeout=15)
                 if message.status_code != 200:
                    if message.text:
                        remote_error = message.text[:200]
                    raise forms.ValidationError(f'Test message failed. ntfy.sh API status code {message.status_code}. Error: {remote_error}')
             except requests.exceptions.RequestException as e:
-                raise forms.ValidationError(f'Test message failed. Network error: {str(e)}')
+                raise forms.ValidationError(f'Test message failed. Network error: {str(e)}') from e
 
         return cleaned_data

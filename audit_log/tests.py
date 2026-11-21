@@ -2,7 +2,6 @@ import datetime
 import io
 from unittest import mock
 
-from django.contrib.auth.models import User
 from django.core.management import CommandError, call_command
 from django.test import RequestFactory, TestCase
 from django.utils import timezone
@@ -11,7 +10,6 @@ from audit_log import context
 from audit_log.bulk import collect, suspend
 from audit_log.models import AuditLogImmutable, ChangeRecord, LoginRecord
 from fleet_commander.models import Command, CommandSchedule
-from router_manager.models import Router, RouterGroup
 from routerfleet.testing import make_group, make_router, make_sshkey, make_user
 
 
@@ -235,7 +233,7 @@ class LoginHistoryTests(TestCase):
                          (self.user, 30, '192.0.2.50', 'Firefox'))
         self.assertTrue(record.session_key)
         self.assertIsNone(record.logged_out_at)
-        self.client.get('/accounts/logout/')
+        self.client.post('/accounts/logout/')
         record.refresh_from_db()
         self.assertIsNotNone(record.logged_out_at)
 
@@ -246,7 +244,7 @@ class LoginHistoryTests(TestCase):
         self.assertEqual((record.username, record.actor, record.actor_kind), ('mallory', None, 'anonymous'))
 
     def test_anonymous_logout_records_nothing(self):
-        self.client.get('/accounts/logout/')
+        self.client.post('/accounts/logout/')
         self.assertFalse(LoginRecord.objects.exists())
 
 

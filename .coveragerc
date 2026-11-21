@@ -13,11 +13,6 @@ omit =
     routerfleet/production_settings.py
     .venv/*
     containers/*
-    # Leftovers of `startapp`: routerlib is a library, not an installed app
-    routerlib/admin.py
-    routerlib/apps.py
-    routerlib/models.py
-    routerlib/views.py
 
 [report]
 skip_covered = True

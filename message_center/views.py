@@ -1,5 +1,5 @@
 from django.http import JsonResponse, Http404
-from django.shortcuts import render, redirect, Http404, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from zoneinfo import ZoneInfo
 from router_manager.models import Router
@@ -17,6 +17,7 @@ import datetime
 from django.utils import timezone
 from django.db.models import Q
 import uuid
+from routerlib.actions import posted_action, posted_confirmation
 
 @login_required()
 def view_debug_test_messages(request):
@@ -62,7 +63,7 @@ def view_cron_daily_reports(request):
         user_timezone = ZoneInfo(settings.TIME_ZONE)
         local_now = now.astimezone(user_timezone)
         report_time = local_now.replace(hour=report_hour, minute=report_minute, second=0, microsecond=0)
-    except:
+    except Exception:
         report_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
         data['report_time_exception'] = True
 
@@ -253,8 +254,8 @@ def view_manage_message_channel(request):
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
     if request.GET.get('uuid'):
         message_channel = get_object_or_404(MessageChannel, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 message_channel.delete()
                 messages.success(request, 'Message Channel deleted successfully')
                 return redirect('/message_center/channel_list/')

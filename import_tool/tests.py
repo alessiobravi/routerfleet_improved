@@ -87,8 +87,8 @@ class ImportFlowTests(TestCase):
         self.assertNotIn('s3cret', str(data.import_data))
 
         # Step 2 creates one task per row, idempotently
-        self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=create_tasks')
-        self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=create_tasks')
+        self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'create_tasks'})
+        self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'create_tasks'})
         tasks = list(ImportTask.objects.order_by('import_id'))
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].password, 's3cret')
@@ -98,7 +98,7 @@ class ImportFlowTests(TestCase):
 
         # Step 3 runs each task
         for task in tasks:
-            result = self.client.get(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
+            result = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
             self.assertEqual(result['status'], 'success', result)
         e1 = Router.objects.get(name='e1')
         self.assertEqual(e1.password, 's3cret')
@@ -117,7 +117,7 @@ class ImportFlowTests(TestCase):
                       address='192.0.2.1', port=22, router_type='routeros')
         values.update(fields)
         task = ImportTask.objects.create(**values)
-        result = self.client.get(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
+        result = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
         task.refresh_from_db()
         return result, task
 
@@ -154,15 +154,15 @@ class ImportFlowTests(TestCase):
 
     def test_finished_task_cannot_run_twice(self, auth, _dns):
         _, task = self.run_task()
-        response = self.client.get(f'/router/import_tool/run_import_task/?uuid={task.uuid}')
+        response = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}')
         self.assertEqual(response.status_code, 404)
 
     def test_delete_errors_and_delete_all(self, auth, _dns):
         _, task = self.run_task(port=0)
         data = task.csv_data
-        self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=delete_errors')
+        self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'delete_errors'})
         self.assertFalse(ImportTask.objects.exists())
-        self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=delete')
+        self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'delete'})
         self.assertFalse(CsvData.objects.exists())
 
     def test_detail_views(self, auth, _dns):

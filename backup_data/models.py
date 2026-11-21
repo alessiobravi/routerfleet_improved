@@ -3,7 +3,6 @@ from django.db.models import Q
 from router_manager.models import Router
 import uuid
 import hashlib
-import os
 
 
 class RouterBackup(models.Model):

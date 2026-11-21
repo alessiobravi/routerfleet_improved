@@ -10,7 +10,7 @@ Every attempt to sign in, successful or not.
 | Recorded | Notes |
 |---|---|
 | Username | **As it was typed**, not as a reference — an attempt with a name belonging to nobody is exactly what is worth reading later |
-| Outcome | Signed in, or refused |
+| Outcome | Signed in, refused, or turned away because of too many refused attempts (a lock icon — see [Sign-in attempts](security.md#sign-in-attempts)) |
 | Account and permission level | The level as it stood at the time |
 | Moment | |
 | Address | See below |
@@ -103,6 +103,7 @@ changed without holding a second copy of it.
 | cron | A request with no user — the scheduler container calling a `/cron/` endpoint |
 | command line | No request at all — a management command or a shell |
 | anonymous | A refused sign-in, in the login history |
+| locked-out | A sign-in turned away without checking the password, because of too many refused attempts |
 
 The distinction is explicit: no request is not the same as a request without a
 user, and neither is mistaken for a person.

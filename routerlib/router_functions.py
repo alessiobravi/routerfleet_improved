@@ -5,7 +5,7 @@ import re
 import time
 import requests
 from django.utils import timezone
-from router_manager.models import RouterInformation, Router
+from router_manager.models import RouterInformation
 from routerlib.functions import connect_to_ssh
 
 logger = logging.getLogger(__name__)
@@ -293,7 +293,7 @@ def get_router_information(router_information: RouterInformation):
     finally:
         try:
             ssh.close()
-        except:
+        except Exception:
             pass
 
     return success, error_message

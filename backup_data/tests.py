@@ -7,7 +7,6 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from audit_log.models import ChangeRecord
-from backup.models import BackupProfile
 from backup_data import views as cron
 from backup_data.models import RouterBackup
 from message_center.models import Message, MessageChannel, Notification
@@ -458,3 +457,49 @@ class HousekeepingTests(TestCase):
         Message.objects.create(channel=self.channel, message='new')
         self.assertEqual(self.sweep()['messages_removed'], 1)
         self.assertEqual(list(Message.objects.values_list('message', flat=True)), ['new'])
+
+
+class RetrievalLeavesNothingBehindTests(TestCase):
+    """The files a retrieval fetches live in a directory of their own, and that
+    directory is gone afterwards - after a failure as much as after success."""
+
+    def setUp(self):
+        import tempfile
+        self.parent = tempfile.mkdtemp(prefix='rf-test-')
+        self.created = []
+        real_mkdtemp = tempfile.mkdtemp
+
+        def tracking_mkdtemp(prefix=''):
+            path = real_mkdtemp(prefix=prefix, dir=self.parent)
+            if prefix.startswith('routerfleet-backup-'):
+                self.created.append(path)
+            return path
+        patcher = mock.patch('routerlib.backup_functions.tempfile.mkdtemp', side_effect=tracking_mkdtemp)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        FakeSCPClient.files = {}
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.parent, ignore_errors=True)
+
+    def retrieve(self, files):
+        backup = RouterBackup.objects.create(router=make_router(router_type='routeros', backup_profile=make_profile()),
+                                             schedule_type='instant', backup_pending_retrieval=True)
+        FakeSCPClient.files = files(backup_functions.gen_backup_name(backup))
+        with mock.patch(f'{SSH}.connect_to_ssh', return_value=FakeSSHClient()), \
+                mock.patch(f'{SSH}.SCPClient', FakeSCPClient), temporary_media_root():
+            return backup_functions.retrieve_backup(backup)
+
+    def test_after_success(self):
+        ok, _ = self.retrieve(lambda name: {f'/{name}.rsc': '/ip\n', f'/{name}.backup': b'bin'})
+        self.assertTrue(ok)
+        self.assertEqual(len(self.created), 1)
+        self.assertFalse(os.path.exists(self.created[0]))
+
+    def test_after_a_failure_halfway(self):
+        # The text arrives, the binary does not: the configuration was on disk
+        ok, error = self.retrieve(lambda name: {f'/{name}.rsc': 'secret config\n'})
+        self.assertFalse(ok)
+        self.assertIn('Failed to retrieve backup files', error)
+        self.assertFalse(os.path.exists(self.created[0]), 'the fetched configuration was left behind')

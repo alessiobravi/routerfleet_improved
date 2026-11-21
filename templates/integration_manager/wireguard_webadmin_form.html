@@ -61,8 +61,7 @@
             var command = element.getAttribute('data-command');
             var confirmation = prompt("{% if delete_confirmation_message %}{{ delete_confirmation_message }}{% else %}Please type 'delete' to proceed.{% endif %}");
             if (confirmation) {
-                var url = "?action=delete&confirmation=" + encodeURIComponent(confirmation);
-                window.location.href = url;
+                postAction(window.location.pathname, {action: 'delete', confirmation: confirmation});
             }
         }
     </script>

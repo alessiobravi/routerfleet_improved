@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
-from django.test import TestCase
+from unittest import mock
+
+from django.test import TestCase, override_settings
 
 from accounts.forms import CreateUserForm
 from routerfleet.testing import make_user
@@ -42,7 +44,7 @@ class LoginTests(TestCase):
         response = self.client.post('/accounts/login/', {'username': 'bob', 'password': 'bob-password-1'})
         self.assertRedirects(response, '/', fetch_redirect_response=False)
         self.assertEqual(int(self.client.session['_auth_user_id']), self.user.pk)
-        self.client.get('/accounts/logout/')
+        self.client.post('/accounts/logout/')
         self.assertNotIn('_auth_user_id', self.client.session)
 
     def test_wrong_password(self):
@@ -51,3 +53,106 @@ class LoginTests(TestCase):
 
     def test_empty_form(self):
         self.assertContains(self.client.post('/accounts/login/', {}), 'Both fields are required')
+
+
+class LockoutTests(TestCase):
+    """Five refused attempts within 15 minutes, for an account or from an address,
+    and further attempts are turned away without the password being checked."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        self.user = User.objects.create_user('alice', password='right-password')
+        UserAcl.objects.create(user=self.user, user_level=50)
+
+    def attempt(self, password, username='alice', ip='10.0.0.1'):
+        return self.client.post('/accounts/login/', {'username': username, 'password': password},
+                                REMOTE_ADDR=ip)
+
+    def signed_in(self):
+        return '_auth_user_id' in self.client.session
+
+    def test_the_sixth_attempt_is_turned_away_even_with_the_right_password(self):
+        for _ in range(5):
+            self.attempt('wrong')
+        response = self.attempt('right-password')
+        self.assertContains(response, 'Too many failed sign')
+        self.assertFalse(self.signed_in())
+        from audit_log.models import LoginRecord
+        self.assertEqual(LoginRecord.objects.filter(actor_kind='locked-out').count(), 1)
+
+    def test_four_failures_then_success_starts_the_count_again(self):
+        for _ in range(4):
+            self.attempt('wrong')
+        self.attempt('right-password')
+        self.assertTrue(self.signed_in())
+        self.client.logout()
+        for _ in range(4):
+            self.attempt('wrong')
+        self.attempt('right-password')
+        self.assertTrue(self.signed_in())
+
+    def test_the_account_is_locked_from_every_address(self):
+        for n in range(5):
+            self.attempt('wrong', ip=f'10.0.0.{n + 1}')
+        self.attempt('right-password', ip='10.9.9.9')
+        self.assertFalse(self.signed_in())
+
+    def test_an_address_trying_many_names_is_locked(self):
+        for n in range(5):
+            self.attempt('wrong', username=f'guess{n}')
+        self.attempt('right-password')
+        self.assertFalse(self.signed_in())
+        self.attempt('right-password', ip='10.0.0.2')
+        self.assertTrue(self.signed_in(), 'another address is not affected')
+
+    def test_the_lock_ends_after_the_window(self):
+        from audit_log.models import LoginRecord
+        from django.utils import timezone
+        for _ in range(5):
+            self.attempt('wrong')
+        # LoginRecord is append-only through the ORM's save(); move the clock instead
+        later = timezone.now() + timezone.timedelta(minutes=16)
+        with mock.patch('accounts.lockout.timezone.now', return_value=later):
+            self.attempt('right-password')
+        self.assertTrue(self.signed_in())
+        self.assertEqual(LoginRecord.objects.filter(actor_kind='locked-out').count(), 0)
+
+    def test_attempts_while_locked_do_not_extend_the_lock(self):
+        from django.utils import timezone
+        for _ in range(5):
+            self.attempt('wrong')
+        later = timezone.now() + timezone.timedelta(minutes=10)
+        with mock.patch('accounts.lockout.timezone.now', return_value=later):
+            for _ in range(3):
+                self.attempt('right-password')  # turned away, recorded, not counted
+        self.assertFalse(self.signed_in())
+        much_later = timezone.now() + timezone.timedelta(minutes=16)
+        with mock.patch('accounts.lockout.timezone.now', return_value=much_later):
+            self.attempt('right-password')
+        self.assertTrue(self.signed_in())
+
+    def test_unknown_and_known_accounts_get_the_same_answer(self):
+        for _ in range(5):
+            self.attempt('wrong', username='nobody', ip='10.0.0.7')
+            self.attempt('wrong', username='alice', ip='10.0.0.8')
+        a = self.attempt('x', username='nobody', ip='10.0.0.9').content
+        b = self.attempt('x', username='alice', ip='10.0.0.10').content
+        self.assertIn(b'Too many failed sign', a)
+        self.assertIn(b'Too many failed sign', b)
+
+    @override_settings(LOGIN_LOCKOUT_ATTEMPTS=0)
+    def test_zero_turns_it_off(self):
+        for _ in range(10):
+            self.attempt('wrong')
+        self.attempt('right-password')
+        self.assertTrue(self.signed_in())
+
+    def test_history_shows_the_lock(self):
+        for _ in range(6):
+            self.attempt('wrong')
+        self.attempt('right-password', ip='10.0.0.2')  # alice is locked: still turned away
+        from django.contrib.auth.models import User
+        admin = User.objects.create_user('admin', password='x')
+        UserAcl.objects.create(user=admin, user_level=50)
+        self.client.force_login(admin)
+        self.assertContains(self.client.get('/audit_log/login_history/'), 'Turned away: too many failed attempts')

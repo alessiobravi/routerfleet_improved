@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404
 
 from message_center.functions import notify_router_status_update
 from monitoring.models import RouterDownTime

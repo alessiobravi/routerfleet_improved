@@ -34,6 +34,17 @@
                                     </li>
                                     {% if router.router_type != 'monitoring' %}
                                         <li class="list-group-item">
+                                            <b>SSH Host Key</b>
+                                            <span class="float-right">
+                                                {% if host_key %}
+                                                    <code title="{{ host_key.key_type }}, trusted since {{ host_key.first_seen }}">{{ host_key.fingerprint }}</code>
+                                                        <a href="#" title="Forget host key" onclick="if (confirm('Forget the stored host key? The key the device presents on the next connection will be trusted. Only do this after resetting or replacing the device.')) { postAction('/router/manage/?uuid={{ router.uuid }}', {action: 'forget_host_key'}); } return false;"><i class="fas fa-eraser"></i></a>
+                                                {% else %}
+                                                    <span class="text-muted">trusted on the next connection</span>
+                                                {% endif %}
+                                            </span>
+                                        </li>
+                                        <li class="list-group-item">
                                             <b>username</b>
                                             <span class="float-right">{{ router.username }}</span>
                                         </li>
@@ -104,7 +115,7 @@
                                         <li class="list-group-item">
                                             <b>Instant Backup</b>
                                             <span class="float-right">
-                                    <a href="/router/create_instant_backup/?uuid={{ router.uuid }}">
+                                    <a href="#" onclick="postAction('/router/create_instant_backup/?uuid={{ router.uuid }}'); return false;">
                                         Backup now
                                     </a>
                                 </span>
@@ -130,7 +141,7 @@
                                         <i class="far fa-clock" title="Fetching router information on next cron"></i>
 
                                     {% else %}
-                                        <a href="/router/manage/?uuid={{ router.uuid }}&action=refresh_information" ><i class="fas fa-sync"></i></a>
+                                        <a href="#" onclick="postAction('/router/manage/?uuid={{ router.uuid }}', {action: 'refresh_information'}); return false;"><i class="fas fa-sync"></i></a>
                                     {% endif %}
                             </div>
                             <div class="card-body row">

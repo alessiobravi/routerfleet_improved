@@ -19,6 +19,8 @@ from routerlib.router_functions import update_router_information
 from user_manager.models import UserAcl
 from .forms import RouterForm, RouterBulkEditForm, RouterGroupForm, SSHKeyForm
 from .models import Router, RouterGroup, RouterInformation, RouterStatus, SSHKey, BackupSchedule
+from routerlib.actions import posted_action, posted_confirmation
+from routerlib import host_keys
 
 # How long the information update cron task may run; it is started once per minute
 MAX_UPDATE_INFORMATION_RUNTIME = 50
@@ -120,6 +122,7 @@ def view_router_details(request):
 
     context = {
         'router': router,
+        'host_key': host_keys.stored_key(router.address, router.port),
         'router_information': router_information,
         'router_status': router_status,
         'router_backup_list': router_backup_list,
@@ -141,8 +144,8 @@ def view_manage_router(request):
 
     if request.GET.get('uuid'):
         router = get_object_or_404(Router, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 router.delete()
                 messages.success(request, 'Router deleted successfully')
                 webadmin_settings.router_config_last_updated = timezone.now()
@@ -151,7 +154,11 @@ def view_manage_router(request):
             else:
                 messages.warning(request, 'Router not deleted|Invalid confirmation')
                 return redirect('router_list')
-        elif request.GET.get('action') == 'refresh_information':
+        elif posted_action(request, 'forget_host_key'):
+            if host_keys.forget(router.address, router.port):
+                messages.success(request, 'Host key forgotten|The key the device presents on the next connection will be trusted')
+            return redirect('/router/details/?uuid=' + str(router.uuid))
+        elif posted_action(request, 'refresh_information'):
             router_information, created = RouterInformation.objects.get_or_create(router=router)
             router_information.next_retry = None
             router_information.retry_count = 0
@@ -207,8 +214,8 @@ def view_manage_router_group(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     if request.GET.get('uuid'):
         router_group = get_object_or_404(RouterGroup, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 router_group.delete()
                 messages.success(request, 'Router Group deleted successfully')
                 return redirect('router_group_list')
@@ -247,8 +254,8 @@ def view_manage_sshkey(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     if request.GET.get('uuid'):
         sshkey = get_object_or_404(SSHKey, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 sshkey.delete()
                 messages.success(request, 'SSH Key deleted successfully')
                 return redirect('ssh_keys_list')
@@ -301,6 +308,10 @@ def view_create_instant_backup_task(request):
 
     router = get_object_or_404(Router, uuid=request.GET.get('uuid'))
     router_details_url = f'/router/details/?uuid={router.uuid}'
+    if request.method != 'POST':
+        # A link a foreign page could load must not start a backup
+        messages.warning(request, 'Backup task not created | Use the Backup now button')
+        return redirect(router_details_url)
 
     error = create_instant_backup(router)
     if error:

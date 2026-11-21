@@ -201,16 +201,14 @@
     function abortJob(uuid) {
         var confirmation = abortPrompt();
         if (confirmation !== null) {
-            window.location.href = "/fleet_commander/job/abort/?uuid=" + uuid +
-                "&confirmation=" + encodeURIComponent(confirmation);
+            postAction("/fleet_commander/job/abort/?uuid=" + uuid, {confirmation: confirmation});
         }
     }
 
     function abortTask(uuid) {
         var confirmation = abortPrompt();
         if (confirmation !== null) {
-            window.location.href = "/fleet_commander/task/abort/?uuid=" + uuid +
-                "&confirmation=" + encodeURIComponent(confirmation);
+            postAction("/fleet_commander/task/abort/?uuid=" + uuid, {confirmation: confirmation});
         }
     }
 </script>

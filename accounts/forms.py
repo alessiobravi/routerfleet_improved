@@ -1,4 +1,4 @@
-from typing import Any
+from accounts import lockout
 from django import forms
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
@@ -41,6 +41,13 @@ class LoginForm(forms.Form):
         username = cleaned_data.get("username")
         password = cleaned_data.get("password")
         if username and password:
+            if lockout.is_locked_out(self.request, username):
+                # The same answer whether the account exists or not
+                lockout.record_turned_away(self.request, username)
+                minutes = lockout.limits()[1].seconds // 60
+                self.add_error(None, ValidationError(
+                    f"Too many failed sign-in attempts. Try again in {minutes} minutes."))
+                return cleaned_data
             user = authenticate(self.request, username=username, password=password)
             if not user:
                 self.add_error(None, ValidationError("Invalid username or password."))

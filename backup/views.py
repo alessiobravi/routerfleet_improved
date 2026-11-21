@@ -15,6 +15,7 @@ from routerlib.functions import gen_backup_name, get_router_backup_file_extensio
 from django.conf import settings
 from user_manager.models import UserAcl
 from django.utils import timezone
+from routerlib.actions import posted_action, posted_confirmation
 
 
 @login_required()
@@ -33,8 +34,8 @@ def view_manage_backup_profile(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     if request.GET.get('uuid'):
         backup_profile = get_object_or_404(BackupProfile, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 if backup_profile.name == 'default':
                     messages.warning(request, 'Backup profile not deleted|Default profile cannot be deleted')
                     return redirect('backup_profile_list')
@@ -100,7 +101,7 @@ def view_backup_details(request):
     else:
         show_console = False
 
-    if request.GET.get('action') == 'anticipate':
+    if posted_action(request, 'anticipate'):
         if not backup.success and not backup.error:
             backup.next_retry = timezone.now()
             backup.save()
@@ -266,7 +267,7 @@ def view_backup_delete(request):
     backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
     router = backup.router
     redirect_url = f'/router/details/?uuid={backup.router.uuid}'
-    if request.GET.get('confirmation') == f'delete{backup.id}':
+    if posted_confirmation(request) == f'delete{backup.id}':
         backup.delete()
         messages.success(request, 'Backup deleted successfully')
         if router.routerstatus.backup_lock:

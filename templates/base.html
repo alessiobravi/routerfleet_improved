@@ -71,7 +71,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a href="/accounts/logout/" class="nav-link">
+                <a href="#" class="nav-link" onclick="postAction('/accounts/logout/'); return false;">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </li>
@@ -244,6 +244,26 @@
 </div>
 <!-- ./wrapper -->
 
+<script>
+    // Every action that changes something is sent as a POST with the CSRF
+    // token, so only a page of this installation can trigger it - a link or an
+    // image on a foreign page cannot.
+    function postAction(url, fields) {
+        var form = document.createElement('form');
+        form.method = 'post';
+        form.action = url;
+        var values = Object.assign({csrfmiddlewaretoken: '{{ csrf_token }}'}, fields || {});
+        Object.keys(values).forEach(function (name) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = values[name];
+            form.appendChild(input);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
 <!-- jQuery -->
 <script src="/static/AdminLTE-3.2.0/plugins/jquery/jquery.min.js"></script>
 <!-- Bootstrap 4 -->

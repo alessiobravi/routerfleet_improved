@@ -20,7 +20,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-k5i_+5k!7i^!ss2!co_kq3a%8%@_m#)e0+$paq5xqmcu#_ahle'
+# Sign-in attempts: after this many refused ones for an account, or from an
+# address, within this many minutes, further attempts are turned away until the
+# oldest of them is older than that. 0 attempts turns the limit off.
+LOGIN_LOCKOUT_ATTEMPTS = 5
+LOGIN_LOCKOUT_MINUTES = 15
+
+# Set in production_settings.py, which the container writes with a fresh random
+# key on every start. Empty here on purpose: start-up is refused without one
+# (see the end of this file), so a misconfigured installation fails loudly
+# instead of running on a key published in this file.
+SECRET_KEY = ''
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -154,7 +164,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.10.1'
+ROUTERFLEET_RELEASE = '0.11.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 
@@ -172,3 +182,11 @@ PROJECT_REPOSITORY_URL = 'https://github.com/alessiobravi/routerfleet_improved'
 PROJECT_SUPPORT_URL = 'https://github.com/alessiobravi/routerfleet_improved/issues'
 
 from routerfleet.production_settings import *
+
+# Django itself only complains about an empty key the first time it signs
+# something - a server error on the first request. Refused here instead, at
+# start-up, with the reason.
+if not SECRET_KEY:  # noqa: F405 - comes from production_settings
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('SECRET_KEY is empty: routerfleet/production_settings.py must set it '
+                               '(the container entrypoint writes one on every start).')

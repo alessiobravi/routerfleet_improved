@@ -23,7 +23,7 @@ class ProfileTests(TestCase):
         make_router(backup_profile=used)
         unused = make_profile()
         for profile in (default, used, unused):
-            self.client.get(f'/backup/manage_profile/?uuid={profile.uuid}&action=delete&confirmation=delete')
+            self.client.post(f'/backup/manage_profile/?uuid={profile.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         remaining = set(BackupProfile.objects.values_list('pk', flat=True))
         self.assertEqual(remaining, {default.pk, used.pk})
 
@@ -92,9 +92,9 @@ class BackupViewTests(TestCase):
 
     def test_delete_needs_the_id_and_frees_the_lock(self):
         RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
-        self.client.get(f'/backup/delete/?uuid={self.a.uuid}&confirmation=delete')
+        self.client.post(f'/backup/delete/?uuid={self.a.uuid}', {'confirmation': 'delete'})
         self.assertTrue(RouterBackup.objects.filter(pk=self.a.pk).exists())
-        self.client.get(f'/backup/delete/?uuid={self.a.uuid}&confirmation=delete{self.a.id}')
+        self.client.post(f'/backup/delete/?uuid={self.a.uuid}', {'confirmation': f'delete{self.a.id}'})
         self.assertFalse(RouterBackup.objects.filter(pk=self.a.pk).exists())
         self.assertIsNone(RouterStatus.objects.get(router=self.router).backup_lock)
 
@@ -104,6 +104,6 @@ class BackupViewTests(TestCase):
         response = self.client.get(f'/backup/backup_details/?uuid={self.b.uuid}&show_console=true')
         self.assertTrue(response.context['show_console'])
         self.assertIn(self.a, response.context['backup_list'])
-        self.client.get(f'/backup/backup_details/?uuid={pending.uuid}&action=anticipate')
+        self.client.post(f'/backup/backup_details/?uuid={pending.uuid}', {'action': 'anticipate'})
         pending.refresh_from_db()
         self.assertLessEqual(pending.next_retry, timezone.now())

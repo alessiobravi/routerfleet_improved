@@ -7,6 +7,61 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+Releases before 0.10.0 were withdrawn in 0.11.0 (see there); their entries
+below are kept as the record of what changed.
+
+## [0.11.0] - 2026-11-21
+
+A security review of the code inherited from earlier projects, and what it
+found.
+
+### Security
+- **Cross-site request forgery on every destructive action.** Deleting devices,
+  groups, SSH keys, backups, users, commands, schedules and channels; aborting
+  tasks; starting backups and imports; refreshing inventory; signing out — all
+  were GET requests, so any page a signed-in user opened could trigger them with
+  an image tag. Each is now a POST that needs the installation's CSRF token, and
+  the same request as a GET changes nothing. Tests check all three: a GET does
+  nothing, a POST without the token is refused, a POST with it works.
+- **Device SSH host keys are trusted on first use and checked on every
+  connection.** Any key used to be accepted, so whoever could intercept the
+  traffic to a device could impersonate it and receive its password. The first
+  connection now stores the key; a different key — of any algorithm — is
+  refused before a credential is sent, with both fingerprints in the error. The
+  device page shows the fingerprint and a **Forget host key** action for a
+  device that was reset or replaced.
+- **Sign-in attempts are limited**: after 5 refused attempts for an account or
+  from an address within 15 minutes, further attempts are turned away without
+  checking the password, and recorded in the login history with a lock icon.
+- **The session and CSRF cookies are `Secure`** when HTTPS is enforced. The
+  compose files pass `HTTPS_REDIRECT_POLICY` to the application for this, and
+  the CI stack test checks the cookie.
+- `settings.py` no longer carries a hard-coded `SECRET_KEY`; start-up is refused
+  with an explanation if `production_settings.py` does not set one.
+- Every outbound HTTP request has a timeout: an integration or notification
+  service that stopped answering could hold a worker indefinitely.
+- Backup files fetched from a device go through a private temporary directory
+  that is removed afterwards — also when the retrieval fails halfway, which used
+  to leave the device's configuration in the shared `/tmp`.
+
+### Removed
+- **Releases 0.8.0 to 0.9.3**, with their tags and images. They predate the
+  vulnerability gate and their Debian-based images carried hundreds of known
+  vulnerabilities. CI now keeps only releases from `RELEASE_FLOOR`
+  (`routerfleet/versioning.py`) up.
+- Empty leftovers of `startapp` in `accounts`, `dashboard` and `routerlib`,
+  which are not installed apps.
+
+### Fixed
+- Bare `except:` clauses, which also swallowed shutdown signals, catch
+  `Exception`; re-raised errors keep their cause. Unused imports and variables
+  removed.
+
+### Upgrading
+- One migration: the table of device host keys. Coming from RouterFleet
+  Extended 4 migrations apply, from the original 17 — see
+  [Upgrading](docs/upgrading.md#changes-in-0110-that-you-may-notice).
+
 ## [0.10.1] - 2026-11-21
 
 ### Changed

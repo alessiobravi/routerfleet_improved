@@ -17,6 +17,7 @@ from .forms import CommandForm, CommandVariantForm, CommandScheduleForm, Command
     ScheduleDefaultsForm
 from .models import Command, CommandVariant, CommandSchedule, CommandJob, CommandTask, \
     ScheduleDefaults
+from routerlib.actions import posted_action, posted_confirmation
 
 
 def create_default_commands():
@@ -118,8 +119,8 @@ def view_manage_command(request):
 
     if request.GET.get('uuid'):
         command = get_object_or_404(Command, uuid=request.GET.get('uuid'))
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 try:
                     command.delete()
                     messages.success(request, 'Command deleted successfully')
@@ -284,8 +285,8 @@ def view_manage_command_variant(request):
     if request.GET.get('uuid'):
         variant = get_object_or_404(CommandVariant, uuid=request.GET.get('uuid'))
         command = variant.command
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 variant.delete()
                 messages.success(request, 'Variant deleted successfully')
             else:
@@ -349,8 +350,8 @@ def view_manage_command_schedule(request):
     if request.GET.get('uuid'):
         schedule = get_object_or_404(CommandSchedule, uuid=request.GET.get('uuid'))
         command = schedule.command
-        if request.GET.get('action') == 'delete':
-            if request.GET.get('confirmation') == 'delete':
+        if posted_action(request, 'delete'):
+            if posted_confirmation(request) == 'delete':
                 # The tasks a schedule has created are rows of their own and the
                 # cron goes on performing them, so removing the schedule stops
                 # them first - otherwise the command still goes out after it
@@ -523,7 +524,7 @@ ABORT_CONFIRMATION = 'abort'
 
 
 def abort_confirmed(request):
-    return request.GET.get('confirmation') == ABORT_CONFIRMATION
+    return posted_confirmation(request) == ABORT_CONFIRMATION
 
 
 def stopped_message(count):

@@ -44,7 +44,7 @@ class Command(BaseCommand):
             try:
                 schedule_defaults.repeat_interval = parse_interval(options['repeat'])
             except ValueError as error:
-                raise CommandError(f'--repeat: {error}')
+                raise CommandError(f'--repeat: {error}') from error
             changed.append('repeat interval')
 
         if changed:

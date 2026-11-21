@@ -309,7 +309,7 @@ class CommandScheduleForm(forms.ModelForm):
         try:
             return parse_interval(self.cleaned_data.get('repeat_interval'))
         except ValueError as error:
-            raise forms.ValidationError(str(error))
+            raise forms.ValidationError(str(error)) from error
 
     def clean(self):
         cleaned_data = super().clean()
@@ -389,4 +389,4 @@ class ScheduleDefaultsForm(forms.ModelForm):
         try:
             return parse_interval(self.cleaned_data.get('repeat_interval'))
         except ValueError as error:
-            raise forms.ValidationError(str(error))
+            raise forms.ValidationError(str(error)) from error

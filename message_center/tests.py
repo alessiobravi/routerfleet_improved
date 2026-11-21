@@ -8,7 +8,6 @@ from backup_data.models import RouterBackup
 from message_center import functions
 from message_center.forms import MessageChannelForm, MessageSettingsForm
 from message_center.models import Message, MessageChannel, MessageSettings, Notification
-from router_manager.models import RouterStatus
 from routerfleet.testing import make_router, make_user
 from routerfleet_tools.models import WebadminSettings
 
@@ -135,7 +134,7 @@ class SendTests(TestCase):
         message = Message.objects.create(channel=channel(destination='my-topic'), subject='S', message='body')
         with mock.patch('message_center.functions.requests.post', return_value=self.response()) as post:
             message = self.send(message)
-        post.assert_called_once_with('https://ntfy.sh/my-topic', data=b'body', headers={'Title': 'S'})
+        post.assert_called_once_with('https://ntfy.sh/my-topic', data=b'body', headers={'Title': 'S'}, timeout=15)
         self.assertEqual(message.status, 'sent')
         self.assertIsNotNone(message.completed)
 
@@ -261,7 +260,7 @@ class DailyReportTests(TestCase):
         body = Message.objects.get().message
         self.assertIn('Backups completed: 1', body)
         self.assertIn('Backups failed: 1', body)
-        self.assertIn(f'Backup ', body)
+        self.assertIn('Backup ', body)
 
 
 class FormTests(TestCase):
@@ -339,9 +338,9 @@ class ViewTests(TestCase):
 
     def test_delete_channel_needs_confirmation(self):
         ch = channel()
-        self.client.get(f'/message_center/manage_channel/?uuid={ch.uuid}&action=delete&confirmation=no')
+        self.client.post(f'/message_center/manage_channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'no'})
         self.assertTrue(MessageChannel.objects.filter(pk=ch.pk).exists())
-        self.client.get(f'/message_center/manage_channel/?uuid={ch.uuid}&action=delete&confirmation=delete')
+        self.client.post(f'/message_center/manage_channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         self.assertFalse(MessageChannel.objects.filter(pk=ch.pk).exists())
 
     def test_list_and_history(self):

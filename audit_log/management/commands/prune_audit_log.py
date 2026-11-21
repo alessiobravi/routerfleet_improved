@@ -76,7 +76,7 @@ class Command(BaseCommand):
         try:
             days = int(str(value).strip())
         except (TypeError, ValueError):
-            raise CommandError(f'--older-than: "{value}" is not a number of days.')
+            raise CommandError(f'--older-than: "{value}" is not a number of days.') from None
         if days < 1:
             raise CommandError('--older-than: give at least 1 day, so that running this '
                                'cannot empty the audit trail by accident.')

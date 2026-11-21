@@ -1,4 +1,3 @@
-from django.shortcuts import render, Http404
 from .models import WebadminSettings
 from django.http import JsonResponse
 from django.conf import settings
@@ -55,7 +54,7 @@ def view_cron_check_updates(request):
                 }
                 return JsonResponse(response_data)
 
-        except Exception as e:
+        except Exception:
             webadmin_settings.update_available = False
             webadmin_settings.save()
             return JsonResponse({'update_available': False})

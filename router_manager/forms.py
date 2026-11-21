@@ -3,7 +3,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from backup.models import BackupProfile
 from .models import Router, RouterGroup, SSHKey
-from routerlib.functions import test_authentication, connect_to_ssh
+from routerlib.functions import test_authentication
 import ipaddress
 import socket
 
@@ -81,7 +81,7 @@ class RouterForm(forms.ModelForm):
                 try:
                     ipaddress.ip_address(address)
                 except ValueError:
-                    raise forms.ValidationError('The address field must be a valid hostname or IP address.')
+                    raise forms.ValidationError('The address field must be a valid hostname or IP address.') from None
 
         if router_type == 'monitoring':
             cleaned_data['password'] = ''

@@ -71,7 +71,7 @@ Every push to `main` is a release. Each of the five images is published as:
 | Tag | Meaning |
 |---|---|
 | `:latest` | The most recent release. The compose files use this |
-| `:<version>`, e.g. `:0.8.0` | That exact release, never moved |
+| `:<version>`, e.g. `:0.11.0` | That exact release, never moved |
 
 Releases are numbered MAJOR.MINOR.PATCH: a release that only fixes or maintains
 raises the last number (0.8.0 → 0.8.1), one that brings a new feature raises the
@@ -87,7 +87,7 @@ also has a git tag `v<version>` and a GitHub Release with its
 `docker-compose.yml`:
 
 ```yaml
-    image: ghcr.io/alessiobravi/routerfleet:0.8.0
+    image: ghcr.io/alessiobravi/routerfleet:0.11.0
 ```
 
 All five images must carry the same version.
@@ -190,7 +190,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 | `POSTGRES_PASSWORD` | with postgres | — | string | Database password. With the bundled database it is also what the database is created with on first start; changing it later requires changing it inside PostgreSQL too |
 | `POSTGRES_HOST` | external only | empty | hostname | Set only for an external server; empty means the bundled container |
 | `POSTGRES_PORT` | no | `5432` | port | External server's port |
-| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects port 80 to HTTPS. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext |
+| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects port 80 to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext |
 
 `localhost`, `127.0.0.1`, `[::1]` and `routerfleet` are always accepted in
 addition to `SERVER_ADDRESS`.

@@ -31,7 +31,7 @@ class CommandViewTests(TestCase):
     def test_command_in_use_cannot_be_deleted(self):
         command = Command.objects.create(name='C')
         CommandVariant.objects.create(command=command, router_type='routeros', payload='/x')
-        self.client.get(f'/fleet_commander/command/manage/?uuid={command.uuid}&action=delete&confirmation=delete')
+        self.client.post(f'/fleet_commander/command/manage/?uuid={command.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         self.assertTrue(Command.objects.filter(pk=command.pk).exists())
 
     def test_execute_creates_a_job(self):
@@ -148,7 +148,7 @@ class ScheduleViewTests(TestCase):
         schedule = CommandSchedule.objects.create(command=self.command)
         job = CommandJob.objects.create(command=self.command, schedule=schedule)
         task = CommandTask.objects.create(job=job, router=self.router)
-        self.client.get(f'/fleet_commander/schedule/manage/?uuid={schedule.uuid}&action=delete&confirmation=delete')
+        self.client.post(f'/fleet_commander/schedule/manage/?uuid={schedule.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         task.refresh_from_db()
         self.assertIn('Schedule deleted by', task.error_message)
         self.assertFalse(CommandSchedule.objects.exists())
@@ -162,18 +162,18 @@ class AbortViewTests(TestCase):
         self.task = CommandTask.objects.create(job=self.job, router=make_router())
 
     def test_task_abort_needs_the_word(self):
-        self.client.get(f'/fleet_commander/task/abort/?uuid={self.task.uuid}&confirmation=stop')
+        self.client.post(f'/fleet_commander/task/abort/?uuid={self.task.uuid}', {'confirmation': 'stop'})
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, 'pending')
-        self.client.get(f'/fleet_commander/task/abort/?uuid={self.task.uuid}&confirmation=abort')
+        self.client.post(f'/fleet_commander/task/abort/?uuid={self.task.uuid}', {'confirmation': 'abort'})
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, 'aborted')
 
     def test_job_abort(self):
-        self.client.get(f'/fleet_commander/job/abort/?uuid={self.job.uuid}&confirmation=abort')
+        self.client.post(f'/fleet_commander/job/abort/?uuid={self.job.uuid}', {'confirmation': 'abort'})
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, 'aborted')
-        response = self.client.get(f'/fleet_commander/job/abort/?uuid={self.job.uuid}&confirmation=abort',
+        response = self.client.post(f'/fleet_commander/job/abort/?uuid={self.job.uuid}', {'confirmation': 'abort'},
                                    follow=True)
         self.assertIn('no pending tasks left', ' '.join(str(m) for m in response.context['messages']))
 

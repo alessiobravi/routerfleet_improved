@@ -5,6 +5,7 @@ from .forms import WireGuardWebAdminForm
 from django.contrib import messages
 import requests
 from user_manager.models import UserAcl
+from routerlib.actions import posted_action, posted_confirmation
 
 
 @login_required()
@@ -24,8 +25,8 @@ def view_launch_wireguard_webadmin(request):
     api_url += f"&username={request.user.username}&action=login"
     api_url += f"&default_user_level={wireguard_integration.wireguard_webadmin_default_user_level}"
     try:
-        api_response = requests.get(api_url)
-    except:
+        api_response = requests.get(api_url, timeout=15)
+    except Exception:
         messages.warning(request, 'Error connecting to API')
         return redirect('/wireguard_webadmin/')
 
@@ -34,7 +35,7 @@ def view_launch_wireguard_webadmin(request):
             api_json = api_response.json()
         else:
             api_json = {}
-    except:
+    except Exception:
         messages.warning(request, 'Error parsing API response')
         return redirect('/wireguard_webadmin/')
 
@@ -56,8 +57,8 @@ def view_manage_wireguard_integration(request):
         'delete_confirmation_message': 'Are you sure you want to delete this integration? This action cannot be undone. Type delete in the box below to confirm.'
     }
     wireguard_integration = ExternalIntegration.objects.filter(name='wireguard_webadmin', integration_type='wireguard_webadmin').first()
-    if request.GET.get('action') == 'delete':
-        if request.GET.get('confirmation') == 'delete':
+    if posted_action(request, 'delete'):
+        if posted_confirmation(request) == 'delete':
             wireguard_integration.delete()
             messages.success(request, 'WireGuard WebAdmin integration deleted')
             return redirect('/wireguard_webadmin/')

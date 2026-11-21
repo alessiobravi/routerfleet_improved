@@ -2,7 +2,6 @@ from django.shortcuts import render, Http404, redirect
 from django.contrib.auth.models import User
 from django.contrib import auth
 from .forms import CreateUserForm, LoginForm
-from django.http import HttpResponse
 from user_manager.models import UserAcl
 
 
@@ -38,5 +37,9 @@ def view_login(request):
 
 
 def view_logout(request):
+    # Signing out is a POST like every other action, so a foreign page cannot
+    # sign anybody out by loading this address
+    if request.method != 'POST':
+        return redirect('/')
     auth.logout(request)
     return render(request, 'accounts/logout.html')

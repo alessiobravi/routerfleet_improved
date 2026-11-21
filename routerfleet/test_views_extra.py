@@ -12,7 +12,7 @@ from backup.models import BackupProfile
 from backup_data.models import RouterBackup
 from fleet_commander.models import Command, CommandJob, CommandSchedule, CommandTask, CommandVariant
 from message_center.models import Message, MessageChannel, MessageSettings
-from router_manager.models import BackupSchedule, Router, RouterGroup, RouterInformation, RouterStatus, SSHKey
+from router_manager.models import BackupSchedule, Router, RouterGroup, RouterStatus, SSHKey
 from routerfleet.testing import make_group, make_profile, make_router, make_sshkey, make_user
 
 
@@ -27,9 +27,9 @@ class DeleteConfirmationTests(TestCase):
         self.client.force_login(make_user(50))
 
     def check(self, url, model, pk):
-        self.client.get(url + '&action=delete&confirmation=wrong')
+        self.client.post(url, {'action': 'delete', 'confirmation': 'wrong'})
         self.assertTrue(model.objects.filter(pk=pk).exists(), url)
-        self.client.get(url + '&action=delete&confirmation=delete')
+        self.client.post(url, {'action': 'delete', 'confirmation': 'delete'})
         self.assertFalse(model.objects.filter(pk=pk).exists(), url)
 
     def test_router_group_ssh_key_command_variant_schedule(self):
@@ -47,7 +47,7 @@ class DeleteConfirmationTests(TestCase):
 
     def test_backup_profile_wrong_confirmation(self):
         profile = make_profile()
-        response = self.client.get(f'/backup/manage_profile/?uuid={profile.uuid}&action=delete&confirmation=x',
+        response = self.client.post(f'/backup/manage_profile/?uuid={profile.uuid}', {'action': 'delete', 'confirmation': 'x'},
                                    follow=True)
         self.assertTrue(BackupProfile.objects.filter(pk=profile.pk).exists())
         self.assertIn('Invalid confirmation', messages_of(response))
@@ -107,7 +107,7 @@ class CommandViewBranchTests(TestCase):
         self.client.force_login(make_user(20))
         job = CommandJob.objects.create(command=self.command)
         task = CommandTask.objects.create(job=job, router=make_router(), status='success')
-        response = self.client.get(f'/fleet_commander/task/abort/?uuid={task.uuid}&confirmation=abort', follow=True)
+        response = self.client.post(f'/fleet_commander/task/abort/?uuid={task.uuid}', {'confirmation': 'abort'}, follow=True)
         self.assertIn('Only a task that has not finished', messages_of(response))
         response = self.client.get(f'/fleet_commander/job/abort/?uuid={job.uuid}', follow=True)
         self.assertIn('Invalid confirmation', messages_of(response))
@@ -165,21 +165,21 @@ class RouterViewBranchTests(TestCase):
         response = self.client.post(url, {'router_uuids': [str(router.uuid)], 'add_group': missing,
                                           'remove_group': '11111111-1111-1111-1111-111111111111'}, follow=True)
         self.assertIn('Group not found', messages_of(response))
-        self.client.get('/accounts/logout/')
+        self.client.post('/accounts/logout/')
         self.client.force_login(make_user(20))
         self.assertRedirects(self.client.get(url), '/router/list/', fetch_redirect_response=False)
 
     def test_router_delete_wrong_confirmation(self):
         router = make_router()
         self.client.force_login(make_user(30))
-        self.client.get(f'/router/manage/?uuid={router.uuid}&action=delete&confirmation=nope')
+        self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'delete', 'confirmation': 'nope'})
         self.assertTrue(Router.objects.filter(pk=router.pk).exists())
 
     def test_refresh_information_success(self):
         router = make_router()
         self.client.force_login(make_user(30))
         with mock.patch('router_manager.views.update_router_information', return_value=(True, '')):
-            response = self.client.get(f'/router/manage/?uuid={router.uuid}&action=refresh_information', follow=True)
+            response = self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'refresh_information'}, follow=True)
         self.assertIn('Router information updated', messages_of(response))
 
     def test_list_shows_the_last_status_change(self):
@@ -191,7 +191,7 @@ class RouterViewBranchTests(TestCase):
     def test_instant_backup_refused_message(self):
         self.client.force_login(make_user(20))
         router = make_router()
-        response = self.client.get(f'/router/create_instant_backup/?uuid={router.uuid}', follow=True)
+        response = self.client.post(f'/router/create_instant_backup/?uuid={router.uuid}', follow=True)
         self.assertIn('Router has no backup profile', messages_of(response))
 
     def test_information_cron_counts_failures(self):
@@ -306,9 +306,9 @@ class ImportBranchTests(TestCase):
         data = CsvData.objects.create(raw_csv_data='x', import_data=[])
         response = self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=start_import')
         self.assertEqual(response.context['action'], 'start_import')
-        response = self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=delete_errors', follow=True)
+        response = self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'delete_errors'}, follow=True)
         self.assertIn('No error tasks deleted', messages_of(response))
-        response = self.client.get(f'/router/import_tool/details/?uuid={data.uuid}&action=create_tasks', follow=True)
+        response = self.client.post(f'/router/import_tool/details/?uuid={data.uuid}', {'action': 'create_tasks'}, follow=True)
         self.assertIn('No new tasks created', messages_of(response))
 
     def test_list_page(self):
@@ -322,7 +322,7 @@ class ImportBranchTests(TestCase):
         task = ImportTask.objects.create(csv_data=data, import_id=1, name='n', username='u', password='p',
                                          address='no.such.host', router_type='routeros')
         with mock.patch('import_tool.views.socket.gethostbyname', side_effect=socket.gaierror):
-            result = self.client.get(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
+            result = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
         self.assertIn('valid hostname or IP address', result['error_message'])
 
 
@@ -371,7 +371,7 @@ class PruneScriptNetworkTests(TestCase):
 
     def api_versions(self):
         return [
-            {'id': 1, 'name': 'sha256:idx', 'metadata': {'container': {'tags': ['0.9.0', 'latest']}}},
+            {'id': 1, 'name': 'sha256:idx', 'metadata': {'container': {'tags': ['1.0.0', 'latest']}}},
             {'id': 2, 'name': 'sha256:amd', 'metadata': {'container': {'tags': []}}},
             {'id': 3, 'name': 'sha256:junk', 'metadata': {'container': {'tags': []}}},
         ]
@@ -386,11 +386,11 @@ class PruneScriptNetworkTests(TestCase):
 
     def test_deletes_only_what_no_release_needs(self):
         module = self.script()
-        manifests = {'0.9.0': {'mediaType': module.INDEX_TYPES[0], 'manifests': [{'digest': 'sha256:amd'}]},
+        manifests = {'1.0.0': {'mediaType': module.INDEX_TYPES[0], 'manifests': [{'digest': 'sha256:amd'}]},
                      'latest': {'mediaType': module.INDEX_TYPES[0], 'manifests': [{'digest': 'sha256:amd'}]}}
         request, calls = self.fake_request(self.api_versions(), manifests)
         with mock.patch.object(module, '_request', side_effect=request):
-            out = self.run_main(module, 'routerfleet', '0.9.0')
+            out = self.run_main(module, 'routerfleet', '1.0.0')
         deletes = [url for method, url in calls if method == 'DELETE']
         self.assertEqual(len(deletes), 1)
         self.assertTrue(deletes[0].endswith('/versions/3'))
@@ -398,10 +398,10 @@ class PruneScriptNetworkTests(TestCase):
 
     def test_dry_run_deletes_nothing(self):
         module = self.script()
-        manifests = {'0.9.0': {'manifests': []}, 'latest': {'manifests': []}}
+        manifests = {'1.0.0': {'manifests': []}, 'latest': {'manifests': []}}
         request, calls = self.fake_request(self.api_versions(), manifests)
         with mock.patch.object(module, '_request', side_effect=request):
-            out = self.run_main(module, 'routerfleet', '0.9.0', '--dry-run')
+            out = self.run_main(module, 'routerfleet', '1.0.0', '--dry-run')
         self.assertFalse([c for c in calls if c[0] == 'DELETE'])
         self.assertIn('would delete', out)
 
@@ -409,7 +409,7 @@ class PruneScriptNetworkTests(TestCase):
         module = self.script()
         request, calls = self.fake_request(self.api_versions(), {})
         with mock.patch.object(module, '_request', side_effect=request), self.assertRaises(SystemExit):
-            self.run_main(module, 'routerfleet', '1.0.0')
+            self.run_main(module, 'routerfleet', '2.0.0')
         self.assertFalse([c for c in calls if c[0] == 'DELETE'])
 
     def test_needs_a_token_and_two_arguments(self):
