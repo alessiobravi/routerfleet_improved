@@ -29,13 +29,6 @@ to be pinged.
 - **Secrets encrypted at rest** — device passwords are stored with Fernet
   symmetric encryption, never in cleartext.
 
-## Screenshots
-
-| | |
-|---|---|
-| ![Backup comparison](screenshots/backup-diff.png) **Backup diff** | ![Backup profiles](screenshots/backup-profiles.png) **Backup profiles** |
-| ![Router details](screenshots/router-details.png) **Device details** | ![User manager](screenshots/user-manager.png) **User management** |
-
 ## Quick start
 
 Requires Docker with the Compose plugin.
