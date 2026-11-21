@@ -1,49 +1,28 @@
 #!/bin/bash
+# Manual alternative to the CI workflow: builds the four images and pushes them
+# tagged with the current version and as latest. CI does this on every push to
+# main; use this only when you need to publish from a workstation.
+set -euo pipefail
 
-IMAGES=(
-  "ghcr.io/alessiobravi/routerfleet:latest"
-  "ghcr.io/alessiobravi/routerfleet-monitoring:latest"
-  "ghcr.io/alessiobravi/routerfleet-nginx:latest"
-  "ghcr.io/alessiobravi/routerfleet-cron:latest"
-)
+cd "$(dirname "$0")"
+VERSION=$(python3 scripts/version.py)
+REGISTRY=ghcr.io/alessiobravi
+IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx)
 
-login_registry() {
-  if [ -n "$GHCR_USERNAME" ] && [ -n "$GHCR_TOKEN" ]; then
-    echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-  else
-    echo "Log in to ghcr.io (this script is the manual alternative to the GitHub Actions workflow):"
-    docker login ghcr.io
-  fi
-}
+if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
+  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+else
+  echo "Log in to ghcr.io:"
+  docker login ghcr.io
+fi
 
-build_images() {
-  cat .gitignore > .dockerignore
-  echo "Starting the build of the images..."
-  docker compose -f docker-compose-build.yml build
-  if [ $? -eq 0 ]; then
-    echo "Build completed successfully."
-  else
-    echo "Error during the image build."
-    exit 1
-  fi
-}
+echo "Building version ${VERSION}..."
+docker compose -f docker-compose-build.yml build
 
-push_images() {
-  for IMAGE in "${IMAGES[@]}"; do
-    echo "Pushing image: $IMAGE..."
-    docker push "$IMAGE"
-    if [ $? -eq 0 ]; then
-      echo "$IMAGE pushed successfully."
-    else
-      echo "Error pushing the image: $IMAGE"
-      exit 1
-    fi
-  done
-}
+for IMAGE in "${IMAGES[@]}"; do
+  docker tag "${REGISTRY}/${IMAGE}:latest" "${REGISTRY}/${IMAGE}:${VERSION}"
+  docker push "${REGISTRY}/${IMAGE}:${VERSION}"
+  docker push "${REGISTRY}/${IMAGE}:latest"
+done
 
-login_registry
-docker system prune -a
-build_images
-push_images
-
-echo "Build and push operations completed successfully."
+echo "Pushed ${VERSION}. Note: CI also creates the git tag and GitHub Release; this script does not."

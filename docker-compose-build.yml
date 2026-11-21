@@ -1,4 +1,3 @@
-version: '3'
 services:
   routerfleet:
     image: ghcr.io/alessiobravi/routerfleet:latest

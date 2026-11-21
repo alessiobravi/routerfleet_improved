@@ -5,6 +5,13 @@ from routerfleet_tools.models import WebadminSettings
 register = template.Library()
 
 
+def version_string(number):
+    """7515 -> '0.7515': the same spelling scripts/version.py tags releases with,
+    so the sidebar and the release page always agree."""
+    number = int(number or 0)
+    return f'{number // 10000}.{number % 10000:04d}'
+
+
 @register.simple_tag
 def tag_webadmin_version():
     webadmin_settings, settings_created = WebadminSettings.objects.get_or_create(name='webadmin_settings')
@@ -18,8 +25,8 @@ def tag_webadmin_version():
         webadmin_settings.update_available = False
         webadmin_settings.save()
     return {
-        'current_version': settings.ROUTERFLEET_VERSION / 10000,
-        'latest_version': webadmin_settings.latest_version / 10000,
+        'current_version': version_string(settings.ROUTERFLEET_VERSION),
+        'latest_version': version_string(webadmin_settings.latest_version),
         'update_available': webadmin_settings.update_available,
         'changelog_url': getattr(settings, 'UPDATE_CHANGELOG_URL', ''),
     }

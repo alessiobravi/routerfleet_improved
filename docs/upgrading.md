@@ -123,8 +123,12 @@ download the current compose file as shown above.
 
 ## Rolling back
 
-Stop the stack, restore the database dump and the `app_secrets` archive, then
-start the previous image tag. Note that migrations are **not** automatically
+Every release keeps its own image tag, so going back means naming the version
+you came from. Stop the stack, restore the database dump and the `app_secrets`
+archive, set the four `image:` lines of `docker-compose.yml` to that version —
+for example `ghcr.io/alessiobravi/routerfleet:0.7515` — and start it again.
+The versions are listed on the repository's Releases page and in the
+[changelog](../CHANGELOG.md). Note that migrations are **not** automatically
 reversed by downgrading the image — restore the database rather than relying on
 reverse migrations.
 

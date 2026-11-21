@@ -149,7 +149,7 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_ROOT = '/var/lib/routerfleet/'
-ROUTERFLEET_VERSION = 7514
+ROUTERFLEET_VERSION = 7515
 
 # Where this installation asks whether a newer version exists, and where the
 # changelog behind the "Update Available" button is read from. Both are empty by

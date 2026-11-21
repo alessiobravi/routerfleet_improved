@@ -40,8 +40,8 @@ flowchart TB
 | Page | What it covers |
 |---|---|
 | [Architecture](architecture.md) | The five containers, the scheduler, startup, the data model |
-| [Installation](installation.md) | Deployment, compose files, environment variables, TLS, volumes |
-| [Upgrading](upgrading.md) | Upgrade paths — including from the earlier RouterFleet projects |
+| [Installation](installation.md) | Full specification: containers, images and versions, every option and variant |
+| [Upgrading](upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
 | [Operations](operations.md) | Management commands, housekeeping, troubleshooting, local development, tests |
 | [Security](security.md) | Secrets at rest, the scheduler endpoints, hosts and CSRF, outbound calls |
 

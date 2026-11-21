@@ -1,4 +1,8 @@
-name: Test, then build and push docker images
+name: CI
+
+# Every push to main is a release: tests, then images tagged with the version,
+# then a tag and a GitHub Release, then the untagged image versions earlier
+# builds left behind are removed. Pull requests only run the tests.
 
 on:
   push:
@@ -9,9 +13,17 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push to a pull request makes the older run pointless. On main a
+  # release is never interrupted halfway.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -22,6 +34,21 @@ jobs:
           python-version: '3.14'
           cache: pip
           cache-dependency-path: requirements-dev.txt
+
+      - name: Version and changelog
+        id: version
+        run: |
+          python scripts/version.py check
+          echo "version=$(python scripts/version.py)" >> "$GITHUB_OUTPUT"
+
+      - name: The version must not be released yet
+        if: github.event_name == 'push'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null; then
+            echo "::error::v${VERSION} is already released - increment ROUTERFLEET_VERSION and add a CHANGELOG.md section"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
@@ -48,14 +75,32 @@ jobs:
       - name: Coverage
         run: coverage report
 
-  build-and-push:
-    # Images are only published from main, and only when the tests passed
+  images:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - image: routerfleet
+            context: .
+            file: ./Dockerfile
+            title: RouterFleet Improved application
+          - image: routerfleet-cron
+            context: ./containers/cron
+            file: ./containers/cron/Dockerfile-cron
+            title: RouterFleet Improved scheduler
+          - image: routerfleet-monitoring
+            context: ./containers/monitoring
+            file: ./containers/monitoring/Dockerfile-monitoring
+            title: RouterFleet Improved monitoring
+          - image: routerfleet-nginx
+            context: ./containers/nginx
+            file: ./containers/nginx/Dockerfile-nginx
+            title: RouterFleet Improved web server
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -70,33 +115,91 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push routerfleet
-        uses: docker/build-push-action@v7
+      # Tags and OCI labels. The source label is what links the package to this
+      # repository, so it is listed on the repository page.
+      - name: Tags and labels
+        id: meta
+        uses: docker/metadata-action@v6
         with:
-          context: .
-          push: true
-          tags: ghcr.io/alessiobravi/routerfleet:latest
+          images: ghcr.io/alessiobravi/${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ needs.test.outputs.version }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=Centralized backup, configuration management and fleet command execution for network devices
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ needs.test.outputs.version }}
 
-      - name: Build and push routerfleet-cron
+      - name: Build and push
         uses: docker/build-push-action@v7
         with:
-          context: ./containers/cron
-          file: ./containers/cron/Dockerfile-cron
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: true
-          tags: ghcr.io/alessiobravi/routerfleet-cron:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # One plain manifest per build, without attestation manifests beside
+          # it - which is what makes "untagged" mean "left over" in the cleanup
+          provenance: false
+          sbom: false
 
-      - name: Build and push routerfleet-monitoring
-        uses: docker/build-push-action@v7
-        with:
-          context: ./containers/monitoring
-          file: ./containers/monitoring/Dockerfile-monitoring
-          push: true
-          tags: ghcr.io/alessiobravi/routerfleet-monitoring:latest
+  release:
+    needs: [test, images]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - name: Build and push routerfleet-nginx
-        uses: docker/build-push-action@v7
+      - name: Tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.test.outputs.version }}
+        run: |
+          python scripts/version.py notes > release-notes.md
+          gh release create "v${VERSION}" --target "${GITHUB_SHA}" \
+            --title "RouterFleet Improved ${VERSION}" --notes-file release-notes.md
+
+  cleanup:
+    needs: [test, images]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx]
+    steps:
+      # Only delete when the image just published is a single manifest: if it
+      # were an index, its parts would be untagged too and deleting them would
+      # break the image itself
+      - name: Check the published image is a single manifest
+        id: guard
+        env:
+          VERSION: ${{ needs.test.outputs.version }}
+        run: |
+          TOKEN=$(curl -fsS "https://ghcr.io/token?scope=repository:alessiobravi/${{ matrix.image }}:pull" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["token"])')
+          TYPE=$(curl -fsSI -H "Authorization: Bearer ${TOKEN}" \
+            -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.manifest.v1+json" \
+            "https://ghcr.io/v2/alessiobravi/${{ matrix.image }}/manifests/${VERSION}" \
+            | tr -d '\r' | awk -F': ' 'tolower($1)=="content-type" {print $2}')
+          echo "Published as: ${TYPE}"
+          case "${TYPE}" in
+            *index*|*list*) echo "::notice::${{ matrix.image }}:${VERSION} is an index - untagged versions kept"
+                            echo "safe=false" >> "$GITHUB_OUTPUT" ;;
+            *manifest*)     echo "safe=true" >> "$GITHUB_OUTPUT" ;;
+            *)              echo "::error::Unexpected manifest type '${TYPE}'"; exit 1 ;;
+          esac
+
+      - name: Delete untagged image versions
+        if: steps.guard.outputs.safe == 'true'
+        uses: actions/delete-package-versions@v5
         with:
-          context: ./containers/nginx
-          file: ./containers/nginx/Dockerfile-nginx
-          push: true
-          tags: ghcr.io/alessiobravi/routerfleet-nginx:latest
+          package-name: ${{ matrix.image }}
+          package-type: container
+          min-versions-to-keep: 0
+          delete-only-untagged-versions: 'true'

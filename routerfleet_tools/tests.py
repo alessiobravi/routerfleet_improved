@@ -64,3 +64,22 @@ class TemplateTagTests(TestCase):
     def test_no_upstream_update_server_anywhere_in_the_page(self):
         self.client.force_login(make_user(10))
         self.assertNotContains(self.client.get('/'), 'eth0.com.br')
+
+
+class VersionSpellingTests(TestCase):
+    def test_sidebar_and_release_tag_agree(self):
+        import importlib.util, pathlib
+        from routerfleet_tools.templatetags.custom_tags import version_string
+        spec = importlib.util.spec_from_file_location(
+            'release_version', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'version.py')
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
+        for number in (7515, 7600, 10002, 0):
+            self.assertEqual(version_string(number), script.version_string(number))
+        self.assertEqual(version_string(7600), '0.7600')
+
+    def test_current_version_is_shown(self):
+        from django.conf import settings
+        from routerfleet_tools.templatetags.custom_tags import version_string
+        self.client.force_login(make_user(10))
+        self.assertContains(self.client.get('/'), version_string(settings.ROUTERFLEET_VERSION))

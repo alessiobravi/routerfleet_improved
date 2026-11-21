@@ -9,6 +9,38 @@ Supported devices: **MikroTik RouterOS** (including branded units), **OpenWrt**,
 **Ubiquiti airOS**, plus a *monitoring only* type for anything that just needs
 to be pinged.
 
+## Quick install
+
+Needs an x86-64 host with Docker and the Compose plugin, and ports 80/443 free.
+
+```bash
+mkdir routerfleet && cd routerfleet
+wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
+wget -O .env https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/.env.example
+```
+
+Set at least these three in `.env`:
+
+```env
+SERVER_ADDRESS=routerfleet.example.com
+POSTGRES_PASSWORD=a-long-random-password
+TIMEZONE=Europe/Rome
+```
+
+```bash
+docker compose up -d
+```
+
+Open `https://<SERVER_ADDRESS>` and create the first account, which becomes an
+administrator. This starts **five containers** — the application, its
+scheduler, the monitoring loop, nginx and PostgreSQL — from public images on
+`ghcr.io/alessiobravi`.
+
+SQLite or your own PostgreSQL, other ports, your own certificate, pinning a
+version, every option: **[Installation — full specification](docs/installation.md)**.
+Back up the `app_secrets` volume: it holds the key your device passwords are
+encrypted with.
+
 ## What it does
 
 - **Backups** — daily, weekly, monthly and on-demand, per-device retention,
@@ -29,44 +61,13 @@ to be pinged.
 - **Secrets encrypted at rest** — device passwords are stored with Fernet
   symmetric encryption, never in cleartext.
 
-## Quick start
-
-Requires Docker with the Compose plugin.
-
-```bash
-mkdir routerfleet && cd routerfleet
-wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
-wget -O .env https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/.env.example
-```
-
-Edit `.env` — at minimum set `SERVER_ADDRESS` to the address you will reach the
-server at, and `POSTGRES_PASSWORD` to something of your own:
-
-```env
-SERVER_ADDRESS=routerfleet.example.com
-POSTGRES_PASSWORD=choose-something-long
-TIMEZONE=Europe/Rome
-```
-
-Then start it:
-
-```bash
-docker compose up -d
-```
-
-Open `https://<SERVER_ADDRESS>` and create the first account, which becomes an
-administrator. The certificate is self-signed unless you replace it — see
-[Installation](docs/installation.md).
-
-Using SQLite or an external Postgres instead? Use `docker-compose-no-postgres.yml`.
-
 ## Documentation
 
 | Page | What it covers |
 |---|---|
 | [Architecture](docs/architecture.md) | The five containers, the scheduler, the data model |
-| [Installation](docs/installation.md) | Deployment, TLS, environment variables |
-| [Upgrading](docs/upgrading.md) | Upgrade paths, including from earlier RouterFleet projects |
+| [Installation](docs/installation.md) | Full specification: containers, images, every option and variant |
+| [Upgrading](docs/upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
 | [Devices](docs/devices.md) | Device types, inventory, version states, the device list |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
@@ -77,6 +78,11 @@ Using SQLite or an external Postgres instead? Use `docker-compose-no-postgres.ym
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
 | [Security](docs/security.md) | Secrets at rest, the scheduler endpoints, the monitoring key |
 | [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting, running the tests |
+
+## Versions
+
+Every push to `main` is a release with its own version, git tag, GitHub
+Release and image tags. What changed is in the [changelog](CHANGELOG.md).
 
 ## License
 
