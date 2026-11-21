@@ -15,7 +15,9 @@ class CreateUserForm(forms.Form):
         username = cleaned_data.get("username")
         if username and ' ' in username:
             self.add_error('username', ValidationError("Username cannot contain spaces."))
-        cleaned_data['username'] = username.lower()
+        if username:
+            # Without a username the field already carries its 'required' error
+            cleaned_data['username'] = username.lower()
         password = cleaned_data.get("password")
         password2 = cleaned_data.get("password2")
 

@@ -1,17 +1,61 @@
-name: Build and push docker images
+name: Test, then build and push docker images
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
-  build-and-push:
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # In the container entrypoint.sh writes this file; the tests need one too
+      - name: Write test settings
+        run: |
+          cat > routerfleet/production_settings.py <<PY
+          DEBUG = False
+          ALLOWED_HOSTS = ['testserver', 'localhost']
+          SECRET_KEY = '$(python -c "import secrets; print(secrets.token_urlsafe(48))")'
+          DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'test.sqlite3'}}
+          MONITORING_KEY = 'ci-monitoring-key'
+          PY
+
+      - name: System check and migrations
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+
+      - name: Test suite
+        run: coverage run manage.py test
+
+      - name: Coverage
+        run: coverage report
+
+  build-and-push:
+    # Images are only published from main, and only when the tests passed
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

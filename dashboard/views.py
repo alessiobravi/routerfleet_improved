@@ -124,9 +124,8 @@ def backup_statistics_data(request):
 def router_status_data(request):
     try:
         days = int(request.GET.get('days', '7'))
-        
     except ValueError:
-        return HttpResponseBadRequest(f"Invalid 'days' {days} parameter")
+        return HttpResponseBadRequest("Invalid 'days' parameter")
 
     if days not in ALLOWED_DAYS:
         return HttpResponseBadRequest("Invalid 'days' parameter. Must be one of: " + ', '.join(map(str, ALLOWED_DAYS)))

@@ -48,6 +48,9 @@ class WireGuardWebAdminForm(forms.ModelForm):
         integration_url = cleaned_data.get('integration_url')
         wireguard_webadmin_default_user_level = cleaned_data.get('wireguard_webadmin_default_user_level')
         token = cleaned_data.get('token')
+        if not integration_url:
+            # The field carries its own error already; nothing below can work
+            return cleaned_data
         if integration_url.endswith('/'):
             cleaned_data['integration_url'] = integration_url[:-1]
         if not token and self.instance.token:

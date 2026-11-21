@@ -11,3 +11,20 @@ backups/
 containers/*/.venv
 .env
 .junie/
+# Secrets and personal environment - never committed, never published
+*.token
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+id_rsa*
+id_ed25519*
+*.bundle
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Test and coverage artifacts
+test.sqlite3
+.coverage
+htmlcov/

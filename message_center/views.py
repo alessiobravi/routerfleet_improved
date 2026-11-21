@@ -252,7 +252,7 @@ def view_manage_message_channel(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
     if request.GET.get('uuid'):
-        message_channel = MessageChannel.objects.get(uuid=request.GET.get('uuid'))
+        message_channel = get_object_or_404(MessageChannel, uuid=request.GET.get('uuid'))
         if request.GET.get('action') == 'delete':
             if request.GET.get('confirmation') == 'delete':
                 message_channel.delete()

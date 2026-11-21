@@ -59,7 +59,7 @@ def generate_backup_report(data):
         message_text = 'Warning: Error calculating report time, please check your timezone settings.\n\n'
     else:
         message_text = ''
-    message_text = 'Routerfleet Daily backup report:\n'
+    message_text += 'Routerfleet Daily backup report:\n'
     message_text += f'Backups completed: {success_backup_list.count()}\n'
     message_text += f'Backups failed: {failed_backup_list.count()}\n'
     message_text += f'Backups pending: {pending_backup_list.count()}\n'

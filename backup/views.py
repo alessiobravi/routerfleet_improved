@@ -250,7 +250,6 @@ def view_backup_download(request):
         else:
             filename = gen_backup_name(backup)
             filename += f'.missing_backup_name.{get_router_backup_file_extension(backup.router.router_type)["text"]}'
-        print(filename)
         response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
     elif request.GET.get('type') == 'binary':

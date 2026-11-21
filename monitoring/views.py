@@ -96,5 +96,10 @@ def view_update_router_status(request):
 
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     webadmin_settings.monitoring_last_run = timezone.now()
+    # Initialised here as well as in the other endpoints: on an installation where
+    # nothing has set it yet - a restored database, for one - every status report
+    # would otherwise fail on the reply after the change was already recorded
+    if not webadmin_settings.router_config_last_updated:
+        webadmin_settings.router_config_last_updated = timezone.now()
     webadmin_settings.save()
     return JsonResponse({'status': 'success', 'router_config': webadmin_settings.router_config_last_updated.isoformat()})

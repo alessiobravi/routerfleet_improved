@@ -1,0 +1,223 @@
+"""Who may reach what.
+
+Every page is tested from three sides: an anonymous visitor, a user one level
+below the page's gate, and a user exactly at it. The table below is the
+permission model of the application; docs/users.md describes the same table.
+"""
+from unittest import mock
+
+from django.test import TestCase, override_settings
+from django.urls import get_resolver
+
+from audit_log.models import ChangeRecord
+from backup_data.models import RouterBackup
+from fleet_commander.models import Command, CommandJob, CommandSchedule, CommandTask, CommandVariant
+from import_tool.models import CsvData, ImportTask
+from message_center.models import MessageChannel
+from routerfleet.testing import make_group, make_profile, make_router, make_sshkey, make_user
+from user_manager.models import UserAcl
+
+DENIED_TEMPLATE = 'access_denied.html'
+
+
+class Fixture(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.profile = make_profile(name='default')
+        cls.router = make_router(backup_profile=cls.profile)
+        cls.group = make_group(routers=[cls.router])
+        cls.sshkey = make_sshkey()
+        cls.backup = RouterBackup.objects.create(router=cls.router, schedule_type='daily', success=True,
+                                                 backup_text='/ip address\n')
+        cls.backup2 = RouterBackup.objects.create(router=cls.router, schedule_type='daily', success=True,
+                                                  backup_text='/ip address\n/ip route\n')
+        cls.command = Command.objects.create(name='Show')
+        cls.variant = CommandVariant.objects.create(command=cls.command, router_type='routeros', payload='/x')
+        cls.schedule = CommandSchedule.objects.create(command=cls.command)
+        cls.job = CommandJob.objects.create(command=cls.command)
+        cls.task = CommandTask.objects.create(job=cls.job, router=cls.router, command_variant=cls.variant)
+        cls.channel = MessageChannel.objects.create(name='ops', channel_type='ntfy', destination='t')
+        cls.csv = CsvData.objects.create(raw_csv_data='x', import_data=[])
+        cls.import_task = ImportTask.objects.create(csv_data=cls.csv, name='n', username='u', address='a',
+                                                    router_type='routeros', import_id=1)
+        cls.change = ChangeRecord.objects.create(action='changed', model_label='router_manager.Router')
+        cls.admin_acl = UserAcl.objects.get(user=make_user(50))
+
+    def gated(self):
+        """(path, minimum level, how a refusal looks: 'page' or 'json')."""
+        r, b, c = self.router.uuid, self.backup.uuid, self.command.uuid
+        return [
+            (f'/backup/backup_details/?uuid={b}', 20, 'page'),
+            (f'/backup/compare/?uuid={b}&compare_uuid={self.backup2.uuid}', 20, 'page'),
+            (f'/backup/config_change/?uuid={self.backup2.uuid}', 20, 'json'),
+            (f'/backup/download/?uuid={b}&type=text', 20, 'page'),
+            (f'/router/create_instant_backup/?uuid={r}', 20, 'page'),
+            ('/router/manage_groups/multiple/', 20, 'page'),
+            ('/fleet_commander/', 20, 'page'),
+            (f'/fleet_commander/command/details/?uuid={c}', 20, 'page'),
+            ('/fleet_commander/job/list/', 20, 'page'),
+            (f'/fleet_commander/job/details/?uuid={self.job.uuid}', 20, 'page'),
+            (f'/fleet_commander/task/details/?uuid={self.task.uuid}', 20, 'page'),
+            (f'/fleet_commander/task/abort/?uuid={self.task.uuid}', 20, 'page'),
+            (f'/fleet_commander/job/abort/?uuid={self.job.uuid}', 20, 'page'),
+            ('/message_center/channel_list/', 20, 'page'),
+            ('/message_center/message_history/', 20, 'page'),
+
+            (f'/router/manage/?uuid={r}', 30, 'page'),
+            (f'/backup/delete/?uuid={b}', 30, 'page'),
+            ('/router/edit/multiple/', 30, 'page'),
+
+            (f'/backup/manage_profile/?uuid={self.profile.uuid}', 40, 'page'),
+            (f'/router/manage_group/?uuid={self.group.uuid}', 40, 'page'),
+            (f'/router/manage_sshkey/?uuid={self.sshkey.uuid}', 40, 'page'),
+            (f'/fleet_commander/command/manage/?uuid={c}', 40, 'page'),
+            (f'/fleet_commander/command/execute/?command_uuid={c}', 40, 'page'),
+            ('/fleet_commander/command/execute_multiple/', 40, 'page'),
+            (f'/fleet_commander/variant/manage/?uuid={self.variant.uuid}', 40, 'page'),
+            (f'/fleet_commander/schedule/manage/?uuid={self.schedule.uuid}', 40, 'page'),
+            ('/fleet_commander/schedule/defaults/', 40, 'page'),
+            ('/message_center/manage_settings/', 40, 'page'),
+            (f'/message_center/manage_channel/?uuid={self.channel.uuid}', 40, 'page'),
+
+            ('/user/list/', 50, 'page'),
+            (f'/user/manage/?uuid={self.admin_acl.uuid}', 50, 'page'),
+            ('/audit_log/login_history/', 50, 'page'),
+            ('/audit_log/change_log/', 50, 'page'),
+            (f'/audit_log/change_detail/?uuid={self.change.uuid}', 50, 'json'),
+            ('/router/import_tool/', 50, 'page'),
+            ('/router/import_tool/csv/', 50, 'page'),
+            (f'/router/import_tool/details/?uuid={self.csv.uuid}', 50, 'page'),
+            (f'/router/import_tool/run_import_task/?uuid={self.import_task.uuid}', 50, 'page'),
+            ('/wireguard_webadmin/manage/', 50, 'page'),
+        ]
+
+    def gated_posts(self):
+        """JSON endpoints that only answer POST."""
+        return [
+            ('/router/create_instant_backup/multiple/', 20),
+            ('/router/update_information/multiple/', 30),
+        ]
+
+    # Pages behind a sign-in and nothing else
+    login_only = [
+        '/', '/status/', '/router_status_data/', '/backup_statistics_data/',
+        '/router/list/', '/router/group_list/', '/router/ssh_keys/',
+        '/backup/profile_list/', '/backup/backup_list/', '/backup/backup_list/?type=queue',
+        '/backup/backup_list/?type=errors', '/wireguard_webadmin/', '/user/settings/',
+    ]
+
+    def login_only_with_objects(self):
+        return [f'/router/details/?uuid={self.router.uuid}',
+                f'/router/availability/?uuid={self.router.uuid}']
+
+
+class AnonymousTests(Fixture):
+    def test_every_page_sends_an_anonymous_visitor_to_sign_in(self):
+        paths = ([p for p, _, _ in self.gated()] + self.login_only + self.login_only_with_objects()
+                 + [p for p, _ in self.gated_posts()])
+        for path in paths:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response['Location'].startswith('/accounts/login/'), response['Location'])
+
+
+class LevelGateTests(Fixture):
+    def assert_refused(self, response, kind, path):
+        if kind == 'json':
+            self.assertEqual(response.status_code, 403, path)
+        else:
+            self.assertTemplateUsed(response, DENIED_TEMPLATE, msg_prefix=path)
+
+    def assert_allowed(self, response, path):
+        self.assertNotEqual(response.status_code, 403, path)
+        self.assertNotIn(DENIED_TEMPLATE, [t.name for t in response.templates], path)
+
+    def test_one_level_below_is_refused(self):
+        for path, level, kind in self.gated():
+            with self.subTest(path=path):
+                self.client.force_login(make_user(level - 10))
+                self.assert_refused(self.client.get(path), kind, path)
+
+    def test_a_user_without_any_level_is_refused(self):
+        self.client.force_login(make_user(None))
+        for path, _, kind in self.gated():
+            with self.subTest(path=path):
+                self.assert_refused(self.client.get(path), kind, path)
+
+    @mock.patch('import_tool.views.test_authentication', return_value=(False, 'mocked'))
+    @mock.patch('import_tool.views.socket.gethostbyname', return_value='192.0.2.1')
+    def test_exactly_at_the_level_is_allowed(self, *_):
+        for path, level, _ in self.gated():
+            with self.subTest(path=path):
+                self.client.force_login(make_user(level))
+                self.assert_allowed(self.client.get(path), path)
+
+    def test_json_posts(self):
+        for path, level in self.gated_posts():
+            with self.subTest(path=path):
+                self.client.force_login(make_user(level - 10))
+                self.assertEqual(self.client.post(path, {'routers[]': [str(self.router.uuid)]}).status_code, 403)
+                self.client.force_login(make_user(level))
+                self.assertEqual(self.client.post(path, {'routers[]': [str(self.router.uuid)]}).status_code, 200)
+                self.assertEqual(self.client.get(path).status_code, 405)
+
+    def test_login_only_pages_need_no_level(self):
+        self.client.force_login(make_user(None))
+        for path in self.login_only + self.login_only_with_objects():
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200, path)
+                self.assertNotIn(DENIED_TEMPLATE, [t.name for t in response.templates])
+
+
+class CronEndpointTests(TestCase):
+    """The scheduler's endpoints: no authentication, but never through a proxy."""
+
+    def cron_paths(self):
+        return [pattern.pattern._route for pattern in get_resolver().url_patterns
+                if str(pattern.pattern).startswith('cron/')]
+
+    def test_all_cron_routes_are_covered(self):
+        self.assertEqual(len(self.cron_paths()), 11)
+
+    @mock.patch('routerlib.router_functions.connect_to_ssh', side_effect=OSError('no network in tests'))
+    def test_direct_call_runs(self, _):
+        for route in self.cron_paths():
+            with self.subTest(route=route):
+                response = self.client.get('/' + route)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'application/json')
+
+    def test_proxied_call_is_refused(self):
+        for route in self.cron_paths():
+            with self.subTest(route=route):
+                response = self.client.get('/' + route, HTTP_X_REAL_IP='198.51.100.4')
+                self.assertEqual(response.status_code, 404)
+
+
+class DebugEndpointTests(TestCase):
+    def test_run_backups_does_nothing_outside_debug(self):
+        RouterBackup.objects.create(router=make_router(), schedule_type='instant')
+        with mock.patch('backup.views.perform_backup') as perform:
+            response = self.client.get('/debug/run_backups/')
+        perform.assert_not_called()
+        self.assertEqual(response.json()['error'], 'Debug mode is not enabled')
+
+    def test_test_messages_is_not_found_outside_debug(self):
+        self.client.force_login(make_user(50))
+        self.assertEqual(self.client.get('/debug/test_messages/').status_code, 404)
+
+    @override_settings(DEBUG=True)
+    def test_test_messages_in_debug(self):
+        self.client.force_login(make_user(50))
+        response = self.client.get('/debug/test_messages/')
+        self.assertEqual(response.json()['message'], 'No router_uuid or backup_id provided.')
+
+
+class AdminTests(TestCase):
+    def test_admin_url_is_present_until_the_container_comments_it_out(self):
+        # entrypoint.sh comments the admin route out of urls.py at every start;
+        # in a checkout it is still there, which is what this documents
+        routes = [str(p.pattern) for p in get_resolver().url_patterns]
+        self.assertIn('admin/', routes)

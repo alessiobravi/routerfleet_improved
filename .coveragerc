@@ -1,0 +1,25 @@
+[run]
+branch = True
+source = .
+omit =
+    */migrations/*
+    */tests/*
+    */tests.py
+    */test_*.py
+    manage.py
+    */asgi.py
+    */wsgi.py
+    routerfleet/testing.py
+    routerfleet/production_settings.py
+    .venv/*
+    containers/*
+    # Leftovers of `startapp`: routerlib is a library, not an installed app
+    routerlib/admin.py
+    routerlib/apps.py
+    routerlib/models.py
+    routerlib/views.py
+
+[report]
+skip_covered = True
+sort = Cover
+fail_under = 90
