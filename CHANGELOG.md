@@ -1,21 +1,18 @@
 # Changelog
 
-Every push to `main` carries a new version. The version is `ROUTERFLEET_VERSION`
-in `routerfleet/settings.py`, read as `<major>.<four digits>` (7515 → 0.7515);
-each one is tagged `v<version>`, published as a GitHub Release, and its Docker
-images are tagged with it. See [Upgrading](docs/upgrading.md).
+Releases are numbered MAJOR.MINOR.PATCH. Every push to `main` is a release: a
+push that fixes or maintains raises PATCH (0.8.0 → 0.8.1), a release that brings
+a new feature raises MINOR (→ 0.9.0). Each release is tagged `v<version>`,
+published as a GitHub Release, and its Docker images are tagged with it. The
+release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
+`scripts/version.py bump patch|minor` raises it.
 
-## [0.7516] - 2026-11-21
+## [0.8.0] - 2026-11-21
 
-### Changed
-- The cleanup of untagged image versions uses the GitHub API directly instead of
-  a third-party action that still targeted the deprecated Node.js 20. Every
-  deleted version is now named in the build log, with the tags that were kept.
-
-## [0.7515] - 2026-11-21
+First release of RouterFleet Improved.
 
 ### Added
-- **Test suite**: 395 tests, 91% branch coverage, offline (SSH, SCP and HTTP are
+- **Test suite**: 401 tests, 91% branch coverage, offline (SSH, SCP and HTTP are
   faked). Every page's permission gate is tested from three sides, and the
   upgrade from an original-project database runs on every push.
 - **CI gate**: system check, migration-drift check and the suite run on every
@@ -24,11 +21,13 @@ images are tagged with it. See [Upgrading](docs/upgrading.md).
 - **Versioned releases**: every push to `main` creates tag `v<version>`, a
   GitHub Release with this changelog's section, and images tagged `:<version>`
   alongside `:latest`. Images carry OCI labels and are linked to the repository.
-- Untagged image versions left behind by earlier builds are deleted after each
-  release.
+- After each release, image versions that are untagged or carry no release tag
+  are deleted through the GitHub API, each one named in the build log; releases
+  and tags that are not `vMAJOR.MINOR.PATCH` are removed.
 - **Documentation** in `docs/`: fourteen pages written from the code, with 23
   Mermaid diagrams. The README is now a short page with a quick install.
-- `scripts/version.py` prints the version and its changelog section.
+- `scripts/version.py` prints the release, checks it is above every released
+  one, prints its changelog section, and raises it (`bump patch|minor`).
 
 ### Changed
 - Dependencies brought current: Django 6.1.3, paramiko 5.1.0, cryptography
@@ -41,7 +40,9 @@ images are tagged with it. See [Upgrading](docs/upgrading.md).
   unless `UPDATE_CHECK_URL` is set; interface links come from
   `PROJECT_REPOSITORY_URL` and `PROJECT_SUPPORT_URL`.
 - Default timezone is `Etc/UTC`.
-- The version is shown as `0.7515` rather than as a float.
+- Releases are numbered MAJOR.MINOR.PATCH. The version stored in the database
+  is derived from it and rises above every earlier one, so upgrades never see
+  it go backwards.
 - The warning logged when a stored value does not decrypt names both causes,
   instead of claiming the key is wrong on every upgrade.
 - `build_and_push.sh` no longer runs `docker system prune -a`, which removed
@@ -56,6 +57,9 @@ images are tagged with it. See [Upgrading](docs/upgrading.md).
   overwritten and never sent.
 - First-user form and WireGuard integration form: submitting them with a
   required field empty was a server error.
+- A database upgraded from an installation that had once been told of an
+  update kept showing "Update Available" and appending an update notice to
+  every message, because nothing cleared the flag once the check was off.
 - A debug `print()` wrote every downloaded backup's filename to the log.
 
 ### Removed
@@ -63,6 +67,6 @@ images are tagged with it. See [Upgrading](docs/upgrading.md).
   Python 3.12.
 - The screenshots.
 
-## [0.7514] - 2026-11-21
+## Initial import
 
-Initial import of the codebase.
+The codebase as imported, carrying version 0.7514.

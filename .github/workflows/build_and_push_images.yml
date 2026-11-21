@@ -41,14 +41,11 @@ jobs:
           python scripts/version.py check
           echo "version=$(python scripts/version.py)" >> "$GITHUB_OUTPUT"
 
-      - name: The version must not be released yet
+      - name: The release must be above every earlier one
         if: github.event_name == 'push'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null; then
-            echo "::error::v${VERSION} is already released - increment ROUTERFLEET_VERSION and add a CHANGELOG.md section"
-            exit 1
-          fi
+          # shellcheck disable=SC2046
+          python scripts/version.py newer-than $(git ls-remote --tags --refs origin | awk '{print $2}')
 
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
@@ -163,6 +160,25 @@ jobs:
           gh release create "v${VERSION}" --target "${GITHUB_SHA}" \
             --title "RouterFleet Improved ${VERSION}" --notes-file release-notes.md
 
+      # Only vMAJOR.MINOR.PATCH releases and tags are kept
+      - name: Remove releases and tags that are not vMAJOR.MINOR.PATCH
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RELEASE_TAG='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          gh release list --limit 1000 --json tagName --jq '.[].tagName' | while read -r TAG; do
+            if ! [[ "${TAG}" =~ ${RELEASE_TAG} ]]; then
+              gh release delete "${TAG}" --cleanup-tag --yes
+              echo "removed release ${TAG}"
+            fi
+          done
+          git ls-remote --tags --refs origin | awk '{print $2}' | sed 's#^refs/tags/##' | while read -r TAG; do
+            if ! [[ "${TAG}" =~ ${RELEASE_TAG} ]]; then
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}"
+              echo "removed tag ${TAG}"
+            fi
+          done
+
   cleanup:
     needs: [test, images]
     if: github.event_name != 'pull_request'
@@ -197,19 +213,22 @@ jobs:
 
       # Plain API calls rather than an action: every deleted version is named
       # in the log, and there is no third-party code holding the token
-      - name: Delete untagged image versions
+      - name: Delete image versions that are not releases
         if: steps.guard.outputs.safe == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           IMAGE: ${{ matrix.image }}
         run: |
           API="/users/alessiobravi/packages/container/${IMAGE}/versions"
-          gh api --paginate "${API}" \
-            --jq '.[] | select((.metadata.container.tags | length) == 0) | "\(.id) \(.name)"' > untagged.txt
-          echo "${IMAGE}: $(wc -l < untagged.txt | tr -d ' ') untagged versions"
-          while read -r ID DIGEST; do
+          # Kept: versions carrying a MAJOR.MINOR.PATCH tag or latest. Everything
+          # else - untagged leftovers and the old four-digit tags - goes.
+          gh api --paginate "${API}" --jq '.[]
+            | select(.metadata.container.tags | map(test("^(latest|[0-9]+\\.[0-9]+\\.[0-9]+)$")) | any | not)
+            | "\(.id) \(.name) \(.metadata.container.tags | join(","))"' > obsolete.txt
+          echo "${IMAGE}: $(wc -l < obsolete.txt | tr -d ' ') versions to delete"
+          while read -r ID DIGEST TAGS; do
             gh api -X DELETE "${API}/${ID}" > /dev/null
-            echo "deleted ${IMAGE} version ${ID} (${DIGEST})"
-          done < untagged.txt
+            echo "deleted ${IMAGE} version ${ID} (${DIGEST}) tags: ${TAGS:-none}"
+          done < obsolete.txt
           echo "${IMAGE}: tagged versions kept: $(gh api --paginate "${API}" \
             --jq '[.[] | select((.metadata.container.tags | length) > 0) | .metadata.container.tags[]] | join(", ")')"

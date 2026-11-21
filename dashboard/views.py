@@ -85,7 +85,7 @@ def view_status(request):
         'router_offline_count': RouterStatus.objects.filter(status_online=False, router__monitoring=True).count(),
         'router_not_monitored_count': Router.objects.filter(enabled=True, monitoring=False).count(),
         'update_state': update_state_counts(),
-        'routerfleet_version': settings.ROUTERFLEET_VERSION,
+        'routerfleet_version': settings.ROUTERFLEET_RELEASE,
     }
 
     return render(request, 'dashboard/status.html', context=context)

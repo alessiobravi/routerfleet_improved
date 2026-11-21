@@ -149,7 +149,13 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_ROOT = '/var/lib/routerfleet/'
-ROUTERFLEET_VERSION = 7516
+# The release, MAJOR.MINOR.PATCH: a push that fixes or maintains raises PATCH, a
+# release with a new feature raises MINOR. Every push to main raises one of them
+# - scripts/version.py bump patch|minor. The integer is what the database
+# stores; it is derived, never edited by hand.
+ROUTERFLEET_RELEASE = '0.8.0'
+from routerfleet.versioning import to_number as _release_number  # noqa: E402
+ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 
 # Where this installation asks whether a newer version exists, and where the
 # changelog behind the "Update Available" button is read from. Both are empty by

@@ -1,33 +1,38 @@
 #!/usr/bin/env python3
-"""The release version, read from the one place it is defined.
+"""The release number, read from the one place it is defined.
 
-routerfleet/settings.py holds ROUTERFLEET_VERSION as an integer (7515). The
-version that is shown, tagged and released is that integer read as
-<major>.<four digits>: 7515 -> 0.7515, 10002 -> 1.0002.
+routerfleet/settings.py holds ROUTERFLEET_RELEASE as MAJOR.MINOR.PATCH. A push
+that fixes or maintains raises PATCH; a release with a new feature raises MINOR
+and resets PATCH. Every push to main raises one of them.
 
-    scripts/version.py          print the version
-    scripts/version.py check    exit 1 unless CHANGELOG.md has a section for it
-    scripts/version.py notes    print the CHANGELOG.md section of that version
+    scripts/version.py                    print the release
+    scripts/version.py check              exit 1 unless CHANGELOG.md has a section for it
+    scripts/version.py notes              print the CHANGELOG.md section of it
+    scripts/version.py newer-than TAG...  exit 1 unless it is above every vX.Y.Z tag given
+    scripts/version.py bump patch|minor   raise it in settings.py
 
 Standard library only, so CI can run it before anything is installed.
 """
+import importlib.util
 import pathlib
 import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+SETTINGS = ROOT / 'routerfleet' / 'settings.py'
+RELEASE_LINE = re.compile(r"^ROUTERFLEET_RELEASE\s*=\s*'([^']+)'\s*$", re.MULTILINE)
+
+_spec = importlib.util.spec_from_file_location('versioning', ROOT / 'routerfleet' / 'versioning.py')
+versioning = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(versioning)
 
 
-def version_number():
-    text = (ROOT / 'routerfleet' / 'settings.py').read_text(encoding='utf-8')
-    match = re.search(r'^ROUTERFLEET_VERSION\s*=\s*(\d+)\s*$', text, re.MULTILINE)
+def release():
+    match = RELEASE_LINE.search(SETTINGS.read_text(encoding='utf-8'))
     if not match:
-        sys.exit('ROUTERFLEET_VERSION not found in routerfleet/settings.py')
-    return int(match.group(1))
-
-
-def version_string(number):
-    return f'{number // 10000}.{number % 10000:04d}'
+        sys.exit('ROUTERFLEET_RELEASE not found in routerfleet/settings.py')
+    versioning.parse(match.group(1))
+    return match.group(1)
 
 
 def changelog_section(version):
@@ -38,19 +43,36 @@ def changelog_section(version):
 
 
 def main(argv):
-    version = version_string(version_number())
     command = argv[1] if len(argv) > 1 else 'print'
+    current = release()
     if command == 'print':
-        print(version)
+        print(current)
     elif command == 'check':
-        if not changelog_section(version):
-            sys.exit(f'CHANGELOG.md has no section "## [{version}]" - add one before releasing.')
-        print(f'{version}: changelog section present')
+        if not changelog_section(current):
+            sys.exit(f'CHANGELOG.md has no section "## [{current}]" - add one before releasing.')
+        print(f'{current}: changelog section present')
     elif command == 'notes':
-        section = changelog_section(version)
+        section = changelog_section(current)
         if not section:
-            sys.exit(f'CHANGELOG.md has no section for {version}')
+            sys.exit(f'CHANGELOG.md has no section for {current}')
         print(section)
+    elif command == 'newer-than':
+        released = []
+        for tag in argv[2:]:
+            try:
+                released.append(versioning.to_number(tag.removeprefix('refs/tags/').removeprefix('v')))
+            except ValueError:
+                continue  # not a release tag
+        if released and versioning.to_number(current) <= max(released):
+            sys.exit(f'{current} is not above the latest release {versioning.from_number(max(released))} '
+                     f'- raise it with: scripts/version.py bump patch (or minor for a feature)')
+        print(f'{current}: above every release')
+    elif command == 'bump':
+        part = argv[2] if len(argv) > 2 else ''
+        new = versioning.bump(current, part)
+        text = SETTINGS.read_text(encoding='utf-8')
+        SETTINGS.write_text(RELEASE_LINE.sub(f"ROUTERFLEET_RELEASE = '{new}'", text, count=1), encoding='utf-8')
+        print(f'{current} -> {new}  (now add "## [{new}] - <date>" to CHANGELOG.md)')
     else:
         sys.exit(__doc__)
 

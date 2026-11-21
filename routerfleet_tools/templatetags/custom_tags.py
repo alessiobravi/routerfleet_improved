@@ -6,10 +6,9 @@ register = template.Library()
 
 
 def version_string(number):
-    """7515 -> '0.7515': the same spelling scripts/version.py tags releases with,
-    so the sidebar and the release page always agree."""
-    number = int(number or 0)
-    return f'{number // 10000}.{number % 10000:04d}'
+    """8001 -> '0.8.1': the stored integer spelled as the release it stands for."""
+    from routerfleet.versioning import from_number
+    return from_number(number)
 
 
 @register.simple_tag
@@ -25,7 +24,7 @@ def tag_webadmin_version():
         webadmin_settings.update_available = False
         webadmin_settings.save()
     return {
-        'current_version': version_string(settings.ROUTERFLEET_VERSION),
+        'current_version': settings.ROUTERFLEET_RELEASE,
         'latest_version': version_string(webadmin_settings.latest_version),
         'update_available': webadmin_settings.update_available,
         'changelog_url': getattr(settings, 'UPDATE_CHANGELOG_URL', ''),

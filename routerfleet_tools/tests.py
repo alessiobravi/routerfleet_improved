@@ -18,14 +18,15 @@ class UpdateCheckTests(TestCase):
 
     @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check')
     def test_configured_endpoint_is_asked_with_a_timeout(self):
-        response = mock.Mock(json=lambda: {'update_available': True, 'current_version': '0.8'})
+        response = mock.Mock(json=lambda: {'update_available': True, 'current_version': '0.9.0'})
         with mock.patch('routerfleet_tools.views.requests.get', return_value=response) as get:
             data = self.client.get('/cron/check_updates/').json()
         url = get.call_args.args[0]
-        self.assertTrue(url.startswith('https://updates.example.org/check?app=routerfleet&version='))
+        from django.conf import settings
+        self.assertEqual(url, f'https://updates.example.org/check?app=routerfleet&version={settings.ROUTERFLEET_RELEASE}')
         self.assertEqual(get.call_args.kwargs['timeout'], 10)
         self.assertTrue(data['update_available'])
-        self.assertEqual(WebadminSettings.objects.get().latest_version, 8000)
+        self.assertEqual(WebadminSettings.objects.get().latest_version, 9000)
 
     @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check?token=x')
     def test_existing_query_string_is_extended(self):
@@ -66,20 +67,56 @@ class TemplateTagTests(TestCase):
         self.assertNotContains(self.client.get('/'), 'eth0.com.br')
 
 
-class VersionSpellingTests(TestCase):
-    def test_sidebar_and_release_tag_agree(self):
-        import importlib.util, pathlib
-        from routerfleet_tools.templatetags.custom_tags import version_string
-        spec = importlib.util.spec_from_file_location(
-            'release_version', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'version.py')
-        script = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(script)
-        for number in (7515, 7600, 10002, 0):
-            self.assertEqual(version_string(number), script.version_string(number))
-        self.assertEqual(version_string(7600), '0.7600')
+class VersioningTests(TestCase):
+    def test_numbers(self):
+        from routerfleet.versioning import from_number, parse, to_number
+        self.assertEqual(parse('0.8.0'), (0, 8, 0))
+        self.assertEqual(to_number('0.8.0'), 8000)
+        self.assertEqual(to_number('1.2.3'), 1_002_003)
+        self.assertEqual(from_number(8001), '0.8.1')
+        for release in ('0.8.0', '0.9.12', '2.0.999'):
+            self.assertEqual(from_number(to_number(release)), release)
 
-    def test_current_version_is_shown(self):
+    def test_never_below_the_old_scheme(self):
+        # Installations upgraded from 0.7516 and earlier must see the number rise
+        from routerfleet.versioning import to_number
+        self.assertGreater(to_number('0.8.0'), 7516)
+
+    def test_bump(self):
+        from routerfleet.versioning import bump
+        self.assertEqual(bump('0.8.0', 'patch'), '0.8.1')
+        self.assertEqual(bump('0.8.4', 'minor'), '0.9.0')
+        self.assertEqual(bump('0.9.3', 'major'), '1.0.0')
+        with self.assertRaises(ValueError):
+            bump('0.8.0', 'tiny')
+
+    def test_invalid(self):
+        from routerfleet.versioning import parse
+        for value in ('0.7516', 'v0.8.0', '0.8', '0.1000.0', ''):
+            with self.assertRaises(ValueError, msg=value):
+                parse(value)
+
+    def test_settings_derive_the_number(self):
         from django.conf import settings
-        from routerfleet_tools.templatetags.custom_tags import version_string
+        from routerfleet.versioning import to_number
+        self.assertEqual(settings.ROUTERFLEET_VERSION, to_number(settings.ROUTERFLEET_RELEASE))
+
+    def test_release_script(self):
+        import pathlib, subprocess, sys
+        script = pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'version.py'
+        run = lambda *a: subprocess.run([sys.executable, '-I', str(script), *a], capture_output=True, text=True)
+        from django.conf import settings
+        self.assertEqual(run().stdout.strip(), settings.ROUTERFLEET_RELEASE)
+        self.assertEqual(run('check').returncode, 0)
+        self.assertEqual(run('newer-than', 'v0.7516', 'refs/tags/v0.0.1').returncode, 0)
+        self.assertNotEqual(run('newer-than', f'v{settings.ROUTERFLEET_RELEASE}').returncode, 0)
+
+    def test_sidebar_shows_the_release(self):
+        from django.conf import settings
         self.client.force_login(make_user(10))
-        self.assertContains(self.client.get('/'), version_string(settings.ROUTERFLEET_VERSION))
+        self.assertContains(self.client.get('/'), f'<b>Version</b> {settings.ROUTERFLEET_RELEASE}')
+
+    def test_stale_update_flag_is_cleared_when_no_check_is_configured(self):
+        WebadminSettings.objects.create(name='webadmin_settings', update_available=True, latest_version=9999999)
+        self.client.get('/cron/check_updates/')
+        self.assertFalse(WebadminSettings.objects.get().update_available)

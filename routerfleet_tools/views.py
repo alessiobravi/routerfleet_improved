@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 import requests
 
+from routerfleet.versioning import to_number
 from routerlib.decorators import cron_endpoint
 
 
@@ -18,13 +19,19 @@ def view_cron_check_updates(request):
     if not update_check_url:
         # No endpoint configured: nothing to ask, and nothing is reported. The
         # cron run itself is still recorded above, which is what the dashboard
-        # reads to tell whether the scheduler is alive.
+        # reads to tell whether the scheduler is alive. A flag left over from
+        # before - a database upgraded from an installation that once heard of
+        # an update - is cleared, or it would be shown and appended to every
+        # message forever.
+        if webadmin_settings.update_available:
+            webadmin_settings.update_available = False
+            webadmin_settings.save(update_fields=['update_available'])
         return JsonResponse({'update_available': False})
 
     if webadmin_settings.last_checked is None or timezone.now() - webadmin_settings.last_checked > timezone.timedelta(
             hours=1):
         try:
-            version = settings.ROUTERFLEET_VERSION / 10000
+            version = settings.ROUTERFLEET_RELEASE
             separator = '&' if '?' in update_check_url else '?'
             url = f'{update_check_url}{separator}app=routerfleet&version={version}'
             response = requests.get(url, timeout=10)
@@ -35,7 +42,8 @@ def view_cron_check_updates(request):
                 webadmin_settings.update_available = data['update_available']
 
                 if data['update_available']:
-                    webadmin_settings.latest_version = float(data['current_version']) * 10000
+                    # The endpoint answers with the newest release, MAJOR.MINOR.PATCH
+                    webadmin_settings.latest_version = to_number(data['current_version'])
 
                 webadmin_settings.last_checked = timezone.now()
                 webadmin_settings.save()

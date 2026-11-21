@@ -55,7 +55,12 @@ Every push to `main` is a release. Each of the four images is published as:
 | Tag | Meaning |
 |---|---|
 | `:latest` | The most recent release. The compose files use this |
-| `:<version>`, e.g. `:0.7515` | That exact release, never moved |
+| `:<version>`, e.g. `:0.8.0` | That exact release, never moved |
+
+Releases are numbered MAJOR.MINOR.PATCH: a release that only fixes or maintains
+raises the last number (0.8.0 → 0.8.1), one that brings a new feature raises the
+middle one (→ 0.9.0). Moving between two releases with the same middle number
+therefore never changes what the application does, only how well it does it.
 
 Images are public — no registry login is needed to pull them. Each release
 also has a git tag `v<version>` and a GitHub Release with its
@@ -66,7 +71,7 @@ also has a git tag `v<version>` and a GitHub Release with its
 `docker-compose.yml`:
 
 ```yaml
-    image: ghcr.io/alessiobravi/routerfleet:0.7515
+    image: ghcr.io/alessiobravi/routerfleet:0.8.0
 ```
 
 All four images must carry the same version.
