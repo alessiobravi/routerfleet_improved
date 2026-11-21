@@ -7,7 +7,7 @@ from django.contrib.auth import authenticate
 class CreateUserForm(forms.Form):
     username = forms.CharField(label='Username')
     password = forms.CharField(label='Password', widget=forms.PasswordInput)
-    password2 = forms.CharField(label='Confirm Password', widget=forms.PasswordInput)  # Adicione este campo para a confirmação da senha
+    password2 = forms.CharField(label='Confirm Password', widget=forms.PasswordInput)
 
     def clean(self):
         cleaned_data = super().clean()

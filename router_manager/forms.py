@@ -192,7 +192,7 @@ class RouterGroupForm(forms.ModelForm):
         model = RouterGroup
         fields = ['name', 'default_group', 'internal_notes', 'routers']
         widgets = {
-            'internal_notes': forms.Textarea(attrs={'rows': 4, 'cols': 40}),  # Define como um Textarea simples
+            'internal_notes': forms.Textarea(attrs={'rows': 4, 'cols': 40}),
         }
 
     def __init__(self, *args, **kwargs):
