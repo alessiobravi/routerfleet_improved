@@ -7,6 +7,18 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.9.1] - 2026-11-21
+
+### Added
+- 33 tests for branches the feature tests did not reach: every delete
+  confirmation, empty and invalid selections, every bulk-edit field, the weekly
+  and monthly backup schedules, daily reports without a channel or with an
+  unreadable time, the storage warnings, and `scripts/prune_images.py` against a
+  faked GitHub API and registry. 446 tests, 94.6% branch coverage.
+
+### Changed
+- CI fails below 93% branch coverage, up from 90%.
+
 ## [0.9.0] - 2026-11-21
 
 ### Added
