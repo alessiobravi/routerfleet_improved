@@ -5,6 +5,13 @@ in `routerfleet/settings.py`, read as `<major>.<four digits>` (7515 → 0.7515);
 each one is tagged `v<version>`, published as a GitHub Release, and its Docker
 images are tagged with it. See [Upgrading](docs/upgrading.md).
 
+## [0.7516] - 2026-11-21
+
+### Changed
+- The cleanup of untagged image versions uses the GitHub API directly instead of
+  a third-party action that still targeted the deprecated Node.js 20. Every
+  deleted version is now named in the build log, with the tags that were kept.
+
 ## [0.7515] - 2026-11-21
 
 ### Added

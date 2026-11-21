@@ -195,11 +195,21 @@ jobs:
             *)              echo "::error::Unexpected manifest type '${TYPE}'"; exit 1 ;;
           esac
 
+      # Plain API calls rather than an action: every deleted version is named
+      # in the log, and there is no third-party code holding the token
       - name: Delete untagged image versions
         if: steps.guard.outputs.safe == 'true'
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: ${{ matrix.image }}
-          package-type: container
-          min-versions-to-keep: 0
-          delete-only-untagged-versions: 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          API="/users/alessiobravi/packages/container/${IMAGE}/versions"
+          gh api --paginate "${API}" \
+            --jq '.[] | select((.metadata.container.tags | length) == 0) | "\(.id) \(.name)"' > untagged.txt
+          echo "${IMAGE}: $(wc -l < untagged.txt | tr -d ' ') untagged versions"
+          while read -r ID DIGEST; do
+            gh api -X DELETE "${API}/${ID}" > /dev/null
+            echo "deleted ${IMAGE} version ${ID} (${DIGEST})"
+          done < untagged.txt
+          echo "${IMAGE}: tagged versions kept: $(gh api --paginate "${API}" \
+            --jq '[.[] | select((.metadata.container.tags | length) > 0) | .metadata.container.tags[]] | join(", ")')"
