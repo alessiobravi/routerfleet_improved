@@ -20,6 +20,13 @@ and every variant. For the three-command version, see the
 - [Building the images yourself](#building-the-images-yourself)
 - [Uninstalling](#uninstalling)
 
+> **No warranty — use at your own risk.** RouterFleet Improved is provided
+> "as is", without warranty of any kind. It logs in to your network devices
+> with administrative rights and acts on them; a command or update sent through
+> it can interrupt service or leave a device unusable, and a backup can fail or
+> be incomplete without notice. Any consequence of using it is yours. Read the
+> full [disclaimer](../README.md#disclaimer) before installing.
+
 ## Requirements
 
 | Requirement | Detail |

@@ -7,6 +7,18 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.9.3] - 2026-11-21
+
+### Added
+- **Disclaimer**: the README, the installation specification and the
+  documentation index state that the software is provided as is, without
+  warranty, and used at your own risk, and spell out what that means for a tool
+  that acts on network devices.
+- **The upgrade from a RouterFleet Extended database is tested on every push**,
+  next to the one from the original project: passwords it encrypted stay
+  readable, the SSH keys and tokens it stored in cleartext are encrypted, and
+  its audit trail and schedules come through untouched.
+
 ## [0.9.2] - 2026-11-21
 
 0.9.1 was never released: its CI run stopped before publishing, on the race

@@ -33,6 +33,9 @@ flowchart TB
     ops -.->|"every change recorded"| aud
 ```
 
+> Provided "as is", without warranty of any kind; you use it at your own risk.
+> See the [disclaimer](../README.md#disclaimer).
+
 ## Pages
 
 **Running it**

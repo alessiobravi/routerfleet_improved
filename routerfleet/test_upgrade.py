@@ -173,3 +173,85 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         variant = CommandVariant.objects.get(command_id=command.id)
         self.assertEqual((variant.payload, variant.verify_payload, variant.verify_expect),
                          (USER_UPDATE_PAYLOAD, '/my/check', 'my result'))
+
+
+# The last migration of every app in RouterFleet Extended
+EXTENDED_STATE = [
+    ('audit_log', '0001_initial'),
+    ('backup', '0009_backupprofile_parameter_sensitive_and_more'),
+    ('backup_data', '0012_backfill_config_change_detected'),
+    ('fleet_commander', '0011_commandschedule_last_missed'),
+    ('import_tool', '0008_encrypt_import_passwords'),
+    ('integration_manager', '0002_alter_externalintegration_wireguard_webadmin_default_user_level'),
+    ('message_center', '0007_alter_notification_notification_type'),
+    ('monitoring', '0001_initial'),
+    ('router_manager', '0023_routerinformation_available_version_and_more'),
+    ('routerfleet_tools', '0003_webadminsettings_monitoring_last_run_and_more'),
+    ('user_manager', '0003_useracl_address_link'),
+]
+
+
+class UpgradeFromExtendedTests(TransactionTestCase):
+    """A database left by RouterFleet Extended upgrades in place: what it had
+    encrypted stays readable, what it stored in cleartext is encrypted, and its
+    audit trail and schedules come through untouched."""
+
+    def migrate(self, targets):
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate(targets)
+        executor.loader.build_graph()
+        return executor.loader.project_state([t for t in targets if t[1]]).apps
+
+    def test_upgrade(self):
+        old = self.migrate(EXTENDED_STATE)
+
+        Router = old.get_model('router_manager', 'Router')
+        router = Router.objects.create(name='edge-01', address='10.0.0.1', router_type='routeros',
+                                       password='AlreadyEncrypted1')
+        Group = old.get_model('router_manager', 'RouterGroup')
+        group = Group.objects.create(name='Type: AP')
+        group.routers.add(router)
+        SSHKey = old.get_model('router_manager', 'SSHKey')
+        key = SSHKey.objects.create(name='k', public_key='ssh-ed25519 AAAA',
+                                    private_key='FAKE-TEST-PRIVATE-KEY-MATERIAL')
+        Channel = old.get_model('message_center', 'MessageChannel')
+        channel = Channel.objects.create(name='tg', channel_type='telegram', destination='42',
+                                         token='FAKE-TEST-BOT-TOKEN')
+        Command = old.get_model('fleet_commander', 'Command')
+        Schedule = old.get_model('fleet_commander', 'CommandSchedule')
+        command = Command.objects.create(name='Update')
+        schedule = Schedule.objects.create(command_id=command.id, repeat_interval=10080)
+        schedule.router_group.add(group)
+        schedule.exclude_router.add(router)
+        Change = old.get_model('audit_log', 'ChangeRecord')
+        Change.objects.create(action='changed', model_label='router_manager.Router', object_repr='edge-01',
+                              changes={'Port': {'old': 22, 'new': 2222}})
+        Login = old.get_model('audit_log', 'LoginRecord')
+        Login.objects.create(username='admin', successful=True)
+
+        with self.assertLogs('routerlib.encryption', level='WARNING'):
+            self.migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
+
+        from audit_log.models import ChangeRecord, LoginRecord
+        from fleet_commander.models import CommandSchedule
+        from message_center.models import MessageChannel
+        from router_manager.models import Router as NewRouter, SSHKey as NewKey
+
+        # What Extended had encrypted is still readable
+        self.assertEqual(NewRouter.objects.get(pk=router.id).password, 'AlreadyEncrypted1')
+        # What it stored in cleartext is now encrypted and still readable
+        for table, column, pk, plain, model in (
+                ('router_manager_sshkey', 'private_key', key.id, 'FAKE-TEST-PRIVATE-KEY-MATERIAL', NewKey),
+                ('message_center_messagechannel', 'token', channel.id, 'FAKE-TEST-BOT-TOKEN', MessageChannel)):
+            with connection.cursor() as cursor:
+                cursor.execute(f'SELECT {column} FROM {table} WHERE id = %s', [pk])
+                stored = cursor.fetchone()[0]
+            self.assertTrue(stored.startswith('gAAAAA'), table)
+            self.assertEqual(getattr(model.objects.get(pk=pk), column), plain)
+        # The audit trail and the schedule's selection come through untouched
+        self.assertEqual(ChangeRecord.objects.get().changes, {'Port': {'old': 22, 'new': 2222}})
+        self.assertEqual(LoginRecord.objects.get().username, 'admin')
+        upgraded = CommandSchedule.objects.get(pk=schedule.id)
+        self.assertEqual(list(upgraded.exclude_router.values_list('name', flat=True)), ['edge-01'])
+        self.assertEqual(upgraded.target_routers(), set())
