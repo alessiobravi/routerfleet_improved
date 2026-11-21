@@ -1,0 +1,206 @@
+# Backups
+
+Every device is assigned a **backup profile**, which decides when it is backed
+up and how long each backup is kept. Backups come in four kinds — `daily`,
+`weekly`, `monthly` and `instant` (taken by hand) — and each kind has its own
+retention.
+
+## What a backup contains
+
+| Device type | Configuration text | Binary image |
+|---|---|---|
+| RouterOS / branded | `/export` → `.rsc` | `/system backup save` → `.backup` |
+| OpenWrt | `uci export` → `.txt` | `sysupgrade --create-backup` → `.tar.gz` |
+| Ubiquiti airOS | `/tmp/system.cfg` → `.cfg` | none |
+
+Files are named `routerfleet-backup-<id>-<kind>-<YYYY-MM-DD_HH-MM>`.
+
+The configuration **text** is stored in the database, which is what makes
+diffing and change detection possible. The **binary** image is stored as a file
+under `MEDIA_ROOT`. For RouterOS, comment lines are stripped from the `.rsc`
+before storing, so a timestamp in a header comment does not register as a
+configuration change.
+
+Two RouterOS export options are profile settings: `show-sensitive` includes
+secrets in the export, and `terse` produces single-line output.
+
+## From a profile to a stored backup
+
+```mermaid
+flowchart TD
+    prof["Backup profile<br/>which kinds, which days, which hour"]
+    gen["/cron/generate_backup_schedule/<br/>every 5 minutes"]
+    sched["BackupSchedule per device<br/>next_daily / next_weekly / next_monthly"]
+    create["/cron/create_backup_tasks/<br/>every minute"]
+    row["RouterBackup row<br/>pending"]
+    perform["/cron/perform_backup_tasks/<br/>every minute, ~45 s budget"]
+    phase1["Phase 1: tell the device<br/>to write its backup"]
+    phase2["Phase 2: fetch the files<br/>over SCP"]
+    done["success<br/>hash and change flag computed"]
+
+    prof --> gen --> sched --> create --> row --> perform --> phase1
+    phase1 -->|"wait retrieve_interval"| phase2 --> done
+```
+
+### Scheduling
+
+`generate_backup_schedule` fills in each device's next moment per kind, and
+clears a moment when that kind is switched off in the profile. The next moment
+is always in the future:
+
+- **Daily** — the next enabled weekday at `daily_hour`. Weekdays are individually
+  switchable, so "weekdays only" is a profile setting.
+- **Weekly** — the next `weekly_day` at `weekly_hour`.
+- **Monthly** — `monthly_day` (1st, 7th, 14th, 21st or 28th) at `monthly_hour`,
+  rolling into next month if that moment has passed.
+
+If a moment cannot be computed, the profile records
+`profile_error_information`, which the profile list shows.
+
+### Creating the task
+
+`create_backup_tasks` turns due moments into rows, **monthly first, then weekly,
+then daily**, so a device whose moments coincide gets the longest-retained kind.
+A device is skipped unless all of these hold:
+
+- the device is enabled,
+- it has no `backup_lock` — no other backup is in flight for it,
+- and either monitoring is off for it, or monitoring is on **and it is currently
+  online**.
+
+That last condition means an unreachable monitored device is not attempted at
+all, rather than failing and consuming retries.
+
+### Performing the backup
+
+Backups run in **two phases**, because a device needs time to write its own
+backup file before it can be fetched:
+
+1. **Execute** — the device is told to write its configuration. On success the
+   row is marked `backup_pending_retrieval` and `next_retry` is set to
+   `retrieve_interval` seconds ahead (default 60 s).
+2. **Retrieve** — the files are fetched over SCP, the text is stored, the binary
+   is saved, local temporary files are removed and the leftovers on the device
+   are deleted. Only then is the backup `success`.
+
+For OpenWrt the configuration text is captured from `uci export` in phase 1
+(it comes back on stdout), while the binary is still fetched in phase 2. For
+airOS phase 1 does nothing at all — the device already keeps
+`/tmp/system.cfg` — and phase 2 fetches that file, decoding UTF-8 with a
+latin-1 fallback.
+
+Each pass works for up to **45 seconds** and then stops, leaving the rest for
+the next minute. `backup_interval` inserts a pause between devices: at `60`
+seconds the pass does exactly one device per minute, which is how a fleet is
+throttled on a slow link.
+
+A `task_lock` on the row stops two passes from working on the same backup.
+
+### When a backup fails
+
+```mermaid
+stateDiagram-v2
+    [*] --> Pending
+    Pending --> Executing
+    Executing --> PendingRetrieval : "device wrote its backup"
+    Executing --> Failed : "connection or command failed"
+    PendingRetrieval --> Success : "files fetched and stored"
+    PendingRetrieval --> Failed : "fetch failed"
+    Failed --> Pending : "retry after retry_interval,<br/>while attempts remain"
+    Failed --> Error : "max_retry exceeded,<br/>or no profile assigned"
+    Error --> [*] : "notification sent"
+    Success --> [*]
+```
+
+`retry_interval` is in **minutes** (1, 15, 30 or 60) and `max_retry` is 1–5. A
+device with no backup profile fails immediately with
+`No backup profile assigned`.
+
+Housekeeping provides the backstop:
+
+| Condition | Action |
+|---|---|
+| `task_lock` older than 6 hours | Lock cleared, a warning written to the task console, notification sent |
+| Row unfinished for more than 18 hours | Marked `error` with `Backup task expired`, notification sent |
+| Device `backup_lock` older than 18 hours with nothing pending | Lock cleared, device marked as last-backup-failed |
+
+## What a backup changed
+
+Every backup records whether it brought a different configuration than the one
+before it.
+
+```mermaid
+flowchart TD
+    save["RouterBackup.save()"] --> hash{"Is there<br/>configuration text?"}
+    hash -->|no| nohash["hash = empty<br/>change = false"]
+    hash -->|yes| sha["hash = sha256 of the text"]
+    sha --> prev{"An earlier backup of this<br/>device that has a hash?"}
+    prev -->|no| first["change = false<br/>the first one is the baseline"]
+    prev -->|yes| cmp{"Different hash?"}
+    cmp -->|yes| chg["change = true"]
+    cmp -->|no| same["change = false"]
+```
+
+Two rules make this trustworthy:
+
+- **A failed backup is looked past.** Backups with no configuration text are
+  skipped when searching for the one to compare against, so the comparison
+  always reaches the last configuration that was really seen.
+- **The first backup of a device is not a change.** It has nothing to be
+  compared with; it is the baseline the later ones are measured against.
+
+The comparison only ever looks *backwards* — at backups written before this one
+— so a retry that finishes late is not compared against something that came
+after it.
+
+Where this shows up:
+
+- The **backup overview** marks the backups that changed something.
+- The device list has a **Last Config Change** column, off by default under
+  *Show/Hide Columns*, showing when the device's configuration last changed, or
+  `---` if it never did.
+- Clicking either opens the change **in place**, without leaving the page, as a
+  line-by-line diff against the previous backup, with a button to open the full
+  comparison when the change is longer than the three lines of context.
+
+Backups that already existed before this was introduced are filled in by a data
+migration that walks each device's history applying the same rule.
+
+## Retention
+
+Housekeeping deletes backups older than their kind's retention, per profile:
+
+| Kind | Default retention |
+|---|---|
+| `daily` | 7 days |
+| `weekly` | 30 days |
+| `monthly` | 365 days |
+| `instant` | 3650 days |
+
+Two details:
+
+- The profile named `default` also covers devices with **no** profile assigned.
+- `retain_backups_on_error` (on by default) **suspends deletion for a device
+  whose last backup failed**, so a device that stopped backing up does not
+  quietly lose the history it still has while nobody is looking.
+
+The whole sweep is recorded as a single audit-log entry naming how many rows it
+removed, and a pass that deletes nothing writes nothing — so housekeeping every
+ten minutes stays quiet.
+
+Messages older than 30 days are deleted in the same pass.
+
+## Comparing backups
+
+Any two backups of a device can be compared from the backup list. The diff is
+computed on the stored configuration text. Binary images are downloadable but
+not comparable.
+
+## Permissions
+
+| Action | Minimum level |
+|---|---|
+| View backups, compare, download | 20 — Backup Operator |
+| Take an instant backup | 20 — Backup Operator |
+| Delete a backup | 30 — Host Manager |
+| Create or edit backup profiles | 40 — Configuration Manager |
