@@ -17,7 +17,8 @@ SUPPORTED_ROUTER_TYPES = (
 class SSHKey(models.Model):
     name = models.CharField(max_length=100, unique=True)
     public_key = models.TextField()
-    private_key = models.TextField()
+    # Encrypted at rest like Router.password; reads return the key as written
+    private_key = EncryptedTextField()
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)

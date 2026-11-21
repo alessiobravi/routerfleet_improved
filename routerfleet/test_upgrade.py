@@ -86,6 +86,17 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         own_variant = Variant.objects.create(command_id=own_update.id, router_type='routeros',
                                              payload=USER_UPDATE_PAYLOAD)
 
+        SSHKey = old.get_model('router_manager', 'SSHKey')
+        key = SSHKey.objects.create(name='fleet-key', public_key='ssh-ed25519 AAAA',
+                                    private_key='FAKE-TEST-PRIVATE-KEY-MATERIAL')
+        Channel = old.get_model('message_center', 'MessageChannel')
+        channel = Channel.objects.create(name='tg', channel_type='telegram', destination='42',
+                                         token='FAKE-TEST-BOT-TOKEN')
+        Channel.objects.create(name='topic', channel_type='ntfy', destination='t', token=None)
+        Integration = old.get_model('integration_manager', 'ExternalIntegration')
+        integration = Integration.objects.create(name='wireguard_webadmin', integration_type='wireguard_webadmin',
+                                                 integration_url='https://wg.example', token='FAKE-TEST-API-KEY')
+
         # --- the upgrade
         with self.assertLogs('routerlib.encryption', level='WARNING') as logs:
             self.migrate(self.latest())
@@ -110,6 +121,23 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         self.assertEqual(NewRouter.objects.get(name='edge-02').password, '')
         self.assertTrue(task_at_rest.startswith('gAAAAA'))
         self.assertEqual(NewTask.objects.get(pk=task.id).password, 'ImportPass456')
+
+        # The secrets that were stored in cleartext until 0.8.2
+        from integration_manager.models import ExternalIntegration
+        from message_center.models import MessageChannel
+        from router_manager.models import SSHKey as NewKey
+        for table, column, pk, plain, model in (
+                ('router_manager_sshkey', 'private_key', key.id, 'FAKE-TEST-PRIVATE-KEY-MATERIAL', NewKey),
+                ('message_center_messagechannel', 'token', channel.id, 'FAKE-TEST-BOT-TOKEN', MessageChannel),
+                ('integration_manager_externalintegration', 'token', integration.id, 'FAKE-TEST-API-KEY',
+                 ExternalIntegration)):
+            with connection.cursor() as cursor:
+                cursor.execute(f'SELECT {column} FROM {table} WHERE id = %s', [pk])
+                stored = cursor.fetchone()[0]
+            self.assertTrue(stored.startswith('gAAAAA'), table)
+            self.assertNotIn(plain, stored)
+            self.assertEqual(getattr(model.objects.get(pk=pk), column), plain)
+        self.assertIsNone(MessageChannel.objects.get(name='topic').token)
 
         # The stored CSV keeps no cleartext password
         new_csv = NewCsv.objects.get(pk=csv.id)

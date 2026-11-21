@@ -430,3 +430,35 @@ class UpdateRouterInformationTests(TestCase):
         self.assertEqual(self.info.retry_count, 0)
         self.assertIsNone(self.info.next_retry)
         self.assertIn('Max retries reached', self.info.error_message)
+
+
+class SecretsAtRestTests(TestCase):
+    """Every stored credential is ciphertext in its column."""
+
+    def stored(self, table, column, pk):
+        with connection.cursor() as cursor:
+            cursor.execute(f'SELECT {column} FROM {table} WHERE id = %s', [pk])
+            return cursor.fetchone()[0]
+
+    def test_ssh_private_key(self):
+        from routerfleet.testing import make_sshkey
+        key = make_sshkey()
+        self.assertTrue(self.stored('router_manager_sshkey', 'private_key', key.pk).startswith('gAAAAA'))
+        from router_manager.models import SSHKey
+        self.assertEqual(SSHKey.objects.get(pk=key.pk).private_key, 'FAKE-TEST-PRIVATE-KEY-MATERIAL')
+
+    def test_channel_and_integration_tokens(self):
+        from integration_manager.models import ExternalIntegration
+        from message_center.models import MessageChannel
+        channel = MessageChannel.objects.create(name='c', channel_type='telegram', destination='1', token='TOK')
+        integration = ExternalIntegration.objects.create(name='w', integration_type='wireguard_webadmin',
+                                                         integration_url='https://x', token='KEY')
+        self.assertNotIn('TOK', self.stored('message_center_messagechannel', 'token', channel.pk))
+        self.assertNotIn('KEY', self.stored('integration_manager_externalintegration', 'token', integration.pk))
+        self.assertEqual(MessageChannel.objects.get(pk=channel.pk).token, 'TOK')
+        self.assertEqual(ExternalIntegration.objects.get(pk=integration.pk).token, 'KEY')
+
+    def test_channel_token_is_still_a_one_line_input(self):
+        from django import forms
+        from message_center.forms import MessageChannelForm
+        self.assertIsInstance(MessageChannelForm().fields['token'].widget, forms.TextInput)

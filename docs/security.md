@@ -1,10 +1,17 @@
 # Security
 
-## Device passwords are encrypted at rest
+## Credentials are encrypted at rest
 
-`Router.password`, `ImportTask.password` and the passwords inside a stored
-import CSV are encrypted with [Fernet](https://cryptography.io/en/latest/fernet/)
-symmetric encryption.
+Every credential RouterFleet stores is encrypted with
+[Fernet](https://cryptography.io/en/latest/fernet/) symmetric encryption:
+
+| What | Where |
+|---|---|
+| Device passwords | `Router.password` |
+| SSH private keys | `SSHKey.private_key` |
+| Notification channel tokens | `MessageChannel.token` |
+| The WireGuard integration's API key | `ExternalIntegration.token` |
+| Import passwords | `ImportTask.password`, and the passwords inside a stored import CSV |
 
 Encryption lives in the field type, so it is transparent to everything else:
 reads return the plaintext, and the code that connects to a device over SSH did
@@ -49,8 +56,6 @@ on every upgrade for the ordinary reason.
 
 ### What encryption does not cover
 
-- **SSH private keys** are stored as text, not encrypted.
-- **Notification channel tokens** are stored as text.
 - **Configuration backups** are stored as-is. A RouterOS export taken with
   `show-sensitive` contains the device's own secrets in cleartext in the
   database. Think about whether you need that option on.

@@ -1,4 +1,6 @@
 from django.db import models
+
+from routerlib.encryption import EncryptedTextField
 from router_manager.models import Router
 from backup_data.models import RouterBackup
 import uuid
@@ -23,7 +25,8 @@ class MessageChannel(models.Model):
         )
     )
     destination = models.CharField(max_length=100, blank=True, null=True)
-    token = models.CharField(max_length=100, blank=True, null=True)
+    # Encrypted at rest; reads return the token as written
+    token = EncryptedTextField(blank=True, null=True)
 
     status_change_offline = models.BooleanField(default=True)
     status_change_online = models.BooleanField(default=True)

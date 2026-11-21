@@ -88,6 +88,10 @@ class MessageSettingsForm(forms.ModelForm):
 
 
 class MessageChannelForm(forms.ModelForm):
+    # Stored encrypted, which makes the model field a TextField; it stays a
+    # one-line input here, and the length rule below still applies
+    token = forms.CharField(required=False, widget=forms.TextInput)
+
     class Meta:
         model = MessageChannel
         fields = [

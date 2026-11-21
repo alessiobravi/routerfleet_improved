@@ -7,6 +7,19 @@ published as a GitHub Release, and its Docker images are tagged with it. The
 release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 `scripts/version.py bump patch|minor` raises it.
 
+## [0.8.2] - 2026-11-21
+
+### Changed
+- **Every stored credential is now encrypted at rest.** SSH private keys,
+  notification channel tokens and the WireGuard integration's API key join
+  device and import passwords. Existing values are encrypted by a migration when
+  you upgrade; reads return them as they were written, so nothing that uses them
+  changed.
+
+### Added
+- The upgrade test covers the three new encryptions on a database from the
+  original project.
+
 ## [0.8.1] - 2026-11-21
 
 ### Changed

@@ -45,19 +45,19 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | Already at the same migration state; nothing to apply |
-| **RouterFleet** (the original project) | In place | 13 additional migrations apply, three of which transform data |
+| **RouterFleet Extended** | In place | 3 migrations apply: they encrypt the SSH keys and tokens it stored as text |
+| **RouterFleet** (the original project) | In place | 16 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
 here, byte-identical. Nothing was renumbered, squashed or rewritten, which is
 what makes the upgrade a no-drama `migrate`.
 
-### What the 13 migrations do when coming from the original
+### What the 16 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
-    db[("Original project's database")] --> m1["Encrypt Router.password<br/>in place"]
+    db[("Original project's database")] --> m1["Encrypt Router.password,<br/>SSH private keys and tokens<br/>in place"]
     m1 --> m2["Encrypt import task passwords,<br/>mask the stored CSV column"]
     m2 --> m3["Backfill config_change_detected<br/>across every device's history"]
     m3 --> m4["Add the audit log tables"]
@@ -65,9 +65,10 @@ flowchart TD
     m5 --> done[("Ready")]
 ```
 
-Three of them touch existing data:
+These touch existing data:
 
-- **Device passwords are encrypted.** Cleartext passwords are read, encrypted
+- **Credentials are encrypted.** Device passwords, SSH private keys,
+  notification channel tokens and the WireGuard integration's API key are read, encrypted
   with the key generated in `app_secrets` on this version's first start, and
   written back. The encryption function is idempotent, so a migration that is
   interrupted and re-run cannot double-encrypt a value.
