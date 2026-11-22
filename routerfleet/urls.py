@@ -1,21 +1,20 @@
 from django.contrib import admin
 from django.urls import path
 
-from accounts.views import view_login, view_logout, view_create_first_user
+from accounts.views import view_login, view_logout, view_create_first_user, view_login_verify, \
+    view_passkey_login_options, view_passkey_login
 from audit_log.views import view_login_history, view_change_log, view_change_detail
 from backup.views import view_backup_profile_list, view_manage_backup_profile, view_backup_list, view_backup_details, \
     view_debug_run_backups, view_compare_backups, view_backup_download, view_backup_delete, \
     view_backup_config_change
 from backup_data.views import view_cron_generate_backup_schedule, view_cron_create_backup_tasks, \
     view_cron_perform_backup_tasks, view_cron_housekeeping
-from dashboard.views import view_dashboard, view_status, backup_statistics_data, router_status_data
+from dashboard.views import view_dashboard, view_status, view_about, backup_statistics_data, router_status_data
 from fleet_commander.views import view_command_list, view_command_details, view_manage_command, \
     view_manage_command_variant, view_manage_command_schedule, view_job_list, view_job_details, view_task_details, \
     view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, \
     view_abort_command_task, view_abort_command_job, view_schedule_defaults
 from import_tool.views import view_import_tool_list, view_import_csv_file, view_import_details, run_import_task
-from integration_manager.views import view_wireguard_webadmin_launcher, view_manage_wireguard_integration, \
-    view_launch_wireguard_webadmin
 from message_center.views import view_message_channel_list, view_manage_message_settings, view_manage_message_channel, \
     view_debug_test_messages, view_cron_concatenate_notifications, view_cron_send_messages, view_cron_daily_reports, \
     view_message_history
@@ -26,7 +25,7 @@ from router_manager.views import view_create_instant_backup_multiple_routers, vi
     view_create_instant_backup_task, view_router_availability, view_cron_update_router_information, \
     view_manage_router_groups_multiple, view_edit_routers_multiple, view_update_routers_information_multiple
 from routerfleet_tools.views import view_cron_check_updates
-from user_manager.views import view_manage_user, view_user_list, view_user_settings
+from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -34,13 +33,21 @@ urlpatterns = [
     path('debug/test_messages/', view_debug_test_messages, name='debug_test_messages'),
     path('', view_dashboard, name='dashboard'),
     path('status/', view_status, name='status'),
+    path('about/', view_about, name='about'),
     path('router_status_data/', router_status_data, name='router_status_data'),
     path('backup_statistics_data/', backup_statistics_data, name='backup_statistics_data'),
     path('user/list/', view_user_list, name='user_list'),
     path('user/manage/', view_manage_user, name='manage_user'),
     path('user/settings/', view_user_settings, name='user_settings'),
+    path('user/settings/totp/', view_totp_setup, name='totp_setup'),
+    path('user/settings/passkeys/options/', view_passkey_options, name='passkey_options'),
+    path('user/settings/passkeys/add/', view_passkey_add, name='passkey_add'),
+    path('user/settings/passkeys/delete/', view_passkey_delete, name='passkey_delete'),
     path('accounts/create_first_user/', view_create_first_user, name='create_first_user'),
     path('accounts/login/', view_login, name='login'),
+    path('accounts/login/verify/', view_login_verify, name='login_verify'),
+    path('accounts/passkey/options/', view_passkey_login_options, name='passkey_login_options'),
+    path('accounts/passkey/login/', view_passkey_login, name='passkey_login'),
     path('accounts/logout/', view_logout, name='logout'),
     path('router/list/', view_router_list, name='router_list'),
     path('router/manage/', view_manage_router, name='manage_router'),
@@ -80,9 +87,6 @@ urlpatterns = [
     path('cron/concatenate_notifications/', view_cron_concatenate_notifications, name='concatenate_notifications'),
     path('cron/send_messages/', view_cron_send_messages, name='send_messages'),
     path('cron/daily_reports/', view_cron_daily_reports, name='daily_reports'),
-    path('wireguard_webadmin/', view_wireguard_webadmin_launcher, name='wireguard_webadmin_launcher'),
-    path('wireguard_webadmin/manage/', view_manage_wireguard_integration, name='manage_wireguard_integration'),
-    path('wireguard_webadmin/launch/', view_launch_wireguard_webadmin, name='launch_wireguard_webadmin'),
     path('audit_log/login_history/', view_login_history, name='audit_log_login_history'),
     path('audit_log/change_log/', view_change_log, name='audit_log_change_log'),
     path('audit_log/change_detail/', view_change_detail, name='audit_log_change_detail'),

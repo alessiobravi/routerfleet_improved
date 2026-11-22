@@ -122,15 +122,12 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         self.assertTrue(task_at_rest.startswith('gAAAAA'))
         self.assertEqual(NewTask.objects.get(pk=task.id).password, 'ImportPass456')
 
-        # The secrets that were stored in cleartext until 0.8.2
-        from integration_manager.models import ExternalIntegration
+        # The secrets the earlier projects stored in cleartext
         from message_center.models import MessageChannel
         from router_manager.models import SSHKey as NewKey
         for table, column, pk, plain, model in (
                 ('router_manager_sshkey', 'private_key', key.id, 'FAKE-TEST-PRIVATE-KEY-MATERIAL', NewKey),
-                ('message_center_messagechannel', 'token', channel.id, 'FAKE-TEST-BOT-TOKEN', MessageChannel),
-                ('integration_manager_externalintegration', 'token', integration.id, 'FAKE-TEST-API-KEY',
-                 ExternalIntegration)):
+                ('message_center_messagechannel', 'token', channel.id, 'FAKE-TEST-BOT-TOKEN', MessageChannel)):
             with connection.cursor() as cursor:
                 cursor.execute(f'SELECT {column} FROM {table} WHERE id = %s', [pk])
                 stored = cursor.fetchone()[0]
@@ -138,6 +135,11 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
             self.assertNotIn(plain, stored)
             self.assertEqual(getattr(model.objects.get(pk=pk), column), plain)
         self.assertIsNone(MessageChannel.objects.get(name='topic').token)
+
+        # The external integration was removed: its table, and the token in it,
+        # are gone from the upgraded database
+        self.assertNotIn('integration_manager_externalintegration', connection.introspection.table_names())
+        self.assertTrue(integration.pk)
 
         # The stored CSV keeps no cleartext password
         new_csv = NewCsv.objects.get(pk=csv.id)

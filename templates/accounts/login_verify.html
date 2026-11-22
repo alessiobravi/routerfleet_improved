@@ -1,0 +1,39 @@
+{% extends "base_login.html" %}
+
+{% block content %}
+
+<div class="register-box">
+    <div class="register-logo">
+      <a href="/"><b>RouterFleet</b> Improved</a>
+    </div>
+
+    <div class="card">
+      <div class="card-body register-card-body">
+        <p class="login-box-msg">Enter the code from your authenticator app</p>
+        <form action="/accounts/login/verify/" method="post" autocomplete="off">
+            {% csrf_token %}
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" name="code" inputmode="numeric" pattern="[0-9 ]*"
+                     maxlength="7" autocomplete="one-time-code" placeholder="123456" autofocus required>
+              <div class="input-group-append">
+                <div class="input-group-text">
+                  <span class="fas fa-shield-alt"></span>
+                </div>
+              </div>
+            </div>
+            {% if error %}<p class="text-danger small">{{ error }}</p>{% endif %}
+            <div class="row">
+              <div class="col-8">
+                <a href="/accounts/login/" class="btn btn-link px-0">Back</a>
+              </div>
+              <div class="col-4">
+                <button type="submit" class="btn btn-primary btn-block">Verify</button>
+              </div>
+            </div>
+        </form>
+        <p class="small text-muted mb-0 mt-2">Lost your phone? An administrator can reset your second factors.</p>
+      </div>
+    </div>
+</div>
+
+{% endblock %}

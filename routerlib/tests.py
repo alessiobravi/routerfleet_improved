@@ -447,16 +447,11 @@ class SecretsAtRestTests(TestCase):
         from router_manager.models import SSHKey
         self.assertEqual(SSHKey.objects.get(pk=key.pk).private_key, 'FAKE-TEST-PRIVATE-KEY-MATERIAL')
 
-    def test_channel_and_integration_tokens(self):
-        from integration_manager.models import ExternalIntegration
+    def test_channel_token(self):
         from message_center.models import MessageChannel
         channel = MessageChannel.objects.create(name='c', channel_type='telegram', destination='1', token='TOK')
-        integration = ExternalIntegration.objects.create(name='w', integration_type='wireguard_webadmin',
-                                                         integration_url='https://x', token='KEY')
         self.assertNotIn('TOK', self.stored('message_center_messagechannel', 'token', channel.pk))
-        self.assertNotIn('KEY', self.stored('integration_manager_externalintegration', 'token', integration.pk))
         self.assertEqual(MessageChannel.objects.get(pk=channel.pk).token, 'TOK')
-        self.assertEqual(ExternalIntegration.objects.get(pk=integration.pk).token, 'KEY')
 
     def test_channel_token_is_still_a_one_line_input(self):
         from django import forms

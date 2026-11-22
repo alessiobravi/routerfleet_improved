@@ -8,38 +8,103 @@ from routerfleet_tools.models import WebadminSettings
 
 
 class UpdateCheckTests(TestCase):
-    def test_off_by_default_and_no_request_leaves(self):
-        with mock.patch('routerfleet_tools.views.requests.get') as get:
+    """The update check: GitHub's latest release by default, an endpoint of the
+    operator's own when one is set, nothing at all when it is turned off.
+    No test reaches the network: requests is mocked throughout."""
+
+    def github(self, tag):
+        return mock.Mock(json=lambda: {'tag_name': tag}, raise_for_status=lambda: None)
+
+    def check(self, response=None, side_effect=None):
+        with mock.patch('routerfleet_tools.views.requests.get', return_value=response, side_effect=side_effect) as get:
             data = self.client.get('/cron/check_updates/').json()
+        return data, get
+
+    def test_on_by_default_and_asks_github(self):
+        from django.conf import settings
+        from routerfleet.versioning import bump
+        newer = bump(settings.ROUTERFLEET_RELEASE, 'patch')
+        data, get = self.check(self.github(f'v{newer}'))
+        self.assertEqual(get.call_args.args[0], settings.UPDATE_RELEASES_API)
+        self.assertEqual(get.call_args.kwargs['timeout'], 10)
+        self.assertNotIn(settings.ROUTERFLEET_RELEASE, str(get.call_args), 'the request says nothing about the installation')
+        self.assertTrue(data['update_available'])
+        stored = WebadminSettings.objects.get()
+        self.assertTrue(stored.update_available)
+        self.assertIsNotNone(stored.cron_last_run)
+
+    def test_the_same_release_is_up_to_date(self):
+        from django.conf import settings
+        data, _ = self.check(self.github(f'v{settings.ROUTERFLEET_RELEASE}'))
+        self.assertFalse(data['update_available'])
+
+    def test_asked_at_most_once_an_hour_also_when_the_source_is_down(self):
+        _, get = self.check(side_effect=OSError('down'))
+        get.assert_called_once()
+        _, get = self.check(self.github('v99.0.0'))
+        get.assert_not_called()
+
+    def test_a_failure_keeps_the_previous_answer(self):
+        from django.utils import timezone
+        self.check(self.github('v99.0.0'))
+        WebadminSettings.objects.update(last_checked=timezone.now() - timezone.timedelta(hours=2))
+        data, _ = self.check(side_effect=OSError('down'))
+        self.assertTrue(data['update_available'])
+
+    @override_settings(UPDATE_CHECK=False)
+    def test_off_sends_nothing(self):
+        WebadminSettings.objects.create(name='webadmin_settings', update_available=True)
+        data, get = self.check(self.github('v99.0.0'))
         get.assert_not_called()
         self.assertEqual(data, {'update_available': False})
-        # The scheduler heartbeat is still recorded
-        self.assertIsNotNone(WebadminSettings.objects.get().cron_last_run)
+        self.assertFalse(WebadminSettings.objects.get().update_available)
 
     @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check')
     def test_configured_endpoint_is_asked_with_a_timeout(self):
-        response = mock.Mock(json=lambda: {'update_available': True, 'current_version': '0.9.0'})
-        with mock.patch('routerfleet_tools.views.requests.get', return_value=response) as get:
-            data = self.client.get('/cron/check_updates/').json()
-        url = get.call_args.args[0]
+        response = mock.Mock(json=lambda: {'update_available': True, 'current_version': '99.0.0'},
+                             raise_for_status=lambda: None)
+        data, get = self.check(response)
         from django.conf import settings
-        self.assertEqual(url, f'https://updates.example.org/check?app=routerfleet&version={settings.ROUTERFLEET_RELEASE}')
+        self.assertEqual(get.call_args.args[0],
+                         f'https://updates.example.org/check?app=routerfleet&version={settings.ROUTERFLEET_RELEASE}')
         self.assertEqual(get.call_args.kwargs['timeout'], 10)
         self.assertTrue(data['update_available'])
-        self.assertEqual(WebadminSettings.objects.get().latest_version, 9000)
+        self.assertEqual(WebadminSettings.objects.get().latest_version, 99000000)
 
     @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check?token=x')
     def test_existing_query_string_is_extended(self):
-        with mock.patch('routerfleet_tools.views.requests.get',
-                        return_value=mock.Mock(json=lambda: {})) as get:
-            self.client.get('/cron/check_updates/')
+        _, get = self.check(mock.Mock(json=lambda: {}, raise_for_status=lambda: None))
         self.assertIn('?token=x&app=routerfleet', get.call_args.args[0])
 
-    @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check')
-    def test_unreachable_endpoint_reports_no_update(self):
-        with mock.patch('routerfleet_tools.views.requests.get', side_effect=OSError('down')):
-            data = self.client.get('/cron/check_updates/').json()
-        self.assertEqual(data, {'update_available': False})
+
+class UpdateCardTests(TestCase):
+    def setUp(self):
+        self.client.force_login(make_user(10))
+
+    def card(self):
+        return self.client.get('/status/').content.decode()
+
+    def test_not_checked_yet_then_up_to_date(self):
+        self.assertIn('Updates not checked yet', self.card())
+        from django.utils import timezone
+        WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={'last_checked': timezone.now()})
+        page = self.card()
+        self.assertIn('bg-success" title="This is the latest release"', page)
+        self.assertIn('Up to date', page)
+
+    def test_an_update_is_yellow_with_its_version(self):
+        from django.utils import timezone
+        WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={
+            'last_checked': timezone.now(), 'update_available': True, 'latest_version': 99001002})
+        page = self.card()
+        self.assertIn('info-box bg-warning', page)
+        self.assertIn('Update available', page)
+        self.assertIn('99.1.2', page)
+        self.assertIn('/releases/latest', page)
+
+    @override_settings(UPDATE_CHECK=False)
+    def test_off_is_grey(self):
+        self.assertIn('Update check off', self.card())
 
 
 class TemplateTagTests(TestCase):
@@ -55,7 +120,7 @@ class TemplateTagTests(TestCase):
     def test_changelog_url_reaches_the_page(self):
         self.client.force_login(make_user(10))
         WebadminSettings.objects.create(name='webadmin_settings', update_available=True, latest_version=99999)
-        response = self.client.get('/')
+        response = self.client.get('/about/')
         self.assertContains(response, 'https://x/changelog')
 
     def test_project_links(self):
@@ -64,7 +129,7 @@ class TemplateTagTests(TestCase):
 
     def test_no_upstream_update_server_anywhere_in_the_page(self):
         self.client.force_login(make_user(10))
-        self.assertNotContains(self.client.get('/'), 'eth0' + '.com.br')  # split: the repo names no other project
+        self.assertNotContains(self.client.get('/about/'), 'eth0' + '.com.br')  # split: the repo names no other project
 
 
 class VersioningTests(TestCase):
@@ -114,9 +179,10 @@ class VersioningTests(TestCase):
     def test_sidebar_shows_the_release(self):
         from django.conf import settings
         self.client.force_login(make_user(10))
-        self.assertContains(self.client.get('/'), f'<b>Version</b> {settings.ROUTERFLEET_RELEASE}')
+        self.assertContains(self.client.get('/about/'), f'<b>Version</b> {settings.ROUTERFLEET_RELEASE}')
 
-    def test_stale_update_flag_is_cleared_when_no_check_is_configured(self):
+    @override_settings(UPDATE_CHECK=False)
+    def test_stale_update_flag_is_cleared_when_the_check_is_off(self):
         WebadminSettings.objects.create(name='webadmin_settings', update_available=True, latest_version=9999999)
         self.client.get('/cron/check_updates/')
         self.assertFalse(WebadminSettings.objects.get().update_available)
@@ -256,3 +322,48 @@ class ReleaseTitleTests(TestCase):
                 '# Changelog\n\n## [1.2.3] - 2026-01-01 - First public release\n\nx\n\n## [1.2.2] - 2025-12-31\n\ny\n')):
             self.assertEqual(module.release_title('1.2.3'), 'RouterFleet Improved 1.2.3 - First public release')
             self.assertEqual(module.release_title('1.2.2'), 'RouterFleet Improved 1.2.2')
+
+
+class ZabbixKitTests(TestCase):
+    """contrib/zabbix holds together: what the template asks the agent for is
+    defined in the agent configuration, and what that runs is handled by the
+    collector. (CI also runs the collector against a real database.)"""
+
+    def setUp(self):
+        import pathlib
+        self.kit = pathlib.Path(__file__).resolve().parent.parent / 'contrib' / 'zabbix'
+
+    def read(self, relative):
+        return (self.kit / relative).read_text()
+
+    def test_template_keys_are_defined_for_the_agent(self):
+        import re
+        template = self.read('templates/routerfleet-by-zabbix-agent.yaml')
+        agent = self.read('agent/routerfleet.conf')
+        asked = {re.sub(r'\[.*\]$', '', k) for k in re.findall(r'^\s*key:\s*\'?([a-z0-9_.]+(?:\[[^\]]*\])?)', template, re.M)}
+        defined = {re.sub(r'\[\*\]$', '', k) for k in re.findall(r'^UserParameter=([a-z0-9_.]+(?:\[\*\])?),', agent, re.M)}
+        self.assertTrue(asked)
+        self.assertLessEqual(asked, defined, f'not defined for the agent: {asked - defined}')
+
+    def test_every_agent_command_is_one_the_collector_handles(self):
+        import re
+        agent = self.read('agent/routerfleet.conf')
+        collector = self.read('scripts/zbx-routerfleet.sh')
+        commands = set(re.findall(r'zbx-routerfleet\.sh (\w+)', agent))
+        handled = set(re.findall(r'^  (\w+)\)', collector, re.M))
+        self.assertTrue(commands)
+        self.assertLessEqual(commands, handled, f'not handled by the collector: {commands - handled}')
+
+    def test_the_role_gets_columns_not_tables(self):
+        sql = self.read('sql/zbx_monitor.sql')
+        self.assertNotRegex(sql, r'(?m)^GRANT SELECT ON ')
+        self.assertNotIn('ALL TABLES', sql.split('Do not do it')[1] if 'Do not do it' in sql else sql)
+        self.assertIn("PASSWORD 'CHANGE_ME'", sql, 'the shipped file carries a placeholder, never a password')
+
+    def test_nothing_identifying(self):
+        for path in self.kit.rglob('*'):
+            if path.is_file():
+                with self.subTest(file=path.name):
+                    text = path.read_text()
+                    self.assertNotRegex(text, r'\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+')
+                    self.assertNotRegex(text, r'/Users/|/home/[a-z]')

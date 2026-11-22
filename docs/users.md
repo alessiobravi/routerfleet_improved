@@ -10,11 +10,11 @@ it reach.
 | 20 | Backup Operator | Instant backups, download and compare backups, group membership, run/stop views in Fleet Commander listings, notification channel listings |
 | 30 | Host Manager | Create and edit devices, bulk edit, refresh inventory, delete backups |
 | 40 | Configuration Manager | Backup profiles, groups, SSH keys, commands, variants, schedules, schedule defaults, notification channels and settings |
-| 50 | Administrator | User management, audit log, import tool, external integrations |
+| 50 | Administrator | User management, audit log, import tool |
 
 Some pages check only that you are signed in, with no level at all: the
-dashboard and status page, the device list and device details, groups, SSH key
-names, the backup list, backup profiles, the WireGuard launcher and *My
+status page, the device list and device details, groups, SSH key
+names, the backup list, backup profiles, the About page and *My
 Settings*. An account with no level — or level 10 — sees exactly these.
 
 ## What each page requires
@@ -38,7 +38,6 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | Audit log | Login history, change log | 50 |
 | Users | List, create, edit | 50 |
 | Import tool | All of it | 50 |
-| Integrations | Configure | 50 |
 
 ## The first account
 
@@ -62,3 +61,13 @@ nothing.
 Account changes *are* audited: username, names, email, active and superuser
 flags, the password (as `(set)`/`(empty)`, never the value) and the permission
 level. See [Audit log](audit-log.md).
+
+## Second factors
+
+Every user can turn on an authenticator app and add passkeys in **My
+Settings → Sign-in security**, whatever their level. An administrator sees on
+each user's page which second factors the user has, and can **Reset** them -
+for a lost phone or passkey - which leaves the user signing in with their
+password only. How the second factors work, and what passkeys need from the
+installation, is in [Security](security.md#second-factors-and-passkeys).
+

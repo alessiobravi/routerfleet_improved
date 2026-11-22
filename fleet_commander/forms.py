@@ -313,6 +313,10 @@ class CommandScheduleForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        start_at, end_at = cleaned_data.get('start_at'), cleaned_data.get('end_at')
+        if start_at and end_at and end_at <= start_at:
+            # Saved, it would be a schedule that ends before it ever runs
+            self.add_error('end_at', 'The end must be after the start.')
         routers = set(cleaned_data.get('router') or [])
         router_group = cleaned_data.get('router_group') or []
         if not routers and not router_group:

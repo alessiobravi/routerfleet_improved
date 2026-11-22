@@ -10,7 +10,6 @@ Every credential RouterFleet stores is encrypted with
 | Device passwords | `Router.password` |
 | SSH private keys | `SSHKey.private_key` |
 | Notification channel tokens | `MessageChannel.token` |
-| The WireGuard integration's API key | `ExternalIntegration.token` |
 | Import passwords | `ImportTask.password`, and the passwords inside a stored import CSV |
 
 Encryption lives in the field type, so it is transparent to everything else:
@@ -187,6 +186,61 @@ Two consequences to be aware of:
 The limits are `LOGIN_LOCKOUT_ATTEMPTS` and `LOGIN_LOCKOUT_MINUTES` in
 `routerfleet/settings.py`; `LOGIN_LOCKOUT_ATTEMPTS = 0` turns it off.
 
+## Second factors and passkeys
+
+Each user can add a second step to signing in, in **My Settings → Sign-in
+security**.
+
+```mermaid
+flowchart TD
+    start["Sign-in page"] --> choice{"How?"}
+    choice -->|"username + password"| pw{"Password right?"}
+    choice -->|"Sign in with a passkey"| pk{"Passkey verified?<br/>(device PIN or biometrics)"}
+    pw -->|no| refused["Refused - counted by the lockout"]
+    pw -->|yes| hasapp{"Authenticator app on?"}
+    hasapp -->|no| signed["Signed in"]
+    hasapp -->|yes| code{"6-digit code right,<br/>within 5 minutes?"}
+    code -->|no| refused
+    code -->|yes| signed
+    pk -->|no| refused
+    pk -->|yes| signed
+```
+
+**Authenticator app (TOTP).** Any app that supports TOTP codes works. Setting
+it up shows a QR code and the key; it is turned on only once a correct code
+is entered, so an abandoned setup changes nothing. From then on the password
+alone signs nobody in: the session remembers for five minutes that the password
+was right, and the code completes the sign-in. Codes follow RFC 6238 (SHA-1,
+6 digits, 30 seconds, one step of clock drift either way), each code is
+accepted **once** - the last step used is stored, and a code seen over someone's
+shoulder is useless - and a wrong code is a refused sign-in, recorded in the
+login history and counted by the [lockout](#sign-in-attempts). The key is
+encrypted at rest like every other credential. Turning the app off needs a
+current code.
+
+**Passkeys.** A passkey signs in without a password, with the fingerprint,
+face or PIN of the device that holds it. Because that already combines
+something you have with something you are or know, a passkey does not also ask
+for the authenticator code. Passkeys are bound to the name the installation is
+reached by, and browsers impose two conditions: the installation must be opened
+by a **name, not an IP address**, over HTTPS with a **certificate the browser
+trusts** (not the self-signed one an installation starts with). Where that is
+not the case, the passkey options are simply not offered; the authenticator app
+works everywhere. Signing in with a passkey checks the origin, the challenge
+(answerable once), the device's signature and its signature counter.
+
+**Losing a phone or a passkey.** An administrator resets a user's second
+factors on the user's page (**Reset**, confirmed with the username), which
+leaves the user with their password only. For the only administrator, there is
+a command:
+
+```bash
+docker exec -it routerfleet python manage.py reset_mfa <username>
+```
+
+Turning second factors on and off, and adding or removing passkeys, is
+recorded in the [change log](audit-log.md#change-log); the secrets never are.
+
 ## Actions are POSTs
 
 Everything that changes something — deleting, aborting a task, starting a
@@ -334,10 +388,10 @@ What the installation contacts, and why:
 | MikroTik's update servers | **The device** checks its own channel; RouterFleet only reads the result | Device-side |
 | `downloads.openwrt.org` | OpenWrt release index and per-board image availability | Only by not using OpenWrt devices |
 | Telegram / ntfy.sh / CallMeBot | Whichever notification channels you configure | Yes — configure none |
-| Application update check | Disabled by default; off unless `UPDATE_CHECK_URL` is set | Yes, and it is off |
+| `api.github.com` | The update check: the latest release of RouterFleet Improved, about once an hour. The request carries no information about the installation | Yes: `UPDATE_CHECK=off` |
 
-The update check makes **no outbound request at all** unless you configure an
-endpoint.
+With `UPDATE_CHECK=off`, the update check makes **no outbound request at all**;
+the status page then says the check is off.
 
 Every outbound HTTP request has a timeout, so a service that stops answering
 cannot hold a worker of the application, or the monitoring loop, indefinitely.

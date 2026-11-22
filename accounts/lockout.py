@@ -44,6 +44,15 @@ def is_locked_out(request, username):
     return bool(address) and _failures(ip=address) >= attempts
 
 
+def address_locked_out(request):
+    """The address part alone, for a sign-in that names no account (a passkey)."""
+    attempts, _ = limits()
+    if attempts <= 0:
+        return False
+    address, _ = context.client_address(request)
+    return bool(address) and _failures(ip=address) >= attempts
+
+
 def record_turned_away(request, username):
     fields = context.identity(request)
     fields.update(actor=None, actor_kind=ACTOR_LOCKED_OUT, username=context.text(username, 150),

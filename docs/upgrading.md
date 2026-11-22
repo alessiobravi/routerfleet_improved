@@ -53,15 +53,15 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 4 migrations apply: three encrypt the SSH keys and tokens it stored as text, one adds the table of device host keys |
-| **RouterFleet** (the original project) | In place | 17 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 6 migrations apply: three encrypt the SSH keys and tokens it stored as text, one adds the table of device host keys, one the tables of second factors, and one removes the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 19 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
 here, byte-identical. Nothing was renumbered, squashed or rewritten, which is
 what makes the upgrade a no-drama `migrate`.
 
-### What the 17 migrations do when coming from the original
+### What the 19 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -75,10 +75,9 @@ flowchart TD
 
 These touch existing data:
 
-- **Credentials are encrypted.** Device passwords, SSH private keys,
-  notification channel tokens and the WireGuard integration's API key are read, encrypted
-  with the key generated in `app_secrets` on this version's first start, and
-  written back. The encryption function is idempotent, so a migration that is
+- **Credentials are encrypted.** Device passwords, SSH private keys and
+  notification channel tokens are read, encrypted with the key generated in
+  `app_secrets` on this version's first start, and written back. The encryption function is idempotent, so a migration that is
   interrupted and re-run cannot double-encrypt a value.
 - **Import passwords are encrypted** and the password column of any stored
   import CSV is replaced with `********`.
@@ -174,6 +173,14 @@ used as it is: nothing to dump, nothing to restore. A compose file that still
 names `postgres:16` keeps working too.
 
 ## What you may notice after upgrading
+
+- **The WireGuard WebAdmin integration is gone.** Its menu entry and pages are
+  removed, and an upgrade drops its table together with the token stored in it.
+  Nothing else depended on it.
+- **The home page is the status page**; the former welcome text is under
+  **About**, at the bottom of the menu.
+- **Second factors are available** - an authenticator app and passkeys, in
+  *My Settings*. Nobody is asked for one until they turn it on.
 
 - **Device host keys are checked.** Nothing is needed on upgrade: keys are
   learned on each device's next connection. A device you reset or replace later

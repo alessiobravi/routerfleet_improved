@@ -71,7 +71,7 @@ starting eleven jobs at once.
 | +30s | 1 min | `/cron/send_messages/` | Deliver queued messages |
 | +40s | 1 min | `/cron/perform_backup_tasks/` | Run backups, up to ~45 s per pass |
 | +40s | 1 min | `/cron/create_command_jobs/` | Turn due command schedules into jobs |
-| +50s | 1 min | `/cron/check_updates/` | Application update check — off unless configured |
+| +50s | 1 min | `/cron/check_updates/` | Update check — asks GitHub at most hourly; off with `UPDATE_CHECK=off` |
 | +50s | 1 min | `/cron/perform_command_tasks/` | Run command tasks |
 
 Two consequences worth knowing:

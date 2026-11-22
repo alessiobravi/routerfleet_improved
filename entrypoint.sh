@@ -91,6 +91,11 @@ fi
 # sign-in over plain HTTP has to keep working. A compose file from before this
 # setting reached the application does not pass it at all; for those nothing
 # changes.
+# The update check is on unless UPDATE_CHECK says off (off, false, no or 0)
+if [[ "${UPDATE_CHECK,,}" =~ ^(off|false|no|0)$ ]]; then
+    echo "UPDATE_CHECK = False" >> $PRODUCTION_SETTINGS_FILE
+fi
+
 if [ "${HTTPS_REDIRECT_POLICY+set}" = "set" ] && [[ "${HTTPS_REDIRECT_POLICY,,}" != "never" ]]; then
     echo "SESSION_COOKIE_SECURE = True" >> $PRODUCTION_SETTINGS_FILE
     echo "CSRF_COOKIE_SECURE = True" >> $PRODUCTION_SETTINGS_FILE

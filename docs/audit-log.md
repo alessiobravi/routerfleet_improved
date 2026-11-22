@@ -64,7 +64,6 @@ Watched objects:
 | Backups | BackupProfile |
 | Fleet Commander | Command, CommandVariant, CommandSchedule (including its four membership lists), ScheduleDefaults |
 | Notifications | MessageChannel, MessageSettings |
-| Integrations | ExternalIntegration |
 | Accounts | User, UserAcl with its permission level |
 
 Each entry opens field by field — before and after — in a popup, without

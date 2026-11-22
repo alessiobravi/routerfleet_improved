@@ -241,3 +241,38 @@ class ScheduleDefaultsCommandTests(TestCase):
         self.client.post('/fleet_commander/schedule/defaults/', {'start_time': '04:15', 'repeat_interval': '30m'})
         defaults = ScheduleDefaults.load()
         self.assertEqual((defaults.start_time, defaults.repeat_interval), (datetime.time(4, 15), 30))
+
+
+class AddScheduleTests(TestCase):
+    """The "Add Schedule" page, in the situations it is used in."""
+
+    def setUp(self):
+        from routerfleet.testing import make_router, make_user
+        self.client.raise_request_exception = True
+        self.client.force_login(make_user(50))
+        self.command = Command.objects.create(name='identity')
+        CommandVariant.objects.create(command=self.command, router_type='routeros', payload='/system identity print')
+        self.router = make_router(router_type='routeros')
+        self.url = f'/fleet_commander/schedule/manage/?command_uuid={self.command.uuid}'
+
+    def post(self, **data):
+        values = {'router': [self.router.pk], 'start_at': '2027-01-04T03:00', 'repeat_interval': '7d', 'enabled': 'on'}
+        values.update(data)
+        return self.client.post(self.url, values)
+
+    def test_the_page_and_a_valid_schedule(self):
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+        self.assertEqual(self.post().status_code, 302)
+        self.assertEqual(CommandSchedule.objects.get().command, self.command)
+
+    def test_an_end_before_the_start_is_refused(self):
+        response = self.post(end_at='2027-01-01T03:00')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'The end must be after the start.')
+        self.assertFalse(CommandSchedule.objects.exists())
+
+    def test_an_unknown_command_is_not_found(self):
+        import uuid
+        self.client.raise_request_exception = False
+        self.assertEqual(self.client.get(f'/fleet_commander/schedule/manage/?command_uuid={uuid.uuid4()}').status_code, 404)
+        self.assertEqual(self.client.get('/fleet_commander/schedule/manage/').status_code, 404)

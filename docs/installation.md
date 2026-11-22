@@ -34,8 +34,8 @@ and every variant. For the three-command version, see the
 | Docker Engine with the Compose v2 plugin | `docker compose` (with a space). The legacy `docker-compose` binary is not supported |
 | CPU architecture | **x86-64 (amd64) or 64-bit ARM (arm64)** — Raspberry Pi 4/5 with a 64-bit OS, ARM servers and cloud instances. Every image is published for both; Docker picks the right one. 32-bit ARM is not supported |
 | Free ports | 80 and 443 on the host, or others you choose — see [Ports](#ports) |
-| Outbound from the host | TCP to your devices' SSH ports; ICMP to devices you monitor; HTTPS to `downloads.openwrt.org` for OpenWrt update checks; HTTPS to your notification services |
-| A name or address | The address users will type in the browser — it becomes `SERVER_ADDRESS` |
+| Outbound from the host | TCP to your devices' SSH ports; ICMP to devices you monitor; HTTPS to `downloads.openwrt.org` for OpenWrt update checks; HTTPS to your notification services; HTTPS to `api.github.com` for the update check (unless `UPDATE_CHECK=off`) |
+| A name or address | The address users will type in the browser — it becomes `SERVER_ADDRESS`. Use a name, with a certificate browsers trust, if users are to sign in with passkeys: browsers do not allow passkeys on an IP address or with a certificate warning |
 
 ## What gets created
 
@@ -189,6 +189,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 |---|---|---|---|---|
 | `SERVER_ADDRESS` | **yes** | — | hostname or IP, optionally `:port` | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. Include the port if you changed the published HTTPS port. A wrong value gives `400 Bad Request` or CSRF errors |
 | `TIMEZONE` | no | `Etc/UTC` | an [IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | Backup times, schedule times, daily report time, displayed timestamps. Passed to every container as `TZ` |
+| `UPDATE_CHECK` | no | `on` | `on`, `off` | Look for new RouterFleet Improved releases about once an hour (GitHub's latest release; the request carries nothing about the installation) and show them on the status page. `off`: no request is made |
 | `DEBUG_MODE` | no | `False` | `True` / `False` | Django debug mode. **Never `True` in production** — it exposes internals on errors. Also enables `/debug/run_backups/` and `/debug/test_messages/`, for administrators (level 50) only |
 | `DATABASE_ENGINE` | no | `postgres` | `postgres`, `sqlite` | Which database. Must match the compose file |
 | `POSTGRES_DB` | with postgres | — | name | Database name |
@@ -216,7 +217,7 @@ permanent override needs an image of your own.
 
 | Setting | Default | Effect |
 |---|---|---|
-| `UPDATE_CHECK_URL` | empty | Endpoint asked whether a newer version exists. **Empty: no request is made, no update is ever reported** |
+| `UPDATE_CHECK_URL` | empty | An endpoint of your own asked whether a newer version exists, instead of GitHub |
 | `UPDATE_CHANGELOG_URL` | empty | Endpoint the "Update Available" button reads a changelog from |
 | `PROJECT_REPOSITORY_URL` | this repository | Where the interface's project links point |
 | `PROJECT_SUPPORT_URL` | this repository's issues | Where "Request Device Support" points |

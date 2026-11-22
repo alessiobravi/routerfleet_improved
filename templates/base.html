@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% if page_title %}{{ page_title }} | {% endif %}routerfleet</title>
+    <title>{% if page_title %}{{ page_title }} | {% endif %}RouterFleet Improved</title>
 
     <!-- Font: Source Sans Pro, served from this installation -->
     <link rel="stylesheet" href="/static/fonts/source-sans-pro/source-sans-pro.css">
@@ -56,9 +56,6 @@
                 <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a href="/" class="nav-link">Home</a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
                 <a href="/status/" class="nav-link">Status</a>
             </li>
         </ul>
@@ -82,25 +79,17 @@
     <!-- Main Sidebar Container -->
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
-        <a href="/" class="brand-link">
-            <span class="brand-text font-weight-light">routerfleet</span>
+        <a href="/status/" class="brand-link">
+            <span class="brand-text font-weight-light">RouterFleet Improved</span>
         </a>
 
         <!-- Sidebar -->
         <div class="sidebar">
             <!-- Sidebar Menu -->
             <nav class="mt-2">
-                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                    <!-- Add icons to the links using the .nav-icon class with font-awesome or any other icon font library -->
-                    <li class="nav-item">
-                        <a href="/" class="nav-link {% if '/' == request.path %}active{% endif %}">
-                            <i class="fas fa-home nav-icon"></i>
-                            <p>
-                                Home
-                            </p>
-                        </a>
-                    </li>
-
+                <!-- A column as tall as the sidebar, so About can sit at its bottom -->
+                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false"
+                    style="min-height: calc(100vh - 4.5rem);">
                     <li class="nav-item">
                         <a href="/status/" class="nav-link {% if '/status/' in request.path %}active{% endif %}">
                             <i class="fas fa-tachometer-alt nav-icon"></i>
@@ -158,14 +147,6 @@
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a href="/wireguard_webadmin/" class="nav-link {% if '/wireguard_webadmin/' in request.path %}active{% endif %}">
-                            <i class="fas fa-project-diagram nav-icon"></i>
-                            <p>
-                                WireGuard WebAdmin
-                            </p>
-                        </a>
-                    </li>
 
                     <li class="nav-item">
                         <a href="/audit_log/login_history/" class="nav-link {% if '/audit_log/' in request.path %}active{% endif %}">
@@ -176,6 +157,15 @@
                         </a>
                     </li>
 
+
+                    <li class="nav-item mt-auto">
+                        <a href="/about/" class="nav-link {% if '/about/' in request.path %}active{% endif %}">
+                            <i class="fas fa-info-circle nav-icon"></i>
+                            <p>
+                                About
+                            </p>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <!-- /.sidebar-menu -->
@@ -230,7 +220,7 @@
     </div>
     <!-- /.content-wrapper -->
     <footer class="main-footer">
-        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-danger' id="btn_update_changelog">Update Available</a>{% else %}routerfleet {% endif %}
+        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-warning' id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener">Update available: {{ webadmin_version.latest_version }}</a>{% else %}RouterFleet Improved{% endif %}
         <div class="float-right d-none d-sm-inline-block">
             <b>Version</b> {{ webadmin_version.current_version }}
         </div>
@@ -306,12 +296,13 @@
     $(document).ready(function() {
         const webadminVersion = '{{ webadmin_version.current_version }}';
         const changelogUrl = '{{ webadmin_version.changelog_url|escapejs }}';
-        $('#btn_update_changelog').on('click', function() {
+        $('#btn_update_changelog').on('click', function(event) {
             if (!changelogUrl) {
-                // No changelog endpoint configured for this installation, so
-                // there is nothing to fetch and nothing to show.
+                // No changelog endpoint of the operator's own: the link opens
+                // the release on GitHub, which carries the notes
                 return;
             }
+            event.preventDefault();
             $.ajax({
                 url: `${changelogUrl}${changelogUrl.includes('?') ? '&' : '?'}app=routerfleet&version=${webadminVersion}`,
                 type: 'GET',

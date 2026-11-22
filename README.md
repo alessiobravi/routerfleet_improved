@@ -78,7 +78,7 @@ encrypted with.
 | [Devices](docs/devices.md) | Device types, inventory, version states, the device list |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
-| [Monitoring](docs/monitoring.md) | Reachability checks and downtime records |
+| [Monitoring](docs/monitoring.md) | Reachability checks, downtime records, Zabbix |
 | [Notifications](docs/notifications.md) | Channels, concatenation, daily reports |
 | [Audit log](docs/audit-log.md) | Login history and the change log |
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |

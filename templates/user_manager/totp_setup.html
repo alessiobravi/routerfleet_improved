@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-3">
+    <div class="card card-primary card-outline">
+        <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-shield-alt"></i> Authenticator app</h3>
+        </div>
+        <div class="card-body">
+        {% if totp.confirmed %}
+            <p>The authenticator app is <strong>on</strong>. To turn it off, enter a current code from it.
+               If the phone is lost, ask an administrator to reset your second factors instead.</p>
+            <form method="post" class="form-inline" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="disable">
+                <input type="text" name="code" class="form-control mr-2" inputmode="numeric" maxlength="7"
+                       autocomplete="one-time-code" placeholder="123456" required>
+                <button type="submit" class="btn btn-danger">Turn off</button>
+                <a href="/user/settings/" class="btn btn-outline-secondary ml-2">Back</a>
+            </form>
+        {% else %}
+            <div class="row">
+                <div class="col-md-5 text-center">
+                    <div class="d-inline-block border p-2 bg-white">{{ qr_svg|safe }}</div>
+                    <p class="small text-muted mt-2">Can't scan? Enter this key in the app:<br>
+                        <code class="user-select-all">{{ secret }}</code></p>
+                </div>
+                <div class="col-md-7">
+                    <ol>
+                        <li>Open an authenticator app on your phone (any app that supports TOTP codes).</li>
+                        <li>Add an account and scan the code, or type the key shown below it.</li>
+                        <li>Enter the 6-digit code the app shows, to confirm.</li>
+                    </ol>
+                    <form method="post" class="form-inline" autocomplete="off">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="enable">
+                        <input type="text" name="code" class="form-control mr-2" inputmode="numeric" maxlength="7"
+                               autocomplete="one-time-code" placeholder="123456" autofocus required>
+                        <button type="submit" class="btn btn-primary">Turn on</button>
+                        <a href="/user/settings/" class="btn btn-outline-secondary ml-2">Cancel</a>
+                    </form>
+                    <p class="small text-muted mt-3">Until a code is confirmed nothing changes: signing in keeps asking
+                        for your password only.</p>
+                </div>
+            </div>
+        {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, JsonResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from backup_data.models import RouterBackup
@@ -65,15 +65,38 @@ def get_directory_statistics(directory_path):
 
 @login_required
 def view_dashboard(request):
-    context = {'page_title': 'Welcome to routerfleet'}
-    return render(request, 'dashboard/welcome.html', context=context)
+    # The status page is the home page
+    return redirect('/status/')
+
+
+@login_required
+def view_about(request):
+    context = {'page_title': 'About', 'routerfleet_version': settings.ROUTERFLEET_RELEASE}
+    return render(request, 'dashboard/about.html', context=context)
+
+
+def update_check_state():
+    """What the update card shows: off, not checked yet, up to date, or the
+    version there is to update to."""
+    from routerfleet.versioning import from_number
+    from routerfleet_tools.models import WebadminSettings
+    from routerfleet_tools.views import check_enabled
+    webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+    available = webadmin_settings.update_available and webadmin_settings.latest_version > settings.ROUTERFLEET_VERSION
+    return {
+        'enabled': check_enabled(),
+        'checked': webadmin_settings.last_checked is not None,
+        'available': available,
+        'latest': from_number(webadmin_settings.latest_version) if available else settings.ROUTERFLEET_RELEASE,
+        'releases_url': getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/releases/latest',
+    }
 
 
 @login_required
 def view_status(request):
     settings.MEDIA_ROOT
     context = {
-        'page_title': 'Welcome to routerfleet',
+        'page_title': 'Status',
         'media_root_stats': get_directory_statistics(settings.MEDIA_ROOT),
         'queue': RouterBackup.objects.filter(success=False, error=False).count(),
         'success_backup_last_24h': RouterBackup.objects.filter(success=True, created__gte=timezone.now() - timedelta(days=1)).count(),
@@ -86,6 +109,7 @@ def view_status(request):
         'router_not_monitored_count': Router.objects.filter(enabled=True, monitoring=False).count(),
         'update_state': update_state_counts(),
         'routerfleet_version': settings.ROUTERFLEET_RELEASE,
+        'update_check': update_check_state(),
     }
 
     return render(request, 'dashboard/status.html', context=context)

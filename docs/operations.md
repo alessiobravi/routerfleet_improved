@@ -127,10 +127,12 @@ Without a verification, a command is judged on its exit code alone. Add
 verification commands and an expected result to the variant — see
 [Fleet Commander](fleet-commander.md#verified-results).
 
-### The "update available" badge never appears
+### The update card stays grey
 
-The application update check is **off by default** and makes no outbound
-request. Set `UPDATE_CHECK_URL` to an endpoint of your own to enable it.
+The status page's update card is grey before the first check (within an hour of
+starting) and when `UPDATE_CHECK=off`. Otherwise the check asks GitHub about
+once an hour; if the host cannot reach `api.github.com`, the card keeps its last
+answer. An endpoint of your own can be set with `UPDATE_CHECK_URL`.
 
 ## Local development
 

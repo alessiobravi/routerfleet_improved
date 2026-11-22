@@ -88,7 +88,6 @@ class Fixture(TestCase):
             ('/router/import_tool/csv/', 50, 'page'),
             (f'/router/import_tool/details/?uuid={self.csv.uuid}', 50, 'page'),
             (f'/router/import_tool/run_import_task/?uuid={self.import_task.uuid}', 50, 'page'),
-            ('/wireguard_webadmin/manage/', 50, 'page'),
         ]
 
     def gated_posts(self):
@@ -100,10 +99,10 @@ class Fixture(TestCase):
 
     # Pages behind a sign-in and nothing else
     login_only = [
-        '/', '/status/', '/router_status_data/', '/backup_statistics_data/',
+        '/status/', '/about/', '/router_status_data/', '/backup_statistics_data/',
         '/router/list/', '/router/group_list/', '/router/ssh_keys/',
         '/backup/profile_list/', '/backup/backup_list/', '/backup/backup_list/?type=queue',
-        '/backup/backup_list/?type=errors', '/wireguard_webadmin/', '/user/settings/',
+        '/backup/backup_list/?type=errors', '/user/settings/',
     ]
 
     def login_only_with_objects(self):
@@ -171,6 +170,9 @@ class LevelGateTests(Fixture):
                 self.assertNotIn(DENIED_TEMPLATE, [t.name for t in response.templates])
 
 
+# The update check is off here: these tests are about who may call the
+# scheduler's routes, and must not reach the network
+@override_settings(UPDATE_CHECK=False)
 class CronEndpointTests(TestCase):
     """The scheduler's endpoints: no authentication, but never through a proxy."""
 
@@ -380,7 +382,7 @@ class CsrfTests(Fixture):
         from django.test import Client
         self.browser = Client(enforce_csrf_checks=True)
         self.browser.force_login(make_user(50))
-        self.browser.get('/')  # receives the CSRF cookie, as a real browser would
+        self.browser.get('/status/')  # receives the CSRF cookie, as a real browser would
         self.token = self.browser.cookies['csrftoken'].value
 
     def actions(self):

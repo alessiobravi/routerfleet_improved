@@ -310,11 +310,6 @@ def build():
           # A single row with no name of its own
           repr=lambda instance: 'Message settings')
 
-    watch(apps.get_model('integration_manager', 'ExternalIntegration'),
-          fields=['name', 'integration_type', 'integration_url',
-                  'wireguard_webadmin_default_user_level', 'token'],
-          create=False, redact=('token',))
-
     # A user and their level. address_link is deliberately missing: it is the
     # self-service link a person sets for themselves, not a permission.
     watch(apps.get_model(settings.AUTH_USER_MODEL),
@@ -323,4 +318,12 @@ def build():
           create=True, redact=('password',))
     watch(apps.get_model('user_manager', 'UserAcl'),
           fields=['user', 'user_level'],
+          create=True)
+
+    # Second factors: that one was turned on, off or reset, never the secret
+    watch(apps.get_model('user_manager', 'UserTotp'),
+          fields=['user', 'confirmed'],
+          create=True)
+    watch(apps.get_model('user_manager', 'UserPasskey'),
+          fields=['user', 'name', 'rp_id'],
           create=True)

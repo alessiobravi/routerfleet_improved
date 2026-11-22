@@ -10,6 +10,44 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.12.0] - 2026-11-22
+
+### Added
+- **Second factors.** Each user can turn on an **authenticator app** (TOTP,
+  RFC 6238): signing in then asks for the password and a 6-digit code, each code
+  is accepted once, and wrong codes count towards the sign-in lockout. And
+  **passkeys**: sign in without a password, with the device's fingerprint, face
+  or PIN. Both are managed in *My Settings*; an administrator can reset a user's
+  second factors, and `manage.py reset_mfa` covers a locked-out sole
+  administrator. Passkeys need the installation to be opened by a name with a
+  trusted certificate - a browser rule - while the authenticator app works
+  everywhere.
+- **Update card on the status page:** green when this is the latest release,
+  yellow with the version to update to when there is a newer one. The update
+  check is now **on by default**: about once an hour it asks GitHub for the
+  latest release, with nothing about the installation in the request.
+  `UPDATE_CHECK=off` in `.env` turns it off.
+- **Zabbix monitoring kit** in `contrib/zabbix/`: per-device backup age and
+  result, fleet counters and a self-monitoring collector. Its database role can
+  read only the ten columns it needs - not the device passwords, not the
+  backed-up configurations - and CI runs it against a real database.
+
+### Changed
+- **The home page is the status page.** The former welcome text is the
+  **About** page, at the bottom of the menu.
+- Status cards are all the same size. **Failed Backups (24h)** and
+  **Unmonitored Routers** (renamed from Not Monitored Routers) are green at 0.
+  **Routers Up To Date** and **Routers Missing Updates** are hidden while they
+  count nothing.
+- The title is **RouterFleet Improved** throughout the interface.
+
+### Removed
+- **The WireGuard WebAdmin integration**, with its menu entry and pages. An
+  upgrade drops its table and the token stored in it.
+
+### Fixed
+- A schedule could be saved with an end before its start; it is refused now.
+
 ## [0.11.5] - 2026-11-22 - First public release
 
 The first public release of RouterFleet Improved: backup, inventory,

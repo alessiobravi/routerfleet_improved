@@ -11,6 +11,17 @@
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
 
+    /* Every card the same size, whatever it holds: the column stretches to
+       the tallest card of its row, and each card fills its column */
+    .status-cards .col-md-3 {
+        display: flex;
+    }
+
+    .status-cards .info-box {
+        width: 100%;
+        min-height: 112px;
+    }
+
 </style>
 <div class="row">
     <!-- Left Column for General Information -->
@@ -24,7 +35,7 @@
                 </h3>
             </div>
             {% endif %}
-            <div class="card-body">
+            <div class="card-body status-cards">
                 <div class="row mb-4">
                     <!-- Used Storage -->
                     <div class="col-md-3">
@@ -70,8 +81,8 @@
 
                     <!-- Failed Backups -->
                     <div class="col-md-3">
-                        <div class="info-box bg-danger">
-                            <span class="info-box-icon"><i class="fas fa-times-circle"></i></span>
+                        <div class="info-box {% if error_backup_last_24h %}bg-danger{% else %}bg-success{% endif %}">
+                            <span class="info-box-icon"><i class="fas {% if error_backup_last_24h %}fa-times-circle{% else %}fa-check-circle{% endif %}"></i></span>
                             <div class="info-box-content">
                                 <span class="info-box-text">Failed Backups (24h)</span>
                                 <span class="info-box-number">{{ error_backup_last_24h }}</span>
@@ -126,12 +137,53 @@
                     </div>
                 </div>
                 <div class="row mb-4">
-                    <!-- Not Monitored Routers -->
+                    <!-- RouterFleet Improved updates -->
                     <div class="col-md-3">
-                        <div class="info-box bg-secondary">
-                            <span class="info-box-icon"><i class="fas fa-question-circle"></i></span>
+                        {% if not update_check.enabled %}
+                        <div class="info-box bg-secondary" title="UPDATE_CHECK=off: this installation does not look for new releases">
+                            <span class="info-box-icon"><i class="fas fa-sync-alt"></i></span>
                             <div class="info-box-content">
-                                <span class="info-box-text">Not Monitored Routers</span>
+                                <span class="info-box-text">Update check off</span>
+                                <span class="info-box-number">{{ routerfleet_version }}</span>
+                            </div>
+                        </div>
+                        {% elif update_check.available %}
+                        <div class="info-box bg-warning">
+                            <span class="info-box-icon"><i class="fas fa-cloud-download-alt"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Update available</span>
+                                <span class="info-box-number">{{ update_check.latest }}</span>
+                                <span class="progress-description">
+                                    running {{ routerfleet_version }} &middot;
+                                    <a href="{{ update_check.releases_url }}" target="_blank" rel="noopener" class="text-dark"><u>release notes</u></a>
+                                </span>
+                            </div>
+                        </div>
+                        {% elif update_check.checked %}
+                        <div class="info-box bg-success" title="This is the latest release">
+                            <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Up to date</span>
+                                <span class="info-box-number">{{ routerfleet_version }}</span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="info-box bg-secondary" title="The first check runs within an hour of starting">
+                            <span class="info-box-icon"><i class="fas fa-sync-alt"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Updates not checked yet</span>
+                                <span class="info-box-number">{{ routerfleet_version }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Unmonitored Routers -->
+                    <div class="col-md-3">
+                        <div class="info-box {% if router_not_monitored_count %}bg-secondary{% else %}bg-success{% endif %}">
+                            <span class="info-box-icon"><i class="fas {% if router_not_monitored_count %}fa-question-circle{% else %}fa-check-circle{% endif %}"></i></span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Unmonitored Routers</span>
                                 <span class="info-box-number">{{ router_not_monitored_count }}</span>
                             </div>
                         </div>
@@ -140,6 +192,7 @@
                 <!-- How far the devices are with their OS version. The same rule
                      as the colours of the router list, so both agree -->
                 <div class="row mb-4">
+                    {% if update_state.up_to_date %}
                     <div class="col-md-3">
                         <div class="info-box bg-success"
                              title="The devices that run the version they could update to">
@@ -150,7 +203,9 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
+                    {% if update_state.update_waiting %}
                     <div class="col-md-3">
                         <div class="info-box bg-danger"
                              title="The devices whose OS version is behind the one they could update to">
@@ -161,6 +216,7 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
 
                     <div class="col-md-3">
                         <div class="info-box bg-secondary"

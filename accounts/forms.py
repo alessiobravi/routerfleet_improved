@@ -35,6 +35,7 @@ class LoginForm(forms.Form):
         # recorded with the address it came from
         super().__init__(*args, **kwargs)
         self.request = request
+        self.user = None
 
     def clean(self):
         cleaned_data = super().clean()
@@ -49,6 +50,8 @@ class LoginForm(forms.Form):
                     f"Too many failed sign-in attempts. Try again in {minutes} minutes."))
                 return cleaned_data
             user = authenticate(self.request, username=username, password=password)
+            # Kept for the view: the account the password belongs to
+            self.user = user
             if not user:
                 self.add_error(None, ValidationError("Invalid username or password."))
         else:

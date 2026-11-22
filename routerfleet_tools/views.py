@@ -8,55 +8,67 @@ from routerfleet.versioning import to_number
 from routerlib.decorators import cron_endpoint
 
 
+def check_enabled():
+    return bool(getattr(settings, 'UPDATE_CHECK_URL', '')) or bool(getattr(settings, 'UPDATE_CHECK', True))
+
+
+def _ask_custom_endpoint(url):
+    """An operator's own endpoint: answers update_available and current_version."""
+    separator = '&' if '?' in url else '?'
+    response = requests.get(f'{url}{separator}app=routerfleet&version={settings.ROUTERFLEET_RELEASE}', timeout=10)
+    response.raise_for_status()
+    data = response.json()
+    if 'update_available' not in data:
+        raise ValueError('no update_available in the answer')
+    latest = to_number(data['current_version']) if data['update_available'] else None
+    return bool(data['update_available']), latest
+
+
+def _ask_github():
+    """The latest release of the project on GitHub. Only the newest release is
+    published there, so "latest" is exactly the version to update to."""
+    response = requests.get(settings.UPDATE_RELEASES_API, timeout=10, headers={
+        'Accept': 'application/vnd.github+json', 'User-Agent': 'RouterFleet-Improved-update-check'})
+    response.raise_for_status()
+    latest = to_number(str(response.json()['tag_name']).removeprefix('v'))
+    return latest > settings.ROUTERFLEET_VERSION, latest
+
+
 @cron_endpoint
 def view_cron_check_updates(request):
-    webadmin_settings, webadmin_settings_created = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+    webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     webadmin_settings.cron_last_run = timezone.now()
     webadmin_settings.save()
 
-    update_check_url = getattr(settings, 'UPDATE_CHECK_URL', '')
-    if not update_check_url:
-        # No endpoint configured: nothing to ask, and nothing is reported. The
-        # cron run itself is still recorded above, which is what the dashboard
-        # reads to tell whether the scheduler is alive. A flag left over from
-        # before - a database upgraded from an installation that once heard of
-        # an update - is cleared, or it would be shown and appended to every
-        # message forever.
+    if not check_enabled():
+        # Turned off: nothing is asked and nothing is reported. The cron run is
+        # still recorded above, which is how the status page tells whether the
+        # scheduler is alive. A flag left over from before is cleared, or it
+        # would be shown forever.
         if webadmin_settings.update_available:
             webadmin_settings.update_available = False
             webadmin_settings.save(update_fields=['update_available'])
         return JsonResponse({'update_available': False})
 
-    if webadmin_settings.last_checked is None or timezone.now() - webadmin_settings.last_checked > timezone.timedelta(
-            hours=1):
+    # At most once an hour - counted from the last attempt, so a source that is
+    # down is not asked on every scheduler run
+    if webadmin_settings.last_checked is None or \
+            timezone.now() - webadmin_settings.last_checked > timezone.timedelta(hours=1):
+        webadmin_settings.last_checked = timezone.now()
+        custom = getattr(settings, 'UPDATE_CHECK_URL', '')
         try:
-            version = settings.ROUTERFLEET_RELEASE
-            separator = '&' if '?' in update_check_url else '?'
-            url = f'{update_check_url}{separator}app=routerfleet&version={version}'
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-
-            if 'update_available' in data:
-                webadmin_settings.update_available = data['update_available']
-
-                if data['update_available']:
-                    # The endpoint answers with the newest release, MAJOR.MINOR.PATCH
-                    webadmin_settings.latest_version = to_number(data['current_version'])
-
-                webadmin_settings.last_checked = timezone.now()
-                webadmin_settings.save()
-
-                response_data = {
-                    'update_available': webadmin_settings.update_available,
-                    'latest_version': webadmin_settings.latest_version,
-                    'current_version': settings.ROUTERFLEET_VERSION,
-                }
-                return JsonResponse(response_data)
-
+            available, latest = _ask_custom_endpoint(custom) if custom else _ask_github()
         except Exception:
-            webadmin_settings.update_available = False
-            webadmin_settings.save()
-            return JsonResponse({'update_available': False})
+            # The previous answer stands; the next attempt comes in an hour
+            webadmin_settings.save(update_fields=['last_checked'])
+            return JsonResponse({'update_available': webadmin_settings.update_available})
+        webadmin_settings.update_available = available
+        if latest is not None:
+            webadmin_settings.latest_version = latest
+        webadmin_settings.save()
 
-    return JsonResponse({'update_available': webadmin_settings.update_available})
+    return JsonResponse({
+        'update_available': webadmin_settings.update_available,
+        'latest_version': webadmin_settings.latest_version,
+        'current_version': settings.ROUTERFLEET_VERSION,
+    })

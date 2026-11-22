@@ -64,6 +64,9 @@ jobs:
           SECRET_KEY = '$(python -c "import secrets; print(secrets.token_urlsafe(48))")'
           DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'test.sqlite3'}}
           MONITORING_KEY = 'ci-monitoring-key'
+          # A test that forgets to mock the update check fails here instead of
+          # asking GitHub: nothing listens on port 9 of the runner
+          UPDATE_RELEASES_API = 'http://127.0.0.1:9/no-network-in-tests'
           PY
 
       - name: System check and migrations
@@ -167,6 +170,46 @@ jobs:
           done
           echo "::error::no /cron/ request reached the application within 90 seconds"
           exit 1
+
+      # The Zabbix collector in contrib/zabbix, against this very database and
+      # through the narrow role it documents: every value it reports, and
+      # everything that role must not be able to read
+      - name: Zabbix collector against the running database
+        run: |
+          set -x
+          C=contrib/zabbix/scripts/zbx-routerfleet.sh
+          bash -n "${C}"
+          sed "s/'CHANGE_ME'/'ci-$(openssl rand -hex 12)'/" contrib/zabbix/sql/zbx_monitor.sql \
+            | docker exec -i routerfleet-postgres psql -v ON_ERROR_STOP=1 -U routerfleet -d routerfleet
+          # One router with a backup profile: a successful backup, then a failed one
+          docker exec -i routerfleet python manage.py shell <<'PY'
+          from django.utils import timezone
+          from backup.models import BackupProfile
+          from backup_data.models import RouterBackup
+          from router_manager.models import Router
+          profile = BackupProfile.objects.create(name='ci-zabbix')
+          router = Router.objects.create(name='ci-zabbix-router', address='192.0.2.10', router_type='routeros',
+                                         backup_profile=profile, monitoring=False, password='ci-placeholder')
+          RouterBackup.objects.create(router=router, schedule_type='daily', success=True, finish_time=timezone.now())
+          RouterBackup.objects.create(router=router, schedule_type='daily', error=True)
+          PY
+          test "$(bash "${C}" probe)" = 1
+          DISCOVERY=$(bash "${C}" discovery)
+          UUID=$(python3 -c 'import json,sys; d=json.loads(sys.argv[1])["data"]; print(next(x["{#UUID}"] for x in d if x["{#ROUTER}"]=="ci-zabbix-router"))' "${DISCOVERY}")
+          test "$(bash "${C}" routers)" = 1
+          test "$(bash "${C}" failing)" = 1
+          test "$(bash "${C}" result "${UUID}")" = 0
+          AGE=$(bash "${C}" age "${UUID}")
+          test "${AGE}" -ge 0 && test "${AGE}" -lt 3600
+          test "$(bash "${C}" age not-a-uuid)" = 999999999
+          # The role reads the columns it needs and nothing else
+          for QUERY in "SELECT password FROM router_manager_router" \
+                       "SELECT backup_text FROM backup_data_routerbackup" \
+                       "SELECT private_key FROM router_manager_sshkey"; do
+            if docker exec routerfleet-postgres psql -U zbx_monitor -d routerfleet -Atc "${QUERY}"; then
+              echo "::error::the monitoring role can run: ${QUERY}"; exit 1
+            fi
+          done
 
       - name: Install Trivy
         run: scripts/install_trivy.sh "$HOME/.local/bin"

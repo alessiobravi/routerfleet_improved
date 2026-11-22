@@ -31,12 +31,38 @@ class StatusPageTests(TestCase):
         self.assertEqual((context['success_backup_last_24h'], context['error_backup_last_24h']), (1, 1))
         self.assertEqual(context['update_state']['up_to_date'], 1)
 
-    def test_welcome_page_links_come_from_settings(self):
+    def test_about_page_links_come_from_settings(self):
         with self.settings(PROJECT_REPOSITORY_URL='https://example.org/repo',
                            PROJECT_SUPPORT_URL='https://example.org/help'):
-            response = self.client.get('/')
+            response = self.client.get('/about/')
         self.assertContains(response, 'https://example.org/repo')
         self.assertContains(response, 'https://example.org/help')
+        self.assertContains(response, 'MIT License')
+
+    def test_the_home_page_is_the_status_page(self):
+        self.assertRedirects(self.client.get('/'), '/status/', fetch_redirect_response=False)
+        menu = self.client.get('/status/').content.decode()
+        self.assertIn('href="/about/"', menu)
+        # About is the last entry of the menu
+        self.assertGreater(menu.index('href="/about/"'), menu.index('href="/audit_log/login_history/"'))
+
+    def test_cards_follow_what_they_count(self):
+        from backup_data.models import RouterBackup
+        from router_manager.models import Router
+        page = self.client.get('/status/').content.decode()
+        # Nothing failed and every device is monitored: both cards green
+        self.assertRegex(page, r'info-box bg-success">\s*<span class="info-box-icon"><i class="fas fa-check-circle"></i></span>\s*<div class="info-box-content">\s*<span class="info-box-text">Failed Backups')
+        self.assertIn('Unmonitored Routers', page)
+        self.assertNotIn('Not Monitored', page)
+        # No version information: the update cards are not shown at all
+        self.assertNotIn('Routers Up To Date', page)
+        self.assertNotIn('Routers Missing Updates', page)
+
+        router = Router.objects.create(name='u1', address='10.0.0.9', router_type='routeros', monitoring=False)
+        RouterBackup.objects.create(router=router, schedule_type='daily', error=True)
+        page = self.client.get('/status/').content.decode()
+        self.assertIn('info-box bg-danger">\n                            <span class="info-box-icon"><i class="fas fa-times-circle"></i></span>', page)
+        self.assertRegex(page, r'info-box bg-secondary">\s*<span class="info-box-icon"><i class="fas fa-question-circle"></i></span>\s*<div class="info-box-content">\s*<span class="info-box-text">Unmonitored Routers')
 
 
 class ChartDataTests(TestCase):

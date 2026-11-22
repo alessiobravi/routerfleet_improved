@@ -1,0 +1,181 @@
+zabbix_export:
+  version: '8.0'
+  template_groups:
+    - uuid: c6a5846ceb4149ed9df893626b821e01
+      name: Templates/Applications
+  templates:
+    - uuid: 046b14e41b1f40afa1f0a1fc40e45cf8
+      template: 'RouterFleet by Zabbix agent'
+      name: 'RouterFleet by Zabbix agent'
+      description: |
+        Monitors a RouterFleet installation through the Zabbix agent on the
+        Docker host, reading the RouterFleet PostgreSQL database with a
+        read-only role.
+
+        Requires scripts/zbx-routerfleet.sh and agent/routerfleet.conf from the
+        same distribution, and the zbx_monitor role created by sql/zbx_monitor.sql.
+
+        The authoritative health signal is backup AGE, not backup RESULT.
+        RouterFleet does not backfill a missed backup, so a growing age always
+        means backups are not completing. See docs/design-notes.md.
+      groups:
+        - name: Templates/Applications
+      items:
+        - uuid: d7c3f7250a1c41bf89428bcfdeae17db
+          name: 'RouterFleet: collector probe'
+          key: routerfleet.probe
+          delay: 5m
+          history: 7d
+          trends: '0'
+          description: |
+            1 when the collector reached the RouterFleet database, 0 otherwise.
+            Without this item a broken collector is indistinguishable from a
+            healthy fleet: every other item simply stops changing.
+          valuemap:
+            name: 'Probe result'
+          tags:
+            - tag: component
+              value: routerfleet
+        - uuid: bece741102f84e03a84da6bfccc14256
+          name: 'RouterFleet: monitored routers'
+          key: routerfleet.routers
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: 'Enabled routers that have a backup profile assigned.'
+          tags:
+            - tag: component
+              value: routerfleet
+        - uuid: cd9169b3c6394a26995e845055f402d3
+          name: 'RouterFleet: routers with a failing backup'
+          key: routerfleet.failing
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: |
+            Routers whose most recent backup ATTEMPT failed, counted fleet-wide.
+            Useful as a single number for a dashboard; the per-router triggers
+            say which device is affected.
+          tags:
+            - tag: component
+              value: routerfleet
+      discovery_rules:
+        - uuid: 86d2fdb8c6ea47e6a70d1100913668a8
+          name: 'RouterFleet routers'
+          key: routerfleet.backup.discovery
+          delay: 1h
+          lifetime: 7d
+          description: |
+            Discovers enabled routers that have a backup profile. A router
+            without a profile is not meant to be backed up, so discovering it
+            would create an item that is permanently and correctly stale.
+          item_prototypes:
+            - uuid: 714464e87d034064b9acf3978f9d9253
+              name: 'RouterFleet backup age: {#ROUTER}'
+              key: 'routerfleet.backup.age[{#UUID}]'
+              delay: 10m
+              history: 90d
+              trends: 365d
+              units: s
+              description: |
+                Seconds since the last SUCCESSFUL backup of this router.
+                999999999 means no successful backup is on record.
+              tags:
+                - tag: component
+                  value: routerfleet
+                - tag: router
+                  value: '{#ROUTER}'
+            - uuid: 5430c69d3adc43c88cfb0f0581a5b23b
+              name: 'RouterFleet backup result: {#ROUTER}'
+              key: 'routerfleet.backup.result[{#UUID}]'
+              delay: 10m
+              history: 90d
+              trends: '0'
+              description: |
+                1 when the most recent backup ATTEMPT succeeded, 0 when it failed.
+                Read docs/design-notes.md before changing the underlying query:
+                the obvious ordering makes this item permanently report success.
+              valuemap:
+                name: 'Backup result'
+              tags:
+                - tag: component
+                  value: routerfleet
+                - tag: router
+                  value: '{#ROUTER}'
+          trigger_prototypes:
+            - uuid: 67de743928644b0fabd721e74f774457
+              expression: 'last(/RouterFleet by Zabbix agent/routerfleet.backup.age[{#UUID}])>{$ROUTERFLEET.BACKUP.MAX_AGE}'
+              name: 'RouterFleet: backup stale on {#ROUTER}'
+              priority: WARNING
+              description: |
+                No successful backup within the allowed window. This is the
+                reliable failure signal: RouterFleet never backfills, so the
+                age only stops growing when a backup actually completes.
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: backup
+            - uuid: 12ca06d5769d4cc2a7864ddb41ac6b6f
+              expression: 'last(/RouterFleet by Zabbix agent/routerfleet.backup.age[{#UUID}])>{$ROUTERFLEET.BACKUP.MAX_AGE.CRIT}'
+              name: 'RouterFleet: backup critically stale on {#ROUTER}'
+              priority: HIGH
+              description: 'Backups have been failing long enough that the stored configuration is no longer a usable recovery point.'
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: backup
+            - uuid: c55b733f97744babb988a63b7a25898d
+              expression: 'last(/RouterFleet by Zabbix agent/routerfleet.backup.result[{#UUID}])=0'
+              name: 'RouterFleet: last backup attempt failed on {#ROUTER}'
+              priority: AVERAGE
+              description: |
+                The most recent attempt failed. A single failure is not yet a
+                data-loss risk - the staleness triggers cover that - but a
+                device failing every night will trip this long before the
+                48-hour window elapses.
+              manual_close: 'YES'
+              tags:
+                - tag: scope
+                  value: backup
+      valuemaps:
+        - uuid: 2abb55311884487a90b3e3eb9e93629c
+          name: 'Probe result'
+          mappings:
+            - value: '0'
+              newvalue: 'Not working'
+            - value: '1'
+              newvalue: 'Working'
+        - uuid: d7b8360940344a7ea46c566985dac873
+          name: 'Backup result'
+          mappings:
+            - value: '0'
+              newvalue: 'Failed'
+            - value: '1'
+              newvalue: 'Succeeded'
+      macros:
+        - macro: '{$ROUTERFLEET.BACKUP.MAX_AGE}'
+          value: 48h
+          description: 'Age beyond which a router backup counts as stale.'
+        - macro: '{$ROUTERFLEET.BACKUP.MAX_AGE.CRIT}'
+          value: 7d
+          description: 'Age beyond which the stored configuration is no longer a usable recovery point.'
+  triggers:
+    - uuid: 25df1dc920164755868bacec432bd896
+      expression: 'last(/RouterFleet by Zabbix agent/routerfleet.probe)=0'
+      name: 'RouterFleet: monitoring collector is not working'
+      priority: HIGH
+      description: |
+        The collector could not query the RouterFleet database. Every other
+        item on this template is therefore unreliable, including the ones
+        that currently look healthy.
+      tags:
+        - tag: scope
+          value: availability
+    - uuid: da97c4df53d144478ac4e9bcd3a1a75a
+      expression: 'nodata(/RouterFleet by Zabbix agent/routerfleet.probe,30m)=1'
+      name: 'RouterFleet: no monitoring data received'
+      priority: AVERAGE
+      description: 'The agent has not reported for 30 minutes.'
+      tags:
+        - tag: scope
+          value: availability

@@ -164,17 +164,20 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.11.5'
+ROUTERFLEET_RELEASE = '0.12.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 
-# Where this installation asks whether a newer version exists, and where the
-# changelog behind the "Update Available" button is read from. Both are empty by
-# default, and with nothing configured no request leaves the installation and no
-# update is ever reported - the check is an optional service an operator points
-# at an endpoint of their own.
+# Whether this installation looks for a newer release. On by default: about
+# once an hour it asks GitHub for the latest release of the project (the request
+# carries nothing about the installation). UPDATE_CHECK=off in .env turns it off,
+# and then no request leaves the installation. UPDATE_CHECK_URL points the check
+# at an endpoint of the operator's own instead, and UPDATE_CHANGELOG_URL is where
+# the "Update Available" button reads release notes from when one is set.
+UPDATE_CHECK = True
 UPDATE_CHECK_URL = ''
 UPDATE_CHANGELOG_URL = ''
+UPDATE_RELEASES_API = 'https://api.github.com/repos/alessiobravi/routerfleet_improved/releases/latest'
 
 # Where the links in the interface go: the "Update Instructions" button and the
 # two buttons on the welcome page.
