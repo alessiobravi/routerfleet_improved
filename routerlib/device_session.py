@@ -16,7 +16,9 @@ import time
 from routerlib.functions import connect_to_ssh
 
 ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
-MORE = re.compile(r'(--More--|---- More ----|-- More --|<--- More --->)\s*$')
+# Pager prompts of the shipped CLIs ("--More--", "---- More ----", Huawei's
+# "<--- More --->"); written with escapes, it is not markup
+MORE = re.compile(r'(--More--|---- More ----|-- More --|\x3c-{3} More -{3}\x3e)\s*$')
 PASSWORD_PROMPT = re.compile(r'(?i)password:\s*$')
 DEFAULT_PROMPT = r'(?m)^[\w.\-@/:()<>\[\]~]{1,63}[>#%$\]]\s*$'
 

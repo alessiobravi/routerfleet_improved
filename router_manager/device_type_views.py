@@ -2,6 +2,7 @@
 new type, and "try on a device" (Administrator only - a device type decides
 what RouterFleet sends to devices)."""
 import json
+import logging
 import re
 from urllib.parse import urlsplit
 
@@ -16,6 +17,7 @@ from user_manager.models import UserAcl
 from . import device_types
 from .models import DeviceType, Router
 
+logger = logging.getLogger(__name__)
 LEVEL = 50
 SLUG = re.compile(r'^[a-z0-9][a-z0-9-]{1,48}$')
 EXTENSION = re.compile(r'^[a-z0-9][a-z0-9.]{0,9}$')
@@ -27,6 +29,27 @@ TEXT_FIELDS = ('name', 'vendor', 'description', 'prompt_pattern', 'session_setup
 BOOL_FIELDS = ('enabled', 'check_device', 'check_vendor', 'check_repository')
 PATTERN_FIELDS = (('prompt_pattern', 'Prompt'), ('test_pattern', 'Recognition pattern'),
                   ('inventory_repeat', 'Line to repeat'), ('text_ignore_pattern', 'Lines to ignore'))
+
+
+def describe_failure(error):
+    """What a failed try says: a fixed sentence per kind of failure, never the
+    exception text itself."""
+    import socket
+    import paramiko
+    from routerlib import device_session, host_keys
+    if isinstance(error, host_keys.HostKeyChanged):
+        return ('The device presented a different host key than the one stored for this address: nothing was sent. '
+                'Use Forget host key on the device if it was replaced.')
+    if isinstance(error, paramiko.AuthenticationException):
+        return 'The device refused the username or password.'
+    if isinstance(error, device_session.SessionError):
+        return ('The shell did not behave as the device type says: no prompt matching the pattern, or the enable '
+                'password was refused.')
+    if isinstance(error, (socket.timeout, TimeoutError)):
+        return 'The device did not answer in time.'
+    if isinstance(error, (ConnectionError, OSError, paramiko.SSHException)):
+        return 'Could not connect over SSH: the address, the port or the network.'
+    return 'The try failed. The logs of the routerfleet container have the details.'
 
 
 def allowed(request):
@@ -257,8 +280,9 @@ def view_device_type_try(request):
         return JsonResponse({'ok': False, 'message': 'Enter the address and port of a device to try on.'})
     try:
         network.check(address, port)
-    except network.Refused as error:
-        return JsonResponse({'ok': False, 'message': f'Not connected: {error}.'})
+    except network.Refused:
+        return JsonResponse({'ok': False, 'message': 'Not connected: that address is RouterFleet itself, its internal '
+                                                     'network, or does not resolve.'})
 
     def lines_of(key, **values):
         if commands is not None:
@@ -292,7 +316,8 @@ def view_device_type_try(request):
                                     'message': f'{len(text.splitlines())} lines', 'output': text[:3000]})
         result['ok'] = all(step['ok'] for step in result['steps'])
     except Exception as error:
-        result['message'] = str(error)[:500]
+        logger.warning('Device type try on a device failed: %s', error.__class__.__name__, exc_info=True)
+        result['message'] = describe_failure(error)
     finally:
         if session is not None:
             session.close()

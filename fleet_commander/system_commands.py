@@ -143,7 +143,8 @@ def payload_of(key, router_type):
     from fleet_commander.models import CommandVariant
     variant = CommandVariant.objects.filter(command__system_key=key, router_type=router_type).first()
     if variant is None:
-        logger.warning(f'System command {key} has no variant for {router_type}: using the default')
+        logger.warning('System command %s has no variant for the device type %r: using the default',
+                       key, str(router_type)[:50].replace('\n', ' '))
         return default_payload(key, router_type)
     return variant.payload or ''
 

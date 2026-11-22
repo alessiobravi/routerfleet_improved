@@ -24,6 +24,11 @@ the Zabbix kit reads, says so under **Monitoring**.
   The page shows when the last check ran.
 
 ### Security
+- **Try on a device** (device types) answers with a fixed sentence per kind of
+  failure - refused login, changed host key, no prompt, no answer - and never
+  with the error text itself; the cause goes to the log. Reported by CodeQL,
+  with two smaller findings: a log line now quotes the device type it names,
+  and the pager pattern is written so it is not mistaken for markup.
 - **Scheduler image**: cosign is built with the fixed releases of the libraries
   that carried known vulnerabilities (go-chi, OpenTelemetry, x/crypto, x/net),
   and without a version stamp a scanner reads as an old cosign release. The

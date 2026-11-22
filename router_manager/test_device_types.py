@@ -357,3 +357,31 @@ class NamedTextPageTests(TestCase):
         self.assertContains(page, 'Text Backup: set')
         self.assertContains(page, 'set system host-name b')
         self.assertTrue(self.second.config_change_detected)
+
+
+class TryFailureTests(TestCase):
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def try_with(self, error):
+        data = {'name': 'X', 'slug': 'try-y', 'session_mode': 'exec', 'text_extension': 'txt',
+                'command_connection_test': 'uname', 'command_inventory': 'uname', 'try_address': '192.0.2.9',
+                'try_port': '22', 'try_username': 'u', 'try_password': 'p'}
+        with mock.patch('console.network.check', return_value='192.0.2.9'), \
+                mock.patch('routerlib.device_session.connect_to_ssh', side_effect=error), \
+                self.assertLogs('router_manager.device_type_views', level='WARNING'):
+            return self.client.post('/system/device-types/try/', data).json()
+
+    def test_failures_are_described_never_echoed(self):
+        import paramiko
+        from routerlib import host_keys
+        cases = ((paramiko.AuthenticationException('secret detail'), 'refused the username or password'),
+                 (host_keys.HostKeyChanged('secret detail'), 'different host key'),
+                 (TimeoutError('secret detail'), 'did not answer in time'),
+                 (OSError('secret detail'), 'Could not connect over SSH'),
+                 (ValueError('secret detail'), 'The try failed'))
+        for error, expected in cases:
+            with self.subTest(error=type(error).__name__):
+                result = self.try_with(error)
+                self.assertIn(expected, result['message'])
+                self.assertNotIn('secret detail', result['message'])
