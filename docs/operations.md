@@ -148,11 +148,12 @@ docker compose logs routerfleet --tail 200
 Look for `ERROR django.request: Internal Server Error:` followed by the path.
 Only the request line and the traceback are logged, never what a form sent.
 
-### The update card stays grey
+### The update icon stays grey
 
-The status page's update card is grey before the first check (within an hour of
+The download icon in the top bar is green on the latest release, yellow when an
+update is available, and grey before the first check (within an hour of
 starting) and when `UPDATE_CHECK=off`. Otherwise the check asks GitHub about
-once an hour; if the host cannot reach `api.github.com`, the card keeps its last
+once an hour; if the host cannot reach `api.github.com`, the icon keeps its last
 answer. An endpoint of your own can be set with `UPDATE_CHECK_URL`.
 
 ## Local development

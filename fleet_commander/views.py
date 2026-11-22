@@ -189,17 +189,13 @@ def view_execute_command(request):
     form = CommandExecuteForm(request.POST or None, command=command)
 
     if form.is_valid():
-        job = create_manual_job(
-            command,
-            routers=form.cleaned_data['routers'],
-            router_groups=form.cleaned_data['router_groups'],
-            user=request.user
-        )
-        if job:
-            messages.success(request, f'Job created for {job.tasks.count()} targets')
-            return redirect(f'/fleet_commander/job/details/?uuid={job.uuid}')
-        else:
-            messages.warning(request, 'No targets selected or found enabled')
+        routers, groups = form.cleaned_data['routers'], form.cleaned_data['router_groups']
+        plan = _execution_plan(command, routers=routers, router_groups=groups)
+        if plan['count']:
+            hidden = [('routers', str(r.pk)) for r in routers] + [('router_groups', str(g.pk)) for g in groups]
+            return _confirm_then_run(request, command, plan, hidden, f'/fleet_commander/command/details/?uuid={command.uuid}',
+                                     routers=routers, router_groups=groups)
+        messages.warning(request, 'No targets selected or found enabled')
 
     context = {
         'form': form,
@@ -207,6 +203,75 @@ def view_execute_command(request):
         'command': command,
     }
     return render(request, 'generic_form.html', context)
+
+
+def _execution_plan(command, routers=None, router_groups=None):
+    """What a manual job would send, as the confirmation page shows it: per
+    device type, the exact payload and verification, the devices it goes to,
+    and the devices left out. The fingerprint changes when any of it does."""
+    import hashlib
+    targets = set()
+    if routers is not None:
+        targets.update(routers.filter(enabled=True))
+    for group in router_groups or []:
+        targets.update(group.routers.filter(enabled=True))
+    variants = {v.router_type: v for v in CommandVariant.objects.filter(command=command, enabled=True).order_by('id')}
+    by_type, skipped = {}, []
+    for router in sorted(targets, key=lambda r: r.name.lower()):
+        variant = variants.get(router.router_type)
+        if variant is None:
+            skipped.append(router)
+            continue
+        by_type.setdefault(router.router_type, {'variant': variant, 'routers': []})['routers'].append(router)
+    groups = [dict(entry, router_type=kind) for kind, entry in sorted(by_type.items())]
+    digest = hashlib.sha256()
+    digest.update(str(command.uuid).encode())
+    for entry in groups:
+        variant = entry['variant']
+        digest.update(f"|{variant.id}|{variant.payload}|{variant.verify_payload}|{variant.verify_expect}".encode())
+        digest.update(','.join(str(r.id) for r in entry['routers']).encode())
+    return {'groups': groups, 'skipped': skipped, 'count': sum(len(e['routers']) for e in groups),
+            'fingerprint': digest.hexdigest()}
+
+
+def _confirm_then_run(request, command, plan, hidden, back_url, routers=None, router_groups=None):
+    """Execution always goes through the confirmation page: the job is created
+    only from a POST that carries the fingerprint of the page the user saw, so
+    a variant edited in between is shown again instead of run."""
+    if request.POST.get('confirmed') and request.POST.get('fingerprint') == plan['fingerprint'] and plan['count']:
+        job = create_manual_job(command, routers=routers, router_groups=router_groups, user=request.user)
+        request.session.pop('router_selection', None)
+        if job:
+            messages.success(request, f'Job created for {job.tasks.count()} targets')
+            return redirect(f'/fleet_commander/job/details/?uuid={job.uuid}')
+        messages.warning(request, 'No targets selected or found enabled')
+        return redirect(back_url)
+    if request.POST.get('confirmed'):
+        messages.warning(request, 'Not executed|What would run changed since the confirmation: check it again.')
+    return render(request, 'fleet_commander/confirm_execution.html', {
+        'page_title': f'Confirm: {command.name}', 'command': command, 'plan': plan,
+        'hidden': hidden, 'back_url': back_url})
+
+
+@login_required()
+def view_execute_on_router(request):
+    """One device: pick a command, see exactly what it will send, confirm."""
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=40).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    router = get_object_or_404(Router, uuid=request.GET.get('uuid') or request.POST.get('router'))
+    back_url = f'/router/details/?uuid={router.uuid}'
+    if request.method == 'POST' and request.POST.get('command'):
+        command = get_object_or_404(Command, uuid=request.POST.get('command'), enabled=True)
+        routers = Router.objects.filter(pk=router.pk)
+        plan = _execution_plan(command, routers=routers)
+        hidden = [('router', str(router.uuid)), ('command', str(command.uuid))]
+        return _confirm_then_run(request, command, plan, hidden, back_url, routers=routers)
+    commands = Command.objects.filter(enabled=True, variants__router_type=router.router_type,
+                                      variants__enabled=True).distinct().order_by('name')
+    return render(request, 'fleet_commander/execute_on_router.html', {
+        'page_title': f'Execute command on {router.name}', 'router': router, 'commands': commands,
+        'recent_tasks': router.commandtask_set.select_related('job__command').order_by('-created')[:10],
+        'back_url': back_url})
 
 
 @login_required()
@@ -245,19 +310,12 @@ def view_run_command_multiple(request):
             messages.warning(request, 'No variants defined for this command. Please create a variant before executing.')
             return redirect('router_list')
 
-        job = create_manual_job(
-            command,
-            routers=routers,
-            router_groups=None,
-            user=request.user
-        )
-        request.session.pop('router_selection', None)
-        if job:
-            messages.success(request, f'Job created for {job.tasks.count()} targets')
-            return redirect(f'/fleet_commander/job/details/?uuid={job.uuid}')
-        else:
+        plan = _execution_plan(command, routers=routers)
+        if not plan['count']:
             messages.warning(request, 'No targets selected or found enabled')
             return redirect('router_list')
+        hidden = [('router_uuids', str(r.uuid)) for r in routers] + [('command', str(command.uuid))]
+        return _confirm_then_run(request, command, plan, hidden, '/router/list/', routers=routers)
 
     # GET request - display form
     router_uuids = request.session.get('router_selection') or request.GET.getlist('routers[]')

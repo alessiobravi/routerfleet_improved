@@ -1,3 +1,4 @@
+import io
 import json
 from unittest import mock
 
@@ -270,6 +271,33 @@ class RouterOSInformationTests(TestCase):
         self.assertEqual(router_functions._parse_routeros_update_info(
             {'installed-version': '7.17', 'latest-version': '7.17'}, {}), ('7.17', False))
 
+    def test_ahead_of_the_channel_is_not_an_update(self, _sleep):
+        self.assertEqual(router_functions._parse_routeros_update_info(
+            {'installed-version': '7.18beta2', 'latest-version': '7.17'}, {}), ('7.17', False))
+        self.assertFalse(router_functions._parse_routeros_update_info(
+            {'latest-version': '7.17'}, {'version': '7.17 (stable)'})[1])
+
+    def test_a_slow_update_server_is_waited_for(self, sleep):
+        answers = iter(['installed-version: 7.16.2\nstatus: finding out latest version...\n',
+                        'installed-version: 7.16.2\nstatus: finding out latest version...\n',
+                        'installed-version: 7.16.2\nlatest-version: 7.17\nstatus: New version is available\n'])
+
+        class Client:
+            def exec_command(self, command):
+                body = next(answers) if command.endswith('print') else ''
+                return None, io.BytesIO(body.encode()), io.BytesIO()
+        info = router_functions._get_routeros_update_info(Client())
+        self.assertEqual(info['latest-version'], '7.17')
+        self.assertEqual(sleep.call_count, 3)
+
+    def test_the_wait_is_bounded(self, sleep):
+        class Client:
+            def exec_command(self, command):
+                return None, io.BytesIO(b'status: finding out latest version...\n'), io.BytesIO()
+        self.assertNotIn('latest-version', router_functions._get_routeros_update_info(Client()))
+        self.assertEqual(sleep.call_count * router_functions.ROUTEROS_UPDATE_CHECK_DELAY,
+                         router_functions.ROUTEROS_UPDATE_CHECK_TIMEOUT)
+
     def test_installed_falls_back_to_resource_version(self, _sleep):
         self.assertEqual(router_functions._parse_routeros_update_info(
             {'latest-version': '7.18'}, {'version': '7.17'}), ('7.18', True))
@@ -332,8 +360,9 @@ class OpenWrtInformationTests(TestCase):
 
     def test_release_without_images_for_the_board_is_not_offered(self):
         with self.fake_requests(boards_with_images=()):
+            # Checked, nothing installable is newer: up to date with what it runs
             self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'ramips/mt7621'}), ('', False))
+                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'ramips/mt7621'}), ('23.05.3', False))
 
     def test_falls_back_to_oldstable_when_stable_has_no_image(self):
         with self.fake_requests(boards_with_images=('23.05.5',)):
@@ -342,6 +371,26 @@ class OpenWrtInformationTests(TestCase):
 
     def test_older_releases_are_not_offered(self):
         with self.fake_requests(stable='23.05.3', oldstable='22.03.7', boards_with_images=('23.05.3', '22.03.7')):
+            self.assertEqual(router_functions.get_openwrt_available_version(
+                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'}), ('23.05.3', False))
+
+    def test_an_up_to_date_device_counts_as_up_to_date(self):
+        # It used to get no version to compare with, and was counted as a
+        # device without information on the status page
+        from router_manager.templatetags.router_tags import os_version_state
+        with self.fake_requests(stable='23.05.3', oldstable='22.03.7'):
+            available, _ = router_functions.get_openwrt_available_version(
+                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'})
+        self.info.os_version, self.info.available_version = '23.05.3', available
+        self.assertEqual(os_version_state(self.info)['css_class'], 'text-success')
+
+    def test_snapshot_and_unreadable_release_list_are_unknown(self):
+        with self.fake_requests():
+            self.assertEqual(router_functions.get_openwrt_available_version(
+                {'VERSION_ID': 'SNAPSHOT', 'OPENWRT_BOARD': 'b'}), ('', False))
+        router_functions._openwrt_release_cache.update({'time': 0, 'stable': '', 'oldstable': ''})
+        with mock.patch('routerlib.router_functions.requests.get', side_effect=OSError('down')), \
+                self.assertLogs('routerlib.router_functions', level='WARNING'):
             self.assertEqual(router_functions.get_openwrt_available_version(
                 {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'}), ('', False))
 

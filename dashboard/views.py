@@ -155,7 +155,6 @@ def status_cards():
     unmonitored = Router.objects.filter(enabled=True, monitoring=False).count()
     total = Router.objects.count()
     versions = update_state_counts()
-    update = update_check_state()
 
     pct = storage['usage_percentage']
     storage_state = ('bad', 'Act') if pct >= 90 else ('warn', 'Look') if pct >= 80 else ('ok', 'OK')
@@ -189,18 +188,6 @@ def status_cards():
                        '/router/list/?state=no_information',
                        'update their router information' if versions['no_information'] else 'every device read'))
     cards.insert(4, _scheduler_card(now))
-    release = settings.ROUTERFLEET_RELEASE
-    if not update['enabled']:
-        cards.append(_card('RouterFleet Improved', release, 'info', 'Off', '/about/', 'update check off'))
-    elif update['available']:
-        cards.append(_card('RouterFleet Improved', update['latest'], 'warn', 'Update', update['releases_url'],
-                           f'update available \u00b7 running {release}', external=True))
-    elif update['checked']:
-        cards.append(_card('RouterFleet Improved', release, 'ok', 'Latest', update['releases_url'],
-                           'the latest release', external=True))
-    else:
-        cards.append(_card('RouterFleet Improved', release, 'info', 'Pending', '/about/',
-                           'updates not checked yet'))
     return cards
 
 

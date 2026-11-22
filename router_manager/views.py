@@ -124,6 +124,7 @@ def view_router_list(request):
         'visible_columns': visible_columns,
         # Not every user has a UserAcl row, the first user created has none
         'address_link': UserAcl.objects.filter(user=request.user).values_list('address_link', flat=True).first() or 'none',
+        'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'router_manager/router_list.html', context=context)
 
@@ -168,6 +169,7 @@ def view_router_details(request):
         'offline_time_last_week': downtime_last_week,
         'last_week_availability': last_week_availability,
         'command_task_list': router.commandtask_set.all().order_by('-created')[:25],
+        'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
 
 

@@ -436,3 +436,19 @@ class UpdateInformationMultipleTests(TestCase):
     def test_without_selection(self):
         self.client.force_login(make_user(30))
         self.assertEqual(self.client.post('/router/update_information/multiple/').status_code, 400)
+
+
+class AirOsUpdateStateTests(TestCase):
+    """airOS has no update check over SSH: its devices are not counted as
+    missing information an information update could fill in."""
+
+    def test_airos_is_left_out_of_the_update_counts(self):
+        from router_manager.models import RouterInformation
+        from router_manager.templatetags.router_tags import os_version_state, update_state_counts
+        router = make_router(router_type='ubiquiti-airos')
+        info, _ = RouterInformation.objects.get_or_create(router=router)
+        info.os_version = '4.14.151'
+        info.save()
+        self.assertEqual(update_state_counts(), {'up_to_date': 0, 'update_waiting': 0, 'no_information': 0})
+        self.assertEqual(os_version_state(info)['css_class'], '')
+        self.assertIn('airOS', os_version_state(info)['title'])

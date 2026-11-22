@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card card-warning card-outline">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-exclamation-triangle text-warning"></i> Confirm: {{ command.name }}</h3></div>
+            <div class="card-body">
+                <p>This sends the commands below to <strong>{{ plan.count }} device{{ plan.count|pluralize }}</strong>.
+                    Read them before you confirm: they run with the device's stored credentials.</p>
+
+                {% for entry in plan.groups %}
+                <div class="border rounded p-3 mb-3">
+                    <h5 class="mb-2">{{ entry.variant.get_router_type_display }}
+                        <small class="text-muted">&middot; {{ entry.routers|length }} device{{ entry.routers|length|pluralize }}</small></h5>
+                    <p class="small mb-2">{% for router in entry.routers %}<span class="badge badge-light border mr-1">{{ router.name }}</span>{% endfor %}</p>
+                    <label class="small text-muted mb-1">Commands to execute</label>
+                    <pre class="bg-dark text-light p-2 rounded mb-2" style="white-space: pre-wrap; word-break: break-word;">{{ entry.variant.payload }}</pre>
+                    {% if entry.variant.verify_payload %}
+                    <label class="small text-muted mb-1">Then, to verify{% if entry.variant.verify_expect %} (expects <code>{{ entry.variant.verify_expect }}</code>){% endif %}</label>
+                    <pre class="bg-light border p-2 rounded mb-0" style="white-space: pre-wrap; word-break: break-word;">{{ entry.variant.verify_payload }}</pre>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                {% if plan.skipped %}
+                <div class="alert alert-secondary py-2">Left out - no variant for their type:
+                    {% for router in plan.skipped %}{{ router.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                {% endif %}
+
+                <form method="post" class="text-center mt-3">
+                    {% csrf_token %}
+                    {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+                    <input type="hidden" name="fingerprint" value="{{ plan.fingerprint }}">
+                    <button type="submit" name="confirmed" value="1" class="btn btn-danger m-1"><i class="fas fa-play"></i> Confirm and execute</button>
+                    <a href="{{ back_url }}" class="btn btn-secondary m-1">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

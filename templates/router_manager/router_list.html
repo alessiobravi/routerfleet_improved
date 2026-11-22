@@ -351,7 +351,10 @@
                                         </td>
                                         {% endif %}
                                         <td class="min-width">
-                                            <a href="/router/manage/?uuid={{ router.uuid }}"><i class="fas fa-edit"></i></a>
+                                            <a href="/router/manage/?uuid={{ router.uuid }}" title="Edit"><i class="fas fa-edit"></i></a>
+                                            {% if can_execute_commands and router.router_type != 'monitoring' %}
+                                            <a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="ml-1" title="Execute command" aria-label="Execute command on {{ router.name }}"><i class="fas fa-terminal"></i></a>
+                                            {% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}

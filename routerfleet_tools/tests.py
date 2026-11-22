@@ -77,33 +77,47 @@ class UpdateCheckTests(TestCase):
         self.assertIn('?token=x&app=routerfleet', get.call_args.args[0])
 
 
-class UpdateCardTests(TestCase):
+class UpdateIndicatorTests(TestCase):
+    """The top bar's download icon, on every page: green on the latest
+    release, yellow when there is an update, grey when off or not checked."""
+
     def setUp(self):
         self.client.force_login(make_user(10))
 
-    def card(self):
-        cards = self.client.get('/status/').context['cards']
-        return next(card for card in cards if card['title'] == 'RouterFleet Improved')
+    def indicator(self, path='/status/'):
+        import re
+        page = self.client.get(path).content.decode()
+        match = re.search(r'<a href="([^"]*)" class="nav-link" id="update-indicator" title="([^"]*)"[^>]*>\s*'
+                          r'<i class="fas fa-cloud-download-alt ([a-z-]+)">', page)
+        self.assertIsNotNone(match, 'the indicator is in the top bar')
+        return match.groups()
 
     def test_not_checked_yet_then_up_to_date(self):
-        self.assertEqual((self.card()['state'], self.card()['chip']), ('info', 'Pending'))
+        self.assertEqual(self.indicator()[2], 'text-secondary')
         from django.utils import timezone
         WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={'last_checked': timezone.now()})
-        card = self.card()
-        self.assertEqual((card['state'], card['chip']), ('ok', 'Latest'))
+        href, title, color = self.indicator()
+        self.assertEqual(color, 'text-success')
+        self.assertIn('the latest release', title)
 
     def test_an_update_is_yellow_with_its_version(self):
         from django.utils import timezone
         WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={
             'last_checked': timezone.now(), 'update_available': True, 'latest_version': 99001002})
-        card = self.card()
-        self.assertEqual((card['state'], card['chip'], card['value']), ('warn', 'Update', '99.1.2'))
-        self.assertTrue(card['href'].endswith('/releases/latest'))
-        self.assertTrue(card['external'])
+        href, title, color = self.indicator('/about/')
+        self.assertEqual(color, 'text-warning')
+        self.assertIn('99.1.2', title)
+        self.assertTrue(href.endswith('/releases/latest'))
 
     @override_settings(UPDATE_CHECK=False)
     def test_off_is_grey(self):
-        self.assertEqual((self.card()['state'], self.card()['chip']), ('info', 'Off'))
+        href, title, color = self.indicator()
+        self.assertEqual((color, href), ('text-secondary', '/about/'))
+        self.assertIn('update check off', title)
+
+    def test_no_version_card_on_the_status_page(self):
+        titles = [card['title'] for card in self.client.get('/status/').context['cards']]
+        self.assertNotIn('RouterFleet Improved', titles)
 
 
 class TemplateTagTests(TestCase):

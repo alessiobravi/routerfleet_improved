@@ -10,7 +10,8 @@ from routerlib.functions import connect_to_ssh
 
 logger = logging.getLogger(__name__)
 
-ROUTEROS_UPDATE_CHECK_DELAY = 5  # seconds to wait for the router to reach MikroTik's update server
+ROUTEROS_UPDATE_CHECK_DELAY = 3  # seconds between reads while the router asks MikroTik's update server
+ROUTEROS_UPDATE_CHECK_TIMEOUT = 15  # how long the answer is waited for at most
 
 OPENWRT_VERSIONS_URL = 'https://downloads.openwrt.org/.versions.json'
 OPENWRT_TARGET_URL = 'https://downloads.openwrt.org/releases/{version}/targets/{board}/profiles.json'
@@ -47,16 +48,27 @@ def _get_routeros_update_info(ssh) -> dict:
     a few seconds after the command has been issued.
     """
     ssh.exec_command('/system package update check-for-updates')
-    time.sleep(ROUTEROS_UPDATE_CHECK_DELAY)
-    stdin, stdout, stderr = ssh.exec_command('/system package update print')
-    return _parse_routeros_key_value_output(stdout.read().decode('utf-8', errors='ignore'))
+    # Read until the router has its answer: a slow update server used to leave
+    # the device counted as having no information after one fixed wait
+    waited, info = 0, {}
+    while waited < ROUTEROS_UPDATE_CHECK_TIMEOUT:
+        time.sleep(ROUTEROS_UPDATE_CHECK_DELAY)
+        waited += ROUTEROS_UPDATE_CHECK_DELAY
+        stdin, stdout, stderr = ssh.exec_command('/system package update print')
+        info = _parse_routeros_key_value_output(stdout.read().decode('utf-8', errors='ignore'))
+        if info.get('latest-version') or 'error' in info.get('status', '').lower():
+            break
+    return info
 
 
 def _parse_routeros_update_info(update_info: dict, resource_info: dict) -> tuple:
     """Return (available_version, update_available) for a RouterOS device."""
+    from router_manager.templatetags.router_tags import compare_versions
     latest_version = update_info.get('latest-version', '')
     installed_version = update_info.get('installed-version', '') or resource_info.get('version', '')
-    update_available = bool(latest_version and installed_version and latest_version != installed_version)
+    # Compared as numbers, by the rule the router list colours with: a device
+    # ahead of its channel, or '7.16.2' against '7.16.2 (stable)', is not behind
+    update_available = compare_versions(installed_version, latest_version) == -1
     return latest_version, update_available
 
 
@@ -113,17 +125,23 @@ def get_openwrt_available_version(os_release: dict) -> tuple:
     """
     installed_version = os_release.get('VERSION_ID', '')
     board = os_release.get('OPENWRT_BOARD', '')
-    if not installed_version or not board:
+    # A snapshot build has no release number to compare with
+    if not installed_version or not board or not installed_version[:1].isdigit():
         return '', False
 
     stable_version, oldstable_version = _openwrt_release_versions()
+    if not stable_version:
+        # The release list could not be read: unknown, not up to date
+        return '', False
     installed_key = _version_key(installed_version)
     for version in (stable_version, oldstable_version):
         if not version or _version_key(version) <= installed_key:
             continue
         if _openwrt_target_available(version, board):
             return version, True
-    return '', False
+    # Checked, and nothing newer is offered for this board: up to date. Left
+    # empty before, which counted an up-to-date device as having no information
+    return installed_version, False
 
 
 def get_router_information(router_information: RouterInformation):

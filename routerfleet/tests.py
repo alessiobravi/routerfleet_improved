@@ -73,6 +73,7 @@ class Fixture(TestCase):
             (f'/fleet_commander/command/manage/?uuid={c}', 40, 'page'),
             (f'/fleet_commander/command/execute/?command_uuid={c}', 40, 'page'),
             ('/fleet_commander/command/execute_multiple/', 40, 'page'),
+            ('/fleet_commander/router/execute/?uuid=00000000-0000-0000-0000-000000000000', 40, 'page'),
             (f'/fleet_commander/variant/manage/?uuid={self.variant.uuid}', 40, 'page'),
             (f'/fleet_commander/schedule/manage/?uuid={self.schedule.uuid}', 40, 'page'),
             ('/fleet_commander/schedule/defaults/', 40, 'page'),

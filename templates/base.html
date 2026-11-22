@@ -38,6 +38,16 @@
     </style>
 
     {% block page_custom_head %}{% endblock%}
+    <style>
+        /* Phones: a table the responsive DataTable does not handle scrolls
+           sideways inside its card instead of widening the page */
+        @media (max-width: 767.98px) {
+            .content-wrapper .table:not(.dataTable):not(.datatables-no-export) {
+                display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+            }
+            .content-wrapper .card-header .card-title { float: none; }
+        }
+    </style>
 </head>
 {% load custom_tags %}
 {% tag_webadmin_version as webadmin_version %}
@@ -63,13 +73,20 @@
 
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto">
+            {% tag_update_state as rf_update_indicator %}
+            <li class="nav-item">
+                <a href="{{ rf_update_indicator.href }}" class="nav-link" id="update-indicator" title="{{ rf_update_indicator.title }}"
+                   aria-label="{{ rf_update_indicator.title }}"{% if rf_update_indicator.external %} target="_blank" rel="noopener"{% endif %}>
+                    <i class="fas fa-cloud-download-alt {{ rf_update_indicator.color }}"></i>
+                </a>
+            </li>
             <li class="nav-item">
                 <a href="/user/settings/" class="nav-link" title="My Settings">
                     <i class="fas fa-user-cog"></i>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="#" class="nav-link" onclick="postAction('/accounts/logout/'); return false;">
+                <a href="#" class="nav-link" title="Sign out" aria-label="Sign out" onclick="postAction('/accounts/logout/'); return false;">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
             </li>
@@ -151,6 +168,15 @@
 
 
                     <li class="nav-item">
+                        <a href="/tools/" class="nav-link {% if '/tools/' in request.path %}active{% endif %}">
+                            <i class="fas fa-toolbox nav-icon"></i>
+                            <p>
+                                Tools
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
                         <a href="/audit_log/login_history/" class="nav-link {% if '/audit_log/' in request.path %}active{% endif %}">
                             <i class="fas fa-clipboard-list nav-icon"></i>
                             <p>
@@ -160,14 +186,6 @@
                     </li>
 
 
-                    <li class="nav-item">
-                        <a href="/tools/" class="nav-link {% if '/tools/' in request.path %}active{% endif %}">
-                            <i class="fas fa-toolbox nav-icon"></i>
-                            <p>
-                                Tools
-                            </p>
-                        </a>
-                    </li>
 
                     <!-- Personal, not administration: at the bottom with About -->
                     <li class="nav-item mt-auto">

@@ -12,7 +12,7 @@ from backup_data.views import view_cron_generate_backup_schedule, view_cron_crea
 from dashboard.views import view_dashboard, view_status, view_about, backup_statistics_data, router_status_data
 from fleet_commander.views import view_command_list, view_command_details, view_manage_command, \
     view_manage_command_variant, view_manage_command_schedule, view_job_list, view_job_details, view_task_details, \
-    view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, \
+    view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, view_execute_on_router, \
     view_abort_command_task, view_abort_command_job, view_schedule_defaults
 from import_tool.views import view_import_tool_list, view_import_csv_file, view_import_details, run_import_task
 from message_center.views import view_message_channel_list, view_manage_message_settings, view_manage_message_channel, \
@@ -111,6 +111,7 @@ urlpatterns = [
     path('fleet_commander/task/abort/', view_abort_command_task, name='fleet_commander_abort_task'),
     path('fleet_commander/job/abort/', view_abort_command_job, name='fleet_commander_abort_job'),
     path('fleet_commander/command/execute_multiple/', view_run_command_multiple, name='fleet_commander_execute_multiple'),
+    path('fleet_commander/router/execute/', view_execute_on_router, name='fleet_commander_execute_on_router'),
     path('cron/create_command_jobs/', view_cron_create_command_jobs, name='cron_create_command_jobs'),
     path('cron/perform_command_tasks/', view_cron_perform_command_tasks, name='cron_perform_command_tasks'),
 ]

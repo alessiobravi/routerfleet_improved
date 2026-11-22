@@ -38,8 +38,14 @@ class CommandViewTests(TestCase):
         command = Command.objects.create(name='C')
         CommandVariant.objects.create(command=command, router_type='routeros', payload='/x')
         router = make_router()
-        response = self.client.post(f'/fleet_commander/command/execute/?command_uuid={command.uuid}',
-                                    {'routers': [router.pk]})
+        url = f'/fleet_commander/command/execute/?command_uuid={command.uuid}'
+        # The selection only shows what would run
+        page = self.client.post(url, {'routers': [router.pk]})
+        self.assertContains(page, 'Confirm and execute')
+        self.assertContains(page, '/x')
+        self.assertFalse(CommandJob.objects.exists())
+        response = self.client.post(url, {'routers': [router.pk], 'confirmed': '1',
+                                          'fingerprint': page.context['plan']['fingerprint']})
         job = CommandJob.objects.get()
         self.assertRedirects(response, f'/fleet_commander/job/details/?uuid={job.uuid}',
                              fetch_redirect_response=False)
@@ -58,8 +64,12 @@ class CommandViewTests(TestCase):
         self.client.post('/fleet_commander/command/execute_multiple/', {'routers[]': [str(a.uuid), str(b.uuid)]})
         self.assertEqual(len(self.client.session['router_selection']), 2)
         self.assertEqual(self.client.get('/fleet_commander/command/execute_multiple/').status_code, 200)
+        selection = {'router_uuids': [str(a.uuid), str(b.uuid)], 'command': str(command.uuid)}
+        page = self.client.post('/fleet_commander/command/execute_multiple/', selection)
+        self.assertContains(page, 'Confirm and execute')
+        self.assertFalse(CommandJob.objects.exists())
         self.client.post('/fleet_commander/command/execute_multiple/',
-                         {'router_uuids': [str(a.uuid), str(b.uuid)], 'command': str(command.uuid)})
+                         dict(selection, confirmed='1', fingerprint=page.context['plan']['fingerprint']))
         self.assertEqual(CommandJob.objects.get().tasks.count(), 2)
         self.assertNotIn('router_selection', self.client.session)
 
@@ -276,3 +286,60 @@ class AddScheduleTests(TestCase):
         self.client.raise_request_exception = False
         self.assertEqual(self.client.get(f'/fleet_commander/schedule/manage/?command_uuid={uuid.uuid4()}').status_code, 404)
         self.assertEqual(self.client.get('/fleet_commander/schedule/manage/').status_code, 404)
+
+
+class ExecuteOnRouterTests(TestCase):
+    """One device, from the router list: pick, review exactly what runs, confirm."""
+
+    def setUp(self):
+        self.client.force_login(make_user(40))
+        self.router = make_router()
+        self.command = Command.objects.create(name='Show Version')
+        self.variant = CommandVariant.objects.create(command=self.command, router_type='routeros',
+                                                     payload='/system resource print', verify_payload='/system package print')
+        other = Command.objects.create(name='OpenWrt only')
+        CommandVariant.objects.create(command=other, router_type='openwrt', payload='uname -a')
+        self.url = f'/fleet_commander/router/execute/?uuid={self.router.uuid}'
+
+    def review(self):
+        return self.client.post(self.url, {'router': str(self.router.uuid), 'command': str(self.command.uuid)})
+
+    def test_only_commands_for_its_type_are_offered(self):
+        page = self.client.get(self.url)
+        self.assertContains(page, 'Show Version')
+        self.assertNotContains(page, 'OpenWrt only')
+
+    def test_the_exact_commands_are_shown_and_nothing_runs_before_confirming(self):
+        page = self.review()
+        self.assertContains(page, '/system resource print')
+        self.assertContains(page, '/system package print')
+        self.assertContains(page, self.router.name)
+        self.assertFalse(CommandJob.objects.exists())
+        response = self.client.post(self.url, {'router': str(self.router.uuid), 'command': str(self.command.uuid),
+                                               'confirmed': '1', 'fingerprint': page.context['plan']['fingerprint']})
+        job = CommandJob.objects.get()
+        self.assertRedirects(response, f'/fleet_commander/job/details/?uuid={job.uuid}', fetch_redirect_response=False)
+        self.assertEqual(job.tasks.get().command_payload, '/system resource print')
+
+    def test_a_command_changed_after_the_review_is_shown_again_not_run(self):
+        fingerprint = self.review().context['plan']['fingerprint']
+        self.variant.payload = '/system reboot'
+        self.variant.save()
+        page = self.client.post(self.url, {'router': str(self.router.uuid), 'command': str(self.command.uuid),
+                                           'confirmed': '1', 'fingerprint': fingerprint})
+        self.assertFalse(CommandJob.objects.exists())
+        self.assertContains(page, '/system reboot')
+        self.assertContains(page, 'Confirm and execute')
+
+    def test_a_forged_confirmation_without_the_fingerprint_does_not_run(self):
+        self.client.post(self.url, {'router': str(self.router.uuid), 'command': str(self.command.uuid), 'confirmed': '1'})
+        self.assertFalse(CommandJob.objects.exists())
+
+    def test_below_level_40_is_refused_and_the_icon_is_hidden(self):
+        self.client.force_login(make_user(30))
+        self.assertContains(self.client.get(self.url), 'Access Denied')
+        self.assertNotContains(self.client.get('/router/list/'), '/fleet_commander/router/execute/')
+
+    def test_the_icon_sits_in_the_router_list_and_details(self):
+        self.assertContains(self.client.get('/router/list/'), f'/fleet_commander/router/execute/?uuid={self.router.uuid}')
+        self.assertContains(self.client.get(f'/router/details/?uuid={self.router.uuid}'), 'Execute command')

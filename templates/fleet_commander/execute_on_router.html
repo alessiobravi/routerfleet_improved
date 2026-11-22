@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card card-primary card-outline">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-terminal"></i> Execute command on {{ router.name }}</h3></div>
+            <div class="card-body">
+                <p class="text-muted mb-3">{{ router.address }} &middot; {{ router.get_router_type_display }}.
+                    Only commands with a variant for this device type are listed. The next page shows exactly what
+                    will be sent, and nothing runs until you confirm it.</p>
+                {% if commands %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="router" value="{{ router.uuid }}">
+                    <div class="form-group">
+                        <label for="command">Command</label>
+                        <select class="form-control" id="command" name="command" required>
+                            <option value="">-- Select a command --</option>
+                            {% for command in commands %}<option value="{{ command.uuid }}">{{ command.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-eye"></i> Review the command</button>
+                    <a href="{{ back_url }}" class="btn btn-secondary">Cancel</a>
+                </form>
+                {% else %}
+                <div class="alert alert-info mb-0">No enabled command has a variant for {{ router.get_router_type_display }}.
+                    <a href="/fleet_commander/">Fleet Commander</a></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card card-outline card-secondary">
+            <div class="card-header"><h3 class="card-title">Recent commands on this device</h3></div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>When</th><th>Command</th><th>Status</th></tr></thead>
+                    <tbody>
+                    {% for task in recent_tasks %}
+                        <tr>
+                            <td><a href="/fleet_commander/task/details/?uuid={{ task.uuid }}">{{ task.created|date:"Y-m-d H:i" }}</a></td>
+                            <td>{{ task.job.command.name }}</td>
+                            <td>{{ task.get_status_display }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3" class="text-muted">No command has run on this device yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

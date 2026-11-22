@@ -189,7 +189,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 |---|---|---|---|---|
 | `SERVER_ADDRESS` | **yes** | — | hostname or IP, optionally `:port` | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. Include the port if you changed the published HTTPS port. A wrong value gives `400 Bad Request` or CSRF errors |
 | `TIMEZONE` | no | `Etc/UTC` | an [IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | Backup times, schedule times, daily report time, displayed timestamps. Passed to every container as `TZ` |
-| `UPDATE_CHECK` | no | `on` | `on`, `off` | Look for new RouterFleet Improved releases about once an hour (GitHub's latest release; the request carries nothing about the installation) and show them on the status page. `off`: no request is made |
+| `UPDATE_CHECK` | no | `on` | `on`, `off` | Look for new RouterFleet Improved releases about once an hour (GitHub's latest release; the request carries nothing about the installation) and show them as the top bar's update icon. `off`: no request is made |
 | `DEBUG_MODE` | no | `False` | `True` / `False` | Django debug mode. **Never `True` in production** — it exposes internals on errors. Also enables `/debug/run_backups/` and `/debug/test_messages/`, for administrators (level 50) only |
 | `DATABASE_ENGINE` | no | `postgres` | `postgres`, `sqlite` | Which database. Must match the compose file |
 | `POSTGRES_DB` | with postgres | — | name | Database name |

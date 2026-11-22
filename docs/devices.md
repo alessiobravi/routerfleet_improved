@@ -87,16 +87,24 @@ up to 3 times, before the device is marked as errored.
 ### Available version
 
 - **RouterOS** asks the device to query MikroTik's update server
-  (`check-for-updates`, then read the result 5 seconds later) and compares
-  `latest-version` against `installed-version`. The answer depends on the
-  channel the device is set to.
+  (`check-for-updates`, then `print` every 3 seconds, for up to 15, until the
+  device has the answer) and compares `latest-version` against
+  `installed-version` as numbers. The answer depends on the channel the device
+  is set to, and needs the device itself to reach MikroTik's server.
 - **OpenWrt** is compared against the public release index. Only releases newer
   than the installed one **and that still ship images for the device's board**
   are offered — there is no point offering an upgrade with no image for the
   hardware. The release list is cached for 6 hours and per-board availability
   for the process lifetime, so a large fleet does not hammer the download
-  server.
-- **airOS** has no reliable update check over SSH, so it stays empty.
+  server. When nothing newer is offered, the installed release is stored as
+  the available one: the device counts as up to date. A snapshot build, or a
+  release list that could not be downloaded, stays unknown.
+- **airOS** has no reliable update check over SSH: its version is shown
+  without a colour, and it is left out of the status page's update counts.
+
+Versions are read when a device is added, every 24 hours after that (online,
+enabled devices), and on request with *Update router information* in the
+device list.
 
 A failed update check never fails the inventory read — the device facts are
 stored and the version is simply left unknown.
@@ -121,14 +129,15 @@ flowchart TD
 - **Firmware** is green while it matches the OS version and red while it stayed
   behind it — a firmware left behind is what stops a device booting a new OS.
 - **OS version** follows the diagram above. Yellow covers a device whose update
-  check failed and an airOS device, which has none.
+  check failed or has not run. airOS, which has no update check, has no
+  colour.
 - Versions are compared on their leading numbers, padded with zeros, so `7.16`
   and `7.16.0` are the same version. Trailing text like `(stable)` or an OpenWrt
   build hash is ignored.
 - Every colour carries its reason in a tooltip.
 
 The **status page** counts devices as *up to date*, *missing an update*, or *no
-information*, excluding monitoring-only devices.
+information*, excluding monitoring-only and airOS devices.
 
 ## The device list
 

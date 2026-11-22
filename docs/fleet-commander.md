@@ -133,6 +133,22 @@ verification gives up.
 
 ## Running a command
 
+A command runs by hand from three places, for operators (level 40):
+
+- **one device** - the terminal icon next to edit in the router list, or
+  *Execute command* on the device's page; only commands with a variant for its
+  type are offered;
+- **a selection** from the router list;
+- **devices and groups** from a command's page.
+
+Each goes through a **confirmation page** first: per device type, the exact
+commands that will be sent, the verification that follows, and the devices they
+go to, with devices that have no variant for their type listed as left out.
+Nothing runs until *Confirm and execute*. The confirmation carries a
+fingerprint of what was shown; if a variant was edited in between, the page is
+shown again with the new commands instead of running them. Each device's page
+lists its last 25 tasks.
+
 ```mermaid
 sequenceDiagram
     participant Cron as cron container

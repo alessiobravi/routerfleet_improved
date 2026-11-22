@@ -62,7 +62,7 @@ class StatusPageTests(TestCase):
         menu = self.client.get('/status/').content.decode()
         self.assertIn('href="/about/"', menu)
         # About is the last entry of the menu
-        self.assertGreater(menu.index('href="/about/"'), menu.index('href="/audit_log/login_history/"'))
+        self.assertGreater(menu.index('<a href="/about/" class="nav-link '), menu.index('href="/audit_log/login_history/"'))
 
     def cards(self):
         return {card['title']: card for card in self.client.get('/status/').context['cards']}
@@ -150,7 +150,7 @@ class MenuHighlightTests(TestCase):
         # The sidebar entry, not the gear icon of the top bar that links there too
         entry = menu.index('<a href="/user/settings/" class="nav-link ')
         self.assertLess(menu.index('href="/audit_log/login_history/"'), entry)
-        self.assertLess(entry, menu.index('href="/about/"'))
+        self.assertLess(entry, menu.index('<a href="/about/" class="nav-link '))
 
 
 class LogoTests(TestCase):

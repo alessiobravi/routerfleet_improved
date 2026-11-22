@@ -10,6 +10,43 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.14.0] - 2026-11-22
+
+### Added
+- **Execute a command on one device** from the router list - a terminal icon
+  next to edit - or from the device's page, for operators (level 40). Only
+  commands with a variant for the device's type are offered.
+- **Every manual execution is confirmed first** - on one device, on a
+  selection from the list, or on devices and groups from a command's page: a
+  confirmation page shows, per device type, the exact commands that will be
+  sent, the verification that follows and the devices they go to. Nothing runs
+  until it is confirmed, and a command edited after the confirmation page was
+  shown is shown again instead of run.
+- **The update check is an icon in the top bar**, on every page, next to My
+  Settings and sign out: green on the latest release, yellow when an update is
+  available (its version in the tooltip, a click opens the release), grey when
+  the check is off or has not run yet. It replaces the status page's card.
+
+### Changed
+- **The About page** opens with the logo, large and centred.
+- **Tools** sits above Audit Log in the menu.
+- **Phones**: tables that the list view does not already fold scroll sideways
+  inside their card instead of widening the page; chart headers wrap.
+
+### Fixed
+- **An up-to-date OpenWrt device was counted as "without version
+  information"**: when no newer release was offered, no version was stored to
+  compare with. It now counts as up to date; a failed release-list download or
+  a snapshot build stays unknown.
+- **RouterOS update check waited a fixed 5 seconds** for the device to reach
+  MikroTik's update server; a slower answer left the device without
+  information. It now reads again every 3 seconds, for up to 15.
+- **RouterOS "update available" compared versions as text**: a device ahead of
+  its channel was flagged. Versions are compared as numbers, by the rule the
+  list colours with.
+- **airOS devices**, which can not be checked for updates over SSH, are no
+  longer counted as missing information an information update could fill in.
+
 ## [0.13.0] - 2026-11-22
 
 ### Fixed

@@ -14,6 +14,10 @@ VERSION_PATTERN = re.compile(r'\d+(?:\.\d+)*')
 # Version strings that are only known after the router information was read
 NEUTRAL_STATE = {'css_class': '', 'title': ''}
 
+# Device types RouterFleet has no way to ask for updates: never counted as
+# missing information that an information update could fill in
+NOT_CHECKABLE = ('ubiquiti-airos',)
+
 
 def version_key(value):
     """The comparable numbers of a version string, None without any."""
@@ -77,6 +81,8 @@ def os_version_state(router_information):
 
     if not os_version:
         return NEUTRAL_STATE
+    if getattr(getattr(router_information, 'router', None), 'router_type', '') in NOT_CHECKABLE:
+        return {'css_class': '', 'title': 'airOS can not be checked for updates over SSH'}
     if not available_version:
         return {'css_class': 'text-warning',
                 'title': 'No version known the router could update to. Update the router information.'}
@@ -105,7 +111,7 @@ def update_state_counts():
     """
     information_of_router = {
         information.router_id: information
-        for information in RouterInformation.objects.exclude(router__router_type='monitoring')
+        for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=('monitoring',) + NOT_CHECKABLE)
     }
     counts = {'up_to_date': 0, 'update_waiting': 0, 'no_information': 0}
     for state in update_state_of_routers(information_of_router).values():
@@ -120,10 +126,10 @@ def update_state_of_routers(information_of_router=None):
     if information_of_router is None:
         information_of_router = {
             information.router_id: information
-            for information in RouterInformation.objects.exclude(router__router_type='monitoring')
+            for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=('monitoring',) + NOT_CHECKABLE)
         }
     states = {}
-    for router_id in Router.objects.exclude(router_type='monitoring').values_list('id', flat=True):
+    for router_id in Router.objects.exclude(router_type__in=('monitoring',) + NOT_CHECKABLE).values_list('id', flat=True):
         css_class = os_version_state(information_of_router.get(router_id))['css_class']
         if css_class == 'text-success':
             states[router_id] = 'up_to_date'
