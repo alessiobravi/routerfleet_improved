@@ -41,6 +41,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # Before django.contrib: channels serves the console's WebSocket
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -57,6 +59,7 @@ INSTALLED_APPS = [
     'backup_data',
     'integration_manager',
     'routerfleet_tools',
+    'console',
     'message_center',
     'import_tool',
     'fleet_commander',
@@ -91,6 +94,13 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 HTTPS_CERT_DIR = '/certificate'
 
 ROOT_URLCONF = 'routerfleet.urls'
+# The console's WebSocket is served by uvicorn (port 8002, routerfleet/asgi.py);
+# every page still by gunicorn. No channel layer: a console is one connection
+ASGI_APPLICATION = 'routerfleet.asgi.application'
+CONSOLE_IDLE_SECONDS = 15 * 60
+CONSOLE_MAX_SECONDS = 4 * 3600
+CONSOLE_SESSIONS_PER_USER = 3
+CONSOLE_LEVEL = 30   # Host Manager and above
 
 TEMPLATES = [
     {
@@ -173,7 +183,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.16.3'
+ROUTERFLEET_RELEASE = '0.17.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

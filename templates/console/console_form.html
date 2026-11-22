@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    {% for error in errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+    {% if busy %}
+    <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i>
+        {{ busy|join:" and " }} is running on this device right now. A console works alongside it, but changes made
+        now may meet it halfway.</div>
+    {% endif %}
+    <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="open">
+        <input type="hidden" name="router" value="{{ router.uuid }}">
+
+        <div class="rf-set-title">Device</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon"><i class="fas fa-network-wired"></i></span>
+                <div class="rf-set-text"><div class="rf-set-label">{{ router.name }}</div>
+                    <div class="rf-set-sub">{{ router.address }} · {{ router.get_router_type_display }}</div></div>
+            </div>
+        </div>
+
+        <div class="rf-set-title">Connection</div>
+        <div class="rf-set-group">
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="transport" value="ssh" {% if posted.transport != 'telnet' %}checked{% endif %}>
+                <span class="rf-set-icon teal"><i class="fas fa-lock"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">SSH</span>
+                    <span class="rf-set-sub d-block">Encrypted, port {{ router.port }}. The device's stored host key is checked before anything is sent.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            {% if router.console_telnet %}
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="transport" value="telnet" {% if posted.transport == 'telnet' %}checked{% endif %}>
+                <span class="rf-set-icon red"><i class="fas fa-lock-open"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Telnet <span class="badge badge-danger">unencrypted</span></span>
+                    <span class="rf-set-sub d-block">Port {{ router.telnet_port }}. Everything, your password included, crosses the network in clear. You log in at the device's prompt: RouterFleet sends no stored credential over Telnet.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            {% endif %}
+        </div>
+        {% if not router.console_telnet %}<div class="rf-set-foot">Telnet is off for this device; it can be allowed in its settings.</div>{% endif %}
+
+        <div class="rf-set-title rf-console-ssh">Account</div>
+        <div class="rf-set-group rf-console-ssh">
+            {% if has_backup_account %}
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="account" value="backup" {% if posted.account != 'other' %}checked{% endif %}>
+                <span class="rf-set-icon blue"><i class="fas fa-user-shield"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Backup account ({{ router.username }})</span>
+                    <span class="rf-set-sub d-block">Its password or key stays on the server; it never reaches the browser.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            {% endif %}
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="account" value="other" {% if posted.account == 'other' or not has_backup_account %}checked{% endif %}>
+                <span class="rf-set-icon purple"><i class="fas fa-user-edit"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Another account</span>
+                    <span class="rf-set-sub d-block">You enter its password on the next page; it goes straight to the device and is not stored.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            <div class="rf-set-row rf-console-other">
+                <span class="rf-set-icon grey"><i class="fas fa-user"></i></span>
+                <div class="rf-set-text"><input type="text" class="form-control" name="username" maxlength="100"
+                        placeholder="Username" value="{{ posted.username }}" autocapitalize="none" spellcheck="false" aria-label="Username"></div>
+            </div>
+        </div>
+
+        <div class="rf-console-telnet" style="display: none;">
+            <div class="custom-control custom-checkbox rf-checkbox mt-3 ml-3">
+                <input type="checkbox" class="custom-control-input" id="telnet_understood" name="telnet_understood">
+                <label class="custom-control-label" for="telnet_understood">I understand that Telnet sends everything unencrypted</label>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-keyboard mr-1"></i> Open the console</button>
+            <a href="{{ back }}" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+        </div>
+        <div class="rf-set-foot text-center mt-2">The session is recorded in the change log: who, the device, the account and when - not what is typed.</div>
+    </form>
+</div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    (function () {
+        function show() {
+            var telnet = (document.querySelector('input[name=transport]:checked') || {}).value === 'telnet';
+            var other = (document.querySelector('input[name=account]:checked') || {}).value === 'other';
+            document.querySelectorAll('.rf-console-ssh').forEach(function (e) { e.style.display = telnet ? 'none' : ''; });
+            document.querySelectorAll('.rf-console-telnet').forEach(function (e) { e.style.display = telnet ? '' : 'none'; });
+            document.querySelectorAll('.rf-console-other').forEach(function (e) { e.style.display = other ? '' : 'none'; });
+        }
+        document.querySelectorAll('input[name=transport], input[name=account]').forEach(function (r) { r.addEventListener('change', show); });
+        show();
+    })();
+</script>
+{% endblock %}

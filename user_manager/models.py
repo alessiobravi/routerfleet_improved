@@ -11,7 +11,7 @@ class UserAcl(models.Model):
         (10, 'Viewer'),
         (20, 'Backup Operator'),
         (30, 'Host Manager'),
-        (40, 'configuration Manager'),
+        (40, 'Configuration Manager'),
         (50, 'Administrator'),
     ))
     address_link = models.CharField(max_length=10, default='none', choices=(

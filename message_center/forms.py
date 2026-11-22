@@ -4,6 +4,7 @@ from . import channels
 from .models import MessageSettings, MessageChannel
 
 from django import forms
+from django.core.exceptions import ValidationError
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, Div, Field, HTML
 from datetime import datetime
@@ -96,7 +97,7 @@ class MessageChannelForm(forms.ModelForm):
         model = MessageChannel
         fields = [
             'name', 'enabled', 'channel_type', 'destination', 'token', 'status_change_offline', 'status_change_online',
-            'backup_fail', 'daily_status_report', 'daily_backup_report'
+            'backup_fail', 'daily_status_report', 'daily_backup_report', 'backup_success', 'command_failed'
         ]
 
     def __init__(self, *args, **kwargs):
@@ -125,6 +126,8 @@ class MessageChannelForm(forms.ModelForm):
                     Div(Field('daily_status_report'), css_class='col-md-6'),
                     Div(Field('daily_backup_report'), css_class='col-md-6'),
                     Div(Field('backup_fail'), css_class='col-md-6'),
+                    Div(Field('backup_success'), css_class='col-md-6'),
+                    Div(Field('command_failed'), css_class='col-md-6'),
                     Div(Field('enabled'), css_class='col-md-6'),
                     css_class='row'),
                 Div(
@@ -148,6 +151,23 @@ class MessageChannelForm(forms.ModelForm):
             self.add_error('token', 'Token must be less than 100 characters.')
 
         channel_type = cleaned_data.get('channel_type')
+        if channel_type == 'email':
+            # A shared mailbox: the destination is its address; no token
+            from django.core.validators import validate_email
+            try:
+                validate_email(destination or '')
+            except ValidationError:
+                self.add_error('destination', 'Enter the email address to send to, e.g. noc@example.com.')
+            self.cleaned_data['token'] = ''
+            if self.errors or not enabled:
+                return cleaned_data
+            from . import email
+            try:
+                email.send(destination, 'RouterFleet Improved: channel test', 'Test message from RouterFleet')
+            except Exception as e:   # noqa: BLE001 - shown, the password scrubbed
+                from .models import SmtpSettings
+                raise forms.ValidationError(f'Test email failed: {email.scrub(e, SmtpSettings.load())}') from None
+            return cleaned_data
         if channel_type == 'ntfy':
             if not destination:
                  self.add_error('destination', 'ntfy.sh requires a destination (topic name).')

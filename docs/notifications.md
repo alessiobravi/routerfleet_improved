@@ -8,20 +8,24 @@ flowchart LR
     ev1["Device went offline"]
     ev2["Device came back"]
     ev3["Backup failed"]
+    ev5["Backup succeeded"]
+    ev6["Job finished with failures"]
     ev4["Backup task lock expired"]
     note["Notification rows"]
     conc["/cron/concatenate_notifications/<br/>every minute"]
     msg["Message rows<br/>per channel, pending"]
     send["/cron/send_messages/<br/>every minute"]
-    out["Telegram · ntfy.sh · CallMeBot"]
+    out["Email · Telegram · ntfy.sh · CallMeBot"]
 
-    ev1 & ev2 & ev3 & ev4 --> note --> conc --> msg --> send --> out
+    ev1 & ev2 & ev3 & ev5 & ev4 --> note --> conc --> msg --> send --> out
+    ev6 --> msg
 ```
 
 ## Channels
 
 | Type | Transport | Needs |
 |---|---|---|
+| **Email** | the installation's SMTP server ([below](#email)) | an address: each user's own, or a shared mailbox |
 | Telegram | `GET api.telegram.org/bot<token>/sendMessage` | Bot token, chat id |
 | ntfy.sh | `POST ntfy.sh/<topic>`, subject as `Title` header | Topic name |
 | CallMeBot (WhatsApp) | `GET api.callmebot.com/whatsapp.php` | Phone number, API key |
@@ -33,6 +37,11 @@ Each channel independently selects which events it wants:
 - backup failure
 - daily status report
 - daily backup report
+- backup succeeded - grouped like failures, so a night of backups is one message
+- a Fleet Commander job that finished with failed tasks
+
+The last two were added later: they start **off** on every channel that
+existed, so an upgrade sends nothing new.
 
 So an on-call channel can take outages only, while a mailbox-style channel takes
 the daily reports.
@@ -40,6 +49,33 @@ the daily reports.
 One message ignores these choices: when a backup task's lock expires (see
 [Backups](backups.md#when-a-backup-fails)), the warning goes to **every enabled
 channel**, because it means a backup has been stuck for hours.
+
+## Email
+
+**Each user receives what they choose.** In *My Settings → Email
+notifications* a user enters their address and switches on what they want:
+backup failed, backup succeeded, the daily backup report, the daily status
+report, device offline, device back online, and Fleet Commander jobs with
+failures. RouterFleet keeps a personal email channel for them from those
+choices - not listed among the shared channels - and delivers to the address
+as it is at sending time. Administrators can also set the address in user
+management.
+
+**A shared mailbox** - a team address - is an ordinary channel of type
+*Email* in Message Center, with the address as its destination.
+
+**The mail server** is set once, by an administrator, in *Message Center →
+Email*: server and port, the connection's security (STARTTLS, SSL/TLS, or none
+- with a warning), an optional username and password, and the sender's address
+and name. The password is encrypted like device passwords and never shown
+again; leaving the field empty keeps it. *Send a test email* sends one to your
+own address. Until the server is set and switched on, users' choices are kept
+and nothing is sent.
+
+Messages go through the same queue as every channel - grouping, retries and
+the message history included. Subjects are single lines, so a device name can
+not add mail headers, and the password is taken out of any error the server
+returns before it is stored or shown.
 
 ## Concatenation
 

@@ -83,6 +83,8 @@ class Fixture(TestCase):
             ('/user/list/', 50, 'page'),
             (f'/user/manage/?uuid={self.admin_acl.uuid}', 50, 'page'),
             ('/audit_log/login_history/', 50, 'page'),
+            ('/router/console/?uuid=00000000-0000-0000-0000-000000000000', 30, 'page'),
+            ('/message_center/email/', 50, 'page'),
             ('/tools/', 50, 'page'),
             ('/system/https/', 50, 'page'),
             ('/fleet_commander/system/variant/?uuid=00000000-0000-0000-0000-000000000000', 50, 'page'),
@@ -361,6 +363,19 @@ class BrowserLibraryManifestTests(TestCase):
                 found = re.search(pattern, text)
                 self.assertIsNotNone(found, f'no version header in {path}')
                 self.assertEqual(found.group(1), self.locked[name])
+
+    # xterm.js carries no version header either: the files are the ones of the
+    # npm tarballs whose published SHA-512 was checked when they were added
+    XTERM_SHA256 = {'@xterm/xterm': ('vendor/xterm-6.0.0/xterm.js', '6.0.0', '14903579ff54664c'),
+                    '@xterm/addon-fit': ('vendor/xterm-6.0.0/addon-fit.js', '0.11.0', 'ba3ea256ce0620a0')}
+
+    def test_xterm_is_the_listed_release(self):
+        import hashlib
+        for name, (path, version, digest) in self.XTERM_SHA256.items():
+            with self.subTest(library=name):
+                self.assertEqual(self.locked[name], version)
+                self.assertEqual(hashlib.sha256((self.root / 'static_files' / path).read_bytes()).hexdigest()[:16], digest)
+                self.assertTrue((self.root / 'static_files/vendor/xterm-6.0.0/LICENSE').exists())
 
     def test_diff2html_is_the_listed_release(self):
         import hashlib

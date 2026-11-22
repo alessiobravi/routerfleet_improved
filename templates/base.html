@@ -1,5 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+<script>
+    // Light or dark, before anything is drawn: the browser's own choice
+    // (Automatic follows the device), so no white flash at night
+    (function () {
+        var choice = 'auto';
+        try { choice = localStorage.getItem('rf-theme') || 'auto'; } catch (e) {}
+        var dark = choice === 'dark' || (choice === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('rf-dark', dark);
+        document.documentElement.dataset.theme = choice;
+    })();
+</script>
 
 <head>
     <meta charset="utf-8">
@@ -39,60 +50,117 @@
 
     {% block page_custom_head %}{% endblock%}
     <style>
+        /* Light and dark: the colours of RouterFleet's own components */
+        :root { --rf-surface: #fff; --rf-text: #1d2733; --rf-muted: #6b7785; --rf-line: #e1e6ec; --rf-line-soft: #eef1f4;
+                --rf-hover: #f8fafc; --rf-heading: #1f3a5f; --rf-track: #e9edf2; --rf-body: #3b4652; }
+        html.rf-dark { --rf-surface: #2b3035; --rf-text: #e6e9ed; --rf-muted: #a3adb8; --rf-line: #424a52; --rf-line-soft: #383f45;
+                       --rf-hover: #343a40; --rf-heading: #cfe0f5; --rf-track: #3a4148; --rf-body: #c9d1d9; color-scheme: dark; }
+        .dark-mode .main-header.navbar-white { background-color: #343a40; border-color: #4b545c; }
+        .dark-mode .main-header.navbar-light .nav-link { color: rgba(255, 255, 255, .78); }
+        .dark-mode .main-header.navbar-light .nav-link:hover { color: #fff; }
+        .dark-mode .content-wrapper { background-color: #1f2327; }
+        html.rf-dark .custom-switch .custom-control-label::before,
+        html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-label::before { background-color: #4a5158; box-shadow: none; }
+        html.rf-dark .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
+        html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; }
+        html.rf-dark .rf-set-group, html.rf-dark .rf-o-card { box-shadow: none; }
+
         /* Object pages, "Hero & timeline" (routerfleet/object_pages.py) */
         .rf-object { --rf-ok: #1f9d55; --rf-run: #2f6fd1; --rf-wait: #e8a317; --rf-bad: #d64545; --rf-info: #8a96a3; --rf-purple: #7e57c2; }
-        .rf-o-card { background: #fff; border: 1px solid #e1e6ec; border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+        .rf-o-card { background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
         .rf-o-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; padding: 18px 22px; margin-bottom: 14px; }
         .rf-o-ring { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
         .rf-o-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
         .rf-o-ring circle { fill: none; stroke-width: 9; }
-        .rf-o-track { stroke: #e9edf2; }
+        .rf-o-track { stroke: var(--rf-track); }
         .rf-o-val { stroke: var(--rf-ok); stroke-linecap: round; stroke-dasharray: 263.9; stroke-dashoffset: calc(263.9 - 263.9 * var(--rf-pct) / 100); transition: stroke-dashoffset .6s; }
         .rf-o-val.rf-o-run { stroke: var(--rf-run); } .rf-o-val.rf-o-bad { stroke: var(--rf-bad); } .rf-o-val.rf-o-wait { stroke: var(--rf-wait); } .rf-o-val.rf-o-purple { stroke: var(--rf-purple); }
-        .rf-o-ring span { font-size: 21px; font-weight: 700; color: #1f3a5f; line-height: 1; }
-        .rf-o-ring small { position: absolute; bottom: -18px; white-space: nowrap; font-size: 11px; color: #6b7785; }
+        .rf-o-ring span { font-size: 21px; font-weight: 700; color: var(--rf-heading); line-height: 1; }
+        .rf-o-ring small { position: absolute; bottom: -18px; white-space: nowrap; font-size: 11px; color: var(--rf-muted); }
         .rf-o-icon { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; color: #fff; background: var(--rf-info); }
         .rf-o-icon.rf-o-ok { background: var(--rf-ok); } .rf-o-icon.rf-o-bad { background: var(--rf-bad); } .rf-o-icon.rf-o-run { background: var(--rf-run); }
         .rf-o-icon.rf-o-wait { background: var(--rf-wait); } .rf-o-icon.rf-o-purple { background: var(--rf-purple); }
-        .rf-o-title h2 { margin: 0 0 6px; font-size: 22px; color: #1f3a5f; font-weight: 700; overflow-wrap: anywhere; }
-        .rf-o-title h2 span { font-weight: 400; color: #6b7785; }
+        .rf-o-title h2 { margin: 0 0 6px; font-size: 22px; color: var(--rf-heading); font-weight: 700; overflow-wrap: anywhere; }
+        .rf-o-title h2 span { font-weight: 400; color: var(--rf-muted); }
         .rf-o-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
         .rf-o-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
         .rf-o-chip.rf-o-ok { background: rgba(31, 157, 85, .12); color: #17804a; } .rf-o-chip.rf-o-run { background: rgba(47, 111, 209, .12); color: var(--rf-run); }
         .rf-o-chip.rf-o-wait { background: rgba(232, 163, 23, .16); color: #9a6a0f; } .rf-o-chip.rf-o-bad { background: rgba(214, 69, 69, .12); color: var(--rf-bad); }
-        .rf-o-chip.rf-o-info { background: #eef1f4; color: #5f6b78; } .rf-o-chip.rf-o-purple { background: rgba(126, 87, 194, .14); color: var(--rf-purple); }
+        .rf-o-chip.rf-o-info { background: var(--rf-line-soft); color: var(--rf-muted); } .rf-o-chip.rf-o-purple { background: rgba(126, 87, 194, .14); color: var(--rf-purple); }
         .rf-o-chip.rf-o-run .rf-o-dot { animation: rf-o-pulse 1.2s infinite; }
         @keyframes rf-o-pulse { 50% { opacity: .3; } }
-        .rf-o-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: #6b7785; margin-top: 8px; }
+        .rf-o-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--rf-muted); margin-top: 8px; }
         .rf-o-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
         .rf-o-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
         .rf-o-tile { padding: 12px 14px; border-left: 4px solid var(--rf-info); color: inherit; }
         a.rf-o-tile:hover { text-decoration: none; color: inherit; box-shadow: 0 6px 16px rgba(16, 24, 40, .1); }
         .rf-o-tile.rf-o-ok { border-left-color: var(--rf-ok); } .rf-o-tile.rf-o-run { border-left-color: var(--rf-run); } .rf-o-tile.rf-o-wait { border-left-color: var(--rf-wait); }
         .rf-o-tile.rf-o-bad { border-left-color: var(--rf-bad); } .rf-o-tile.rf-o-purple { border-left-color: var(--rf-purple); }
-        .rf-o-n { font-size: 24px; font-weight: 700; color: #1d2733; line-height: 1.2; overflow-wrap: anywhere; }
-        .rf-o-l { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #6b7785; font-weight: 700; }
+        .rf-o-n { font-size: 24px; font-weight: 700; color: var(--rf-text); line-height: 1.2; overflow-wrap: anywhere; }
+        .rf-o-l { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--rf-muted); font-weight: 700; }
         .rf-o-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
-        .rf-o-card h3 { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid #e1e6ec; display: flex; justify-content: space-between; align-items: center; }
-        .rf-o-rows .rf-o-r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #e1e6ec; }
+        .rf-o-card h3 { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--rf-line); display: flex; justify-content: space-between; align-items: center; }
+        .rf-o-rows .rf-o-r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--rf-line); }
         .rf-o-rows .rf-o-r:first-child { border-top: 0; }
-        .rf-o-rows .rf-o-name { font-weight: 600; } .rf-o-rows .rf-o-sub { font-size: 12px; color: #6b7785; }
-        .rf-o-rows .rf-o-time { font-size: 12.5px; color: #6b7785; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .rf-o-rows .rf-o-name { font-weight: 600; } .rf-o-rows .rf-o-sub { font-size: 12px; color: var(--rf-muted); }
+        .rf-o-rows .rf-o-time { font-size: 12.5px; color: var(--rf-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
         .rf-o-timeline { padding: 8px 16px 14px; }
-        .rf-o-t { position: relative; padding: 7px 0 7px 22px; margin-left: 6px; border-left: 2px solid #e1e6ec; font-size: 13.5px; }
-        .rf-o-t::before { content: ''; position: absolute; left: -7px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid var(--rf-info); }
+        .rf-o-t { position: relative; padding: 7px 0 7px 22px; margin-left: 6px; border-left: 2px solid var(--rf-line); font-size: 13.5px; }
+        .rf-o-t::before { content: ''; position: absolute; left: -7px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--rf-surface); border: 3px solid var(--rf-info); }
         .rf-o-t.rf-o-ok::before { border-color: var(--rf-ok); } .rf-o-t.rf-o-bad::before { border-color: var(--rf-bad); } .rf-o-t.rf-o-run::before { border-color: var(--rf-run); }
-        .rf-o-t small { color: #6b7785; }
-        .rf-o-compact .rf-o-timeline { max-height: 260px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 24px; }
+        .rf-o-t small { color: var(--rf-muted); }
+        /* Details on the left, the timeline - one column - on the right, in view while scrolling */
+        .rf-o-split { align-items: start; }
+        .rf-o-split > .rf-o-timeline-card { position: sticky; top: 70px; }
+        .rf-o-split .rf-o-timeline { max-height: calc(100vh - 150px); overflow-y: auto; }
+        .rf-o-details > .row > [class*="col-"], .rf-o-details .row > [class*="col-"] { flex: 0 0 100%; max-width: 100%; }
+        .rf-o-details .card { margin-bottom: 12px; }
+        /* Detail panels start collapsed; a click on the header opens them */
+        .rf-panel-head { cursor: pointer; user-select: none; }
+        .rf-panel-head:hover { background: var(--rf-hover); }
+        .rf-panel-head .rf-chevron { margin-left: 10px; color: #8a96a3; transition: transform .2s; }
+        .rf-collapsed .rf-panel-head .rf-chevron { transform: rotate(-90deg); }
+        .rf-collapsed > .card-body, .rf-collapsed > .card-footer, .rf-collapsed > .table-responsive { display: none; }
         @media (max-width: 991.98px) {
             .rf-o-hero { grid-template-columns: auto 1fr; } .rf-o-actions { grid-column: 1 / -1; justify-content: flex-start; }
             .rf-o-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rf-o-grid { grid-template-columns: 1fr; }
+            .rf-o-split > .rf-o-timeline-card { position: static; order: -1; }
+            .rf-o-split .rf-o-timeline { max-height: 320px; }
         }
         @media (max-width: 575.98px) {
             .rf-o-hero { grid-template-columns: 1fr; justify-items: start; } .rf-o-rows .rf-o-r { grid-template-columns: minmax(0, 1fr) auto; }
             .rf-o-rows .rf-o-time { display: none; }
         }
         @media (prefers-reduced-motion: reduce) { .rf-o-val { transition: none; } .rf-o-chip.rf-o-run .rf-o-dot { animation: none; } }
+
+        /* Settings pages, in the style of a phone's settings: grouped rows */
+        .rf-settings { max-width: 760px; margin: 0 auto; }
+        .rf-set-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--rf-muted); margin: 22px 16px 7px; }
+        .rf-set-title:first-child { margin-top: 4px; }
+        .rf-set-group { background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
+        .rf-set-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; min-height: 58px; border-top: 1px solid var(--rf-line-soft); color: inherit; margin: 0; font-weight: 400; }
+        .rf-set-row:first-child { border-top: 0; }
+        /* AdminLTE makes every label bold, with a selector more specific than a class */
+        .rf-settings label.rf-set-row:not(.rf-none) { font-weight: 400; }
+        a.rf-set-row:hover, label.rf-set-row:hover { background: var(--rf-hover); text-decoration: none; color: inherit; cursor: pointer; }
+        .rf-set-icon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: #1f3a5f; font-size: 15px; }
+        .rf-set-icon.teal { background: #14a89a; } .rf-set-icon.amber { background: #e8a317; } .rf-set-icon.red { background: #d64545; }
+        .rf-set-icon.blue { background: #2f6fd1; } .rf-set-icon.grey { background: #8a96a3; } .rf-set-icon.purple { background: #7e57c2; }
+        .rf-set-text { flex: 1; min-width: 0; }
+        .rf-set-label { font-weight: 600; color: var(--rf-text); overflow-wrap: anywhere; }
+        .rf-set-sub { font-size: 13px; color: var(--rf-muted); line-height: 1.35; overflow-wrap: anywhere; }
+        .rf-set-sub code { font-size: 12px; }
+        .rf-set-value { color: var(--rf-muted); font-size: 14px; white-space: nowrap; }
+        .rf-set-chevron { color: #b9c1cb; }
+        .rf-set-check { color: #14a89a; font-size: 18px; visibility: hidden; }
+        .rf-set-choice input { position: absolute; opacity: 0; pointer-events: none; }
+        .rf-set-choice input:checked ~ .rf-set-check { visibility: visible; }
+        .rf-set-choice input:focus-visible ~ .rf-set-text .rf-set-label { text-decoration: underline; }
+        .rf-set-foot { font-size: 12.5px; color: var(--rf-muted); margin: 7px 16px 0; line-height: 1.4; }
+        .rf-set-pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--rf-line-soft); color: var(--rf-muted); }
+        .rf-set-pill.on { background: rgba(31, 157, 85, .12); color: #17804a; }
+        .rf-set-row .btn-link { padding: 4px 6px; }
+        @media (max-width: 575.98px) { .rf-set-row { padding: 12px 14px; gap: 12px; } }
 
         /* On/off settings are iPhone-style switches: Bootstrap's switch and
            checkbox controls alike. A real checkbox - a consent, an agreement -
@@ -105,7 +173,7 @@
         }
         .custom-switch .custom-control-label::after, .custom-checkbox:not(.rf-checkbox) .custom-control-label::after {
             left: calc(-3.75rem + 2px); top: 2px; width: calc(1.9rem - 4px); height: calc(1.9rem - 4px); border-radius: 50%;
-            background: #fff; background-image: none; box-shadow: 0 2px 4px rgba(16, 24, 40, .28); transition: transform .2s ease;
+            background: var(--rf-surface); background-image: none; box-shadow: 0 2px 4px rgba(16, 24, 40, .28); transition: transform .2s ease;
         }
         .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
         .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; box-shadow: none; }
@@ -138,6 +206,7 @@
 {% tag_webadmin_version as webadmin_version %}
 
 <body class="hold-transition sidebar-mini layout-fixed {% if request.COOKIES.sidebarState == 'collapsed' %}sidebar-collapse{% endif %}">
+<script>if (document.documentElement.classList.contains('rf-dark')) { document.body.classList.add('dark-mode'); }</script>
 <div class="wrapper">
 
     <!-- Preloader -->
@@ -158,6 +227,11 @@
 
         <!-- Right navbar links -->
         <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+                <a href="#" class="nav-link" id="theme-toggle" title="Dark mode" aria-label="Switch between light and dark mode">
+                    <i class="fas fa-moon"></i>
+                </a>
+            </li>
             {% tag_update_state as rf_update_indicator %}
             <li class="nav-item">
                 <a href="{{ rf_update_indicator.href }}" class="nav-link" id="update-indicator" title="{{ rf_update_indicator.title }}"
@@ -216,7 +290,7 @@
 
                     <li class="nav-item">
                         <a href="/backup/profile_list/" class="nav-link {% if request.path|startswith:'/backup/' %}active{% endif %}">
-                            <i class="fas fa-box-open"></i>
+                            <i class="fas fa-box-open nav-icon"></i>
                             <p>
                                 Backup
                             </p>
@@ -431,6 +505,47 @@
         $.fn.dataTable.tables({visible: true, api: true}).columns.adjust().responsive.recalc();
     };
     $(function () { window.rfInitTables(document); });
+
+    // Detail panels of object pages start collapsed. What the user opens is
+    // remembered per page for the session, so a live update - which brings
+    // the panels back from the server - does not close them again.
+    window.rfInitPanels = function (root) {
+        var store = {get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+                     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }};
+        (root || document).querySelectorAll('.rf-o-details .card').forEach(function (card) {
+            var head = card.querySelector(':scope > .card-header');
+            if (!head || card.dataset.rfPanel) { return; }
+            card.dataset.rfPanel = '1';
+            var title = (head.querySelector('.card-title') || head).textContent.trim().slice(0, 60);
+            var key = 'rf-panel:' + window.location.pathname + ':' + title;
+            head.classList.add('rf-panel-head');
+            head.setAttribute('role', 'button');
+            head.setAttribute('tabindex', '0');
+            var chevron = document.createElement('i');
+            chevron.className = 'fas fa-chevron-down rf-chevron';
+            chevron.setAttribute('aria-hidden', 'true');
+            (head.querySelector('.card-title') || head).appendChild(chevron);
+            function apply(open) {
+                card.classList.toggle('rf-collapsed', !open);
+                head.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open && $.fn.dataTable) {
+                    $.fn.dataTable.tables({visible: true, api: true}).columns.adjust().responsive.recalc();
+                }
+            }
+            apply(store.get(key) === 'open');
+            function toggle(event) {
+                if (event.target.closest('a, button, input, select, textarea, label')) { return; }
+                var open = card.classList.contains('rf-collapsed');
+                store.set(key, open ? 'open' : 'closed');
+                apply(open);
+            }
+            head.addEventListener('click', toggle);
+            head.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(event); }
+            });
+        });
+    };
+    $(function () { window.rfInitPanels(document); });
 </script>
 <script>
     $(document).ready(function() {
@@ -533,6 +648,7 @@
 
 {% include "template_messages.html" %}
 <script src="/static/routerfleet/live.js"></script>
+<script src="/static/routerfleet/theme.js"></script>
 
 <style>
     /* The popup of a configuration change shows the lines of the diff, not the

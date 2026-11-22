@@ -13,6 +13,66 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.17.0] - 2026-11-22
+
+### Added
+- **Device console: a terminal on any device, in the browser.** SSH - the
+  device's stored host key checked first - or Telnet where a device has nothing
+  else, with the device's backup account (its secret never reaches the
+  browser) or another account (the password goes once, encrypted, to the
+  device login; never stored or logged). On a phone, with a bar of Esc, Tab,
+  Ctrl-C, Ctrl-D and arrows. For Host Manager and above, from the device page
+  or the device list. Security: a one-time ticket valid for 60 seconds, never
+  in a URL and stored only as a hash; WebSockets refused from other sites and
+  without a signed-in session; the level checked again every few seconds;
+  addresses on RouterFleet's own internal networks, loopback and link-local
+  refused, so a device address can not reach the database or the application;
+  Telnet off per device until switched on, and no stored credential ever sent
+  over it; one console per device, three per user. It closes at once when the
+  page is closed or left, with Disconnect, or when the device ends it; within
+  seconds of signing out; within about 40 seconds of a lost browser; after 15
+  minutes idle or 4 hours. Each session is in the change log - who, the device,
+  the account and when, never what was typed - and in the device's timeline.
+  Served by uvicorn beside gunicorn inside the application container; nginx
+  passes `/console/ws/` in every HTTPS mode. CI drives a real session to an
+  SSH server through nginx on every push.
+- **Email notifications.** Each user sets their address in My Settings and
+  chooses what to receive: backup failed, backup succeeded (grouped), the daily
+  backup and status reports, device offline and back online, and Fleet
+  Commander jobs with failures. The mail server - host, port, STARTTLS, SSL/TLS
+  or none, an optional login (the password encrypted, never shown again),
+  sender address and name, a test email - is set by administrators in Message
+  Center, Email. A shared mailbox is a channel of type Email. Administrators can
+  set users' addresses in user management.
+- **Two new notification events for every channel type**: backup succeeded
+  (grouped like failures) and Fleet Commander job with failures. **Off for
+  channels that existed**, so an upgrade sends nothing new.
+- **Light and dark mode**: the moon in the top bar, or Automatic (the default,
+  following the device), Light or Dark in My Settings; drawn in its theme from
+  the start, without a white flash.
+
+### Changed
+- **Object pages**: the timeline is one vertical column beside the details,
+  kept in view while scrolling; the detail panels start collapsed and stay as
+  opened, also through live updates; events of the same minute keep their
+  order.
+- **The Live pill names what is running** ("Live: job running"); the status
+  page refreshes quietly, without it.
+- **My Settings in the style of a phone's settings**: grouped rows, the router
+  address choice saved on tap, passkeys as rows, appearance and email
+  notifications.
+- **Devices status is a line graph again.**
+- **The device form** has *Allow a Telnet console (unencrypted)* and the Telnet
+  port.
+
+### Fixed
+- **"configuration Manager" is "Configuration Manager".**
+- **The menu's icons and labels are aligned** (Backup's label sat further left).
+
+### Monitoring
+- No change to how backup rows are written. The application container also
+  listens on port 8002 internally, for the console; nothing new is published.
+
 ## [0.16.3] - 2026-11-22
 
 ### Security

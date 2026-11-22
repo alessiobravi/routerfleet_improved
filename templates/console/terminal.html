@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/vendor/xterm-6.0.0/xterm.css">
+<div class="rf-console">
+    <div class="rf-console-bar">
+        <div class="rf-console-who">
+            <i class="fas fa-keyboard" aria-hidden="true"></i>
+            <strong>{{ router.name }}</strong>
+            <span class="text-muted">{{ router.address }} · {{ session.get_transport_display }}{% if session.username %} · {{ session.username }}{% endif %}</span>
+            {% if session.transport == 'telnet' %}<span class="badge badge-danger">unencrypted</span>{% endif %}
+        </div>
+        <div class="rf-console-state"><span class="rf-console-dot" id="console-dot"></span><span id="console-state" role="status">Ready</span>
+            <span class="text-muted" id="console-clock"></span></div>
+        <div>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="console-disconnect" disabled><i class="fas fa-power-off mr-1"></i>Disconnect</button>
+            <a href="{{ back }}" class="btn btn-sm btn-outline-secondary">Device</a>
+        </div>
+    </div>
+
+    {% if ask_password %}
+    <form class="rf-console-login" id="console-login" autocomplete="off">
+        <label for="console-password" class="mb-0">Password for <strong>{{ session.username }}</strong></label>
+        <input type="password" id="console-password" class="form-control form-control-sm" autocomplete="off" required autofocus>
+        <button type="submit" class="btn btn-sm btn-primary">Connect</button>
+        <small class="text-muted">Sent once over the encrypted connection to the device login; not stored.</small>
+    </form>
+    {% endif %}
+
+    <div class="rf-console-screen" id="console-screen" aria-label="Console of {{ router.name }}"></div>
+
+    <div class="rf-console-keys" aria-label="Extra keys">
+        <button type="button" data-key="esc">Esc</button><button type="button" data-key="tab">Tab</button>
+        <button type="button" data-key="ctrl-c">Ctrl-C</button><button type="button" data-key="ctrl-d">Ctrl-D</button>
+        <button type="button" data-key="up">&uarr;</button><button type="button" data-key="down">&darr;</button>
+        <button type="button" data-key="left">&larr;</button><button type="button" data-key="right">&rarr;</button>
+    </div>
+    <div class="rf-console-foot">Closes when this page closes, when you sign out, after {{ idle_minutes }} minutes without input, or with Disconnect.</div>
+</div>
+
+<style>
+    .rf-console { display: flex; flex-direction: column; gap: 10px; }
+    .rf-console-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+        background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 12px; padding: 10px 14px; }
+    .rf-console-who { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+    .rf-console-state { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .rf-console-dot { width: 10px; height: 10px; border-radius: 50%; background: #8a96a3; }
+    .rf-console-dot.on { background: #1f9d55; } .rf-console-dot.wait { background: #e8a317; } .rf-console-dot.off { background: #d64545; }
+    .rf-console-login { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--rf-surface); border: 1px solid var(--rf-line);
+        border-radius: 12px; padding: 10px 14px; }
+    .rf-console-login input { max-width: 260px; }
+    .rf-console-screen { background: #0f1a28; border-radius: 12px; padding: 10px; height: calc(100vh - 290px); min-height: 320px; }
+    .rf-console-keys { display: none; gap: 6px; flex-wrap: wrap; }
+    .rf-console-keys button { flex: 1; min-width: 56px; border: 1px solid var(--rf-line); background: var(--rf-surface); color: var(--rf-text); border-radius: 8px; padding: 8px 0; font-weight: 600; }
+    .rf-console-foot { font-size: 12.5px; color: var(--rf-muted); }
+    @media (max-width: 767.98px) { .rf-console-keys { display: flex; } .rf-console-screen { height: 55vh; } }
+</style>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script src="/static/vendor/xterm-6.0.0/xterm.js"></script>
+<script src="/static/vendor/xterm-6.0.0/addon-fit.js"></script>
+{{ ticket|json_script:"console-ticket" }}
+<script src="/static/routerfleet/console.js"></script>
+{% endblock %}

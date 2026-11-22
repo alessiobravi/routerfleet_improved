@@ -365,6 +365,20 @@ server block of your nginx configuration. Set
 `HTTPS_REDIRECT_POLICY=never` to serve both — which sends passwords in
 cleartext, and is not recommended.
 
+### Device console
+
+The [device console](console.md) gives a browser a terminal on a device, so it
+is guarded more than anything else: Host Manager and above, checked again
+every few seconds; a one-time ticket valid for 60 seconds, held only as a hash
+and never put in a URL; WebSockets refused unless they come from a page of the
+installation with a signed-in session; SSH host keys checked; the backup
+account's secret never sent to the browser and a typed password never stored;
+no stored credential ever sent over Telnet, which is off per device until
+switched on; idle, length and per-user limits; closed at once when the page
+closes and within seconds of signing out. Each session is in the change log;
+what is typed is not recorded. CI drives a real console session through nginx
+to an SSH server on every push.
+
 ### Cookies
 
 With HTTPS enforced — `HTTPS_REDIRECT_POLICY` is anything but `never` — the

@@ -22,7 +22,35 @@ from routerlib.actions import posted_action, posted_confirmation
 @login_required
 def view_user_settings(request):
     """The settings a user changes for themselves, no user level required."""
+    from django.core.exceptions import ValidationError
+    from django.core.validators import validate_email
+    from message_center import email as email_notifications
+    from message_center.models import SmtpSettings
     user_acl, created = UserAcl.objects.get_or_create(user=request.user)
+    if request.method == 'POST' and request.POST.get('action') == 'email':
+        address = request.POST.get('email', '').strip()
+        events = {field for field, _, _ in email_notifications.PERSONAL_EVENTS if request.POST.get(field) == 'on'}
+        try:
+            if address:
+                validate_email(address)
+        except ValidationError:
+            messages.warning(request, 'Not saved|The email address is not valid.')
+            return redirect('/user/settings/')
+        request.user.email = address
+        request.user.save(update_fields=['email'])
+        email_notifications.save_personal_channel(request.user, address, events)
+        messages.success(request, 'Email notifications saved|' + (
+            f'{len(events)} kind{"s" if len(events) != 1 else ""} of notification to {address}.' if address and events
+            else 'You receive no email notifications.'))
+        return redirect('/user/settings/')
+    if request.method == 'POST' and request.POST.get('action') == 'test_email':
+        try:
+            email_notifications.send(request.user.email, 'RouterFleet Improved: test email',
+                                     'This is a test from RouterFleet Improved. Your email notifications work.')
+            messages.success(request, f'Test email sent|To {request.user.email}.')
+        except Exception as error:   # noqa: BLE001 - the reason is shown, the password scrubbed
+            messages.error(request, 'Test email failed|' + email_notifications.scrub(error, SmtpSettings.load()).replace('|', '/')[:300])
+        return redirect('/user/settings/')
     form = UserAddressLinkForm(request.POST or None, instance=user_acl)
     if request.method == 'POST' and form.is_valid():
         form.save()
@@ -32,6 +60,13 @@ def view_user_settings(request):
         'page_title': 'My Settings', 'form': form,
         'totp_enabled': UserTotp.objects.filter(user=request.user, confirmed=True).exists(),
         'passkeys': UserPasskey.objects.filter(user=request.user).order_by('created'),
+        'user_level_label': user_acl.get_user_level_display() if user_acl.user_level else 'No access level',
+        'email_events': [(field, label, sub, bool(getattr(email_notifications.personal_channel(request.user), field, False)))
+                         for field, label, sub in email_notifications.PERSONAL_EVENTS],
+        'email_ready': SmtpSettings.load().ready,
+        'theme_choices': (('auto', 'Automatic', 'fa-adjust', 'Follows this device: dark when it is dark.'),
+                          ('light', 'Light', 'fa-sun', 'Always light.'),
+                          ('dark', 'Dark', 'fa-moon', 'Always dark - for the night.')),
     }
     return render(request, 'user_manager/user_settings.html', context)
 

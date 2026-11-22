@@ -63,6 +63,9 @@ def send(channel_type, token, destination, text, subject=None):
     if channel_type == 'telegram':
         return requests.get(f'https://api.telegram.org/bot{quote(token or "", safe=":")}/sendMessage',
                             params={'chat_id': destination, 'text': text}, timeout=TIMEOUT)
+    if channel_type == 'email':
+        from . import email
+        return email.send(destination, subject or text.split('\n')[0], text)
     if channel_type == 'ntfy':
         headers = {'Title': subject} if subject else {}
         return requests.post(f'https://ntfy.sh/{quote(destination or "", safe="")}',

@@ -53,6 +53,11 @@ encrypted with.
 
 ## What it does
 
+- **Device console** — a terminal on any device, right in the browser: SSH (or
+  Telnet where a device has nothing else), with its backup account or any other
+  account, also on a phone. One-time tickets, host keys checked, closed as soon
+  as the page closes or you sign out, every session in the audit log.
+  [More](docs/console.md)
 - **Backups** — daily, weekly, monthly and on-demand, per-device retention,
   text and binary, with a line-by-line diff between any two of them and a flag
   on every backup that changed the configuration. A profile can **keep only
@@ -77,7 +82,8 @@ encrypted with.
 - **A live interface** — a status page with charts and cards that open what
   they count, object pages with progress and a timeline, updating themselves
   while something runs.
-- **Notifications** — Telegram, ntfy.sh and CallMeBot (WhatsApp), with
+- **Notifications** — email (each user picks what to receive; your own SMTP
+  server), Telegram, ntfy.sh and CallMeBot (WhatsApp), with
   concatenation so a flapping link does not send fifty messages.
 - **Audit log** — every sign-in attempt, and every configuration change field
   by field, in an append-only trail.
@@ -105,6 +111,7 @@ encrypted with.
 | [Audit log](docs/audit-log.md) | Login history and the change log |
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
+| [Device console](docs/console.md) | A terminal on any device in the browser: SSH or Telnet, security, when it closes |
 | [HTTPS](docs/https.md) | Let's Encrypt, own certificate, reverse proxy - in System settings |
 | [Tools](docs/tools.md) | Backup clean-up and export of the latest backups |
 | [Security](docs/security.md) | Secrets at rest, host keys, sign-in limits, the scheduler endpoints |

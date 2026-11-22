@@ -1,105 +1,118 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-3">
-    <div class="card card-primary card-outline">
-        <div class="card-header">
-            <h3 class="card-title">My Settings</h3>
+<div class="rf-settings">
+    <div class="rf-set-title">Account</div>
+    <div class="rf-set-group">
+        <div class="rf-set-row">
+            <span class="rf-set-icon"><i class="fas fa-user"></i></span>
+            <div class="rf-set-text"><div class="rf-set-label">{{ request.user.username }}</div>
+                <div class="rf-set-sub">{{ user_level_label }}</div></div>
         </div>
-        <div class="card-body">
-<div class="row">
-    <div class="col-md-4">
-        <form method="post">
+    </div>
+
+    <div class="rf-set-title">Appearance</div>
+    <div class="rf-set-group">
+        {% for value, label, icon, sub in theme_choices %}
+        <label class="rf-set-row rf-set-choice">
+            <input type="radio" name="rf-theme" value="{{ value }}">
+            <span class="rf-set-icon {% cycle 'blue' 'amber' 'grey' %}"><i class="fas {{ icon }}"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span><span class="rf-set-sub d-block">{{ sub }}</span></span>
+            <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+        </label>
+        {% endfor %}
+    </div>
+    <div class="rf-set-foot">Kept by this browser. The moon in the top bar switches it too.</div>
+
+    <div class="rf-set-title">Router address in the device list</div>
+    <form method="post" id="address-link-form" class="rf-set-group">
         {% csrf_token %}
+        {% for value, display in form.address_link.field.choices %}
+        <label class="rf-set-row rf-set-choice">
+            <input type="radio" name="{{ form.address_link.html_name }}" value="{{ value }}"
+                   {% if form.address_link.value|stringformat:"s" == value|stringformat:"s" %}checked{% endif %}>
+            <span class="rf-set-icon {% cycle 'grey' 'teal' 'blue' 'purple' %}"><i class="fas {% cycle 'fa-font' 'fa-terminal' 'fa-window-maximize' 'fa-list' %}"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ display }}</span>
+                <span class="rf-set-sub d-block">{% cycle 'Shown as plain text.' 'Opens ssh://username@address:port. Monitoring devices and devices without a username stay plain text.' 'Opens winbox://address on RouterOS devices; others stay plain text.' 'A menu with SSH and Winbox, offering only what the device supports.' %}</span></span>
+            <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+        </label>
+        {% endfor %}
+        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+    </form>
+    <div class="rf-set-foot">Saved as soon as you choose.</div>
 
-            <!-- Address Link -->
-            <div class="form-group">
-                <label for="{{ form.address_link.id_for_label }}">Router address</label>
-                <select class="form-control" id="{{ form.address_link.id_for_label }}" name="{{ form.address_link.html_name }}">
-                    {% for value, display in form.address_link.field.choices %}
-                        <option value="{{ value }}" {% if form.address_link.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ display }}</option>
-                    {% endfor %}
-                </select>
-                <small class="form-text text-muted">{{ form.address_link.help_text }}</small>
-            </div>
-
-            <div>
-                <button type="submit" class="btn btn-primary">Submit</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="col-md-8">
-        <h5>No links</h5>
-        <p>The address is shown as plain text, as it always was.</p>
-        <h5>Open with SSH</h5>
-        <p>A click on the address opens an SSH session: <code>ssh://username@address:port</code>. Devices without a username, and monitoring devices, are shown as plain text.</p>
-        <h5>Open with Winbox</h5>
-        <p>A click on the address opens MikroTik Winbox: <code>winbox://address</code>. Only RouterOS devices offer this, every other device is shown as plain text.</p>
-        <h5>Show a menu (SSH / Winbox)</h5>
-        <p>Moving the mouse over the address opens a menu with both entries. Only the ones the device supports are offered, so a device that is not a RouterOS device keeps the plain SSH link.</p>
-    </div>
-</div>
-
-    </div>
-    </div>
-
-    <div class="card card-primary card-outline">
-        <div class="card-header">
-            <h3 class="card-title"><i class="fas fa-shield-alt"></i> Sign-in security</h3>
+    <div class="rf-set-title">Email notifications</div>
+    <form method="post" class="rf-set-group" id="email-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="email">
+        <div class="rf-set-row">
+            <span class="rf-set-icon {% if email_ready %}teal{% else %}grey{% endif %}"><i class="fas fa-envelope"></i></span>
+            <div class="rf-set-text"><label class="small mb-0" for="email">Your email address</label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ request.user.email }}" placeholder="you@example.com"></div>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5>Authenticator app</h5>
-                    {% if totp_enabled %}
-                        <p><span class="badge badge-success">On</span> Signing in asks for your password and a code from the app.</p>
-                        <a href="/user/settings/totp/" class="btn btn-outline-danger btn-sm">Turn off</a>
-                    {% else %}
-                        <p><span class="badge badge-secondary">Off</span> Add a second step to signing in: a 6-digit code from an
-                            authenticator app on your phone (any app that supports TOTP).</p>
-                        <a href="/user/settings/totp/" class="btn btn-primary btn-sm">Set up</a>
-                    {% endif %}
+        {% for field, label, sub, on in email_events %}
+        <div class="rf-set-row">
+            <div class="rf-set-text"><div class="rf-set-label">{{ label }}</div><div class="rf-set-sub">{{ sub }}</div></div>
+            <div class="custom-control custom-switch">
+                <input type="checkbox" class="custom-control-input" id="email-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
+                <label class="custom-control-label" for="email-{{ field }}"><span class="sr-only">{{ label }}</span></label>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="rf-set-row justify-content-end">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </div>
+    </form>
+    {% if email_ready %}
+    <form method="post" class="rf-set-foot">
+        {% csrf_token %}<input type="hidden" name="action" value="test_email">
+        Sent through the installation's mail server.
+        {% if request.user.email %}<button type="submit" class="btn btn-link btn-sm p-0 align-baseline">Send me a test email</button>{% endif %}
+    </form>
+    {% else %}
+    <div class="rf-set-foot">Email is not set up yet: an administrator configures the mail server in Message Center, Email.
+        Your choices are kept and apply once it is.</div>
+    {% endif %}
+
+    <div class="rf-set-title">Sign-in security</div>
+    <div class="rf-set-group">
+        <a class="rf-set-row" href="/user/settings/totp/">
+            <span class="rf-set-icon {% if totp_enabled %}teal{% else %}amber{% endif %}"><i class="fas fa-mobile-alt"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Authenticator app</span>
+                <span class="rf-set-sub d-block">{% if totp_enabled %}Signing in asks for a code from the app as well.{% else %}Add a 6-digit code from an app on your phone to signing in.{% endif %}</span></span>
+            <span class="rf-set-pill {% if totp_enabled %}on{% endif %}">{% if totp_enabled %}On{% else %}Off{% endif %}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% for passkey in passkeys %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
+            <div class="rf-set-text"><div class="rf-set-label">{{ passkey.name }}</div>
+                <div class="rf-set-sub">Passkey · added {{ passkey.created|date:"Y-m-d" }} · last used {{ passkey.last_used|date:"Y-m-d H:i"|default:"never" }}</div></div>
+            <a href="#" class="btn btn-link text-danger" title="Remove" aria-label="Remove the passkey {{ passkey.name }}"
+               onclick="if (confirm('Remove the passkey &quot;{{ passkey.name|escapejs }}&quot;?')) { postAction('/user/settings/passkeys/delete/', {uuid: '{{ passkey.uuid }}'}); } return false;"><i class="fas fa-trash"></i></a>
+        </div>
+        {% endfor %}
+        <div class="rf-set-row d-none" id="passkey-add">
+            <span class="rf-set-icon grey"><i class="fas fa-plus"></i></span>
+            <div class="rf-set-text">
+                <div class="input-group input-group-sm">
+                    <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey">
+                    <div class="input-group-append"><button type="button" id="passkey-add-button" class="btn btn-primary">Add a passkey</button></div>
                 </div>
-                <div class="col-md-6">
-                    <h5>Passkeys</h5>
-                    <p>Sign in without a password, with your device's fingerprint, face or PIN.</p>
-                    {% if passkeys %}
-                        <table class="table table-sm">
-                            <thead><tr><th>Name</th><th>Added</th><th>Last used</th><th></th></tr></thead>
-                            <tbody>
-                            {% for passkey in passkeys %}
-                                <tr>
-                                    <td>{{ passkey.name }}</td>
-                                    <td>{{ passkey.created|date:"Y-m-d" }}</td>
-                                    <td>{{ passkey.last_used|date:"Y-m-d H:i"|default:"never" }}</td>
-                                    <td class="text-right">
-                                        <a href="#" class="text-danger" title="Remove"
-                                           onclick="if (confirm('Remove the passkey &quot;{{ passkey.name|escapejs }}&quot;?')) { postAction('/user/settings/passkeys/delete/', {uuid: '{{ passkey.uuid }}'}); } return false;"><i class="fas fa-trash"></i></a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                            </tbody>
-                        </table>
-                    {% endif %}
-                    <div id="passkey-add" class="d-none">
-                        <div class="input-group input-group-sm">
-                            <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop">
-                            <div class="input-group-append">
-                                <button type="button" id="passkey-add-button" class="btn btn-primary"><i class="fas fa-key"></i> Add a passkey</button>
-                            </div>
-                        </div>
-                        <div id="passkey-error" class="text-danger small mt-2"></div>
-                    </div>
-                    <p id="passkey-unsupported" class="text-muted small">
-                        Passkeys are available when this installation is opened by its name (not an IP address)
-                        over HTTPS with a certificate your browser trusts.
-                    </p>
-                </div>
+                <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
             </div>
         </div>
     </div>
+    <div class="rf-set-foot" id="passkey-unsupported">Passkeys sign you in with your device's fingerprint, face or PIN. They are
+        available when this installation is opened by its name (not an IP address) over HTTPS with a certificate your
+        browser trusts.</div>
 </div>
+<script>
+    // A choice is saved as soon as it is made
+    document.querySelectorAll('#address-link-form input[type=radio]').forEach(function (radio) {
+        radio.addEventListener('change', function () { document.getElementById('address-link-form').submit(); });
+    });
+</script>
 {% endblock %}
 
 {% block custom_page_scripts %}

@@ -60,6 +60,7 @@ flowchart TB
 | [Audit log](audit-log.md) | Login history, change log, what is deliberately not recorded |
 | [Users and permissions](users.md) | The five levels and what each one reaches |
 | [Import tool](import-tool.md) | CSV format, validation rules, missing groups |
+| [Device console](console.md) | A terminal on any device in the browser - SSH or Telnet, backup account or another; security and when it closes |
 | [HTTPS](https.md) | System settings: Let's Encrypt, your own certificate, self-signed, reverse proxy; passkey requirements |
 | [Tools](tools.md) | Backup clean-up (duplicates, orphan files) and export of the latest backups |
 

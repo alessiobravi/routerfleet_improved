@@ -326,3 +326,34 @@ class DevicesStatusChartTests(TestCase):
         page = self.client.get('/status/')
         self.assertContains(page, 'Devices status')
         self.assertContains(page, "label: 'Disabled'")
+
+
+class MenuIconAlignmentTests(TestCase):
+    """Every menu entry's icon has the fixed width (nav-icon) that lines the
+    labels up - Backup's lacked it and its label sat further left."""
+
+    def test_every_menu_icon_is_aligned(self):
+        import re
+        self.client.force_login(make_user(50))
+        page = self.client.get('/status/').content.decode()
+        sidebar = page[page.index('nav-sidebar'):page.index('</nav>', page.index('nav-sidebar'))]
+        icons = re.findall(r'<a href="[^"]+"\s+class="nav-link[^"]*">\s*<i class="([^"]+)"', sidebar)
+        self.assertGreater(len(icons), 8)
+        for classes in icons:
+            self.assertIn('nav-icon', classes.split(), classes)
+
+
+
+class ThemeTests(TestCase):
+    """Light and dark: applied before the page is drawn, switchable from the
+    top bar and My Settings."""
+
+    def test_every_page_carries_the_theme(self):
+        self.client.force_login(make_user(10))
+        page = self.client.get('/status/').content.decode()
+        self.assertLess(page.index("localStorage.getItem('rf-theme')"), page.index('<body'), 'set before drawing')
+        self.assertIn('id="theme-toggle"', page)
+        self.assertIn('/static/routerfleet/theme.js', page)
+        settings_page = self.client.get('/user/settings/').content.decode()
+        for choice in ('auto', 'light', 'dark'):
+            self.assertIn(f'name="rf-theme" value="{choice}"', settings_page)

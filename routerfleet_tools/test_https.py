@@ -203,6 +203,10 @@ class CommandTests(VolumeTestCase):
     def test_reset_and_mode(self):
         call_command('https', 'mode', 'plain', stdout=open(os.devnull, 'w'))
         self.assertEqual(self.state()['mode'], 'plain')
+        import io
+        out = io.StringIO()
+        call_command('https', 'status', stdout=out)
+        self.assertIn('"configured": "plain"', out.getvalue())
         call_command('https', 'reset', stdout=open(os.devnull, 'w'))
         self.assertEqual(self.state()['mode'], 'env')
         self.assertEqual(HttpsSettings.load().mode, 'env')

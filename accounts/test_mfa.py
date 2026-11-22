@@ -165,7 +165,7 @@ class TotpSettingsTests(TestCase):
         self.assertFalse(UserTotp.objects.get(user=self.user).confirmed)
         self.client.post('/user/settings/totp/', {'action': 'enable', 'code': mfa.totp_at(totp.secret, mfa.current_step())})
         self.assertTrue(UserTotp.objects.get(user=self.user).confirmed)
-        self.assertContains(self.client.get('/user/settings/'), 'badge-success">On')
+        self.assertContains(self.client.get('/user/settings/'), 'rf-set-pill on">On')
         # Turning it off needs a code, and not the one just used
         self.client.post('/user/settings/totp/', {'action': 'disable', 'code': mfa.totp_at(totp.secret, mfa.current_step())})
         self.assertTrue(UserTotp.objects.filter(user=self.user).exists())

@@ -63,7 +63,7 @@ The status page is the home page and the fastest health check. Two charts on
 top show backups and the devices' status per calendar day over 7, 15 or 30
 days: online (green), offline but enabled (red) and disabled (purple, counted
 from the day the change log says the device was switched off). Clicking a
-day's backup bar opens that day's backups; clicking a part of the devices bar
+day's backup bar opens that day's backups; clicking a point of a devices line
 opens the devices in that state. Below them, one card per signal,
 each with a coloured edge and a chip saying what to do - green *OK*, amber
 *Look*, red *Act*, grey for no information - and a sparkline where RouterFleet
@@ -126,6 +126,14 @@ centre** of the page: teal for success, blue for information, amber for a
 warning, red for an error. A balloon closes after **5 seconds** (the bar along
 its bottom shows the time left, and pauses while the pointer rests on it) or
 when you click it; several stack. They show text only.
+
+### Light and dark
+
+The moon in the top bar switches to **dark mode** - for the night - and the
+sun back. *My Settings → Appearance* also offers **Automatic**, the default,
+which follows the device: dark when the computer or phone is in dark mode, and
+changing with it. The choice is kept by each browser. The page is drawn in its
+theme from the start, without a white flash.
 
 ### Switches
 

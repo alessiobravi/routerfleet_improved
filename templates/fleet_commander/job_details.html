@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div id="rf-live-job" data-rf-live="{% if not job.completed %}active{% else %}done{% endif %}" data-rf-live-interval="3">
+<div id="rf-live-job" data-rf-live="{% if not job.completed %}active{% else %}done{% endif %}" data-rf-live-reason="job running" data-rf-live-interval="3">
     {% if job.schedule and job.schedule.enabled %}
         <div class="row">
             <div class="col-lg-12">

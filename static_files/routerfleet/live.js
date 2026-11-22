@@ -15,6 +15,13 @@
 
   function parts(root) { return Array.prototype.slice.call((root || document).querySelectorAll('[data-rf-live][id]')); }
   function activeParts() { return parts().filter(function (p) { return p.getAttribute('data-rf-live') === 'active'; }); }
+  // What is running, as the page says (data-rf-live-reason); a part marked
+  // data-rf-live-quiet - the status page's cards - refreshes without the pill
+  function reason() {
+    var loud = activeParts().filter(function (p) { return !p.hasAttribute('data-rf-live-quiet'); });
+    if (!loud.length) { return null; }
+    return loud.map(function (p) { return p.getAttribute('data-rf-live-reason'); }).filter(Boolean)[0] || 'updating';
+  }
 
   function showPill(state) {
     if (!pill) {
@@ -36,8 +43,9 @@
     }
     if (!state) { pill.remove(); pill = null; return; }
     pill.classList.toggle('rf-paused', state !== 'live');
+    pill.title = 'This page refreshes by itself while something on it is running, and stops when it is done';
     pill.querySelector('.rf-label').textContent =
-      state === 'live' ? 'Live: updating' : state === 'retry' ? 'Live: reconnecting' : 'Live updates stopped - reload the page';
+      state === 'live' ? 'Live: ' + (reason() || 'updating') : state === 'retry' ? 'Live: reconnecting' : 'Live updates stopped - reload the page';
   }
 
   function interval() {
@@ -49,7 +57,7 @@
     clearTimeout(timer);
     if (stopped) { return; }
     if (!activeParts().length) { showPill(null); return; }
-    showPill(failures ? 'retry' : 'live');
+    if (reason() === null && !failures) { showPill(null); } else { showPill(failures ? 'retry' : 'live'); }
     var wait = failures ? Math.min(30, interval() * Math.pow(2, failures)) : interval();
     timer = setTimeout(refresh, wait * 1000);
   }
@@ -72,6 +80,7 @@
           if (next.outerHTML === old.outerHTML) { return; }
           var adopted = document.importNode(next, true);
           old.replaceWith(adopted);
+          if (window.rfInitPanels) { window.rfInitPanels(adopted); }
           if (window.rfInitTables) { window.rfInitTables(adopted); }
         });
         failures = 0;

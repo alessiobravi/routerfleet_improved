@@ -8,7 +8,7 @@ it reach.
 |---|---|---|
 | 10 | Viewer | Nothing beyond what any signed-in account sees (see below) |
 | 20 | Backup Operator | Instant backups, download and compare backups, group membership, run/stop views in Fleet Commander listings, notification channel listings |
-| 30 | Host Manager | Create and edit devices, bulk edit, refresh inventory, delete backups |
+| 30 | Host Manager | Create and edit devices, bulk edit, refresh inventory, test connection, delete backups, **device console** |
 | 40 | Configuration Manager | Backup profiles, groups, SSH keys, commands, variants, schedules, schedule defaults, notification channels and settings |
 | 50 | Administrator | User management, audit log, import tool |
 
@@ -23,7 +23,8 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 |---|---|---|
 | Devices | View | signed in |
 | | Instant backup, group membership | 20 |
-| | Create/edit a device, bulk edit, refresh inventory | 30 |
+| | Create/edit a device, bulk edit, refresh inventory, test connection | 30 |
+| | [Device console](console.md) (SSH or Telnet) | 30 |
 | | Groups, SSH keys | 40 |
 | Backups | Backup list, profile list | signed in |
 | | Details, compare, download | 20 |
@@ -36,6 +37,8 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | | Edit a system command (with confirmation) | 50 |
 | Notifications | Channel list, message history | 20 |
 | | Channels and settings | 40 |
+| | Email (SMTP server) | 50 |
+| | Own email address and email notifications (My Settings) | signed in |
 | Audit log | Login history, change log | 50 |
 | Users | List, create, edit | 50 |
 | Import tool | All of it | 50 |

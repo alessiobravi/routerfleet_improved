@@ -392,11 +392,17 @@ class CommandJob(models.Model):
         update_fields = ['task_count', 'success_count', 'error_count', 'aborted_count']
 
         finished_count = tasks['success'] + tasks['error'] + tasks['aborted']
+        just_completed = False
         if finished_count >= tasks['total'] and not self.completed:
             self.completed = timezone.now()
             update_fields.append('completed')
+            just_completed = True
 
         self.save(update_fields=update_fields)
+        # Once, when the job finishes: the channels that asked hear of failures
+        if just_completed and self.error_count:
+            from message_center.functions import notify_command_job_failed
+            notify_command_job_failed(self)
 
     @property
     def progress_percentage(self):

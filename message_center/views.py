@@ -166,6 +166,7 @@ def view_cron_concatenate_notifications(request):
             'status_online': 0,
             'status_offline': 0,
             'backup_fail': 0,
+            'backup_success': 0,
         }
     }
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
@@ -181,6 +182,8 @@ def view_cron_concatenate_notifications(request):
         data['notification_type']['status_online'] = concatenate_notifications('status_online')
     if Notification.objects.filter(created__lte=backup_fail_limit, notification_type='backup_fail').exists():
         data['notification_type']['backup_fail'] = concatenate_notifications('backup_fail')
+    if Notification.objects.filter(created__lte=backup_fail_limit, notification_type='backup_success').exists():
+        data['notification_type']['backup_success'] = concatenate_notifications('backup_success')
     return JsonResponse(data)
 
 
@@ -189,7 +192,8 @@ def view_message_channel_list(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
-    message_channels = MessageChannel.objects.all()
+    # Each user's own email channel is managed in My Settings, not here
+    message_channels = MessageChannel.objects.filter(user__isnull=True)
     context = {
         'message_settings': message_settings,
         'message_channels': message_channels,

@@ -18,7 +18,7 @@ class UserAclForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = UserCreationForm.Meta.fields + ('user_level',)
+        fields = UserCreationForm.Meta.fields + ('email', 'user_level',)
 
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id', None)
@@ -27,6 +27,8 @@ class UserAclForm(UserCreationForm):
             self.fields['password1'].required = False
             self.fields['password2'].required = False
             self.fields['username'].widget.attrs['readonly'] = True
+        self.fields['email'].required = False
+        self.fields['email'].help_text = 'For email notifications; each user chooses them in My Settings.'
 
     def clean_username(self):
         username = self.cleaned_data.get('username')

@@ -21,6 +21,8 @@ are not used to install anything.
 | chosen-js | 1.8.7 | MIT | `static_files/plugins/chosen/` |
 | diff2html | 3.4.56 | MIT | `static_files/plugins/diff2html/` |
 | chart.js | 4.6.1 | MIT | `static_files/vendor/chart.js-4.6.1/` |
+| @xterm/xterm | 6.0.0 | MIT | `static_files/vendor/xterm-6.0.0/` (the device console) |
+| @xterm/addon-fit | 0.11.0 | MIT | `static_files/vendor/xterm-6.0.0/addon-fit.js` |
 | Source Sans Pro (font) | 3.006R | OFL-1.1 | `static_files/fonts/source-sans-pro/` |
 
 Notes:

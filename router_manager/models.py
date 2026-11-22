@@ -38,6 +38,10 @@ class Router(models.Model):
     ssh_key = models.ForeignKey(SSHKey, on_delete=models.SET_NULL, null=True, blank=True)
     monitoring = models.BooleanField(default=True)
     backup_profile = models.ForeignKey(BackupProfile, on_delete=models.SET_NULL, null=True, blank=True)
+    # The console's Telnet: off unless switched on for the device - Telnet
+    # sends everything, a password included, unencrypted
+    console_telnet = models.BooleanField(default=False, verbose_name='Allow a Telnet console (unencrypted)')
+    telnet_port = models.PositiveIntegerField(default=23, verbose_name='Telnet port')
     router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
     enabled = models.BooleanField(default=True)
     updated = models.DateTimeField(auto_now=True)

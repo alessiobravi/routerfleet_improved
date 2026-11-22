@@ -190,7 +190,7 @@ def shown(value, display=None):
         return value
     if display is not None and str(display).strip():
         # A choice is stored as one thing and read as another. Both are worth
-        # having - "40 (configuration Manager)" - unless they are the same word
+        # having - "40 (Configuration Manager)" - unless they are the same word
         if str(display).lower() != str(value).lower():
             return f'{value} ({display})'
         return str(display)
@@ -315,6 +315,12 @@ def build():
     watch(apps.get_model('fleet_commander', 'ScheduleDefaults'),
           fields=['start_time', 'repeat_interval'],
           create=False)
+
+    # Console sessions: who opened a console on which device, as which account.
+    # The ticket is a hash and not recorded; nothing typed is ever stored
+    watch(apps.get_model('console', 'ConsoleSession'),
+          fields=['router_name', 'transport', 'account', 'username'],
+          create=True, delete=False)
 
     # HTTPS in System settings. The private key is never in the database
     watch(apps.get_model('routerfleet_tools', 'HttpsSettings'),

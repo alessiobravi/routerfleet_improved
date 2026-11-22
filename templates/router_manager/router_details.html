@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div id="rf-live-router" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-interval="5">
+<div id="rf-live-router" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="{{ live_reason }}" data-rf-live-interval="5">
 {% include 'includes/object_hero.html' %}
-<div class="rf-object mb-3">{% include 'includes/object_timeline.html' with compact=True %}</div>
+<div class="rf-object rf-o-grid rf-o-split">
+<div class="rf-o-details">
     <div class='row'>
         <div class='col-xl-5'>
             <div class="row">
@@ -452,5 +453,8 @@
 
         </div>
     </div>
+</div>
+{% include 'includes/object_timeline.html' %}
+</div>
 </div>
 {% endblock %}

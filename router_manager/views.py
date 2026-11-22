@@ -1,3 +1,4 @@
+from django.conf import settings
 import json
 import time
 from urllib.parse import unquote
@@ -126,6 +127,7 @@ def view_router_list(request):
         # Not every user has a UserAcl row, the first user created has none
         'address_link': UserAcl.objects.filter(user=request.user).values_list('address_link', flat=True).first() or 'none',
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'can_open_console': UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists(),
     }
     return render(request, 'router_manager/router_list.html', context=context)
 
@@ -200,6 +202,14 @@ def view_router_details(request):
             router_status.save()
             messages.warning(request, 'Backup lock removed|Backup lock was removed as there are no active backup tasks')
 
+    live_reasons = []
+    if router_status.backup_lock:
+        live_reasons.append('backup in progress')
+    pending_tasks = router.commandtask_set.filter(status='pending').count()
+    if router_status.command_lock or pending_tasks:
+        live_reasons.append(f'{pending_tasks or 1} command task{"s" if pending_tasks > 1 else ""} running')
+    if router_information and not router_information.success and not router_information.error:
+        live_reasons.append('reading device information')
     context = {
         'router': router,
         'host_key': host_keys.stored_key(router.address, router.port),
@@ -211,13 +221,13 @@ def view_router_details(request):
         'last_week_availability': last_week_availability,
         'command_task_list': router.commandtask_set.all().order_by('-created')[:25],
         # Live while a backup, a command or an information read is under way
-        'live_active': bool(router_status.backup_lock or router_status.command_lock
-                            or router.commandtask_set.filter(status='pending').exists()
-                            or (router_information and not router_information.success and not router_information.error)),
+        'live_active': bool(live_reasons),
+        'live_reason': ', '.join(live_reasons),
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
         'can_edit_routers': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
         'page': router_page(router, router_status, router_information, last_week_availability,
-                            UserAcl.objects.filter(user=request.user, user_level__gte=40).exists()),
+                            UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+                            can_console=UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists()),
     }
 
 

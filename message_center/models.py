@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from routerlib.encryption import EncryptedTextField
@@ -7,7 +8,7 @@ import uuid
 
 
 class Notification(models.Model):
-    notification_type = models.CharField(choices=(('status_online', 'Status change: Online'), ('status_offline', 'Status change: Offline'), ('backup_fail', 'Backup failed'), ('task_lock_expired', 'Task Lock Expired')), max_length=32)
+    notification_type = models.CharField(choices=(('status_online', 'Status change: Online'), ('status_offline', 'Status change: Offline'), ('backup_fail', 'Backup failed'), ('backup_success', 'Backup succeeded'), ('task_lock_expired', 'Task Lock Expired')), max_length=32)
     router = models.ForeignKey(Router, on_delete=models.CASCADE, blank=True, null=True)
     router_backup = models.ForeignKey(RouterBackup, on_delete=models.CASCADE, blank=True, null=True)
 
@@ -21,9 +22,13 @@ class MessageChannel(models.Model):
     enabled = models.BooleanField(default=True)
     channel_type = models.CharField(
         max_length=100, choices=(
-            ('callmebot', 'CallMeBot (WhatsApp)'), ('telegram', 'Telegram'), ('ntfy', 'ntfy.sh')
+            ('callmebot', 'CallMeBot (WhatsApp)'), ('telegram', 'Telegram'), ('ntfy', 'ntfy.sh'), ('email', 'Email')
         )
     )
+    # A user's own email channel, kept by My Settings: delivered to the user's
+    # address. Shared channels (a team mailbox) have no user.
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
+                                related_name='email_channel')
     destination = models.CharField(max_length=100, blank=True, null=True)
     # Encrypted at rest; reads return the token as written
     token = EncryptedTextField(blank=True, null=True)
@@ -33,6 +38,9 @@ class MessageChannel(models.Model):
     backup_fail = models.BooleanField(default=True)
     daily_status_report = models.BooleanField(default=True)
     daily_backup_report = models.BooleanField(default=True)
+    # Added later: off for every channel that existed, so an upgrade sends nothing new
+    backup_success = models.BooleanField(default=False, verbose_name='Backup succeeded')
+    command_failed = models.BooleanField(default=False, verbose_name='Fleet Commander job with failures')
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -40,6 +48,12 @@ class MessageChannel(models.Model):
 
     def __str__(self):
         return self.name + ' (' + self.channel_type + ')'
+
+    @property
+    def email_address(self):
+        if self.user_id:
+            return self.user.email
+        return self.destination
 
 
 class Message(models.Model):
@@ -77,3 +91,35 @@ class MessageSettings(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
 
+
+
+class SmtpSettings(models.Model):
+    """The mail server notifications are sent through - one for the
+    installation, set by an administrator. The password is encrypted at rest
+    and never shown again."""
+    SECURITY = (('starttls', 'STARTTLS (port 587)'), ('ssl', 'SSL/TLS (port 465)'), ('none', 'None (unencrypted)'))
+    name = models.CharField(max_length=16, default='smtp_settings', unique=True)
+    enabled = models.BooleanField(default=False)
+    host = models.CharField(max_length=253, blank=True)
+    port = models.PositiveIntegerField(default=587)
+    security = models.CharField(max_length=10, choices=SECURITY, default='starttls')
+    username = models.CharField(max_length=254, blank=True)
+    password = EncryptedTextField(blank=True, null=True)
+    sender_address = models.CharField(max_length=254, blank=True)
+    sender_name = models.CharField(max_length=100, default='RouterFleet Improved')
+
+    updated = models.DateTimeField(auto_now=True)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
+    def __str__(self):
+        return 'SMTP settings'
+
+    @classmethod
+    def load(cls):
+        row, _ = cls.objects.get_or_create(name='smtp_settings')
+        return row
+
+    @property
+    def ready(self):
+        return bool(self.enabled and self.host and self.sender_address)

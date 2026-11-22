@@ -4,6 +4,7 @@ from router_manager.models import Router
 from .models import MessageChannel, Notification, MessageSettings, Message
 from backup_data.models import RouterBackup
 from . import channels
+from .email import scrub as email_scrub
 from django.utils import timezone
 
 
@@ -23,6 +24,10 @@ def concatenate_notifications(notification_type: str):
         notification_text = 'Backup failed report\n'
         notification_list = Notification.objects.filter(notification_type='backup_fail')
         message_channel_list = message_channel_list.filter(backup_fail=True)
+    elif notification_type == 'backup_success':
+        notification_text = 'Successful backups\n'
+        notification_list = Notification.objects.filter(notification_type='backup_success')
+        message_channel_list = message_channel_list.filter(backup_success=True)
     else:
         return 0
 
@@ -136,8 +141,13 @@ def send_notification_message(message: Message):
     message_response = {'status': 'pending', 'error_message': '', 'error_status_code': 0}
     
     channel = message.channel
+    smtp = None
     try:
-        response = channels.send(channel.channel_type, channel.token, channel.destination,
+        destination = channel.email_address if channel.channel_type == 'email' else channel.destination
+        if channel.channel_type == 'email':
+            from .models import SmtpSettings
+            smtp = SmtpSettings.load()
+        response = channels.send(channel.channel_type, channel.token, destination,
                                  message.message, message.subject)
         if response.status_code == 200:
             message_response['status'] = 'sent'
@@ -145,14 +155,17 @@ def send_notification_message(message: Message):
             message_response['status'] = 'failed'
             message_response['error_message'] = channels.scrub(response.text, channel.token)
             message_response['error_status_code'] = response.status_code
-    except ValueError:
+    except ValueError as e:
         message_response['status'] = 'failed'
-        message_response['error_message'] = 'Failed to send message: the channel type, token or destination is not valid'
+        message_response['error_message'] = (f'Failed to send message: {e}' if channel.channel_type == 'email' else
+                                             'Failed to send message: the channel type, token or destination is not valid')
         message_response['error_status_code'] = 0
     except Exception as e:
-        # The exception names the URL, which carries the token: never stored as is
+        # The exception names the URL, which carries the token, or the SMTP
+        # error, which may echo the login: never stored as is
         message_response['status'] = 'failed'
-        message_response['error_message'] = 'Failed to send message: Request exception ' + channels.scrub(e, channel.token)
+        message_response['error_message'] = 'Failed to send message: Request exception ' + \
+            email_scrub(channels.scrub(e, channel.token), smtp)
         message_response['error_status_code'] = 0
 
     if message_response['status'] == 'sent':
@@ -235,3 +248,38 @@ def notify_backup_task_lock_expired(router_backup: RouterBackup):
             message=error_message
         )
     return
+
+
+def notify_backup_success(router_backup: RouterBackup):
+    """A backup that succeeded, for the channels that asked: grouped like
+    failures, so a night of backups is one message, not one per device."""
+    message_channel_list = MessageChannel.objects.filter(enabled=True, backup_success=True)
+    if not message_channel_list.exists():
+        return
+    message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
+    if message_settings.concatenate_backup_fails:
+        Notification.objects.create(notification_type='backup_success', router=router_backup.router,
+                                    router_backup=router_backup)
+        return
+    state = 'unchanged' if router_backup.same_as_id else ('configuration changed' if router_backup.config_change_detected
+                                                          else 'stored')
+    for message_channel in message_channel_list:
+        Message.objects.create(channel=message_channel, subject=f'Backup succeeded: {router_backup.router.name}',
+                               message=f'Backup {router_backup.id} of {router_backup.router.name} '
+                                       f'({router_backup.router.address}) succeeded: {state}.')
+
+
+def notify_command_job_failed(job):
+    """A Fleet Commander job that finished with failed tasks."""
+    message_channel_list = MessageChannel.objects.filter(enabled=True, command_failed=True)
+    if not message_channel_list.exists():
+        return
+    failed = job.tasks.filter(status='error').select_related('router')[:20]
+    lines = [f'Fleet Commander job #{job.id} ({job.command.name}) finished: {job.success_count} succeeded, '
+             f'{job.error_count} failed, {job.aborted_count} aborted.', '']
+    for task in failed:
+        reason = (task.error_message or '').splitlines()[0][:120] if task.error_message else ''
+        lines.append(f'- {task.router.name if task.router else task.router_name}{": " + reason if reason else ""}')
+    for message_channel in message_channel_list:
+        Message.objects.create(channel=message_channel, subject=f'Fleet Commander job #{job.id} had failures',
+                               message='\n'.join(lines))

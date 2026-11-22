@@ -40,10 +40,16 @@ class RouterForm(forms.ModelForm):
 
     class Meta:
         model = Router
-        fields = ['name', 'port', 'address', 'username', 'password', 'ssh_key', 'monitoring', 'router_type', 'enabled', 'backup_profile']
+        fields = ['name', 'port', 'address', 'username', 'password', 'ssh_key', 'monitoring', 'router_type', 'enabled',
+                  'backup_profile', 'console_telnet', 'telnet_port']
 
     def __init__(self, *args, **kwargs):
         super(RouterForm, self).__init__(*args, **kwargs)
+        # Only used by the console's Telnet: empty means the standard port
+        self.fields['telnet_port'].required = False
+        self.fields['telnet_port'].help_text = 'Used only when the Telnet console is allowed.'
+        self.fields['console_telnet'].help_text = ('Telnet sends everything, passwords included, unencrypted. '
+                                                   'Off unless the device has no SSH.')
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:
@@ -73,6 +79,11 @@ class RouterForm(forms.ModelForm):
             'router_type',
             'monitoring',
             'enabled',
+            Row(
+                Column('console_telnet', css_class='form-group col-md-8 mb-0'),
+                Column('telnet_port', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
@@ -130,6 +141,11 @@ class RouterForm(forms.ModelForm):
 
         if ssh_key and not password:
             cleaned_data['password'] = ''
+
+        telnet_port = cleaned_data.get('telnet_port') or 23
+        if not 1 <= telnet_port <= 65535:
+            raise forms.ValidationError('Invalid Telnet port number')
+        cleaned_data['telnet_port'] = telnet_port
 
         # Saving never connects to the device: a router that does not answer
         # can still be added, disabled or have its monitoring switched off.

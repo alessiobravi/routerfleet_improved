@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    {% include 'message_center/message_center_nav_tabs.html' %}
+    {% for error in errors %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endfor %}
+    <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save">
+        <div class="rf-set-title">Email notifications</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon {% if smtp.ready %}teal{% else %}grey{% endif %}"><i class="fas fa-envelope"></i></span>
+                <div class="rf-set-text"><div class="rf-set-label">Send notifications by email</div>
+                    <div class="rf-set-sub">Each user chooses what to receive in My Settings; shared mailboxes are channels.</div></div>
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="enabled" name="enabled"
+                           {% if posted %}{% if posted.enabled %}checked{% endif %}{% elif smtp.enabled %}checked{% endif %}>
+                    <label class="custom-control-label" for="enabled"><span class="sr-only">Send notifications by email</span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="rf-set-title">Server</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon"><i class="fas fa-server"></i></span>
+                <div class="rf-set-text">
+                    <div class="form-row">
+                        <div class="col-8"><label class="small mb-0" for="host">SMTP server</label>
+                            <input type="text" class="form-control" id="host" name="host" placeholder="smtp.example.com" spellcheck="false"
+                                   value="{% if posted %}{{ posted.host }}{% else %}{{ smtp.host }}{% endif %}"></div>
+                        <div class="col-4"><label class="small mb-0" for="port">Port</label>
+                            <input type="number" class="form-control" id="port" name="port" min="1" max="65535"
+                                   value="{% if posted %}{{ posted.port }}{% else %}{{ smtp.port }}{% endif %}"></div>
+                    </div>
+                </div>
+            </div>
+            {% for value, label in securities %}
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="security" value="{{ value }}"
+                       {% if posted %}{% if posted.security == value %}checked{% endif %}{% elif smtp.security == value %}checked{% endif %}>
+                <span class="rf-set-icon {% if value == 'none' %}red{% else %}teal{% endif %}"><i class="fas {% if value == 'none' %}fa-lock-open{% else %}fa-lock{% endif %}"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span>
+                    {% if value == 'none' %}<span class="rf-set-sub d-block">The login and the messages cross the network unencrypted.</span>{% endif %}</span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="rf-set-title">Login <span class="text-lowercase font-weight-normal">(optional)</span></div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon blue"><i class="fas fa-user"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="username">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" autocomplete="off" spellcheck="false"
+                           value="{% if posted %}{{ posted.username }}{% else %}{{ smtp.username }}{% endif %}"></div>
+            </div>
+            <div class="rf-set-row">
+                <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" autocomplete="new-password"
+                           placeholder="{% if has_password %}stored - leave empty to keep it{% else %}none{% endif %}">
+                    {% if has_password %}
+                    <div class="custom-control custom-checkbox rf-checkbox mt-1">
+                        <input type="checkbox" class="custom-control-input" id="remove_password" name="remove_password">
+                        <label class="custom-control-label small" for="remove_password">Remove the stored password</label>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="rf-set-foot">The password is encrypted at rest and never shown again.</div>
+
+        <div class="rf-set-title">Sender</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon purple"><i class="fas fa-at"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="sender_address">Address</label>
+                    <input type="email" class="form-control" id="sender_address" name="sender_address" placeholder="routerfleet@example.com"
+                           value="{% if posted %}{{ posted.sender_address }}{% else %}{{ smtp.sender_address }}{% endif %}"></div>
+            </div>
+            <div class="rf-set-row">
+                <span class="rf-set-icon purple"><i class="fas fa-signature"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="sender_name">Name</label>
+                    <input type="text" class="form-control" id="sender_name" name="sender_name" maxlength="100"
+                           value="{% if posted %}{{ posted.sender_name }}{% else %}{{ smtp.sender_name }}{% endif %}"></div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Save</button>
+        </div>
+    </form>
+    <form method="post" class="text-center mt-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="test">
+        <button type="submit" class="btn btn-link" {% if not smtp.ready %}disabled{% endif %}><i class="fas fa-paper-plane mr-1"></i>Send a test email to {{ request.user.email|default:"me" }}</button>
+        {% if not request.user.email %}<div class="rf-set-foot">Add your own address in My Settings to receive the test.</div>{% endif %}
+    </form>
+</div>
+{% endblock %}

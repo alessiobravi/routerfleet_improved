@@ -31,8 +31,11 @@ def _ago(moment):
 
 
 def _newest(events):
-    events = [e for e in events if e['when']]
-    return sorted(events, key=lambda e: e['when'], reverse=True)[:TIMELINE_LENGTH]
+    """Newest first. Events of the same moment - a task that started and
+    finished within the same minute - keep the order they happened in, so the
+    later one is above: they are listed in that order by the builders."""
+    indexed = [(e['when'], i, e) for i, e in enumerate(events) if e['when']]
+    return [e for _, _, e in sorted(indexed, key=lambda x: (x[0], x[1]), reverse=True)][:TIMELINE_LENGTH]
 
 
 # --- Fleet Commander job ----------------------------------------------------------
@@ -133,7 +136,7 @@ def task_page(task):
 
 # --- Device -----------------------------------------------------------------------
 
-def router_page(router, router_status, router_information, availability, can_execute):
+def router_page(router, router_status, router_information, availability, can_execute, can_console=False):
     from backup_data.models import RouterBackup
     from monitoring.models import RouterDownTime
     from router_manager.templatetags.router_tags import os_version_state
@@ -151,6 +154,8 @@ def router_page(router, router_status, router_information, availability, can_exe
     if groups:
         meta.append(groups)
     actions = [{'label': 'Edit', 'icon': 'fa-edit', 'href': f'/router/manage/?uuid={router.uuid}', 'style': ''}]
+    if can_console and router.router_type != 'monitoring':
+        actions.append({'label': 'Console', 'icon': 'fa-keyboard', 'href': f'/router/console/?uuid={router.uuid}', 'style': ''})
     if can_execute and router.router_type != 'monitoring':
         actions.append({'label': 'Execute command', 'icon': 'fa-terminal',
                         'href': f'/fleet_commander/router/execute/?uuid={router.uuid}', 'style': 'primary'})
@@ -190,6 +195,12 @@ def router_page(router, router_status, router_information, availability, can_exe
         events.append({'when': task.finished_at or task.started_at or task.created,
                        'text': f'Command "{task.job.command.name}": {state[1].lower()}',
                        'state': {'ok': 'ok', 'bad': 'bad', 'run': 'run'}.get(state[0], '')})
+    for console in router.console_sessions.filter(connected_at__isnull=False).order_by('-connected_at')[:5]:
+        events.append({'when': console.connected_at, 'text': f'Console opened by {console.user_name} '
+                                                             f'({console.get_transport_display()}{", " + console.username if console.username else ""})',
+                       'state': 'run'})
+        if console.ended_at:
+            events.append({'when': console.ended_at, 'text': f'Console closed: {console.end_reason}', 'state': ''})
     for down in RouterDownTime.objects.filter(router=router).order_by('-start_time')[:6]:
         events.append({'when': down.start_time, 'text': 'Went offline', 'state': 'bad'})
         if down.end_time:

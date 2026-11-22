@@ -115,6 +115,8 @@ def perform_backup(router_backup: RouterBackup):
             router_backup.save()
             # Keep only what changed, if the profile says so
             router_backup.drop_if_unchanged()
+            from message_center.functions import notify_backup_success
+            notify_backup_success(router_backup)
             router_backup.router.routerstatus.last_backup = timezone.now()
             router_backup.router.routerstatus.last_backup_failed = None
             router_backup.router.routerstatus.backup_lock = None

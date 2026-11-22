@@ -4,10 +4,12 @@
 <style>
     .rf-status {
         --rf-navy: #1f3a5f; --rf-teal: #14a89a; --rf-green: #1f9d55; --rf-amber: #e8a317;
-        --rf-red: #d64545; --rf-grey: #8a96a3; --rf-blue: #2f6fd1; --rf-line: #e1e6ec;
+        --rf-red: #d64545; --rf-grey: #8a96a3; --rf-blue: #2f6fd1;
     }
+    /* A lighter navy on dark cards, so its lines stay visible */
+    html.rf-dark .rf-status { --rf-navy: #8fb3e0; }
     .rf-status .rf-panel {
-        background: #fff; border: 1px solid var(--rf-line); border-radius: 12px;
+        background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 12px;
         box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
         padding: 14px 16px; height: 100%;
     }
@@ -17,18 +19,18 @@
     }
     .rf-status .rf-range button {
         font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--rf-line);
-        background: #fff; color: #6b7785; margin-left: 2px;
+        background: var(--rf-surface); color: var(--rf-muted); margin-left: 2px;
     }
     .rf-status .rf-range button.active { background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; }
     .rf-status .rf-chart { position: relative; height: 210px; }
-    .rf-status .rf-hint { font-size: 12px; color: #6b7785; margin-top: 6px; }
+    .rf-status .rf-hint { font-size: 12px; color: var(--rf-muted); margin-top: 6px; }
 
     /* The cards: a coloured edge, the number large, a sparkline where there is
        history, a factual line, and a chip saying what to do */
     .rf-status .rf-cards { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .rf-status .rf-card {
         display: flex; flex-direction: column; justify-content: space-between; min-height: 128px;
-        background: #fff; border: 1px solid var(--rf-line); border-left: 4px solid var(--rf-grey);
+        background: var(--rf-surface); border: 1px solid var(--rf-line); border-left: 4px solid var(--rf-grey);
         border-radius: 12px; padding: 12px 14px; color: inherit; text-decoration: none;
         box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
         transition: transform .15s, box-shadow .15s;
@@ -40,9 +42,9 @@
     .rf-status .rf-card.warn { border-left-color: var(--rf-amber); }
     .rf-status .rf-card.info { border-left-color: var(--rf-grey); }
     .rf-status .rf-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
-    .rf-status .rf-name { font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: #6b7785; }
-    .rf-status .rf-value { font-size: 32px; font-weight: 700; line-height: 1; color: #1d2733; }
-    .rf-status .rf-note { font-size: 12px; color: #6b7785; margin-top: 6px; }
+    .rf-status .rf-name { font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: var(--rf-muted); }
+    .rf-status .rf-value { font-size: 32px; font-weight: 700; line-height: 1; color: var(--rf-text); }
+    .rf-status .rf-note { font-size: 12px; color: var(--rf-muted); margin-top: 6px; }
     .rf-status .rf-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
     .rf-status .rf-chip.ok { background: rgba(31, 157, 85, .12); color: var(--rf-green); }
     .rf-status .rf-chip.bad { background: rgba(214, 69, 69, .12); color: var(--rf-red); }
@@ -74,13 +76,13 @@
                     </span>
                 </h3>
                 <div class="rf-chart"><canvas id="routerStatusChart" aria-label="Devices online, offline and disabled per day" role="img"></canvas></div>
-                <div class="rf-hint">At the end of each day. Click a part to open those devices.</div>
+                <div class="rf-hint">At the end of each day. Click a point to open those devices.</div>
             </div>
         </div>
     </div>
 
     <!-- The cards: each opens the list of exactly what it counts -->
-    <div class="rf-cards mb-3" id="rf-live-cards" data-rf-live="active" data-rf-live-interval="30">
+    <div class="rf-cards mb-3" id="rf-live-cards" data-rf-live="active" data-rf-live-interval="30" data-rf-live-quiet>
         {% for card in cards %}
         <a href="{{ card.href }}" class="rf-card {{ card.state }}"{% if card.external %} target="_blank" rel="noopener"{% endif %}>
             <div class="rf-row">
@@ -102,10 +104,18 @@
 <script src="/static/vendor/chart.js-4.6.1/chart.umd.min.js"></script>
 <script>
     (function () {
-        var charts = {};
+        var charts = {}, shown = {backups: {{ chart_days.0 }}, devices: {{ chart_days.0 }}};
+        function chartTheme() {
+            var dark = document.documentElement.classList.contains('rf-dark');
+            Chart.defaults.color = dark ? '#c3ccd5' : '#666';
+            Chart.defaults.borderColor = dark ? 'rgba(255, 255, 255, .10)' : 'rgba(0, 0, 0, .08)';
+        }
+        window.addEventListener('rf-theme-change', function () { chartTheme(); draw('backups', shown.backups); draw('devices', shown.devices); });
         var colors = {teal: '#14a89a', red: '#d64545', navy: '#1f3a5f', green: '#1f9d55', purple: '#7e57c2'};
 
         function draw(kind, days) {
+            shown[kind] = days;
+            chartTheme();
             var url = kind === 'backups' ? '/backup_statistics_data/' : '/router_status_data/';
             fetch(url + '?days=' + days, {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (data) {
                 var canvas = document.getElementById(kind === 'backups' ? 'backupChart' : 'routerStatusChart');
@@ -130,15 +140,16 @@
                         }
                     }
                 } : {
-                    type: 'bar',
+                    type: 'line',
                     data: {labels: data.dates, datasets: [
-                        {label: 'Online', data: data.online_data, backgroundColor: colors.green, borderRadius: 3, stack: 'devices'},
-                        {label: 'Offline (enabled)', data: data.offline_data, backgroundColor: colors.red, borderRadius: 3, stack: 'devices'},
-                        {label: 'Disabled', data: data.disabled_data, backgroundColor: colors.purple, borderRadius: 3, stack: 'devices'}
+                        {label: 'Online', data: data.online_data, borderColor: colors.green, backgroundColor: 'rgba(31, 157, 85, .12)', fill: true, tension: .25},
+                        {label: 'Offline (enabled)', data: data.offline_data, borderColor: colors.red, backgroundColor: 'rgba(214, 69, 69, .10)', fill: true, tension: .25},
+                        {label: 'Disabled', data: data.disabled_data, borderColor: colors.purple, backgroundColor: 'rgba(126, 87, 194, .10)', fill: true, tension: .25}
                     ]},
                     options: {
                         maintainAspectRatio: false,
-                        scales: {x: {stacked: true}, y: {stacked: true, beginAtZero: true, ticks: {precision: 0}}},
+                        interaction: {mode: 'nearest', intersect: false},
+                        scales: {y: {beginAtZero: true, ticks: {precision: 0}}},
                         onClick: function (event, elements) {
                             if (!elements.length) { return; }
                             // The list shows the devices in that state now

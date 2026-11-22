@@ -339,4 +339,7 @@ def view_cron_housekeeping(request):
         # messages themselves
         data['messages_removed'] = removed[1].get(Message._meta.label, 0)
 
+    # Console sessions: closed if a restart left them open, unused tickets pruned
+    from console.models import tidy_sessions
+    data['console_sessions_closed'], data['console_tickets_removed'] = tidy_sessions()
     return JsonResponse(data)

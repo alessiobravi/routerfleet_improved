@@ -5,6 +5,7 @@
     <thead>
         <tr>
             <th>Username</th>
+            <th>Email</th>
             <th>User Level</th>
             <th></th>
         </tr>
@@ -13,6 +14,7 @@
         {% for user_acl in user_acl_list %}
         <tr>
             <td>{{ user_acl.user.username }}</td>
+            <td>{{ user_acl.user.email|default:"-" }}</td>
             <td>{{ user_acl.get_user_level_display }}</td>
             <td style="width: 1%; white-space: nowrap;">
                 <a href="/user/manage/?uuid={{ user_acl.uuid }}" ><i class="far fa-edit"></i></a>
