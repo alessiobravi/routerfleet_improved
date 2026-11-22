@@ -11,6 +11,18 @@
                     </div>
                 {% endif %}
                 <div class="card-body">
+                    {% if day %}
+                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
+                        <span><i class="fas fa-filter"></i> Showing only: <strong>{{ day|date:"Y-m-d" }}</strong></span>
+                        <a href="?type={{ view_type }}" class="alert-link">Show all</a>
+                    </div>
+                    {% endif %}
+                    {% if recent %}
+                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
+                        <span><i class="fas fa-filter"></i> Showing only: <strong>the last 24 hours</strong></span>
+                        <a href="?type={{ view_type }}" class="alert-link">Show all</a>
+                    </div>
+                    {% endif %}
                     {% include 'backup/backup_nav_tabs.html' %}
                     <div class="row">
                         <div class="col-lg-12">
@@ -61,6 +73,7 @@
                                     <td class="min-width">
                                         {% if backup.backup_text_hash %}
                                         <a href="#" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":12" }}...</a>
+                                        {% if backup.same_as_id %}<span class="badge badge-light" title="Unchanged: the content is the stored backup it is the same as">unchanged</span>{% endif %}
                                         {% endif %}
                                     </td>
                                     

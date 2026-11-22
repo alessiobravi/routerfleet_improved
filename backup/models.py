@@ -22,6 +22,13 @@ class BackupProfile(models.Model):
     monthly_retention = models.IntegerField(default=365)
     instant_retention = models.IntegerField(default=3650)
     retain_backups_on_error = models.BooleanField(default=True)
+    # False: a scheduled backup whose configuration is the same as the last one
+    # stored keeps its record but not its content (text and binary), which point
+    # to the stored version instead. True: every backup is kept in full.
+    keep_unchanged = models.BooleanField(
+        default=False, verbose_name='Keep unchanged backups',
+        help_text='Store every scheduled backup in full, also when the configuration did not change. '
+                  'Off: an unchanged backup is recorded, but its content is not stored again.')
 
     parameter_sensitive = models.BooleanField(default=False)
     parameter_terse = models.BooleanField(default=False)

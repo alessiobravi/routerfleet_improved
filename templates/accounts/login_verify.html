@@ -22,13 +22,9 @@
               </div>
             </div>
             {% if error %}<p class="text-danger small">{{ error }}</p>{% endif %}
-            <div class="row">
-              <div class="col-8">
-                <a href="/accounts/login/" class="btn btn-link px-0">Back</a>
-              </div>
-              <div class="col-4">
-                <button type="submit" class="btn btn-primary btn-block">Verify</button>
-              </div>
+            <div class="text-center">
+              <button type="submit" class="btn btn-primary px-5">Verify</button>
+              <div><a href="/accounts/login/" class="btn btn-link">Back</a></div>
             </div>
         </form>
         <p class="small text-muted mb-0 mt-2">Lost your phone? An administrator can reset your second factors.</p>

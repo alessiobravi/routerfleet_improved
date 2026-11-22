@@ -1,7 +1,8 @@
 from accounts import lockout
 from django import forms
 from django.core.exceptions import ValidationError
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, password_validation
+from django.contrib.auth.models import User
 
 
 class CreateUserForm(forms.Form):
@@ -23,6 +24,13 @@ class CreateUserForm(forms.Form):
 
         if password and password2 and password != password2:
             self.add_error('password2', ValidationError("The two password fields didn't match."))
+        elif password:
+            # The first account is an administrator: it gets the same password
+            # rules as every other account, not fewer
+            try:
+                password_validation.validate_password(password, User(username=cleaned_data.get('username') or ''))
+            except ValidationError as error:
+                self.add_error('password', error)
         return cleaned_data
 
 

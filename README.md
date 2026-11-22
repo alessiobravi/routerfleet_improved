@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="docs/images/routerfleet-improved.svg" alt="RouterFleet Improved logo" width="96" height="96">
+</p>
+
 # RouterFleet Improved
+
+*by Alessio Bravi*
 
 Centralized backup, configuration management and fleet command execution for
 network devices. RouterFleet keeps a configuration history for every device,
@@ -67,6 +73,9 @@ encrypted with.
 - **Hardened** — device SSH host keys are trusted on first use and checked on
   every connection, sign-in attempts are limited, and every action needs a POST
   with the CSRF token.
+- **Zabbix integration** (optional) — a template and collector that report
+  backup age, failed backups, host-key changes and failed sign-ins to Zabbix,
+  through a read-only database role that cannot see any secret.
 
 ## Documentation
 
@@ -78,13 +87,15 @@ encrypted with.
 | [Devices](docs/devices.md) | Device types, inventory, version states, the device list |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
-| [Monitoring](docs/monitoring.md) | Reachability checks, downtime records, Zabbix |
+| [Monitoring](docs/monitoring.md) | Reachability checks and downtime records |
 | [Notifications](docs/notifications.md) | Channels, concatenation, daily reports |
 | [Audit log](docs/audit-log.md) | Login history and the change log |
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
+| [Tools](docs/tools.md) | Backup clean-up and export of the latest backups |
 | [Security](docs/security.md) | Secrets at rest, host keys, sign-in limits, the scheduler endpoints |
 | [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting, running the tests |
+| [Zabbix integration](docs/zabbix.md) | Optional: what it reports, what it can read, what it needs |
 
 ## Versions
 

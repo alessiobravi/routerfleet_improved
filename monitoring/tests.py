@@ -142,3 +142,33 @@ class MonitoringKeyTransportTests(TestCase):
             self.assertEqual(kwargs['headers'], {'X-Monitoring-Key': KEY})
         self.assertTrue(printed)
         self.assertFalse([line for line in printed if KEY in line], 'the key reached the log')
+
+
+class FpingArgumentTests(TestCase):
+    """An address is never handed to fping as an option."""
+
+    def load(self):
+        import importlib.util
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parent.parent / 'containers' / 'monitoring' / 'monitoring.py'
+        spec = importlib.util.spec_from_file_location('monitoring_container_fping', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_option_like_addresses_are_refused(self):
+        module = self.load()
+        for address in ('-f/etc/passwd', '--version', '', 'a b'):
+            with self.subTest(address=address):
+                module.host_list = {'u': {'address': address, 'online': True}}
+                with mock.patch.object(module, 'Popen') as popen, mock.patch('builtins.print'):
+                    module.check_host_status('u')
+                popen.assert_not_called()
+
+    def test_a_normal_address_is_pinged_as_a_host(self):
+        module = self.load()
+        module.host_list = {'u': {'address': '192.0.2.1', 'online': True}}
+        process = mock.Mock(returncode=0, communicate=lambda: (b'', b''))
+        with mock.patch.object(module, 'Popen', return_value=process) as popen, mock.patch('builtins.print'):
+            module.check_host_status('u')
+        self.assertEqual(popen.call_args.args[0], ['fping', '192.0.2.1'])

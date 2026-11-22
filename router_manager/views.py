@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -20,10 +20,34 @@ from user_manager.models import UserAcl
 from .forms import RouterForm, RouterBulkEditForm, RouterGroupForm, SSHKeyForm
 from .models import Router, RouterGroup, RouterInformation, RouterStatus, SSHKey, BackupSchedule
 from routerlib.actions import posted_action, posted_confirmation
+from router_manager.templatetags.router_tags import update_state_of_routers
 from routerlib import host_keys
 
 # How long the information update cron task may run; it is started once per minute
 MAX_UPDATE_INFORMATION_RUNTIME = 50
+
+
+def _in_update_state(state):
+    def narrow(queryset):
+        ids = [router_id for router_id, value in update_state_of_routers().items() if value == state]
+        return queryset.filter(id__in=ids)
+    return narrow
+
+
+# The states the status page's cards count, each defined exactly as the card
+# counts it, so the number on the card and the length of the list agree
+ROUTER_STATES = {
+    'online': ('Online routers', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=True)),
+    'offline': ('Offline routers', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=False)),
+    'disabled': ('Disabled routers', lambda qs: qs.filter(enabled=False)),
+    'unmonitored': ('Unmonitored routers', lambda qs: qs.filter(enabled=True, monitoring=False)),
+    'backup_failed': ('Routers with a failed backup in the last 24 hours', lambda qs: qs.filter(
+        id__in=RouterBackup.objects.filter(error=True, created__gte=timezone.now() - timezone.timedelta(days=1))
+        .values('router_id'))),
+    'up_to_date': ('Routers up to date', _in_update_state('up_to_date')),
+    'update_waiting': ('Routers missing updates', _in_update_state('update_waiting')),
+    'no_information': ('Routers without version information', _in_update_state('no_information')),
+}
 
 
 @login_required
@@ -55,15 +79,28 @@ def view_router_list(request):
         last_status_change_timestamp = 0
 
     default_backup_profile, default_backup_profile_created = BackupProfile.objects.get_or_create(name='default')
+
+    # A state from the status page: the list shows exactly the devices the card
+    # counted, across every group, and says so
+    state = request.GET.get('state')
+    state_label = None
+    if state:
+        if state not in ROUTER_STATES:
+            raise Http404
+        state_label, narrow = ROUTER_STATES[state]
+        router_list = narrow(router_list)
+
     filter_group = None
-    if request.GET.get('filter_group'):
+    if state:
+        pass
+    elif request.GET.get('filter_group'):
         if request.GET.get('filter_group') == 'all':
             pass
         else:
             filter_group = get_object_or_404(RouterGroup, uuid=request.GET.get('filter_group'))
             router_list = router_list.filter(routergroup=filter_group)
 
-    if not filter_group and request.GET.get('filter_group') != 'all':
+    if not state and not filter_group and request.GET.get('filter_group') != 'all':
         filter_group = RouterGroup.objects.filter(default_group=True).first()
     # Parse the router_visible_columns cookie
     visible_columns = []
@@ -82,6 +119,7 @@ def view_router_list(request):
         'page_title': 'Router List',
         'filter_group_list': RouterGroup.objects.all().order_by('name'),
         'filter_group': filter_group,
+        'state_label': state_label,
         'last_status_change_timestamp': last_status_change_timestamp,
         'visible_columns': visible_columns,
         # Not every user has a UserAcl row, the first user created has none

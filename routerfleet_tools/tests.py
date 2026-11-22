@@ -82,29 +82,28 @@ class UpdateCardTests(TestCase):
         self.client.force_login(make_user(10))
 
     def card(self):
-        return self.client.get('/status/').content.decode()
+        cards = self.client.get('/status/').context['cards']
+        return next(card for card in cards if card['title'] == 'RouterFleet Improved')
 
     def test_not_checked_yet_then_up_to_date(self):
-        self.assertIn('Updates not checked yet', self.card())
+        self.assertEqual((self.card()['state'], self.card()['chip']), ('info', 'Pending'))
         from django.utils import timezone
         WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={'last_checked': timezone.now()})
-        page = self.card()
-        self.assertIn('bg-success" title="This is the latest release"', page)
-        self.assertIn('Up to date', page)
+        card = self.card()
+        self.assertEqual((card['state'], card['chip']), ('ok', 'Latest'))
 
     def test_an_update_is_yellow_with_its_version(self):
         from django.utils import timezone
         WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={
             'last_checked': timezone.now(), 'update_available': True, 'latest_version': 99001002})
-        page = self.card()
-        self.assertIn('info-box bg-warning', page)
-        self.assertIn('Update available', page)
-        self.assertIn('99.1.2', page)
-        self.assertIn('/releases/latest', page)
+        card = self.card()
+        self.assertEqual((card['state'], card['chip'], card['value']), ('warn', 'Update', '99.1.2'))
+        self.assertTrue(card['href'].endswith('/releases/latest'))
+        self.assertTrue(card['external'])
 
     @override_settings(UPDATE_CHECK=False)
     def test_off_is_grey(self):
-        self.assertIn('Update check off', self.card())
+        self.assertEqual((self.card()['state'], self.card()['chip']), ('info', 'Off'))
 
 
 class TemplateTagTests(TestCase):
@@ -359,6 +358,17 @@ class ZabbixKitTests(TestCase):
         self.assertNotRegex(sql, r'(?m)^GRANT SELECT ON ')
         self.assertNotIn('ALL TABLES', sql.split('Do not do it')[1] if 'Do not do it' in sql else sql)
         self.assertIn("PASSWORD 'CHANGE_ME'", sql, 'the shipped file carries a placeholder, never a password')
+
+    def test_every_counter_reports_minus_one_when_unreadable(self):
+        import re
+        collector = self.read('scripts/zbx-routerfleet.sh')
+        self.assertNotRegex(collector, r'count\(\*\)[^"]*"\)\s*echo "\$\{val:-0\}"',
+                            'a count must go through count_q, which reports -1 when it cannot read')
+        self.assertIn('echo -1', collector)
+        template = self.read('templates/routerfleet-by-zabbix-agent.yaml')
+        for key in re.findall(r'(?m)^UserParameter=(routerfleet\.(?:routers|failing|hostkeys\.\w+|logins\.\w+|changes\.\w+|commands\.\w+)),',
+                              self.read('agent/routerfleet.conf')):
+            self.assertIn(f'last(/RouterFleet by Zabbix agent/{key})<0', template, key)
 
     def test_nothing_identifying(self):
         for path in self.kit.rglob('*'):

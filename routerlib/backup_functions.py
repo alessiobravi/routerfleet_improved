@@ -113,6 +113,8 @@ def perform_backup(router_backup: RouterBackup):
             router_backup.error_message = ''
             router_backup.success = True
             router_backup.save()
+            # Keep only what changed, if the profile says so
+            router_backup.drop_if_unchanged()
             router_backup.router.routerstatus.last_backup = timezone.now()
             router_backup.router.routerstatus.last_backup_failed = None
             router_backup.router.routerstatus.backup_lock = None

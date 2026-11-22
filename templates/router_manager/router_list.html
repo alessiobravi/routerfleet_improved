@@ -45,6 +45,12 @@
                 {% endif %}
                 <div class="card-body">
                     {% include 'router_manager/router_nav_tabs.html' %}
+                    {% if state_label %}
+                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
+                        <span><i class="fas fa-filter"></i> Showing only: <strong>{{ state_label }}</strong></span>
+                        <a href="/router/list/?filter_group=all" class="alert-link">Show all</a>
+                    </div>
+                    {% endif %}
 
                     <!-- Column Visibility Modal -->
                     <div class="modal fade" id="columnVisibilityModal" tabindex="-1" role="dialog" aria-labelledby="columnVisibilityModalLabel" aria-hidden="true">

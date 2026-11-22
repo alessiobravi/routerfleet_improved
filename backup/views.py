@@ -1,3 +1,4 @@
+import datetime
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse, FileResponse
 from django.shortcuts import render, get_object_or_404, redirect, Http404
@@ -81,11 +82,27 @@ def view_backup_list(request):
     else:
         backup_list = backup_list.filter(success=True).order_by('-created')
         view_type = 'success'
+    # ?since=24h: the last day only - what the status page's backup cards count
+    recent = request.GET.get('since') == '24h'
+    if recent:
+        backup_list = backup_list.filter(created__gte=timezone.now() - timezone.timedelta(days=1))
+    # ?date=YYYY-MM-DD: one calendar day, in the installation's timezone - a day
+    # clicked on the status page's chart
+    day = None
+    try:
+        day = datetime.date.fromisoformat(request.GET.get('date', ''))
+    except ValueError:
+        pass
+    if day:
+        start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
+        backup_list = backup_list.filter(created__gte=start, created__lt=start + timezone.timedelta(days=1))
 
     context = {
         'backup_list': backup_list,
         'page_title': 'Backup List',
-        'view_type': view_type
+        'view_type': view_type,
+        'recent': recent,
+        'day': day,
     }
     return render(request, 'backup/backup_list.html', context)
 
@@ -151,8 +168,9 @@ def view_compare_backups(request):
 
     # A backup that brought no configuration compares as an empty one, so a
     # pending or failed backup does not end the page in an error
-    diff = difflib.unified_diff(normalize_text(backup1.backup_text or '').splitlines(),
-                                normalize_text(backup2.backup_text or '').splitlines(),
+    # An unchanged backup's configuration is the stored one it points to
+    diff = difflib.unified_diff(normalize_text(backup1.content.backup_text or '').splitlines(),
+                                normalize_text(backup2.content.backup_text or '').splitlines(),
                                 fromfile=backup1.backup_text_hash[:16] + '...',
                                 tofile=backup2.backup_text_hash[:16] + '...',
                                 lineterm='', n=show_lines)
@@ -203,8 +221,8 @@ def view_backup_config_change(request):
                      'brought a configuration of this device.',
         }, status=404)
 
-    diff = difflib.unified_diff(normalize_text(previous.backup_text or '').splitlines(),
-                                normalize_text(backup.backup_text or '').splitlines(),
+    diff = difflib.unified_diff(normalize_text(previous.content.backup_text or '').splitlines(),
+                                normalize_text(backup.content.backup_text or '').splitlines(),
                                 fromfile=previous.backup_text_hash[:16] + '...',
                                 tofile=backup.backup_text_hash[:16] + '...',
                                 lineterm='', n=3)
@@ -245,7 +263,8 @@ def view_debug_run_backups(request):
 def view_backup_download(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid'))
+    # An unchanged backup downloads the stored configuration it is the same as
+    backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid')).content
     if request.GET.get('type') == 'text':
         response = HttpResponse(backup.backup_text, content_type='text/plain')
         if backup.backup_text_filename:

@@ -3,49 +3,71 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-lg-6">
+        <div class="col-12">
             <div class="card card-primary card-outline">
 
                 <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-info-circle"></i> About RouterFleet</h3>
+                    <h3 class="card-title">
+                        <img src="/static/routerfleet/logo.svg" alt="" width="20" height="20" class="mr-1" style="vertical-align: -4px;">
+                        About RouterFleet Improved
+                    </h3>
                 </div>
 
                 <div class="card-body">
+                    <p class="lead mb-3">
+                        <strong>RouterFleet Improved</strong> by Alessio Bravi is an open-source, self-hosted platform
+                        for managing a fleet of network devices.
+                    </p>
                     <p>
-                        <strong>RouterFleet</strong> is an open-source platform designed to simplify and centralize router configuration backups,
-                        helping you keep your devices protected with reliable and automated backup routines.
+                        It backs up every device's configuration on a schedule and keeps its history, with a
+                        line-by-line comparison between any two versions; runs commands across many devices at once
+                        and checks that they had the intended effect; watches whether devices are reachable and
+                        notifies you when they are not; and records who signed in and who changed what.
                     </p>
 
-                    <p class="mb-2"><strong>Currently supported platforms:</strong></p>
-                    <ul>
-                        <li>MikroTik (RouterOS)</li>
-                        <li>OpenWrt</li>
-                        <li>Ubiquiti (airOS)</li>
-                    </ul>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Supported devices</h5>
+                            <ul>
+                                <li>MikroTik (RouterOS, including branded RouterOS devices)</li>
+                                <li>OpenWrt</li>
+                                <li>Ubiquiti (airOS)</li>
+                            </ul>
+                            <p class="text-muted">
+                                Support for more devices is welcome: request it with the button below, describing the
+                                device and how it can be backed up.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Where it comes from</h5>
+                            <p>
+                                RouterFleet Improved started from, and was inspired by, the earlier RouterFleet projects:
+                            </p>
+                            <ul>
+                                <li><strong>RouterFleet</strong>, the original project, created by Eduardo Garcia da Silva,
+                                    with contributions by petrunetworking;</li>
+                                <li><strong>RouterFleet Extended</strong> by Dustin Thal, which built on it.</li>
+                            </ul>
+                            <p class="text-muted">
+                                Their copyright notices are kept in the MIT License, and databases from both projects
+                                upgrade to RouterFleet Improved in place.
+                            </p>
+                        </div>
+                    </div>
 
-                    <p>
-                        Support for additional devices is continuously evolving. If your hardware is not yet supported,
-                        you can request compatibility by following the submission guidelines described in the discussion.
-                    </p>
-
-                    <div>
-                        <a href="{% tag_project_repository_url %}" target="_blank" class="btn btn-outline-primary">
+                    <div class="text-center my-3">
+                        <a href="{% tag_project_repository_url %}" target="_blank" rel="noopener" class="btn btn-outline-primary m-1">
                             <i class="fab fa-github"></i>
                             Project Repository
                         </a>
-
-                        <a href="{% tag_project_support_url %}" target="_blank" class="btn btn-outline-info">
+                        <a href="{% tag_project_support_url %}" target="_blank" rel="noopener" class="btn btn-outline-info m-1">
                             <i class="fas fa-plus-circle"></i>
                             Request Device Support
                         </a>
                     </div>
 
-                    <p class="mt-3 text-muted">
-                        RouterFleet is actively developed and community-driven. Feedback, suggestions, and contributions are always welcome.
-                    </p>
-
-                    <p class="mb-0 small text-muted">
-                        Version {{ routerfleet_version }} &middot; MIT License &middot;
+                    <p class="text-center small text-muted mb-0">
+                        RouterFleet Improved {{ routerfleet_version }} by Alessio Bravi &middot; MIT License &middot;
                         provided as is, without warranty of any kind.
                     </p>
                 </div>

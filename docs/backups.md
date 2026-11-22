@@ -166,6 +166,33 @@ Where this shows up:
 Backups that already existed before this was introduced are filled in by a data
 migration that walks each device's history applying the same rule.
 
+## Unchanged backups
+
+Each backup's configuration text is fingerprinted (SHA-256). A profile that
+**keeps only changes** - the default for a new profile - handles each scheduled
+backup like this: when its configuration is the
+same as the device's last stored one, the backup is recorded - it succeeded, at
+that time, and counts for everything that measures backup age - but its text and
+binary are not stored again. It points to the stored backup instead, and is
+marked *unchanged* in the backup list; opening, downloading or comparing it
+shows the stored configuration it is the same as.
+
+**Keep unchanged backups** in the profile stores every scheduled backup in full,
+changed or not. Profiles that existed before this setting did keep it on: an
+upgrade does not change how an installation stores its backups. Backups started with *Backup now* are always stored in full:
+someone asked for that copy.
+
+```mermaid
+flowchart TD
+    done["Backup succeeded"] --> kind{"Backup now?"}
+    kind -->|yes| full["Stored in full"]
+    kind -->|no| keep{"Profile keeps<br/>unchanged backups?"}
+    keep -->|yes| full
+    keep -->|no| same{"Same configuration as<br/>the last stored one?"}
+    same -->|no| full
+    same -->|yes| record["Recorded as unchanged:<br/>points to the stored backup,<br/>text and binary not kept"]
+```
+
 ## Retention
 
 Housekeeping deletes backups older than their kind's retention, per profile:
@@ -183,6 +210,11 @@ Two details:
 - `retain_backups_on_error` (on by default) **suspends deletion for a device
   whose last backup failed**, so a device that stopped backing up does not
   quietly lose the history it still has while nobody is looking.
+- **A device's newest stored configuration is never deleted**, however old: a
+  device that has been offline for weeks - and so was not even attempted - or
+  whose configuration has not changed in months keeps its last known one. A
+  stored backup that kept *unchanged* backups still point to also stays, until
+  they expire.
 
 The whole sweep is recorded as a single audit-log entry naming how many rows it
 removed, and a pass that deletes nothing writes nothing — so housekeeping every

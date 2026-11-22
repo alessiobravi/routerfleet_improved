@@ -503,3 +503,58 @@ class RetrievalLeavesNothingBehindTests(TestCase):
         self.assertFalse(ok)
         self.assertIn('Failed to retrieve backup files', error)
         self.assertFalse(os.path.exists(self.created[0]), 'the fetched configuration was left behind')
+
+
+class KeepOnlyChangesPipelineTests(TestCase):
+    """Through the real pipeline - execute, retrieve, success - not only the
+    model method: an unchanged scheduled backup ends recorded, its binary file
+    gone from the disk; a changed one is stored in full."""
+
+    def setUp(self):
+        self.profile = make_profile()
+        self.router = make_router(router_type='routeros', backup_profile=self.profile)
+        FakeSCPClient.files = {}
+        FakeSCPClient.fetched = []
+
+    def run_backup(self, rsc, kind='daily'):
+        RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
+        backup = RouterBackup.objects.create(router=self.router, schedule_type=kind, schedule_time=timezone.now())
+        name = backup_functions.gen_backup_name(backup)
+        client = FakeSSHClient()
+        with mock.patch(f'{SSH}.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
+            backup_functions.perform_backup(backup)
+            FakeSCPClient.files = {f'/{name}.rsc': rsc, f'/{name}.backup': b'\x00binary-' + name.encode()}
+            backup_functions.perform_backup(backup)
+        backup.refresh_from_db()
+        self.assertTrue(backup.success)
+        return backup
+
+    def files_on_disk(self, media):
+        directory = os.path.join(media, 'backups')
+        return sorted(os.listdir(directory)) if os.path.isdir(directory) else []
+
+    def test_unchanged_runs_keep_their_record_and_free_their_files(self):
+        with temporary_media_root() as media:
+            first = self.run_backup(RSC)
+            second = self.run_backup(RSC)
+            self.assertEqual(second.same_as, first)
+            self.assertEqual((second.backup_text, bool(second.backup_binary)), ('', False))
+            self.assertEqual(len(self.files_on_disk(media)), 1, 'only the stored backup has a file')
+            self.assertIsNotNone(RouterStatus.objects.get(router=self.router).last_backup)
+
+            changed = self.run_backup(RSC.replace('10.0.0.1/24', '10.0.0.2/24'))
+            self.assertIsNone(changed.same_as_id)
+            self.assertTrue(changed.config_change_detected and changed.backup_binary)
+            self.assertEqual(len(self.files_on_disk(media)), 2)
+
+            instant = self.run_backup(RSC.replace('10.0.0.1/24', '10.0.0.2/24'), kind='instant')
+            self.assertIsNone(instant.same_as_id, 'Backup now is always stored in full')
+
+    def test_a_profile_keeping_every_backup_stores_them_all(self):
+        self.profile.keep_unchanged = True
+        self.profile.save()
+        with temporary_media_root() as media:
+            self.run_backup(RSC)
+            second = self.run_backup(RSC)
+            self.assertIsNone(second.same_as_id)
+            self.assertEqual(len(self.files_on_disk(media)), 2)

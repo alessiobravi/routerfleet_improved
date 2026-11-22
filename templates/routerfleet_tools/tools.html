@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <p class="text-muted">Maintenance run by hand. Each tool says what it will do before it does anything.</p>
+    </div>
+    <div class="col-md-6 col-xl-4 mb-3">
+        <a href="/tools/backup_cleanup/" class="card card-outline card-primary h-100 text-reset" style="text-decoration: none;">
+            <div class="card-body">
+                <h5><i class="fas fa-broom text-primary"></i> Backup clean-up</h5>
+                <p class="mb-0 text-muted">Audit the stored backups: find duplicates - the same configuration stored again -
+                    and files no backup refers to, and free their space. Duplicates stay in the history as
+                    <em>unchanged</em> backups.</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-6 col-xl-4 mb-3">
+        <a href="/tools/backup_export/" class="card card-outline card-primary h-100 text-reset" style="text-decoration: none;">
+            <div class="card-body">
+                <h5><i class="fas fa-file-archive text-primary"></i> Export latest backups</h5>
+                <p class="mb-0 text-muted">Download a zip with the latest configuration of every device - a folder per device,
+                    one file per backup, and a manifest.</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

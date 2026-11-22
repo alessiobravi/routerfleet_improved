@@ -10,6 +10,78 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.13.0] - 2026-11-22
+
+### Fixed
+- **Retention could delete every backup of a device** offline for longer than
+  its retention: an offline device is not attempted, so no failure stopped the
+  sweep. A device's newest stored configuration is now never deleted, however
+  old.
+
+### Security
+- **The first administrator's password is checked like every other.** The
+  form that creates the first account - an administrator - accepted any
+  password, `1` included; it now applies the same rules as the user manager
+  (length, common passwords, entirely numeric, similarity to the username).
+- The monitoring container refuses a device address that `fping` would read as
+  an option (one starting with `-`), whatever the database holds.
+
+### Added
+- **Backup profiles keep only changes.** A scheduled backup whose
+  configuration is the same as the device's last stored one is recorded - it
+  succeeded, at its time, and counts for backup age - but its text and binary
+  are not stored again; it points to the stored backup and is marked
+  *unchanged*. The default for new profiles; **profiles that exist when you
+  upgrade keep every backup, as before** - an upgrade does not change how
+  backups are stored - and can be switched later. *Backup now* backups are
+  always stored in full.
+- **Tools**, a new section for administrators, with two tools: **Backup
+  clean-up** audits the stored backups and frees the duplicates (as unchanged
+  backups), removes files no backup refers to, and reconciles the database with
+  the disk; **Export latest backups** downloads a zip with each device's latest
+  configuration, one file per backup, with a manifest.
+- **A redesigned status page.** Charts on top - backups and devices online per
+  calendar day, over 7, 15 or 30 days; a click on a day's bar opens that day's
+  backups. Below them, modern cards: a coloured edge and a chip saying what to
+  do (OK, Look, Act), the number large, the change against the previous 24
+  hours, and a sparkline wherever RouterFleet keeps the history - never an
+  invented one. A new **Scheduler & monitoring** card turns red when either
+  container has stopped working, which otherwise goes unnoticed.
+- **Every status card opens what it counts.** Failed backups open the devices
+  with a failed backup in the last 24 hours; offline, disabled, unmonitored,
+  up to date, missing updates and without information open those devices; the
+  backup cards open the last 24 hours of backups. The list says it is filtered,
+  and holds exactly as many items as the card shows.
+- **Zabbix kit: security and operations items.** Devices without a stored SSH
+  host key, host keys learned in the last hour (a rebuilt, replaced - or
+  impersonated - device), failed sign-ins over 15 minutes, recent configuration
+  changes and failed Fleet Commander jobs, with triggers for the ones worth an
+  alarm.
+- **A Zabbix integration page** in the documentation (`docs/zabbix.md`): what
+  the kit reports, what its role can and cannot read, what it needs, and the
+  four setup steps - linked from the README and from its own group in the
+  documentation index.
+
+- **A logo.** A controller and three devices inside a hexagon whose rim closes
+  on itself with an arrow: continuous improvement of the fleet. It is in the
+  application's top-left corner next to the name, in the browser tab, and on
+  the README.
+
+### Changed
+- **The About page is full width and rewritten**: what RouterFleet Improved by
+  Alessio Bravi does, the supported devices, and where it comes from - the
+  earlier RouterFleet projects it started from and was inspired by, with their
+  authors credited. Its buttons are centred.
+- **My Settings has its own menu entry**, at the bottom with About. It used to
+  light up User Manager, which is administration.
+- The sign-in button, and the code page's, are centred.
+- **The Zabbix monitoring role reads only the columns it counts**, also in the
+  new tables: whether a sign-in succeeded and when - not who, from where, or the
+  keys of open sessions; when a change was recorded - not what it was.
+- **A counter the collector cannot read reports `-1`, never `0`**, and one
+  trigger fires on it: a missing grant used to look exactly like a healthy
+  fleet. This also applies to the existing router and failing-backup counters.
+
 ## [0.12.3] - 2026-11-22
 
 ### Fixed

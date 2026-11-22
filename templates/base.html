@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% if page_title %}{{ page_title }} | {% endif %}RouterFleet Improved</title>
+    <link rel="icon" href="/static/routerfleet/logo.svg" type="image/svg+xml">
 
     <!-- Font: Source Sans Pro, served from this installation -->
     <link rel="stylesheet" href="/static/fonts/source-sans-pro/source-sans-pro.css">
@@ -80,6 +81,7 @@
     <aside class="main-sidebar sidebar-dark-primary elevation-4">
         <!-- Brand Logo -->
         <a href="/status/" class="brand-link">
+            <img src="/static/routerfleet/logo.svg" alt="" class="brand-image" width="33" height="33">
             <span class="brand-text font-weight-light">RouterFleet Improved</span>
         </a>
 
@@ -130,7 +132,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="/user/list/" class="nav-link {% if '/user/' in request.path %}active{% endif %}">
+                        <a href="/user/list/" class="nav-link {% if '/user/list/' in request.path or '/user/manage/' in request.path %}active{% endif %}">
                             <i class="fas fa-users nav-icon"></i>
                             <p>
                                 User Manager
@@ -158,7 +160,25 @@
                     </li>
 
 
+                    <li class="nav-item">
+                        <a href="/tools/" class="nav-link {% if '/tools/' in request.path %}active{% endif %}">
+                            <i class="fas fa-toolbox nav-icon"></i>
+                            <p>
+                                Tools
+                            </p>
+                        </a>
+                    </li>
+
+                    <!-- Personal, not administration: at the bottom with About -->
                     <li class="nav-item mt-auto">
+                        <a href="/user/settings/" class="nav-link {% if '/user/settings/' in request.path %}active{% endif %}">
+                            <i class="fas fa-user-cog nav-icon"></i>
+                            <p>
+                                My Settings
+                            </p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="/about/" class="nav-link {% if '/about/' in request.path %}active{% endif %}">
                             <i class="fas fa-info-circle nav-icon"></i>
                             <p>
@@ -220,7 +240,7 @@
     </div>
     <!-- /.content-wrapper -->
     <footer class="main-footer">
-        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-warning' id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener">Update available: {{ webadmin_version.latest_version }}</a>{% else %}RouterFleet Improved{% endif %}
+        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-warning' id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener">Update available: {{ webadmin_version.latest_version }}</a>{% else %}RouterFleet Improved by Alessio Bravi{% endif %}
         <div class="float-right d-none d-sm-inline-block">
             <b>Version</b> {{ webadmin_version.current_version }}
         </div>

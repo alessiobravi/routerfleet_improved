@@ -105,7 +105,14 @@ def update_host_status(uuid, status):
 
 
 def check_host_status(host_uuid):
-    command = ["fping", host_list[host_uuid]['address']]
+    address = str(host_list[host_uuid].get('address') or '')
+    if not address or address.startswith('-') or any(c.isspace() for c in address):
+        # fping would read a leading '-' as an option, not a host. Addresses are
+        # validated when a device is saved, but a database upgraded from an
+        # older version may hold anything: refuse rather than pass it on.
+        print(f"{datetime.now()} - Not monitoring {host_uuid}: unusable address {address!r}")
+        return
+    command = ["fping", address]
     process = Popen(command, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     current_online = True if process.returncode == 0 else False

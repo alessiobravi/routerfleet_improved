@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card card-primary card-outline">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-file-archive"></i> Export latest backups</h3></div>
+            <div class="card-body">
+                <p>A zip with the latest stored configuration of each device: a folder per device, one file per backup,
+                    and a <code>manifest.csv</code> listing device, address, type, backup time and fingerprint.
+                    For a device whose latest backup was unchanged, the export holds the configuration it repeats.</p>
+                <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i>
+                    The archive holds every device's configuration, which can contain passwords and keys. Keep it safe.
+                    Each export is recorded in the change log.</div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-row align-items-end">
+                        <div class="form-group col-md-5">
+                            <label for="group">Devices</label>
+                            <select class="form-control" id="group" name="group">
+                                <option value="">All devices</option>
+                                {% for group in groups %}<option value="{{ group.uuid }}">Group: {{ group.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="include_binary" name="include_binary" checked>
+                                <label class="custom-control-label" for="include_binary">Include binary backups</label>
+                            </div>
+                        </div>
+                        <div class="form-group col-md-3 text-md-right">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-download"></i> Download zip</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

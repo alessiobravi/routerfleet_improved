@@ -59,6 +59,83 @@ zabbix_export:
           tags:
             - tag: component
               value: routerfleet
+        - uuid: 52d9a1cb10b04c499ed454cf3cb2f67c
+          name: 'RouterFleet: routers without a recorded SSH host key'
+          key: routerfleet.hostkeys.missing
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: |
+            Enabled routers with a backup profile that have no host key on
+            record. RouterFleet Improved learns each device's key on first
+            contact and refuses to connect if it later changes.
+
+            A router here has either never been reached, or had its key
+            forgotten by an administrator. The first is a connectivity problem
+            the backup-age triggers will also show; the second is deliberate
+            and should match a planned replacement.
+          tags:
+            - tag: component
+              value: routerfleet
+            - tag: scope
+              value: security
+        - uuid: ccb67899b78c40d0b3a07d9c51c132ac
+          name: 'RouterFleet: host keys learned in the last hour'
+          key: routerfleet.hostkeys.new
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: |
+            On a settled fleet this is 0. A key appearing for a device that has
+            been managed for a while means the old key was forgotten and a new
+            one accepted - so the device was rebuilt, replaced, or is not the
+            device you think it is.
+          tags:
+            - tag: component
+              value: routerfleet
+            - tag: scope
+              value: security
+        - uuid: cc40d09463ac47488219117b0499d3d0
+          name: 'RouterFleet: failed sign-ins in the last 15 minutes'
+          key: routerfleet.logins.failed
+          delay: 5m
+          history: 31d
+          trends: 365d
+          description: |
+            Failed sign-ins across all accounts and source addresses, from
+            RouterFleet's audit log.
+
+            RouterFleet locks an account or an address after 5 failures within
+            15 minutes, so a value that stays high means something is still
+            trying against other accounts or from other addresses.
+          tags:
+            - tag: component
+              value: routerfleet
+            - tag: scope
+              value: security
+        - uuid: 8122b8f98b854e0ca37be91b025fda5a
+          name: 'RouterFleet: audited changes in the last hour'
+          key: routerfleet.changes.recent
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: |
+            Configuration changes recorded in the audit log. Informational: on
+            a fleet that changes rarely, this sits near zero and an unexpected
+            burst becomes visible without anyone having to go looking.
+          tags:
+            - tag: component
+              value: routerfleet
+        - uuid: 31ed81b9c7e1430398074c37f10fa98e
+          name: 'RouterFleet: command jobs with failures (24h)'
+          key: routerfleet.commands.failed
+          delay: 10m
+          history: 31d
+          trends: 365d
+          description: 'Fleet Commander jobs completed in the last 24 hours in which at least one task errored or was aborted.'
+          tags:
+            - tag: component
+              value: routerfleet
       discovery_rules:
         - uuid: 86d2fdb8c6ea47e6a70d1100913668a8
           name: 'RouterFleet routers'
@@ -153,6 +230,9 @@ zabbix_export:
             - value: '1'
               newvalue: 'Succeeded'
       macros:
+        - macro: '{$ROUTERFLEET.LOGINS.FAILED.MAX}'
+          value: '5'
+          description: 'Sustained failed sign-ins over 15 minutes that counts as an attack rather than a forgotten password.'
         - macro: '{$ROUTERFLEET.BACKUP.MAX_AGE}'
           value: 48h
           description: 'Age beyond which a router backup counts as stale.'
@@ -160,6 +240,55 @@ zabbix_export:
           value: 7d
           description: 'Age beyond which the stored configuration is no longer a usable recovery point.'
   triggers:
+    - uuid: 9e44a2bf7002455e8c41f553abcd5a64
+      expression: 'last(/RouterFleet by Zabbix agent/routerfleet.hostkeys.new)>0'
+      name: 'RouterFleet: a device SSH host key was newly accepted on {HOST.NAME}'
+      priority: WARNING
+      manual_close: 'YES'
+      description: |
+        A host key was learned in the last hour. If a device was deliberately
+        rebuilt or replaced, close this. If nobody can account for it, the
+        device presenting that key is not the one previously trusted, and the
+        change should be investigated before any credential is sent to it.
+      tags:
+        - tag: scope
+          value: security
+    - uuid: 2c4c1a89b0bd414fad212b7bbc5eebe4
+      expression: 'min(/RouterFleet by Zabbix agent/routerfleet.logins.failed,15m)>={$ROUTERFLEET.LOGINS.FAILED.MAX}'
+      name: 'RouterFleet: repeated failed sign-ins on {HOST.NAME}'
+      priority: AVERAGE
+      manual_close: 'YES'
+      description: |
+        Failed sign-ins have stayed at or above the threshold for a full 15
+        minutes. One burst is a forgotten password; a sustained level means
+        something is working through accounts or addresses, and the per-account
+        lockout is not stopping it.
+      tags:
+        - tag: scope
+          value: security
+    - uuid: 6fc5b82494814c3b83b60d605db8c9b5
+      expression: 'min(/RouterFleet by Zabbix agent/routerfleet.hostkeys.missing,24h)>0'
+      name: 'RouterFleet: a router has had no SSH host key for 24h on {HOST.NAME}'
+      priority: WARNING
+      manual_close: 'YES'
+      description: |
+        A router with a backup profile has gone a full day without a host key
+        being recorded, so RouterFleet has not completed a connection to it in
+        that time. Expect the backup-age triggers to be firing for the same
+        device; this says specifically that the connection, not the backup, is
+        what is failing.
+      tags:
+        - tag: scope
+          value: availability
+    - uuid: 45036fcacab74b5fabc30167c7f7db9b
+      expression: 'last(/RouterFleet by Zabbix agent/routerfleet.commands.failed)>0'
+      name: 'RouterFleet: command jobs failed in the last 24h on {HOST.NAME}'
+      priority: WARNING
+      manual_close: 'YES'
+      description: 'At least one Fleet Commander job completed with a failed or aborted task. The job detail page says which device and why.'
+      tags:
+        - tag: scope
+          value: availability
     - uuid: 25df1dc920164755868bacec432bd896
       expression: 'last(/RouterFleet by Zabbix agent/routerfleet.probe)=0'
       name: 'RouterFleet: monitoring collector is not working'
@@ -168,6 +297,19 @@ zabbix_export:
         The collector could not query the RouterFleet database. Every other
         item on this template is therefore unreliable, including the ones
         that currently look healthy.
+      tags:
+        - tag: scope
+          value: availability
+    - uuid: 63832229bbaf43118c534b1adbbe9a77
+      expression: 'last(/RouterFleet by Zabbix agent/routerfleet.routers)<0 or last(/RouterFleet by Zabbix agent/routerfleet.failing)<0 or last(/RouterFleet by Zabbix agent/routerfleet.hostkeys.missing)<0 or last(/RouterFleet by Zabbix agent/routerfleet.hostkeys.new)<0 or last(/RouterFleet by Zabbix agent/routerfleet.logins.failed)<0 or last(/RouterFleet by Zabbix agent/routerfleet.changes.recent)<0 or last(/RouterFleet by Zabbix agent/routerfleet.commands.failed)<0'
+      name: 'RouterFleet: the collector cannot read some of its data on {HOST.NAME}'
+      priority: AVERAGE
+      description: |
+        At least one counter reported -1: the collector reached the database
+        but could not read what that counter needs - a grant from
+        sql/zbx_monitor.sql that is missing, or a table this installation does
+        not have. Until that is fixed, that counter says nothing, and a 0 from
+        it would have looked healthy. Latest data shows which item it is.
       tags:
         - tag: scope
           value: availability

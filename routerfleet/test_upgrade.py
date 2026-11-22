@@ -52,6 +52,8 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
 
     def test_upgrade(self):
         old = self.migrate(ORIGINAL_STATE)
+        Profile = old.get_model('backup', 'BackupProfile')
+        existing_profile = Profile.objects.create(name='existing-profile')
         tables = connection.introspection.table_names()
         self.assertNotIn('audit_log_changerecord', tables)
 
@@ -100,6 +102,11 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         # --- the upgrade
         with self.assertLogs('routerlib.encryption', level='WARNING') as logs:
             self.migrate(self.latest())
+        # An upgrade does not change how an installation stores its backups: a
+        # profile that existed keeps every backup; only new ones keep changes
+        from backup.models import BackupProfile as NewProfile
+        self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
+        self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
         # The warning seen during the upgrade names the harmless cause
         self.assertIn('not encrypted yet', ' '.join(logs.output))
 
@@ -207,6 +214,8 @@ class UpgradeFromLaterPredecessorTests(TransactionTestCase):
 
     def test_upgrade(self):
         old = self.migrate(LATER_PREDECESSOR_STATE)
+        Profile = old.get_model('backup', 'BackupProfile')
+        existing_profile = Profile.objects.create(name='existing-profile')
 
         Router = old.get_model('router_manager', 'Router')
         router = Router.objects.create(name='edge-01', address='10.0.0.1', router_type='routeros',
@@ -234,6 +243,12 @@ class UpgradeFromLaterPredecessorTests(TransactionTestCase):
 
         with self.assertLogs('routerlib.encryption', level='WARNING'):
             self.migrate(MigrationExecutor(connection).loader.graph.leaf_nodes())
+
+        # An upgrade does not change how an installation stores its backups: a
+        # profile that existed keeps every backup; only new ones keep changes
+        from backup.models import BackupProfile as NewProfile
+        self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
+        self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
 
         from audit_log.models import ChangeRecord, LoginRecord
         from fleet_commander.models import CommandSchedule

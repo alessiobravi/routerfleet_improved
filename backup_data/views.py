@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timedelta
 
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -298,6 +298,7 @@ def view_cron_housekeeping(request):
     # is removed by a person here, and a pass that finds nothing leaves no entry at
     # all, so a housekeeping run every ten minutes stays quiet
     with collect('Retention') as retention:
+        expired = set()
         for backup_profile in BackupProfile.objects.all():
             if backup_profile.name == 'default':
                 backup_list = RouterBackup.objects.filter(Q(router__backup_profile=backup_profile) | Q(router__backup_profile__isnull=True))
@@ -312,11 +313,24 @@ def view_cron_housekeeping(request):
                     ('monthly', backup_profile.monthly_retention),
                     ('weekly', backup_profile.weekly_retention),
                     ('daily', backup_profile.daily_retention)):
-                # delete() says how many rows it removed, so the summary costs no
-                # query of its own
-                retention.removed(backup_list.filter(
+                expired.update(backup_list.filter(
                     schedule_type=schedule_type,
-                    created__lt=timezone.now() - timedelta(days=retention_days)).delete())
+                    created__lt=timezone.now() - timedelta(days=retention_days)).values_list('id', flat=True))
+
+        # Never removed, whatever their age: each device's newest stored
+        # configuration - a device that was offline for weeks, or whose
+        # configuration has not changed in months, keeps its last known one - and
+        # a stored configuration that a backup which stays still points to
+        newest_stored = Router.objects.annotate(newest=Subquery(
+            RouterBackup.objects.filter(router=OuterRef('pk'), success=True, same_as__isnull=True)
+            .exclude(backup_text_hash='').order_by('-created', '-id').values('id')[:1])
+        ).values_list('newest', flat=True)
+        still_pointed_to = RouterBackup.objects.exclude(id__in=expired).filter(same_as__isnull=False) \
+            .values_list('same_as_id', flat=True)
+        protected = set(newest_stored) | set(still_pointed_to)
+        # delete() says how many rows it removed, so the summary costs no query
+        # of its own
+        retention.removed(RouterBackup.objects.filter(id__in=expired - protected).delete())
 
         expired_messages = Message.objects.filter(created__lt=timezone.now() - timedelta(days=30))
         removed = expired_messages.delete()

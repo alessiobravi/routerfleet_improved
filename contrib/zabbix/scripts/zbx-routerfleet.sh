@@ -10,6 +10,18 @@
 #   zbx-routerfleet.sh age   <uuid>     -> seconds since the last GOOD backup
 #   zbx-routerfleet.sh result <uuid>    -> 1 if the latest ATTEMPT succeeded, else 0
 #   zbx-routerfleet.sh probe            -> 1 if the database answered, else 0
+#   zbx-routerfleet.sh hostkeys_missing -> enabled routers with no SSH host key
+#   zbx-routerfleet.sh hostkeys_new     -> host keys first seen in the last hour
+#   zbx-routerfleet.sh logins_failed    -> failed sign-ins in the last 15 min
+#   zbx-routerfleet.sh changes_recent   -> audited changes in the last hour
+#   zbx-routerfleet.sh commands_failed  -> command jobs with failures, last 24h
+#
+# The last five read RouterFleet Improved's host-key store, audit log and
+# command jobs.
+#
+# A count that cannot be read - a table that is missing, a column not granted,
+# a query that fails - is reported as -1, never as 0: "could not tell" must not
+# look like "nothing wrong" (design note 3). The template alarms on -1.
 #
 # Every value is a number. The script never returns an empty string: an
 # unreachable database yields a sentinel, so "no data" is distinguishable from
@@ -33,6 +45,17 @@ NEVER=999999999
 psql_q() {
   timeout "$RF_TIMEOUT" docker exec -i "$RF_CONTAINER" \
     psql -U "$RF_USER" -d "$RF_DB" -At -c "$1" 2>/dev/null
+}
+
+# A count, or -1 when it could not be read. psql's exit status says whether the
+# query worked; an empty or non-numeric answer counts as not read.
+count_q() {
+  local out
+  if out=$(psql_q "$1") && [[ "$out" =~ ^[0-9]+$ ]]; then
+    echo "$out"
+  else
+    echo -1
+  fi
 }
 
 valid_uuid() { [[ "${1:-}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; }
@@ -98,6 +121,54 @@ case "${1:-}" in
     echo "${val:-0}"
     ;;
 
+  hostkeys_missing)
+    # Enabled routers with a backup profile that have no recorded SSH host key.
+    #
+    # RouterFleet Improved records each device's host key on first contact and
+    # refuses to connect if it later changes. A router with no key either
+    # has not been reached yet, or an administrator used "Forget host key" -
+    # which is the correct response to a planned replacement and a serious
+    # finding otherwise.
+    count_q "SELECT count(*) FROM router_manager_router r
+                  WHERE r.enabled AND r.backup_profile_id IS NOT NULL
+                    AND NOT EXISTS (SELECT 1 FROM router_manager_sshhostkey k
+                                    WHERE k.address = r.address AND k.port = r.port);"
+    ;;
+
+  hostkeys_new)
+    # Host keys first seen in the last hour.
+    #
+    # On a settled fleet this is 0. A key appearing for a device that has been
+    # managed for months means its old key was forgotten and a new one learned,
+    # so the device was rebuilt, replaced, or is not the device you think it is.
+    count_q "SELECT count(*) FROM router_manager_sshhostkey
+                  WHERE first_seen > now() - interval '1 hour';"
+    ;;
+
+  logins_failed)
+    # Failed sign-ins in the last 15 minutes, across all accounts and addresses.
+    #
+    # RouterFleet locks an account or address after 5 failures in 15 minutes,
+    # so a sustained non-zero value means something is still trying.
+    count_q "SELECT count(*) FROM audit_log_loginrecord
+                  WHERE NOT successful AND created > now() - interval '15 minutes';"
+    ;;
+
+  changes_recent)
+    # Configuration changes recorded in the last hour. Informational: a change
+    # rate that is normally near zero makes an unexpected burst visible.
+    count_q "SELECT count(*) FROM audit_log_changerecord
+                  WHERE created > now() - interval '1 hour';"
+    ;;
+
+  commands_failed)
+    # Command jobs completed in the last 24h that had at least one task fail.
+    count_q "SELECT count(*) FROM fleet_commander_commandjob
+                  WHERE completed IS NOT NULL
+                    AND completed > now() - interval '24 hours'
+                    AND COALESCE(error_count,0) + COALESCE(aborted_count,0) > 0;"
+    ;;
+
   probe)
     # Collector health. Without this, a broken collector looks exactly like a
     # healthy fleet: items stop updating and nothing alarms.
@@ -106,25 +177,23 @@ case "${1:-}" in
     ;;
 
   routers)
-    val=$(psql_q "SELECT count(*) FROM router_manager_router WHERE enabled AND backup_profile_id IS NOT NULL;")
-    echo "${val:-0}"
+    count_q "SELECT count(*) FROM router_manager_router WHERE enabled AND backup_profile_id IS NOT NULL;"
     ;;
 
   failing)
     # Fleet-wide count of routers whose latest attempt failed.
-    val=$(psql_q "WITH cur AS (
+    count_q "WITH cur AS (
                     SELECT r.id,
                       (SELECT CASE WHEN success AND NOT error THEN 1 ELSE 0 END
                        FROM backup_data_routerbackup WHERE router_id = r.id
                        ORDER BY id DESC LIMIT 1) AS ok
                     FROM router_manager_router r
                     WHERE r.enabled AND r.backup_profile_id IS NOT NULL)
-                  SELECT count(*) FILTER (WHERE ok = 0) FROM cur;")
-    echo "${val:-0}"
+                  SELECT count(*) FILTER (WHERE ok = 0) FROM cur;"
     ;;
 
   *)
-    echo "usage: $0 {discovery|age <uuid>|result <uuid>|probe|routers|failing}" >&2
+    echo "usage: $0 {discovery|age <uuid>|result <uuid>|probe|routers|failing|hostkeys_missing|hostkeys_new|logins_failed|changes_recent|commands_failed}" >&2
     exit 2
     ;;
 esac

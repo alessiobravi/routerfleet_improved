@@ -167,16 +167,26 @@
                                 <span class="float-right" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":16" }}...</span>
                             </li>
 
+                            {% if backup.same_as_id %}
+                            <li class="list-group-item">
+                                <b>Content</b>
+                                <span class="float-right">
+                                    Unchanged &mdash; same as
+                                    <a href="/backup/backup_details/?uuid={{ backup.same_as.uuid }}">the backup of {{ backup.same_as.created|date:"Y-m-d H:i" }}</a>,
+                                    not stored again
+                                </span>
+                            </li>
+                            {% endif %}
                             <li class="list-group-item">
                                 <b>Download</b>
                                 <span class="float-right">
-                                {% if backup.backup_text %}
+                                {% if backup.content.backup_text %}
                                     <a href="/backup/download/?uuid={{ backup.uuid }}&type=text" download>
                                     Text
                                 </a>
-                                    {% if backup.backup_binary %} - {% endif %}
+                                    {% if backup.content.backup_binary %} - {% endif %}
                                 {% endif %}
-                                    {% if backup.backup_binary %}
+                                    {% if backup.content.backup_binary %}
                                         <a href="/backup/download/?uuid={{ backup.uuid }}&type=binary" download>
                                     Binary
                                 </a>
@@ -281,7 +291,7 @@
 
                 <div class="card-body row">
                     <div class="col-lg-12">
-                        <pre>{{ backup.backup_text|default_if_none:"" }}</pre>
+                        <pre>{{ backup.content.backup_text|default_if_none:"" }}</pre>
                     </div>
                 </div>
             </div>

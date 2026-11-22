@@ -53,15 +53,15 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 6 migrations apply: three encrypt the SSH keys and tokens it stored as text, one adds the table of device host keys, one the tables of second factors, and one removes the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 19 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 9 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 22 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
 here, byte-identical. Nothing was renumbered, squashed or rewritten, which is
 what makes the upgrade a no-drama `migrate`.
 
-### What the 19 migrations do when coming from the original
+### What the 22 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -181,6 +181,13 @@ names `postgres:16` keeps working too.
   **About**, at the bottom of the menu.
 - **Second factors are available** - an authenticator app and passkeys, in
   *My Settings*. Nobody is asked for one until they turn it on.
+- **Backup storage does not change.** Profiles that exist when you upgrade
+  keep every backup in full, as before (*Keep unchanged backups* is on for
+  them). Switch a profile's setting off to keep only changes from then on; the
+  *Backup clean-up* tool can then free the duplicates already stored. Profiles
+  created after the upgrade start with keeping only changes.
+- **Retention never deletes a device's newest stored configuration**, however
+  old it is.
 
 - **Device host keys are checked.** Nothing is needed on upgrade: keys are
   learned on each device's next connection. A device you reset or replace later

@@ -59,17 +59,27 @@ and a pass that removes nothing writes nothing.
 
 ## Reading the status page
 
-The status page is the fastest health check:
+The status page is the home page and the fastest health check. Two charts on
+top show backups and devices online per calendar day over 7, 15 or 30 days;
+clicking a day's bar opens that day's backups. Below them, one card per signal,
+each with a coloured edge and a chip saying what to do - green *OK*, amber
+*Look*, red *Act*, grey for no information - and a sparkline where RouterFleet
+keeps the history. **Every card opens the list of exactly what it counts.**
 
-- **Scheduler and monitoring last run** — if either is stale, that container is
-  not running, and the corresponding work has stopped.
-- **Backup queue** — rows neither succeeded nor errored. A number that only
+- **Failed / successful backups, last 24 hours** — compared with the 24 hours
+  before. Failed opens the devices with a failed backup.
+- **Backup queue** — backups neither succeeded nor failed yet. A number that only
   grows means backups are not completing.
-- **Backups in the last 24 hours**, succeeded and failed.
-- **Storage** — disk usage under `MEDIA_ROOT`, with a warning above 75% and
-  above 90%. Binary backups are what fills it.
-- **Fleet version state** — up to date, missing an update, no information.
-  Counted by the same rule that colours the device list.
+- **Backup storage** — disk usage under `MEDIA_ROOT`, amber from 80%, red from
+  90%. Binary backups are what fills it.
+- **Scheduler & monitoring** — red when the scheduler has not run for 5 minutes
+  or the monitoring for 10: that container has stopped, and with it the
+  backups or the reachability checks.
+- **Devices online, offline, disabled, unmonitored.**
+- **OS versions** — missing an update, up to date (both shown only when they
+  count something), without information. Counted by the same rule that colours
+  the device list.
+- **RouterFleet Improved** — whether a newer release exists (see `UPDATE_CHECK`).
 
 ## Troubleshooting
 

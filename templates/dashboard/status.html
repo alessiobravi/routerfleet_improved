@@ -2,412 +2,155 @@
 
 {% block content %}
 <style>
-    .info-box {
-        transition: transform 0.2s;
+    .rf-status {
+        --rf-navy: #1f3a5f; --rf-teal: #14a89a; --rf-green: #1f9d55; --rf-amber: #e8a317;
+        --rf-red: #d64545; --rf-grey: #8a96a3; --rf-blue: #2f6fd1; --rf-line: #e1e6ec;
     }
-
-    .info-box:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    .rf-status .rf-panel {
+        background: #fff; border: 1px solid var(--rf-line); border-radius: 12px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+        padding: 14px 16px; height: 100%;
     }
-
-    /* Every card the same size, whatever it holds: the column stretches to
-       the tallest card of its row, and each card fills its column */
-    .status-cards .col-md-3 {
-        display: flex;
+    .rf-status .rf-panel h3 {
+        font-size: 15px; font-weight: 600; margin: 0 0 8px;
+        display: flex; justify-content: space-between; align-items: center; gap: 8px;
     }
-
-    .status-cards .info-box {
-        width: 100%;
-        min-height: 112px;
+    .rf-status .rf-range button {
+        font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--rf-line);
+        background: #fff; color: #6b7785; margin-left: 2px;
     }
+    .rf-status .rf-range button.active { background: var(--rf-navy); border-color: var(--rf-navy); color: #fff; }
+    .rf-status .rf-chart { position: relative; height: 210px; }
+    .rf-status .rf-hint { font-size: 12px; color: #6b7785; margin-top: 6px; }
 
+    /* The cards: a coloured edge, the number large, a sparkline where there is
+       history, a factual line, and a chip saying what to do */
+    .rf-status .rf-cards { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .rf-status .rf-card {
+        display: flex; flex-direction: column; justify-content: space-between; min-height: 128px;
+        background: #fff; border: 1px solid var(--rf-line); border-left: 4px solid var(--rf-grey);
+        border-radius: 12px; padding: 12px 14px; color: inherit; text-decoration: none;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+        transition: transform .15s, box-shadow .15s;
+    }
+    .rf-status .rf-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(16, 24, 40, .12); color: inherit; text-decoration: none; }
+    .rf-status .rf-card:focus-visible { outline: 3px solid var(--rf-navy); outline-offset: 2px; }
+    .rf-status .rf-card.ok { border-left-color: var(--rf-green); }
+    .rf-status .rf-card.bad { border-left-color: var(--rf-red); }
+    .rf-status .rf-card.warn { border-left-color: var(--rf-amber); }
+    .rf-status .rf-card.info { border-left-color: var(--rf-grey); }
+    .rf-status .rf-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+    .rf-status .rf-name { font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: #6b7785; }
+    .rf-status .rf-value { font-size: 32px; font-weight: 700; line-height: 1; color: #1d2733; }
+    .rf-status .rf-note { font-size: 12px; color: #6b7785; margin-top: 6px; }
+    .rf-status .rf-chip { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+    .rf-status .rf-chip.ok { background: rgba(31, 157, 85, .12); color: var(--rf-green); }
+    .rf-status .rf-chip.bad { background: rgba(214, 69, 69, .12); color: var(--rf-red); }
+    .rf-status .rf-chip.warn { background: rgba(232, 163, 23, .16); color: #a8730b; }
+    .rf-status .rf-chip.info { background: rgba(138, 150, 163, .16); color: #5f6b78; }
+    @media (max-width: 1199px) { .rf-status .rf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 575px) { .rf-status .rf-cards { grid-template-columns: 1fr; } }
 </style>
-<div class="row">
-    <!-- Left Column for General Information -->
-    <div class="col-lg-12">
-        <!-- System Stats Card -->
-        <div class="card card-primary card-outline">
-            {% if page_title %}
-            <div class="card-header">
-                <h3 class="card-title">
-                    <i class="fas fa-tachometer-alt"></i> {{ page_title }}
+
+<div class="rf-status">
+    <!-- The charts, on top -->
+    <div class="row">
+        <div class="col-lg-6 mb-3">
+            <div class="rf-panel">
+                <h3><span><i class="fas fa-chart-bar"></i> Backups</span>
+                    <span class="rf-range" data-chart="backups">
+                        {% for days in chart_days %}<button type="button" data-days="{{ days }}" class="{% if forloop.first %}active{% endif %}">{{ days }}d</button>{% endfor %}
+                    </span>
                 </h3>
+                <div class="rf-chart"><canvas id="backupChart" aria-label="Successful and failed backups per day" role="img"></canvas></div>
+                <div class="rf-hint">Click a day to open its backups.</div>
             </div>
-            {% endif %}
-            <div class="card-body status-cards">
-                <div class="row mb-4">
-                    <!-- Used Storage -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-info">
-                            <span class="info-box-icon"><i class="fas fa-hdd"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Used Storage (binary and rsc backups)</span>
-                                <span class="info-box-number">{{ media_root_stats.used }} used</span>
-                                <div class="progress">
-                                    <div class="progress-bar" style="width: {{ media_root_stats.usage_percentage }}%"></div>
-                                </div>
-                                <span class="progress-description">
-                                    {{ media_root_stats.usage_percentage }}% of {{ media_root_stats.total }}
-                                    {% if media_root_stats.storage_warning %}
-                                        <span class="text-danger">{{ media_root_stats.storage_warning }}</span>
-                                    {% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Backup Queue -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-warning">
-                            <span class="info-box-icon"><i class="fas fa-tasks"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Backup Queue</span>
-                                <span class="info-box-number">{{ queue }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Successful Backups -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-success">
-                            <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Successful Backups (24h)</span>
-                                <span class="info-box-number">{{ success_backup_last_24h }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Failed Backups -->
-                    <div class="col-md-3">
-                        <div class="info-box {% if error_backup_last_24h %}bg-danger{% else %}bg-success{% endif %}">
-                            <span class="info-box-icon"><i class="fas {% if error_backup_last_24h %}fa-times-circle{% else %}fa-check-circle{% endif %}"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Failed Backups (24h)</span>
-                                <span class="info-box-number">{{ error_backup_last_24h }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-4">
-
-                    <!-- Total Routers -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-primary">
-                            <span class="info-box-icon"><i class="fas fa-network-wired"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Total Routers</span>
-                                <span class="info-box-number">{{ total_router_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Online Routers -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-success">
-                            <span class="info-box-icon"><i class="fas fa-plug"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Online Routers</span>
-                                <span class="info-box-number">{{ router_online_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Offline Routers -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-danger">
-                            <span class="info-box-icon"><i class="fas fa-plug"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Offline Routers</span>
-                                <span class="info-box-number">{{ router_offline_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Disabled Routers -->
-                    <div class="col-md-3">
-                        <div class="info-box bg-danger">
-                            <span class="info-box-icon"><i class="fas fa-times"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Disabled Routers</span>
-                                <span class="info-box-number">{{ router_disabled_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="row mb-4">
-                    <!-- RouterFleet Improved updates -->
-                    <div class="col-md-3">
-                        {% if not update_check.enabled %}
-                        <div class="info-box bg-secondary" title="UPDATE_CHECK=off: this installation does not look for new releases">
-                            <span class="info-box-icon"><i class="fas fa-sync-alt"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Update check off</span>
-                                <span class="info-box-number">{{ routerfleet_version }}</span>
-                            </div>
-                        </div>
-                        {% elif update_check.available %}
-                        <div class="info-box bg-warning">
-                            <span class="info-box-icon"><i class="fas fa-cloud-download-alt"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Update available</span>
-                                <span class="info-box-number">{{ update_check.latest }}</span>
-                                <span class="progress-description">
-                                    running {{ routerfleet_version }} &middot;
-                                    <a href="{{ update_check.releases_url }}" target="_blank" rel="noopener" class="text-dark"><u>release notes</u></a>
-                                </span>
-                            </div>
-                        </div>
-                        {% elif update_check.checked %}
-                        <div class="info-box bg-success" title="This is the latest release">
-                            <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Up to date</span>
-                                <span class="info-box-number">{{ routerfleet_version }}</span>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="info-box bg-secondary" title="The first check runs within an hour of starting">
-                            <span class="info-box-icon"><i class="fas fa-sync-alt"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Updates not checked yet</span>
-                                <span class="info-box-number">{{ routerfleet_version }}</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <!-- Unmonitored Routers -->
-                    <div class="col-md-3">
-                        <div class="info-box {% if router_not_monitored_count %}bg-secondary{% else %}bg-success{% endif %}">
-                            <span class="info-box-icon"><i class="fas {% if router_not_monitored_count %}fa-question-circle{% else %}fa-check-circle{% endif %}"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Unmonitored Routers</span>
-                                <span class="info-box-number">{{ router_not_monitored_count }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- How far the devices are with their OS version. The same rule
-                     as the colours of the router list, so both agree -->
-                <div class="row mb-4">
-                    {% if update_state.up_to_date %}
-                    <div class="col-md-3">
-                        <div class="info-box bg-success"
-                             title="The devices that run the version they could update to">
-                            <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Routers Up To Date</span>
-                                <span class="info-box-number">{{ update_state.up_to_date }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if update_state.update_waiting %}
-                    <div class="col-md-3">
-                        <div class="info-box bg-danger"
-                             title="The devices whose OS version is behind the one they could update to">
-                            <span class="info-box-icon"><i class="fas fa-cloud-download-alt"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Routers Missing Updates</span>
-                                <span class="info-box-number">{{ update_state.update_waiting }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <div class="col-md-3">
-                        <div class="info-box bg-secondary"
-                             title="The devices RouterFleet has no version of, or no version to compare it with (an update check that failed, or a device type without one). Update the router information.">
-                            <span class="info-box-icon"><i class="fas fa-question-circle"></i></span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Routers Without Information</span>
-                                <span class="info-box-number">{{ update_state.no_information }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            </div> <!-- /.card-body -->
-        </div> <!-- /.card -->
-    </div> <!-- /.col-lg-12 -->
-</div> <!-- /.row -->
-
-
-<!-- Right Column for Charts -->
-<div class="row">
-    <div class="col-lg-6">
-        <!-- Backup Status Chart -->
-        <div class="card card-primary card-outline">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-chart-bar"></i> Backup Status Statistics</h3>
-                <div class="card-tools">
-                    <select id="days-select-backup" class="form-control">
-                        <option value="7">Last 7 days</option>
-                        <option value="3">Last 3 days</option>
-                        <option value="5">Last 5 days</option>
-                        <option value="10">Last 10 days</option>
-                        <option value="15">Last 15 days</option>
-                        <option value="30">Last 30 days</option>
-                    </select>
-                </div>
-            </div>
-            <div class="card-body">
-                <canvas id="backupChart"></canvas>
+        </div>
+        <div class="col-lg-6 mb-3">
+            <div class="rf-panel">
+                <h3><span><i class="fas fa-signal"></i> Devices online</span>
+                    <span class="rf-range" data-chart="devices">
+                        {% for days in chart_days %}<button type="button" data-days="{{ days }}" class="{% if forloop.first %}active{% endif %}">{{ days }}d</button>{% endfor %}
+                    </span>
+                </h3>
+                <div class="rf-chart"><canvas id="routerStatusChart" aria-label="Devices online and offline per day" role="img"></canvas></div>
+                <div class="rf-hint">Enabled devices, as of the end of each day.</div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-6">
-        <!-- Router Status Chart -->
-        <div class="card card-primary card-outline">
-            <div class="card-header">
-                <h3 class="card-title"><i class="fas fa-signal"></i> Router Status Statistics</h3>
-                <div class="card-tools">
-                    <select id="days-select-status" class="form-control">
-                        <option value="7">Last 7 days</option>
-                        <option value="3">Last 3 days</option>
-                        <option value="5">Last 5 days</option>
-                        <option value="10">Last 10 days</option>
-                        <option value="15">Last 15 days</option>
-                        <option value="30">Last 30 days</option>
-                    </select>
-                </div>
+    <!-- The cards: each opens the list of exactly what it counts -->
+    <div class="rf-cards mb-3">
+        {% for card in cards %}
+        <a href="{{ card.href }}" class="rf-card {{ card.state }}"{% if card.external %} target="_blank" rel="noopener"{% endif %}>
+            <div class="rf-row">
+                <span class="rf-name">{{ card.title }}</span>
+                <span class="rf-chip {{ card.state }}">{{ card.chip }}</span>
             </div>
-            <div class="card-body">
-                <canvas id="routerStatusChart"></canvas>
+            <div class="rf-row mt-2">
+                <span class="rf-value">{{ card.value }}</span>
+                {% if card.spark %}
+                <svg width="110" height="34" aria-hidden="true"><polyline points="{{ card.spark }}" fill="none" stroke="var({{ card.color }})" stroke-width="2" stroke-linejoin="round"/></svg>
+                {% endif %}
             </div>
-        </div>
+            <div class="rf-note">{{ card.note }}</div>
+        </a>
+        {% endfor %}
     </div>
+</div>
+
 <script src="/static/vendor/chart.js-4.6.1/chart.umd.min.js"></script>
 <script>
-    var backupChart;
+    (function () {
+        var charts = {};
+        var colors = {teal: '#14a89a', red: '#d64545', navy: '#1f3a5f'};
 
-    function createBackupChart(data) {
-        var ctx = document.getElementById('backupChart').getContext('2d');
-        if (backupChart) {
-            backupChart.destroy();
-        }
-        backupChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.dates,
-                datasets: [{
-                    label: 'Successful Backups',
-                    data: data.success_data,
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 2,
-                    fill: true, // Fill the area under the line
-                },
-                {
-                    label: 'Failed Backups',
-                    data: data.error_data,
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    borderWidth: 2,
-                    fill: true, // Fill the area under the line
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
+        function draw(kind, days) {
+            var url = kind === 'backups' ? '/backup_statistics_data/' : '/router_status_data/';
+            fetch(url + '?days=' + days, {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (data) {
+                var canvas = document.getElementById(kind === 'backups' ? 'backupChart' : 'routerStatusChart');
+                if (charts[kind]) { charts[kind].destroy(); }
+                var config = kind === 'backups' ? {
+                    type: 'bar',
+                    data: {labels: data.dates, datasets: [
+                        {label: 'Successful', data: data.success_data, backgroundColor: colors.teal, borderRadius: 4},
+                        {label: 'Failed', data: data.error_data, backgroundColor: colors.red, borderRadius: 4}
+                    ]},
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {y: {beginAtZero: true, ticks: {precision: 0}}},
+                        onClick: function (event, elements) {
+                            if (!elements.length) { return; }
+                            var element = elements[0];
+                            var type = element.datasetIndex === 1 ? 'errors' : 'success';
+                            window.location = '/backup/backup_list/?type=' + type + '&date=' + data.dates[element.index];
+                        },
+                        onHover: function (event, elements) {
+                            event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                        }
                     }
-                }
-            }
-        });
-    }
-    function updateBackupStatistics(days) {
-        fetch(`/backup_statistics_data?days=${days}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Invalid days parameter');
-            }
-            return response.json();
-        })
-        .then(data => {
-            createBackupChart(data);
-        })
-        .catch(error => {
-            alert(error.message);
-        });
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        const daysSelectBackup = document.getElementById('days-select-backup');
-        daysSelectBackup.addEventListener('change', (event) => {
-            updateBackupStatistics(event.target.value);
-        });
-
-        updateBackupStatistics(7); // Initial load for the last 7 days
-    });
-</script>
-<script>
-    var routerStatusChart;
-    function createRouterStatusChart(data) {
-        var ctx2 = document.getElementById('routerStatusChart').getContext('2d');
-        if (routerStatusChart) {
-            routerStatusChart.destroy();
+                } : {
+                    type: 'line',
+                    data: {labels: data.dates, datasets: [
+                        {label: 'Online', data: data.online_data, borderColor: colors.navy, backgroundColor: 'rgba(31, 58, 95, .12)', fill: true, tension: .25},
+                        {label: 'Offline', data: data.offline_data, borderColor: colors.red, backgroundColor: 'rgba(214, 69, 69, .10)', fill: true, tension: .25}
+                    ]},
+                    options: {maintainAspectRatio: false, scales: {y: {beginAtZero: true, ticks: {precision: 0}}}}
+                };
+                charts[kind] = new Chart(canvas, config);
+            });
         }
-        routerStatusChart = new Chart(ctx2, {
-            type: 'line',
-            data: {
-                labels: data.dates,
-                datasets: [{
-                    label: 'Online Routers',
-                    data: data.online_data,
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 2,
-                    fill: true, // Fill the area under the line
-                },
-                {
-                    label: 'Offline Routers',
-                    data: data.offline_data,
-                    backgroundColor: 'rgba(153, 102, 255, 0.2)',
-                    borderColor: 'rgba(153, 102, 255, 1)',
-                    borderWidth: 2,
-                    fill: true, // Fill the area under the line
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    }
 
-    function updateRouterStatus(days) {
-        fetch(`/router_status_data?days=${days}`)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Invalid days parameter'+ " " + days);
-            }
-            return response.json();
-        })
-        .then(data => {
-            createRouterStatusChart(data);
-        })
-        .catch(error => {
-            alert(error.message);
+        document.querySelectorAll('.rf-range').forEach(function (group) {
+            group.addEventListener('click', function (event) {
+                var button = event.target.closest('button');
+                if (!button) { return; }
+                group.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b === button); });
+                draw(group.dataset.chart, button.dataset.days);
+            });
         });
-    }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        const daysSelectStatus = document.getElementById('days-select-status');
-        daysSelectStatus.addEventListener('change', (event) => {
-            updateRouterStatus(event.target.value);
-        });
-
-        updateRouterStatus(7); // Initial load for the last 7 days
-    });
+        draw('backups', {{ chart_days.0 }});
+        draw('devices', {{ chart_days.0 }});
+    })();
 </script>
-
-
 {% endblock %}

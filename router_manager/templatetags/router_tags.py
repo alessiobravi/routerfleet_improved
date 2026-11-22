@@ -108,17 +108,29 @@ def update_state_counts():
         for information in RouterInformation.objects.exclude(router__router_type='monitoring')
     }
     counts = {'up_to_date': 0, 'update_waiting': 0, 'no_information': 0}
+    for state in update_state_of_routers(information_of_router).values():
+        counts[state] += 1
+    return counts
 
-    router_ids = Router.objects.exclude(router_type='monitoring').values_list('id', flat=True)
-    for router_id in router_ids:
-        state = os_version_state(information_of_router.get(router_id))
-        if state['css_class'] == 'text-success':
-            counts['up_to_date'] += 1
-        elif state['css_class'] == 'text-danger':
-            counts['update_waiting'] += 1
+
+def update_state_of_routers(information_of_router=None):
+    """{router id: 'up_to_date' | 'update_waiting' | 'no_information'}, by the
+    rule the router list colours versions with - which the status page counts,
+    and the list filters, with."""
+    if information_of_router is None:
+        information_of_router = {
+            information.router_id: information
+            for information in RouterInformation.objects.exclude(router__router_type='monitoring')
+        }
+    states = {}
+    for router_id in Router.objects.exclude(router_type='monitoring').values_list('id', flat=True):
+        css_class = os_version_state(information_of_router.get(router_id))['css_class']
+        if css_class == 'text-success':
+            states[router_id] = 'up_to_date'
+        elif css_class == 'text-danger':
+            states[router_id] = 'update_waiting'
         else:
             # Nothing was read out of the device, or there is no version to
             # compare the one it runs with
-            counts['no_information'] += 1
-
-    return counts
+            states[router_id] = 'no_information'
+    return states

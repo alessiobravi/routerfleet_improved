@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, JsonResponse
@@ -92,107 +92,208 @@ def update_check_state():
     }
 
 
+def _spark_points(values, width=110, height=34):
+    """A sparkline as SVG polyline points, drawn on the server."""
+    if not values or len(values) < 2:
+        return ''
+    top = max(max(values), 1)
+    step = width / (len(values) - 1)
+    return ' '.join(f'{i * step:.1f},{height - 3 - (height - 6) * v / top:.1f}' for i, v in enumerate(values))
+
+
+def _delta(now, before, unit='previous 24 h'):
+    if now == before:
+        return f'same as the {unit}'
+    sign = '+' if now > before else '\u2212'
+    return f'{sign}{abs(now - before)} vs the {unit}'
+
+
+def _card(title, value, state, chip, href, note='', spark=None, color='--rf-grey', external=False):
+    return {'title': title, 'value': value, 'state': state, 'chip': chip, 'href': href, 'note': note,
+            'spark': _spark_points(spark) if spark else '', 'color': color, 'external': external}
+
+
+def _ago(moment, now):
+    if moment is None:
+        return 'never'
+    seconds = int((now - moment).total_seconds())
+    return f'{seconds} s ago' if seconds < 120 else f'{seconds // 60} min ago'
+
+
+def _scheduler_card(now):
+    """Whether the scheduler and monitoring containers are working. Either
+    stopping is silent otherwise: backups, or reachability checks, just cease."""
+    from routerfleet_tools.models import WebadminSettings
+    webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+    cron, monitoring = webadmin_settings.cron_last_run, webadmin_settings.monitoring_last_run
+    cron_ok = cron is not None and now - cron < timedelta(minutes=5)
+    monitoring_ok = monitoring is not None and now - monitoring < timedelta(minutes=10)
+    stopped = [name for name, ok in (('scheduler', cron_ok), ('monitoring', monitoring_ok)) if not ok]
+    docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/operations.md#troubleshooting'
+    return _card('Scheduler & monitoring', 'Running' if not stopped else 'Stopped',
+                 *(('ok', 'OK') if not stopped else ('bad', 'Act')), docs,
+                 f'scheduler {_ago(cron, now)} \u00b7 monitoring {_ago(monitoring, now)}', external=True)
+
+
+def status_cards():
+    """The cards of the status page, in order. Each opens the list of exactly
+    what it counts; a sparkline only where RouterFleet keeps the history."""
+    now = timezone.now()
+    day, two_days = now - timedelta(days=1), now - timedelta(days=2)
+    errors = RouterBackup.objects.filter(error=True)
+    successes = RouterBackup.objects.filter(success=True)
+    error_24, error_before = errors.filter(created__gte=day).count(), errors.filter(created__gte=two_days, created__lt=day).count()
+    success_24, success_before = (successes.filter(created__gte=day).count(),
+                                  successes.filter(created__gte=two_days, created__lt=day).count())
+    queue = RouterBackup.objects.filter(success=False, error=False).count()
+    storage = get_directory_statistics(settings.MEDIA_ROOT)
+    backups = backup_series(7)
+    devices = online_series(7)
+    online = RouterStatus.objects.filter(status_online=True, router__monitoring=True).count()
+    offline = RouterStatus.objects.filter(status_online=False, router__monitoring=True).count()
+    disabled = Router.objects.filter(enabled=False).count()
+    unmonitored = Router.objects.filter(enabled=True, monitoring=False).count()
+    total = Router.objects.count()
+    versions = update_state_counts()
+    update = update_check_state()
+
+    pct = storage['usage_percentage']
+    storage_state = ('bad', 'Act') if pct >= 90 else ('warn', 'Look') if pct >= 80 else ('ok', 'OK')
+    cards = [
+        _card('Failed backups \u00b7 24h', error_24, *(('bad', 'Act') if error_24 else ('ok', 'OK')),
+              '/router/list/?state=backup_failed', _delta(error_24, error_before), backups['error_data'], '--rf-red'),
+        _card('Successful backups \u00b7 24h', success_24, *(('ok', 'OK') if success_24 else ('info', 'None')),
+              '/backup/backup_list/?since=24h', _delta(success_24, success_before), backups['success_data'], '--rf-teal'),
+        _card('Backup queue', queue, *(('ok', 'Clear') if not queue else ('info', 'Running')),
+              '/backup/backup_list/?type=queue', 'nothing waiting' if not queue else f'{queue} waiting to run'),
+        _card('Backup storage', f'{pct}%', *storage_state, '/backup/backup_list/',
+              f"{storage['used']} of {storage['total']}" + (f" \u00b7 {storage['storage_warning']}" if storage['storage_warning'] else '')),
+        _card('Devices online', f'{online} / {online + offline}', *(('ok', 'OK') if not offline else ('bad', 'Act')),
+              '/router/list/?state=online', f'{total} devices in all', devices['online_data'], '--rf-navy'),
+        _card('Devices offline', offline, *(('ok', 'OK') if not offline else ('bad', 'Act')),
+              '/router/list/?state=offline', 'all monitored devices reachable' if not offline else 'not answering pings',
+              devices['offline_data'] if any(devices['offline_data']) else None, '--rf-red'),
+        _card('Disabled devices', disabled, *(('ok', 'None') if not disabled else ('info', 'Info')),
+              '/router/list/?state=disabled', 'switched off on purpose' if disabled else 'every device enabled'),
+        _card('Unmonitored devices', unmonitored, *(('ok', 'OK') if not unmonitored else ('info', 'Look')),
+              '/router/list/?state=unmonitored', 'every device monitored' if not unmonitored else 'not watched for reachability'),
+    ]
+    if versions['update_waiting']:
+        cards.append(_card('Missing OS updates', versions['update_waiting'], 'warn', 'Look',
+                           '/router/list/?state=update_waiting', 'a newer version is available for them'))
+    if versions['up_to_date']:
+        cards.append(_card('Devices up to date', versions['up_to_date'], 'ok', 'OK',
+                           '/router/list/?state=up_to_date', 'running the version they could update to'))
+    cards.append(_card('Without version info', versions['no_information'],
+                       *(('info', 'Refresh') if versions['no_information'] else ('ok', 'OK')),
+                       '/router/list/?state=no_information',
+                       'update their router information' if versions['no_information'] else 'every device read'))
+    cards.insert(4, _scheduler_card(now))
+    release = settings.ROUTERFLEET_RELEASE
+    if not update['enabled']:
+        cards.append(_card('RouterFleet Improved', release, 'info', 'Off', '/about/', 'update check off'))
+    elif update['available']:
+        cards.append(_card('RouterFleet Improved', update['latest'], 'warn', 'Update', update['releases_url'],
+                           f'update available \u00b7 running {release}', external=True))
+    elif update['checked']:
+        cards.append(_card('RouterFleet Improved', release, 'ok', 'Latest', update['releases_url'],
+                           'the latest release', external=True))
+    else:
+        cards.append(_card('RouterFleet Improved', release, 'info', 'Pending', '/about/',
+                           'updates not checked yet'))
+    return cards
+
+
 @login_required
 def view_status(request):
-    settings.MEDIA_ROOT
     context = {
         'page_title': 'Status',
-        'media_root_stats': get_directory_statistics(settings.MEDIA_ROOT),
+        'cards': status_cards(),
+        'chart_days': [7, 15, 30],
+        # Kept for anything that still reads the plain numbers
         'queue': RouterBackup.objects.filter(success=False, error=False).count(),
         'success_backup_last_24h': RouterBackup.objects.filter(success=True, created__gte=timezone.now() - timedelta(days=1)).count(),
         'error_backup_last_24h': RouterBackup.objects.filter(error=True, created__gte=timezone.now() - timedelta(days=1)).count(),
-        'total_router_count':Router.objects.all().count(),
-        'router_enabled_count': Router.objects.filter(enabled=True).count(),
-        'router_disabled_count': Router.objects.filter(enabled=False).count(),
+        'total_router_count': Router.objects.all().count(),
         'router_online_count': RouterStatus.objects.filter(status_online=True, router__monitoring=True).count(),
         'router_offline_count': RouterStatus.objects.filter(status_online=False, router__monitoring=True).count(),
+        'router_disabled_count': Router.objects.filter(enabled=False).count(),
+        'router_enabled_count': Router.objects.filter(enabled=True).count(),
         'router_not_monitored_count': Router.objects.filter(enabled=True, monitoring=False).count(),
         'update_state': update_state_counts(),
         'routerfleet_version': settings.ROUTERFLEET_RELEASE,
         'update_check': update_check_state(),
     }
-
     return render(request, 'dashboard/status.html', context=context)
-@login_required
-def backup_statistics_data(request):
+
+
+def _calendar_days(days):
+    """The last `days` calendar days in the installation's timezone, oldest
+    first, today last: [(date, start, end), ...]."""
+    today = timezone.localdate()
+    tz = timezone.get_current_timezone()
+    result = []
+    for offset in range(days - 1, -1, -1):
+        day = today - timedelta(days=offset)
+        start = timezone.make_aware(datetime.combine(day, time.min), tz)
+        result.append((day, start, start + timedelta(days=1)))
+    return result
+
+
+def backup_series(days):
+    """Successful and failed backups per calendar day."""
+    calendar = _calendar_days(days)
+    return {
+        'dates': [day.isoformat() for day, _, _ in calendar],
+        'success_data': [RouterBackup.objects.filter(created__gte=s, created__lt=e, success=True).count()
+                         for _, s, e in calendar],
+        'error_data': [RouterBackup.objects.filter(created__gte=s, created__lt=e, error=True).count()
+                       for _, s, e in calendar],
+    }
+
+
+def online_series(days):
+    """Enabled devices online and offline at the end of each calendar day, as far
+    as the status history tells: the state of a device that did not change that
+    day is the one it had before."""
+    calendar = _calendar_days(days)
+    statuses = list(RouterStatus.objects.filter(router__enabled=True))
+    online_data, offline_data = [], []
+    for _, _start, end in calendar:
+        online = offline = 0
+        for status in statuses:
+            # Known for that day only when the device's last change came before
+            # the day ended; a device with no change since is not counted
+            changed = status.last_status_change
+            if changed and changed < end:
+                if status.status_online:
+                    online += 1
+                else:
+                    offline += 1
+        online_data.append(online)
+        offline_data.append(offline)
+    return {'dates': [day.isoformat() for day, _, _ in calendar], 'online_data': online_data, 'offline_data': offline_data}
+
+
+def _days_parameter(request):
     try:
         days = int(request.GET.get('days', 7))
     except ValueError:
+        return None
+    return days if days in ALLOWED_DAYS else None
+
+
+@login_required
+def backup_statistics_data(request):
+    days = _days_parameter(request)
+    if days is None:
         return HttpResponseBadRequest("Invalid 'days' parameter")
+    return JsonResponse(backup_series(days))
 
-    if days not in ALLOWED_DAYS:
-        return HttpResponseBadRequest("Invalid 'days' parameter")
-    today = timezone.now()
-    start_date = today - timedelta(days=days)
-
-    dates = [start_date + timedelta(days=i) for i in range(days + 1)]
-    success_data = []
-    error_data = []
-
-    for i in range(days):
-        day_start = dates[i]
-        day_end = dates[i + 1]
-        success_count = RouterBackup.objects.filter(created__gte=day_start, created__lt=day_end, success=True).count()
-        error_count = RouterBackup.objects.filter(created__gte=day_start, created__lt=day_end, error=True).count()
-        success_data.append(success_count)
-        error_data.append(error_count)
-
-    data = {
-        'dates': [date.strftime('%Y-%m-%d') for date in dates[:-1]],
-        'success_data': success_data,
-        'error_data': error_data,
-    }
-    return JsonResponse(data)
 
 @login_required
 def router_status_data(request):
-    try:
-        days = int(request.GET.get('days', '7'))
-    except ValueError:
-        return HttpResponseBadRequest("Invalid 'days' parameter")
-
-    if days not in ALLOWED_DAYS:
+    days = _days_parameter(request)
+    if days is None:
         return HttpResponseBadRequest("Invalid 'days' parameter. Must be one of: " + ', '.join(map(str, ALLOWED_DAYS)))
-
-    today = timezone.now()
-    start_date = today - timedelta(days=days)
-
-    # Create a list of dates for the period
-    dates = [start_date + timedelta(days=i) for i in range(days + 1)]
-    router_statuses = RouterStatus.objects.filter(router__enabled=True)
-
-    online_data = []
-    offline_data = []
-
-    for i in range(days):
-        day_start = dates[i]
-        day_end = dates[i + 1]
-
-        # Get statuses that changed within the current day
-        daily_statuses = router_statuses.filter(last_status_change__gte=day_start, last_status_change__lt=day_end)
-        
-        online_count = daily_statuses.filter(status_online=True).count()
-        offline_count = daily_statuses.filter(status_online=False).count()
-
-        # Get routers that have not changed status on the current day
-        unchanged_routers = router_statuses.exclude(last_status_change__gte=day_start, last_status_change__lt=day_end)
-
-        for router_status in unchanged_routers:
-            last_change = router_status.last_status_change
-            # Only perform the comparison if last_change is not None
-            if last_change and last_change < day_start:
-                if router_status.status_online:
-                    online_count += 1
-                else:
-                    offline_count += 1
-
-        online_data.append(online_count)
-        offline_data.append(offline_count)
-
-    data = {
-        'dates': [date.strftime('%Y-%m-%d') for date in dates[:-1]],
-        'online_data': online_data,
-        'offline_data': offline_data,
-    }
-
-    return JsonResponse(data)
+    return JsonResponse(online_series(days))

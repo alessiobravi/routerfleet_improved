@@ -55,11 +55,18 @@ flowchart TB
 | [Devices](devices.md) | Device types, inventory, version colours, list filtering, bulk operations |
 | [Backups](backups.md) | Profiles, the two-phase pipeline, retention, change detection, diffs |
 | [Fleet Commander](fleet-commander.md) | Commands, variants, verified results, jobs, schedules, aborting |
-| [Monitoring](monitoring.md) | Reachability checks, downtime records, how it gates other work, Zabbix |
+| [Monitoring](monitoring.md) | Reachability checks, downtime records, how it gates other work |
 | [Notifications](notifications.md) | Channels, concatenation, retries, daily reports |
 | [Audit log](audit-log.md) | Login history, change log, what is deliberately not recorded |
 | [Users and permissions](users.md) | The five levels and what each one reaches |
 | [Import tool](import-tool.md) | CSV format, validation rules, missing groups |
+| [Tools](tools.md) | Backup clean-up (duplicates, orphan files) and export of the latest backups |
+
+**Integrating it**
+
+| Page | What it covers |
+|---|---|
+| [Zabbix integration](zabbix.md) | Optional kit: backup, host-key and sign-in health in Zabbix, through a read-only role |
 
 ## Three things worth knowing up front
 

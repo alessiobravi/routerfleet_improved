@@ -10,7 +10,7 @@ class BackupProfileForm(forms.ModelForm):
         fields = [
             'name', 'daily_backup', 'weekly_backup', 'monthly_backup',
             'daily_retention', 'weekly_retention', 'monthly_retention',
-            'retain_backups_on_error', 'daily_day_monday', 'daily_day_tuesday',
+            'retain_backups_on_error', 'keep_unchanged', 'daily_day_monday', 'daily_day_tuesday',
             'daily_day_wednesday', 'daily_day_thursday', 'daily_day_friday',
             'daily_day_saturday', 'daily_day_sunday', 'weekly_day',
             'monthly_day', 'daily_hour', 'weekly_hour', 'monthly_hour',
@@ -111,6 +111,7 @@ class BackupProfileForm(forms.ModelForm):
                 Div('retrieve_interval', css_class='col-md-6'),
                 Div('instant_retention', css_class='col-md-6'),
                 Div('retain_backups_on_error', css_class='col-md-12'),
+                Div('keep_unchanged', css_class='col-md-12'),
                 css_id='misc_settings', css_class='row'
             ),
 

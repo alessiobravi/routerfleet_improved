@@ -82,17 +82,6 @@ kept in the `app_secrets` volume. See [Security](security.md).
 
 ## Monitoring RouterFleet itself with Zabbix
 
-The monitoring above watches your devices. To watch RouterFleet's own work
-from Zabbix, `contrib/zabbix/` holds a complete kit: a template, a collector
-script, an agent configuration fragment and the SQL for a read-only database
-role. It reports, per device, how long ago the last successful backup was and
-whether the latest attempt failed, plus fleet-wide counters and the health of
-the collector itself.
-
-The collector runs on the Docker host and reads the database with
-`docker exec`, so the database needs no published port. Its role can read only
-the ten columns the collector needs; not the device passwords, and not the
-text of the backed-up configurations. Installation, thresholds and the
-reasoning behind each choice are in
-[contrib/zabbix/README.md](../contrib/zabbix/README.md). CI runs the collector
-against a real RouterFleet database on every push.
+The monitoring above watches your devices. To watch RouterFleet's own work -
+backups, host keys, sign-ins - from Zabbix, see the
+[Zabbix integration](zabbix.md).

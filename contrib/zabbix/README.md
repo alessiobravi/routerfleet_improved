@@ -9,6 +9,8 @@ agent patches, no network access from Zabbix to the database.
 
 ## What it monitors
 
+**Backup health**
+
 | Item | Key | Meaning |
 |---|---|---|
 | Backup age (per router) | `routerfleet.backup.age[<uuid>]` | Seconds since the last **successful** backup |
@@ -16,6 +18,19 @@ agent patches, no network access from Zabbix to the database.
 | Monitored routers | `routerfleet.routers` | Enabled routers that have a backup profile |
 | Failing routers | `routerfleet.failing` | Fleet-wide count of routers whose last attempt failed |
 | Collector probe | `routerfleet.probe` | 1 when the collector reached the database |
+
+**Security and operations** — read from RouterFleet Improved's SSH host-key
+store, audit log and command jobs. A counter that cannot be read (a missing
+grant, a missing table) reports `-1` and raises its own alarm; it never reports
+a reassuring `0`.
+
+| Item | Key | Meaning |
+|---|---|---|
+| Routers without a host key | `routerfleet.hostkeys.missing` | Enabled routers RouterFleet has never completed a connection to |
+| Host keys learned recently | `routerfleet.hostkeys.new` | Keys first seen in the last hour — a device was rebuilt, replaced, or is not the one previously trusted |
+| Failed sign-ins | `routerfleet.logins.failed` | Failed sign-ins in the last 15 minutes, all accounts and addresses |
+| Audited changes | `routerfleet.changes.recent` | Configuration changes recorded in the last hour |
+| Failed command jobs | `routerfleet.commands.failed` | Fleet Commander jobs with a failed or aborted task, last 24h |
 
 Routers are discovered automatically. Adding a device to RouterFleet puts it
 under monitoring within the discovery interval; removing one retires its items
@@ -40,7 +55,7 @@ flowchart LR
     APP -->|writes results| DB
     SERVER -->|polls item keys| AGENT
     AGENT -->|UserParameter| SCRIPT
-    SCRIPT -->|SELECT as zbx_monitor<br/>ten columns only| DB
+    SCRIPT -->|SELECT as zbx_monitor<br/>chosen columns only| DB
     SCRIPT -->|values| AGENT
     AGENT -->|values| SERVER
 ```
@@ -68,8 +83,9 @@ docker exec -i routerfleet-postgres \
   psql -U routerfleet -d routerfleet < sql/zbx_monitor.sql
 ```
 
-The role is granted `SELECT` on the few columns the collector reads, and
-nothing else - not the device passwords, not the backed-up configurations. See
+The role is granted `SELECT` on the columns the collector reads and nothing
+else - not the device passwords, not the backed-up configurations, not user
+names, addresses or session keys. See
 [design note 5](docs/design-notes.md) for why that matters.
 
 ### 2. Install the collector
@@ -122,6 +138,7 @@ Docker host.
 |---|---|---|
 | `{$ROUTERFLEET.BACKUP.MAX_AGE}` | `48h` | Backup counts as stale |
 | `{$ROUTERFLEET.BACKUP.MAX_AGE.CRIT}` | `7d` | Stored configuration no longer a usable recovery point |
+| `{$ROUTERFLEET.LOGINS.FAILED.MAX}` | `5` | Sustained failed sign-ins over 15 minutes that counts as an attack rather than a forgotten password |
 
 Set `MAX_AGE` to roughly twice your backup interval, so a single missed run
 does not alarm but two consecutive ones do.
@@ -151,6 +168,11 @@ one age item and one result item per router within an hour of linking.
 - a router whose most recent attempt failed (average)
 - the collector unable to reach the database (high)
 - no data from the agent for 30 minutes (average)
+- an SSH host key newly accepted (warning) — see below
+- failed sign-ins sustained above the threshold for 15 minutes (average)
+- a router with no host key recorded for 24 hours (warning)
+- a Fleet Commander job that completed with a failed task (warning)
+- a counter the collector cannot read, reported as `-1` (average)
 
 **Deliberately silent**
 
@@ -162,6 +184,18 @@ one age item and one result item per router within an hour of linking.
   whether every individual attempt succeeded.
 - *Backup content changes.* This integration monitors whether backups happen,
   not what is in them.
+- *A single failed sign-in.* People mistype passwords. The trigger needs the
+  rate to stay up for a full 15 minutes, which a person does not do.
+- *Audited changes.* Counted and graphed, never alarmed: a change is normally
+  somebody doing their job. The point is that an unexplained burst is visible
+  afterwards without anyone having to go looking for it.
+
+**One alarm worth reading carefully:** a newly accepted host key is not a
+failure, and it will fire legitimately whenever a device is rebuilt or
+replaced. It is in here because the one case that matters - a device
+presenting a key nobody can account for - is otherwise completely silent, and
+by the time it is noticed, credentials have already been sent to whatever
+answered.
 
 ## Troubleshooting
 
@@ -172,6 +206,7 @@ one age item and one result item per router within an hour of linking.
 | Discovery returns `{"data":[]}` | No enabled router has a backup profile assigned |
 | Age is `999999999` | No successful backup on record for that router - see [design note 3](docs/design-notes.md) |
 | Result always `1`, never `0` | You are running the old query - see [design note 2](docs/design-notes.md) |
+| A counter shows `-1` | The collector could not read it: a grant from `sql/zbx_monitor.sql` is missing, or the table does not exist on this installation |
 
 ## Design notes
 

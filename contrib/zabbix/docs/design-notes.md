@@ -69,6 +69,17 @@ LIMIT 1
 The general lesson: **when a column is NULL precisely in the failure case, do
 not sort by it to find failures.** Sort by something that exists for every row.
 
+The wider lesson is worth stating on its own, because this shape recurs well
+beyond backups. **A check that cannot produce a negative result is
+indistinguishable from a check that passes.** An update check that only
+understands one registry and stays silent about everything it cannot judge; a
+pending-update count computed from a stale package index, which honestly finds
+nothing to install - both report "all well" precisely when they have stopped
+looking.
+
+The fix is the same in spirit every time: separate "there is nothing" from "I
+could not tell", and make the second one visible.
+
 ## 3. Unknown is not healthy
 
 When no successful backup is on record, the age item returns `999999999`
@@ -78,6 +89,13 @@ An empty value makes the item unsupported, which is easy to miss. A `0` would
 read as "backed up just now" and actively suppress the alarm. A huge number
 trips every staleness threshold immediately, which is the correct behaviour: a
 router with no backup on record is the worst case, not the best one.
+
+The counters follow the same rule from the other side. A count that cannot be
+read - a grant that was never applied, a table this installation does not
+have, a query that fails - is reported as `-1`, not `0`, and one trigger fires
+on any counter at `-1`. Reporting `0` there would make the failing-sign-in and
+missing-host-key counters most reassuring exactly when they have stopped
+working.
 
 ## 4. The collector monitors itself
 
@@ -92,21 +110,26 @@ all.
 ## 5. The database role is narrow on purpose
 
 The monitoring role is granted `SELECT` on exactly the columns the collector
-reads, in two tables - column privileges, not table privileges. The two tables
-are not harmless as a whole: `router_manager_router` carries the encrypted
-device passwords, and `backup_data_routerbackup` carries the full text of every
-configuration backup, which routinely contains secrets of its own (PPP and
-SNMP credentials, pre-shared keys). RouterFleet's
-database also holds device passwords, SSH private keys and notification
-tokens, in the same schema. They are encrypted at rest, but the database is
-still no place for a monitoring account to browse: a blanket
-`GRANT SELECT ON ALL TABLES` would hand it the encrypted credential store, the
-user accounts and the audit trail, and monitoring credentials are widely
-distributed by nature - they live in agent configuration files on every
-monitored host.
+reads - column privileges, not table privileges. Every table it reads also holds
+something a monitoring account must not see:
 
-If a future version of this integration needs another column, grant that
-column explicitly.
+| Table | The collector reads | Also in the table, and not granted |
+|---|---|---|
+| `router_manager_router` | id, uuid, name, enabled, backup profile, address, port | the (encrypted) device password, username, notes |
+| `backup_data_routerbackup` | id, router, success, error, finish time | the full text of every configuration backup, which routinely contains secrets (PPP and SNMP credentials, pre-shared keys) |
+| `router_manager_sshhostkey` | address, port, first seen | the keys and fingerprints |
+| `audit_log_loginrecord` | successful, created | user names, addresses, browsers, and the keys of open sessions - enough to take one over |
+| `audit_log_changerecord` | created | what was changed, by whom, from where |
+| `fleet_commander_commandjob` | completed, error and aborted counts | who ran what |
+
+The rest of the database - SSH private keys, notification tokens, accounts and
+their second factors, sessions - is not granted at all. Monitoring credentials
+are widely distributed by nature: they live in agent configuration files on
+every monitored host. A blanket `GRANT SELECT ON ALL TABLES` would hand them
+all of the above.
+
+If a future version of this integration needs another column, grant that column
+explicitly.
 
 ## 6. Why UUIDs are validated in the collector
 
@@ -114,3 +137,40 @@ Router UUIDs arrive as Zabbix item-key parameters and are interpolated into
 SQL. They are validated against a strict pattern before use, so the integration
 works with `UnsafeUserParameters=0` - the safe default - and an operator who
 can edit item keys still cannot reach the database with arbitrary SQL.
+
+## 7. What the security items are for, and what they cost
+
+RouterFleet Improved keeps an SSH host-key store and an audit log. Four of the
+items in this template read them, and each is here for a reason that is worth
+knowing before deciding whether to keep it.
+
+**Host keys.** RouterFleet learns a device's key on first contact and refuses
+to connect if it later changes. That makes two things visible that were not
+before: a router it has never reached (no key recorded), and a key that was
+forgotten and re-learned.
+
+The second is the one that matters. A key change is normal after a deliberate
+rebuild and alarming otherwise, and the two are indistinguishable from the
+data alone - so the trigger fires on both and asks a person to say which it
+was. That is a deliberate trade: it will fire legitimately on planned work.
+The alternative is that the case worth catching stays silent, and by the time
+anyone looks, credentials have already been sent to whatever answered.
+
+**Failed sign-ins** are counted over fifteen minutes rather than alarmed on
+individually, because people mistype passwords and a single failure means
+nothing. RouterFleet locks an account or address after five failures in that
+window, so a count that stays high means something is still working through
+other accounts or other addresses - which is exactly the case the per-account
+lockout does not cover.
+
+**Audited changes** are collected and graphed but never alarmed. A change is
+normally somebody doing their job. The value is that an unexplained burst is
+visible afterwards without anyone having to go looking for it.
+
+**Command jobs** are counted as failures only once completed, so a job still
+running is not mistaken for a broken one.
+
+A note on cost: counting sign-ins and changes needs nothing but their
+timestamps (and, for sign-ins, whether each succeeded), so that is all the role
+is granted. It cannot read who signed in, from where, or what a change was -
+see note 5. Counting costs no privacy.
