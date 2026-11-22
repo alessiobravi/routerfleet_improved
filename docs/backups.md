@@ -35,6 +35,13 @@ Two export options are profile settings, for device types that have them:
 *Include passwords and keys* (RouterOS `show-sensitive`) and *One line per
 item* (`terse`).
 
+## The backup list
+
+The list shows the newest 500 backups of the chosen view (successful, errors,
+queue) and says how many there are; older ones are reached by day - a bar of
+the status page's chart - or with *show all*. It reads only the columns it
+shows, so it stays fast with any number of backups.
+
 ## From a profile to a stored backup
 
 ```mermaid

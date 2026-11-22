@@ -25,6 +25,10 @@
                     </div>
                     {% endif %}
                     {% include 'backup/backup_nav_tabs.html' %}
+                    {% if limited %}
+                    <div class="alert alert-light border small mt-2 mb-2">The newest {{ list_limit }} of {{ total }} backups. Older ones: pick a day on the status page chart, or
+                        <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}all=1">show all {{ total }}</a> (slower).</div>
+                    {% endif %}
                     <div class="row">
                         <div class="col-lg-12">
                             <table class="table table-hover datatables-no-export">

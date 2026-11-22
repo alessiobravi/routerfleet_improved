@@ -23,6 +23,16 @@ the Zabbix kit reads, says so under **Monitoring**.
   the button can not flood GitHub; follows UPDATE_CHECK and UPDATE_CHECK_URL.
   The page shows when the last check ran.
 
+### Fixed
+- **The backup list was slow**: every row fetched its device with a query of
+  its own and read the full configuration text and console log it never
+  shows, for every backup ever taken. It now reads only the listed columns,
+  with the device, in a fixed number of queries; shows the newest 500 (older
+  ones by day, or "show all"); and the backup tables have indexes for the
+  list, the queue, a device's history and retention. On 3,000 backups: from
+  3,014 queries and 0.8 s to 15 queries and 0.04 s. A device's backup page no
+  longer reads every earlier configuration text either.
+
 ### Security
 - **Try on a device** (device types) answers with a fixed sentence per kind of
   failure - refused login, changed host key, no prompt, no answer - and never

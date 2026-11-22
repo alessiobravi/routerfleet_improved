@@ -70,9 +70,18 @@ def view_manage_backup_profile(request):
     return render(request, 'backup/backup_profile_form.html', context=context)
 
 
+# The columns the list shows: the configuration texts and console logs - the
+# bulk of a backup row - are never read for it
+LIST_FIELDS = ('id', 'uuid', 'router__uuid', 'router__name', 'router__address', 'schedule_type', 'created',
+               'finish_time', 'config_change_detected', 'backup_text_hash', 'same_as_id', 'success', 'error',
+               'error_message', 'backup_pending_retrieval', 'next_retry')
+# Rows rendered unless all are asked for: older ones are reached by date
+LIST_LIMIT = 500
+
+
 @login_required()
 def view_backup_list(request):
-    backup_list = RouterBackup.objects.all().order_by('-created')
+    backup_list = RouterBackup.objects.select_related('router').only(*LIST_FIELDS).order_by('-created')
     if request.GET.get('type') == 'queue':
         backup_list = backup_list.filter(error=False, success=False).order_by('next_retry')
         view_type = 'queue'
@@ -97,8 +106,13 @@ def view_backup_list(request):
         start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
         backup_list = backup_list.filter(created__gte=start, created__lt=start + timezone.timedelta(days=1))
 
+    total = backup_list.count()
+    show_all = request.GET.get('all') == '1'
     context = {
-        'backup_list': backup_list,
+        'backup_list': backup_list if show_all else backup_list[:LIST_LIMIT],
+        'total': total,
+        'limited': not show_all and total > LIST_LIMIT,
+        'list_limit': LIST_LIMIT,
         'page_title': 'Backup List',
         # Live while a backup in this list is still being taken
         'live_active': backup_list.filter(success=False, error=False).exists(),
@@ -130,7 +144,8 @@ def view_backup_details(request):
         return redirect(f'/backup/backup_details/?uuid={backup.uuid}&show_console={str(show_console).lower()}')
     hash_list = [backup.backup_text_hash]
     backup_list = []
-    for backup_item in RouterBackup.objects.filter(router=backup.router, success=True).order_by('-created'):
+    for backup_item in RouterBackup.objects.filter(router=backup.router, success=True) \
+            .only('id', 'uuid', 'created', 'backup_text_hash', 'schedule_type', 'router_id').order_by('-created'):
         if backup_item.backup_text_hash and backup_item.backup_text_hash not in hash_list:
             hash_list.append(backup_item.backup_text_hash)
             backup_list.append(backup_item)

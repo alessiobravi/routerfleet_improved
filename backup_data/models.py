@@ -41,6 +41,17 @@ class RouterBackup(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
 
+    class Meta:
+        # The backup list (by outcome, newest first), the queue (by next retry),
+        # a device's history, and retention (by kind and age)
+        indexes = [
+            models.Index(fields=['success', '-created'], name='backup_success_created'),
+            models.Index(fields=['error', '-created'], name='backup_error_created'),
+            models.Index(fields=['success', 'error', 'next_retry'], name='backup_queue'),
+            models.Index(fields=['router', 'success', '-created'], name='backup_router_history'),
+            models.Index(fields=['schedule_type', 'created'], name='backup_kind_created'),
+        ]
+
     def previous_backup(self):
         """The backup this one is compared against.
 

@@ -114,3 +114,40 @@ class BackupViewTests(TestCase):
         self.client.post(f'/backup/backup_details/?uuid={pending.uuid}', {'action': 'anticipate'})
         pending.refresh_from_db()
         self.assertLessEqual(pending.next_retry, timezone.now())
+
+
+class BackupListPerformanceTests(TestCase):
+    """The backup list stays fast however many backups there are: a fixed
+    number of queries, no configuration text read, newest rows first."""
+
+    def setUp(self):
+        from django.test.utils import CaptureQueriesContext
+        self.capture = CaptureQueriesContext
+        routers = [make_router(name=f'perf{i}') for i in range(5)]
+        RouterBackup.objects.bulk_create([
+            RouterBackup(router=routers[i % 5], schedule_type='daily', success=True, backup_text='x' * 5000,
+                         backup_text_hash=f'{i:064x}', task_console_output='y' * 1000) for i in range(600)])
+        self.client.force_login(make_user(20))
+
+    def test_queries_do_not_grow_with_the_rows(self):
+        from django.db import connection
+        for path in ('/backup/backup_list/', '/backup/backup_list/?all=1', '/backup/backup_list/?type=errors',
+                     '/backup/backup_list/?type=queue'):
+            with self.subTest(path=path), self.capture(connection) as queries:
+                self.assertEqual(self.client.get(path).status_code, 200)
+            self.assertLess(len(queries), 25, path)
+            listed = [q['sql'] for q in queries.captured_queries if 'backup_data_routerbackup' in q['sql']
+                      and 'ORDER BY' in q['sql']]
+            for sql in listed:
+                self.assertNotIn('"backup_text"', sql, 'the configuration text is never read for the list')
+                self.assertNotIn('task_console_output', sql)
+
+    def test_the_newest_are_shown_and_the_rest_reachable(self):
+        page = self.client.get('/backup/backup_list/')
+        self.assertEqual(len(page.context['backup_list']), 500)
+        self.assertTrue(page.context['limited'])
+        self.assertContains(page, 'The newest 500 of 600 backups')
+        self.assertContains(page, 'all=1')
+        everything = self.client.get('/backup/backup_list/?all=1')
+        self.assertEqual(len(everything.context['backup_list']), 600)
+        self.assertFalse(everything.context['limited'])
