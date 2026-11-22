@@ -48,7 +48,9 @@ def volume_shared():
     return os.path.isdir(directory) and os.access(directory, os.W_OK)
 
 
-def _write_atomically(path, data, mode=0o644):
+def _write_atomically(path, data, mode=0o600):
+    """Owner-only by default: both containers that read these files (the
+    application and nginx) run as root, so nobody else needs them."""
     directory = os.path.dirname(path)
     os.makedirs(directory, exist_ok=True)
     handle, temporary = tempfile.mkstemp(dir=directory, prefix='.tmp-')
@@ -194,7 +196,7 @@ def write_state(https_settings):
 def store_custom_certificate(checked):
     directory = os.path.join(cert_dir(), CUSTOM_DIR)
     os.makedirs(directory, mode=0o700, exist_ok=True)
-    _write_atomically(os.path.join(directory, 'privkey.pem'), checked['key'], mode=0o600)
+    _write_atomically(os.path.join(directory, 'privkey.pem'), checked['key'])
     _write_atomically(os.path.join(directory, 'fullchain.pem'), checked['pem'])
 
 
@@ -220,7 +222,7 @@ def store_pending_certificate(token, checked):
             shutil.rmtree(path, ignore_errors=True)
     path = _pending_path(token)
     os.makedirs(path, mode=0o700, exist_ok=True)
-    _write_atomically(os.path.join(path, 'privkey.pem'), checked['key'], mode=0o600)
+    _write_atomically(os.path.join(path, 'privkey.pem'), checked['key'])
     _write_atomically(os.path.join(path, 'fullchain.pem'), checked['pem'])
     return True
 

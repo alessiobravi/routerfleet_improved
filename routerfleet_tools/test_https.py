@@ -152,6 +152,8 @@ class PageTests(VolumeTestCase):
         self.assertNotIn(secret, json.dumps([str(getattr(current, f.name)) for f in current._meta.fields]))
         keyfile = os.path.join(self.volume, 'custom', 'privkey.pem')
         self.assertEqual(oct(os.stat(keyfile).st_mode & 0o777), '0o600')
+        for name in ('custom/fullchain.pem', https.STATE_FILE):
+            self.assertEqual(oct(os.stat(os.path.join(self.volume, name)).st_mode & 0o777), '0o600', name)
         with open(keyfile) as handle:
             self.assertIn('PRIVATE KEY', handle.read())
         self.assertFalse(os.listdir(os.path.join(self.volume, 'custom', 'pending')), 'the pending copy is gone')
