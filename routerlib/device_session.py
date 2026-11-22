@@ -55,7 +55,7 @@ class ShellSession:
             raise SessionError(f'The prompt pattern of {device_type.name} is not valid: {error}') from None
         self.channel = client.invoke_shell(term='vt100', width=511, height=10000)
         self.channel.settimeout(1.0)
-        self._read_until_prompt()
+        self.last_prompt = self._read_until_prompt().rstrip().rsplit('\n', 1)[-1].strip()
         if device_type.enable_command and enable_password:
             self._enable(device_type.enable_command, enable_password)
         for line in (device_type.session_setup or '').splitlines():
@@ -104,7 +104,10 @@ class ShellSession:
         if PASSWORD_PROMPT.search(text):
             self.channel.send(password + '\n')
             text = self._read_until(lambda t: bool(PASSWORD_PROMPT.search(t)) or self._at_prompt(t))
-            if PASSWORD_PROMPT.search(text.rstrip().rsplit('\n', 1)[-1]):
+            last = text.rstrip().rsplit('\n', 1)[-1].strip()
+            # Asked again, refused, or back at the same unprivileged prompt
+            if PASSWORD_PROMPT.search(last) or re.search(r'(?i)denied|bad secret|invalid', text) \
+                    or (self.last_prompt and last == self.last_prompt):
                 raise SessionError('The enable password was not accepted')
 
     def _send_and_wait(self, command):

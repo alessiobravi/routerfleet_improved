@@ -11,7 +11,7 @@ flowchart LR
     cmd["Command<br/>retry and verify settings"]
     v1["Variant: routeros"]
     v2["Variant: openwrt"]
-    v3["Variant: ubiquiti-airos"]
+    v3["Variant: cisco-ios"]
     sch["Schedule<br/>when, on which devices"]
     job["Job<br/>one run"]
     t1["Task: edge-01"]
@@ -338,14 +338,17 @@ Commander page:
 |---|---|---|
 | connection test | *Test connection* on a device | none |
 | inventory and versions | the inventory read, every 24 h and on request | none |
-| backup - create | phase 1 of every backup | `{{ backup_name }}`, `{{ export_parameters }}` |
+| backup - text | phase 1: text backups from command output, `name: command` per line | `{{ export_parameters }}` |
+| backup - create | phase 1: files made on the device | `{{ backup_name }}`, `{{ export_parameters }}` |
 | backup - files to download | phase 2: paths fetched by SCP, one per line | `{{ backup_name }}` |
 | backup - remove from device | after the download | `{{ backup_name }}` |
 | backup - clean leftovers | after every successful backup | none |
+| firmware - verify the upload | a [firmware rollout](firmware.md), after the upload | `{{ firmware_name }}`, `{{ firmware_path }}`, `{{ firmware_version }}` |
+| firmware - install | a firmware rollout, after the verification | same |
 
-Each has one variant per device type. An empty variant means nothing is run for
-that type (airOS creates nothing: its configuration is already a file); the
-connection test, the inventory and the download list can not be empty.
+Each has one variant per [device type](device-types.md). An empty variant means
+nothing is run for that type (airOS creates nothing: its configuration is
+already a file); the connection test and the inventory can not be empty.
 
 They are **protected**: they can not be deleted, disabled, scheduled or run by
 hand, and their variants can not be added or removed. An upgrade creates them

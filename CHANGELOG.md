@@ -13,6 +13,56 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.22.0] - 2026-11-23
+
+### Added
+- **Device types are configuration** (System settings, Device types). How
+  RouterFleet talks to a kind of device - one SSH command per channel or an
+  interactive shell with a prompt, paging off, an enable step - how it
+  recognises it, where each inventory value is found, which backups it takes,
+  how it learns which version the device could run, how firmware is installed,
+  and which links the device list offers: all edited per type, nothing written
+  into the code. The shipped types can be edited and restored.
+- **A wizard for new device types**, starting empty or from a shipped type,
+  ending with **Try it**: the connection test, the inventory and the text
+  backups of the form run against a device, showing what each found - before
+  anything is saved.
+- **Cisco IOS / IOS-XE, Juniper Junos and Huawei VRP**, through an interactive
+  shell: `show running-config`; `show configuration` and its set format;
+  `display current-configuration`. An optional enable password per device,
+  encrypted and sent only to the stored address.
+- **Text backups from command output**, nothing written on the device, with
+  **several named texts** per backup where the device type defines them - each
+  shown, compared and downloaded on its own, all counted for change detection.
+  Lines the type marks as noise (timestamps) never count as a change.
+- **Update checks modelled per device type**: the device itself, the vendor's
+  release list (https only, an optional confirmation address, cached), and the
+  firmware repository - the newest of them counts. A type with none shows "no
+  update check configured" instead of a guess.
+- **Firmware repository** (System settings): firmware per device type, limited
+  to models and an architecture, SHA-256 computed and checked against the
+  vendor's when given. **Rollouts**: a fresh backup of each device, upload by
+  SCP, the upload verified on the device (SHA-256 or size) before anything is
+  installed, the install, and the device must come back reporting the new
+  version. One device goes first and alone, the others follow a few at a time;
+  any failure stops the rest. RouterOS and OpenWrt procedures ship; the others
+  are defined per platform.
+
+### Changed
+- RouterOS backups take the text from `/export` output instead of an exported
+  file, where the backup commands were not edited (edited ones keep exactly what
+  they did). OpenWrt's first "create" line becomes the text command.
+- The Winbox link in the device list is a link of the RouterOS device type;
+  other types can have their own.
+
+### Removed
+- **Mikrotik (Branded)**: its devices become Mikrotik (RouterOS) - the commands
+  were the same; only the connection test told them apart. Fleet Commander
+  variants for it fold into the RouterOS ones.
+
+### Fixed
+- The devices chart test depended on the time of day it ran at.
+
 ## [0.21.3] - 2026-11-22
 
 ### Fixed

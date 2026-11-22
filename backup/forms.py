@@ -53,13 +53,13 @@ class BackupProfileForm(forms.ModelForm):
         self.fields['instant_retention'].label = 'Instant Retention (days)'
         self.fields['parameter_sensitive'].label = 'Include passwords and keys'
         self.fields['parameter_sensitive'].help_text = (
-            'RouterOS <code>/export show-sensitive</code>: the export also contains passwords, pre-shared keys and '
-            'private keys, so a restore brings them back. Off: they are left out (RouterOS 7 hides them by default), '
-            'and the backup is safer to look at and share.')
+            'For device types that have the option (RouterOS: <code>/export show-sensitive</code>): the text backup '
+            'also contains passwords, pre-shared keys and private keys, so a restore brings them back. Off: they are '
+            'left out, and the backup is safer to look at and share.')
         self.fields['parameter_terse'].label = 'One line per item'
         self.fields['parameter_terse'].help_text = (
-            'RouterOS <code>/export terse</code>: every item on a single line, without the line breaks RouterOS '
-            'adds to long entries. Easier to compare between backups and to search; the configuration is the same.')
+            'For device types that have the option (RouterOS: <code>/export terse</code>): every item on a single '
+            'line. Easier to compare between backups and to search; the configuration is the same.')
         self.fields['daily_backup'].help_text = 'Back up on the days and at the hour chosen below; keep each for its retention.'
         self.fields['weekly_backup'].help_text = 'One backup a week, kept longer: a second line of history.'
         self.fields['monthly_backup'].help_text = 'One backup a month, kept longest: the long-term archive.'

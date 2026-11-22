@@ -53,8 +53,8 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 23 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), add the ntfy server and priority to channels, switch off CallMeBot channels (no longer supported; kept with their history), record when each device was last enabled or disabled (filled in from the change log), add the display settings (tables keep opening with 10 rows) and the record of updates approved in System settings, let each device decide about unchanged backups (every device keeps following its profile), and remove the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 36 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 32 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), add the ntfy server and priority to channels, switch off CallMeBot channels (no longer supported; kept with their history), record when each device was last enabled or disabled (filled in from the change log), add the display settings (tables keep opening with 10 rows) and the record of updates approved in System settings, let each device decide about unchanged backups (every device keeps following its profile), turn device types into configuration (the shipped types, Cisco, Juniper and Huawei added; Mikrotik (Branded) devices become RouterOS), take RouterOS and OpenWrt text backups from command output where their commands were not edited, add named text backups, the enable password, and the firmware repository, and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 45 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
@@ -63,7 +63,7 @@ what makes the upgrade a no-drama `migrate`. The test suite holds a fingerprint 
 released migration and fails if one is ever edited, renamed or removed; it also
 checks the counts in this table against the real migration plan.
 
-### What the 36 migrations do when coming from the original
+### What the 45 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -183,6 +183,20 @@ names `postgres:16` keeps working too.
   **About**, at the bottom of the menu.
 - **Second factors are available** - an authenticator app and passkeys, in
   *My Settings*. Nobody is asked for one until they turn it on.
+- **Device types become configuration** (0.22.0). Every device keeps its type
+  and behaves as before:
+  - **Mikrotik (Branded)** is gone: its devices become *Mikrotik (RouterOS)*
+    (the commands were the same; only the connection test told them apart).
+    Fleet Commander variants for it fold into the RouterOS ones; where a
+    command had only a Branded variant, that one becomes its RouterOS variant.
+  - **RouterOS** backups whose system commands were never edited take the text
+    from `/export` output instead of an exported file on the device; the
+    `.backup` file is still downloaded. Edited ones keep exactly what they did:
+    the downloaded `.rsc` is still the text backup.
+  - **OpenWrt** took its text from the output of the first "create" line; that
+    line becomes the "backup - text" command, edited or not.
+  - Cisco IOS, Juniper Junos and Huawei VRP are added as new types; nothing
+    uses them until you choose them for a device.
 - **CallMeBot channels are switched off** (0.18.0): CallMeBot is no longer
   supported. The channels and their history are kept; *System Settings →
   Notifications* lists them, to be recreated as email, ntfy or Telegram.

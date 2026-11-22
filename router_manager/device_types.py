@@ -209,30 +209,40 @@ def preset_values(slug):
 
 # --- Using a type -----------------------------------------------------------------
 
-# Read on every row of a device list: kept briefly, cleared on every save or
-# delete of a type (router_manager/apps.py), so an edit applies at once here and
-# within CACHE_SECONDS in the other worker processes
-CACHE_SECONDS = 10
-_cache = {}
+# Read on every row of a device list: kept for the duration of one request
+# only (router_manager/apps.py clears it when a request starts and ends, and
+# when a type is saved or deleted). Outside a request nothing is kept.
+import threading
+
+_local = threading.local()
 
 
 def clear_cache(*args, **kwargs):
-    _cache.clear()
+    _local.cache = None
+
+
+def reset_cache(*args, **kwargs):
+    """A type was saved or deleted: forget what this request kept."""
+    if getattr(_local, 'cache', None) is not None:
+        _local.cache = {}
+
+
+def start_request_cache(*args, **kwargs):
+    _local.cache = {}
 
 
 def get(slug):
     """The DeviceType of a slug, or None. A shipped preset whose row is
     missing is created again from its definition, so devices of that type
     never stop being backed up over a missing row."""
-    import time
     if not slug:
         return None
-    cached = _cache.get(slug)
-    if cached and time.monotonic() - cached[0] < CACHE_SECONDS:
-        return cached[1]
+    cache = getattr(_local, 'cache', None)
+    if cache is not None and slug in cache:
+        return cache[slug]
     device_type = _load(slug)
-    if device_type is not None:
-        _cache[slug] = (time.monotonic(), device_type)
+    if cache is not None and device_type is not None:
+        cache[slug] = device_type
     return device_type
 
 

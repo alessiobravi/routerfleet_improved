@@ -9,7 +9,6 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.base import File
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
 
 from routerlib.actions import posted_action, posted_confirmation
 from routerlib.decorators import cron_endpoint
@@ -117,7 +116,7 @@ def view_image(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     image = get_object_or_404(FirmwareImage, uuid=request.GET.get('uuid'))
     if request.method == 'POST':
-        action = posted_action(request)
+        action = request.POST.get('action')
         if action == 'delete' and posted_confirmation(request) == 'delete':
             if image.rollouts.exists():
                 messages.warning(request, 'Not deleted|Rollouts refer to this firmware: switch it off instead.')
@@ -187,7 +186,7 @@ def view_rollout(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     rollout = get_object_or_404(FirmwareRollout.objects.select_related('image__device_type'),
                                 uuid=request.GET.get('uuid'))
-    if request.method == 'POST' and posted_action(request) == 'abort' and posted_confirmation(request) == 'abort':
+    if posted_action(request, 'abort') and posted_confirmation(request) == 'abort':
         engine.abort(rollout, request.user)
         messages.success(request, 'Rollout aborted|Devices not started yet are skipped.')
         return redirect(f'/system/firmware/rollout/?uuid={rollout.uuid}')

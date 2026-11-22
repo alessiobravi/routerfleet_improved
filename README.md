@@ -11,8 +11,10 @@ network devices. RouterFleet keeps a configuration history for every device,
 runs commands across a fleet on a schedule, watches whether devices are
 reachable, and records who changed what.
 
-Supported devices: **MikroTik RouterOS** (including branded units), **OpenWrt**,
-**Ubiquiti airOS**, plus a *monitoring only* type for anything that just needs
+Supported devices: **MikroTik RouterOS**, **OpenWrt**, **Ubiquiti airOS**,
+**Cisco IOS / IOS-XE**, **Juniper Junos** and **Huawei VRP** - and any other
+device reachable over SSH, since device types are configuration with a wizard
+to add your own - plus a *monitoring only* type for anything that just needs
 to be pinged.
 
 > **Provided "as is", without warranty — you use it at your own risk.** It acts on
@@ -105,7 +107,9 @@ encrypted with.
 | [Installation](docs/installation.md) | Full specification: containers, images, every option and variant |
 | [Upgrading](docs/upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
 | [Updating from System settings](docs/updating.md) | One-click updates: signed releases only, database backup, automatic rollback |
-| [Devices](docs/devices.md) | Device types, inventory, version states, the device list |
+| [Devices](docs/devices.md) | Credentials, inventory, version states, the device list |
+| [Device types](docs/device-types.md) | Types as configuration: connection, recognition, inventory, backups, update checks; the wizard |
+| [Firmware repository](docs/firmware.md) | Firmware per device type; updates one device first, then the rest |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
 | [Monitoring](docs/monitoring.md) | Reachability checks and downtime records |

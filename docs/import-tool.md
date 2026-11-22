@@ -41,7 +41,7 @@ name,username,password,ssh_key,address,port,router_type,backup_profile,router_gr
 | `ssh_key` | either/or | The **name** of an SSH key that already exists |
 | `address` | yes | IP address or hostname, validated |
 | `port` | yes | 1–65535 |
-| `router_type` | yes | One of the supported type keys |
+| `router_type` | yes | The short name of a [device type](device-types.md): `routeros`, `openwrt`, `cisco-ios`, ... or one of your own |
 | `backup_profile` | optional | Name of a profile that already exists |
 | `router_group` | optional | Name of a group — may be created, see below |
 | `monitoring` | yes | `true` or `false` |

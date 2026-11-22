@@ -5,15 +5,12 @@ decides what RouterFleet can do with it.
 
 ## Device types
 
-| Type | Backups | Inventory | Reachability | Update check |
-|---|---|---|---|---|
-| `routeros` — MikroTik RouterOS | yes | yes | yes | yes, from the device's channel |
-| `routeros-branded` — MikroTik branded | yes | yes | yes | yes, from the device's channel |
-| `openwrt` — OpenWrt | yes | yes | yes | yes, against the release index |
-| `ubiquiti-airos` — Ubiquiti airOS | yes | yes | yes | no |
-| `monitoring` — monitoring only | no | no | yes | no |
+The type decides how RouterFleet talks to a device, what it backs up and how it
+learns its version. Types are configuration, in *System settings → Device
+types* - see [Device types](device-types.md) for the shipped ones (RouterOS,
+OpenWrt, airOS, Cisco IOS, Juniper Junos, Huawei VRP) and for adding your own.
 
-Use `monitoring` for anything that only needs to be pinged. It carries no
+Use *Monitoring only* for anything that only needs to be pinged. It carries no
 credentials and never appears in version statistics.
 
 ## Credentials
@@ -35,16 +32,12 @@ port: to test a new address, type the password again. The test is the [system
 command](fleet-commander.md#system-commands) *connection test*, and confirms
 the type matches reality:
 
-| Type | Check | Must show |
-|---|---|---|
-| `routeros` | `/system resource print` | `platform: MikroTik` |
-| `routeros-branded` | `/system resource print` | a `platform:` line that is **not** MikroTik |
-| `openwrt` | `ubus call system board` | `OpenWrt` |
-| `ubiquiti-airos` | `cat /etc/version` | a version like `XW.v6...` |
+The check is the type's recognition pattern - RouterOS must show
+`platform: MikroTik`, OpenWrt must name OpenWrt, and so on - so a device of
+another type is rejected with the reason rather than half-working.
 
-A branded unit declared as `routeros` is rejected with the reason, and so is the
-reverse — the two need different handling, so the distinction is enforced rather
-than trusted.
+A Cisco device whose account does not land in privileged mode takes an **enable
+password**, stored encrypted and sent only to the stored address.
 
 The first connection to a device - a test, an inventory read or a backup -
 also stores its **SSH host key**. From then on

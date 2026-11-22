@@ -9,24 +9,31 @@ retention.
 
 | Device type | Configuration text | Binary image |
 |---|---|---|
-| RouterOS / branded | `/export` → `.rsc` | `/system backup save` → `.backup` |
-| OpenWrt | `uci export` → `.txt` | `sysupgrade --create-backup` → `.tar.gz` |
-| Ubiquiti airOS | `/tmp/system.cfg` → `.cfg` | none |
+| RouterOS | `/export` output → `.rsc` | `/system backup save` → `.backup` |
+| OpenWrt | `uci export` output → `.txt` | `sysupgrade --create-backup` → `.tar.gz` |
+| Ubiquiti airOS | `/tmp/system.cfg` downloaded → `.cfg` | none |
+| Cisco IOS | `show running-config` → `.cfg` | none |
+| Juniper Junos | `show configuration` and `show configuration \| display set` → `.conf` | none |
+| Huawei VRP | `display current-configuration` → `.cfg` | none |
 
 Files are named `routerfleet-backup-<id>-<kind>-<YYYY-MM-DD_HH-MM>`.
 
-These are the defaults of four [system commands](fleet-commander.md#system-commands)
-- *backup - create*, *files to download*, *remove from device* and *clean
-leftovers* - which an administrator can adjust per device type.
+The **text** comes from command output (*backup - text*), nothing written on
+the device; a device type can have several **named texts** (Juniper: the
+configuration and its set format), each shown, compared and downloaded on its
+own, all counted for change detection. Files made on the device (*backup -
+create*) are downloaded by SCP (*files to download*) and removed. All of it is
+set per [device type](device-types.md).
 
 The configuration **text** is stored in the database, which is what makes
 diffing and change detection possible. The **binary** image is stored as a file
-under `MEDIA_ROOT`. For RouterOS, comment lines are stripped from the `.rsc`
-before storing, so a timestamp in a header comment does not register as a
-configuration change.
+under `MEDIA_ROOT`. Lines the device type marks as noise - RouterOS comment
+lines, Cisco's `! Last configuration change` - are dropped before storing, so a
+timestamp does not register as a configuration change.
 
-Two RouterOS export options are profile settings: `show-sensitive` includes
-secrets in the export, and `terse` produces single-line output.
+Two export options are profile settings, for device types that have them:
+*Include passwords and keys* (RouterOS `show-sensitive`) and *One line per
+item* (`terse`).
 
 ## From a profile to a stored backup
 

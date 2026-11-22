@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from routerlib.actions import posted_action, posted_confirmation
+from routerlib.actions import posted_confirmation
 from user_manager.models import UserAcl
 
 from . import device_types
@@ -100,7 +100,7 @@ def read_form(post, device_type, new=False):
     if not device_type.text_extension:
         device_type.text_extension = 'txt'
     inventory = {}
-    for field, label in device_types.INVENTORY_FIELDS:
+    for field, _label in device_types.INVENTORY_FIELDS:
         sources = [line.strip() for line in (post.get(f'inventory_{field}') or '').splitlines() if line.strip()]
         if sources:
             inventory[field] = sources
@@ -167,7 +167,7 @@ def view_device_type(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     device_type = get_object_or_404(DeviceType, uuid=request.GET.get('uuid'))
     if request.method == 'POST':
-        action = posted_action(request)
+        action = request.POST.get('action')
         if action == 'delete':
             if posted_confirmation(request) != 'delete':
                 return redirect(f'/system/device-types/edit/?uuid={device_type.uuid}')

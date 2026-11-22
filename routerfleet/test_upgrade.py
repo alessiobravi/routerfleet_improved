@@ -64,6 +64,8 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         Router.objects.create(name='edge-02', address='10.0.0.2', router_type='routeros', password='')
         switched_off = Router.objects.create(name='edge-03', address='10.0.0.3', router_type='routeros',
                                              password='', enabled=False)
+        branded = Router.objects.create(name='edge-04', address='10.0.0.4', router_type='routeros-branded',
+                                        password='')
 
         Backup = old.get_model('backup_data', 'RouterBackup')
         base = timezone.now() - datetime.timedelta(days=3)
@@ -91,6 +93,10 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         own_update = Command.objects.create(name='Our update')
         own_variant = Variant.objects.create(command_id=own_update.id, router_type='routeros',
                                              payload=USER_UPDATE_PAYLOAD)
+        # A branded variant beside a RouterOS one (folded away), and one of its own (kept, as RouterOS)
+        Variant.objects.create(command_id=own_update.id, router_type='routeros-branded', payload='/branded copy')
+        branded_only = Command.objects.create(name='Branded only')
+        Variant.objects.create(command_id=branded_only.id, router_type='routeros-branded', payload='/system identity print')
 
         SSHKey = old.get_model('router_manager', 'SSHKey')
         key = SSHKey.objects.create(name='fleet-key', public_key='ssh-ed25519 AAAA',
@@ -120,6 +126,25 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         off = NewRouter.objects.get(pk=switched_off.pk)
         self.assertEqual(off.enabled_changed_at, off.updated)
         self.assertIsNone(NewRouter.objects.get(pk=router.pk).enabled_changed_at)
+        # Device types: the shipped ones exist; "Branded" is folded into RouterOS
+        from router_manager.models import DeviceType, Router as NewRouter
+        from fleet_commander.models import CommandVariant as NewVariant
+        self.assertEqual(set(DeviceType.objects.values_list('slug', flat=True)),
+                         {'monitoring', 'routeros', 'openwrt', 'ubiquiti-airos', 'cisco-ios', 'juniper-junos',
+                          'huawei-vrp'})
+        self.assertEqual(NewRouter.objects.get(pk=branded.pk).router_type, 'routeros')
+        self.assertFalse(NewVariant.objects.filter(router_type='routeros-branded').exists())
+        self.assertEqual(NewVariant.objects.get(command_id=branded_only.id).router_type, 'routeros')
+        self.assertEqual(NewVariant.objects.filter(command_id=own_update.id).count(), 1)
+        # Unedited RouterOS backup commands: the text now comes from /export output
+        def payload(key, router_type):
+            return NewVariant.objects.get(command__system_key=key, router_type=router_type).payload
+        self.assertEqual(payload('backup_text', 'routeros'), 'configuration: /export {{ export_parameters }}')
+        self.assertEqual(payload('backup_create', 'routeros'), '/system backup save name={{ backup_name }}.backup')
+        self.assertEqual(payload('backup_text', 'openwrt'), 'configuration: uci export')
+        self.assertEqual(payload('backup_create', 'openwrt'), 'sysupgrade --create-backup /tmp/{{ backup_name }}.tar.gz')
+        self.assertEqual(payload('firmware_install', 'routeros'), '/system reboot')
+        self.assertTrue(payload('backup_text', 'juniper-junos').startswith('configuration: show configuration'))
         # CallMeBot is no longer supported: kept, with its history, but switched off;
         # an ntfy channel of before keeps the public server
         from message_center.models import MessageChannel as NewChannel
@@ -305,3 +330,47 @@ class UpgradeFromLaterPredecessorTests(TransactionTestCase):
         upgraded = CommandSchedule.objects.get(pk=schedule.id)
         self.assertEqual(list(upgraded.exclude_router.values_list('name', flat=True)), ['edge-01'])
         self.assertEqual(upgraded.target_routers(), set())
+
+
+class EditedBackupCommandsUpgradeTests(TransactionTestCase):
+    """An installation whose backup system commands were edited keeps what
+    they did: OpenWrt's first "create" line - whose output was the text
+    backup - becomes the text command; edited RouterOS commands stay, and
+    their downloaded .rsc stays the text backup."""
+
+    def migrate(self, targets):
+        executor = MigrationExecutor(connection)
+        executor.loader.build_graph()
+        executor.migrate(targets)
+        executor.loader.build_graph()
+        return executor.loader.project_state(targets).apps
+
+    def test_edited_commands(self):
+        before = [('fleet_commander', '0015_variant_device_type'), ('router_manager', '0031_device_type_presets'),
+                  ('import_tool', '0009_import_device_type')]
+        old = self.migrate(before)
+        Variant = old.get_model('fleet_commander', 'CommandVariant')
+        Command = old.get_model('fleet_commander', 'Command')
+        # Going back does not undo data: the rows as they were before the text command
+        Variant.objects.filter(command__system_key__in=('backup_text', 'firmware_verify', 'firmware_install')).delete()
+        Command.objects.filter(system_key__in=('backup_text', 'firmware_verify', 'firmware_install')).delete()
+        edited_routeros = '/system backup save name={{ backup_name }}.backup\n/export file={{ backup_name }}.rsc compact'
+        # Written whether or not an earlier test's database reset left them
+        for key, router_type, payload in (
+                ('backup_download', 'routeros', '/{{ backup_name }}.rsc\n/{{ backup_name }}.backup'),
+                ('backup_create', 'openwrt', 'uci export network\nsysupgrade --create-backup /tmp/{{ backup_name }}.tar.gz'),
+                ('backup_create', 'routeros', edited_routeros)):
+            command, _ = Command.objects.get_or_create(system_key=key, defaults={'name': f'System: {key}'})
+            Variant.objects.update_or_create(command=command, router_type=router_type,
+                                             defaults={'payload': payload, 'enabled': True})
+        executor = MigrationExecutor(connection)
+        self.migrate(executor.loader.graph.leaf_nodes())
+        from fleet_commander.models import CommandVariant
+
+        def payload(key, router_type):
+            return CommandVariant.objects.get(command__system_key=key, router_type=router_type).payload
+        self.assertEqual(payload('backup_text', 'openwrt'), 'configuration: uci export network')
+        self.assertEqual(payload('backup_create', 'openwrt'), 'sysupgrade --create-backup /tmp/{{ backup_name }}.tar.gz')
+        self.assertEqual(payload('backup_text', 'routeros'), '')
+        self.assertEqual(payload('backup_create', 'routeros'), edited_routeros)
+        self.assertEqual(payload('backup_download', 'routeros'), '/{{ backup_name }}.rsc\n/{{ backup_name }}.backup')

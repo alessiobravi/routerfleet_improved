@@ -65,6 +65,7 @@ whole installation, in sections:
 | Section | What |
 |---|---|
 | Messaging | notification channels, the mail server (administrators), grouping and daily reports |
+| Devices | device types (administrators), the firmware repository |
 | Display | default rows per table: what every list opens with, for everyone (10 until changed) |
 | Backups and jobs | backup profiles, Fleet Commander schedule defaults |
 | Security | HTTPS (administrators) |
@@ -193,8 +194,9 @@ invalidates all sessions.
 
 ### A device's backups fail but SSH works by hand
 
-- Check that the device type is right — a branded MikroTik declared as
-  `routeros` is rejected, and vice versa.
+- Check that the device type is right: the connection test says when the device
+  does not match the type's recognition pattern. *Try it* on the device type
+  shows what each command returns and what was found in it.
 - Check reachability. A monitored device that pings as offline is **skipped**
   rather than attempted; if it drops ICMP but accepts SSH, switch monitoring off
   for it.

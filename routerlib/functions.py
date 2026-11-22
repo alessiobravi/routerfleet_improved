@@ -1,6 +1,5 @@
 from io import StringIO
 
-import re
 import paramiko
 
 from routerlib import host_keys

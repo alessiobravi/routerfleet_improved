@@ -144,7 +144,7 @@ PRESETS = {'cisco-ios': {'binary_extension': '',
              'check_vendor': True,
              'description': 'OpenWrt over SSH. Text backup from uci export, archive from sysupgrade by SCP.',
              'enable_command': '',
-             'firmware_upload_path': '/tmp/{{ firmware_name }}',
+             'firmware_upload_path': '/tmp/{{ firmware_name }}',  # nosec B108 - a path on the device
              'firmware_verify': 'sha256',
              'inventory_fields': {'architecture': ['key:architecture'],
                                   'firmware_version': ['key:OPENWRT_RELEASE'],
