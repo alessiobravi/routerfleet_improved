@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/routerfleet-improved.svg" alt="RouterFleet Improved logo" width="96" height="96">
+  <img src="docs/images/routerfleet-improved.svg" alt="RouterFleet Improved logo" width="125" height="125">
 </p>
 
 # RouterFleet Improved
@@ -55,15 +55,28 @@ encrypted with.
 
 - **Backups** — daily, weekly, monthly and on-demand, per-device retention,
   text and binary, with a line-by-line diff between any two of them and a flag
-  on every backup that changed the configuration.
+  on every backup that changed the configuration. A profile can **keep only
+  changes**: an unchanged backup is recorded without storing its content again.
 - **Fleet Commander** — commands with a payload per device type, run by hand or
   on a schedule, with **verified results**: a command counts as successful only
   when a verification command proves it, so an update that reboots a device
   mid-run is judged on its outcome rather than on an exit code it never sent.
+  Run on one device from the device list, on a selection, or on groups - always
+  after a confirmation page showing the exact commands. What RouterFleet itself
+  sends to devices (connection test, inventory, backup steps) is visible and
+  editable as protected **system commands**.
 - **Device inventory** — model, serial, OS and firmware version, architecture,
   CPU, and the version each device could be upgraded to.
 - **Monitoring** — an independent container pings the fleet and records
   downtime; status changes raise notifications.
+- **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,
+  self-signed, or behind a reverse proxy, chosen in System settings, with a
+  live check of what passkeys need.
+- **Tools** — free the space of duplicate backups, and export the latest
+  configuration of every device as a zip.
+- **A live interface** — a status page with charts and cards that open what
+  they count, object pages with progress and a timeline, updating themselves
+  while something runs.
 - **Notifications** — Telegram, ntfy.sh and CallMeBot (WhatsApp), with
   concatenation so a flapping link does not send fifty messages.
 - **Audit log** — every sign-in attempt, and every configuration change field
@@ -92,6 +105,7 @@ encrypted with.
 | [Audit log](docs/audit-log.md) | Login history and the change log |
 | [Users and permissions](docs/users.md) | The five permission levels, and what each one reaches |
 | [Import tool](docs/import-tool.md) | Bulk device import from CSV |
+| [HTTPS](docs/https.md) | Let's Encrypt, own certificate, reverse proxy - in System settings |
 | [Tools](docs/tools.md) | Backup clean-up and export of the latest backups |
 | [Security](docs/security.md) | Secrets at rest, host keys, sign-in limits, the scheduler endpoints |
 | [Operations](docs/operations.md) | Management commands, housekeeping, troubleshooting, running the tests |

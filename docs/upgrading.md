@@ -53,8 +53,8 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 11 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), and remove the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 24 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 12 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 25 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
@@ -63,7 +63,7 @@ what makes the upgrade a no-drama `migrate`. The test suite holds a fingerprint 
 released migration and fails if one is ever edited, renamed or removed; it also
 checks the counts in this table against the real migration plan.
 
-### What the 24 migrations do when coming from the original
+### What the 25 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -183,6 +183,11 @@ names `postgres:16` keeps working too.
   **About**, at the bottom of the menu.
 - **Second factors are available** - an authenticator app and passkeys, in
   *My Settings*. Nobody is asked for one until they turn it on.
+- **HTTPS does not change.** The new [System settings → HTTPS](https.md) page
+  starts on *As configured in .env*: `HTTPS_REDIRECT_POLICY` and the
+  certificate already deployed in the volume keep working exactly as before.
+  To use the page, a compose file of your own needs `- https_cert:/certificate`
+  under the `routerfleet` service's volumes (the shipped files have it).
 - **Backup storage does not change.** Profiles that exist when you upgrade
   keep every backup in full, as before (*Keep unchanged backups* is on for
   them). Switch a profile's setting off to keep only changes from then on; the

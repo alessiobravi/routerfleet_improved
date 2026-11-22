@@ -1,71 +1,33 @@
 {% extends "base_login.html" %}
 
 {% block content %}
-
-<div class="register-box">
-    <div class="register-logo">
-      <a href="/"><b>RouterFleet</b> Improved</a>
+<p class="rf-auth-message">Create the first administrator</p>
+<form action="/accounts/create_first_user/" method="post">
+    {% csrf_token %}
+    <label for="first-username" class="sr-only">Username</label>
+    <div class="input-group">
+        <input type="text" class="form-control" id="first-username" placeholder="Username" name="username"
+               autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
+        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-user"></span></div></div>
     </div>
-  
-    <div class="card">
-      <div class="card-body register-card-body">
-        <p class="login-box-msg">Create new administrator</p>
-  
-        <form action="/accounts/create_first_user/" method="post">
-            {% csrf_token %}
-            <div class="input-group mb-3">
-              <input type="text" class="form-control" placeholder="username" name="username"> 
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <span class="fas fa-user"></span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="input-group mb-3">
-              <input type="password" class="form-control" placeholder="Password" name="password"> 
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <span class="fas fa-lock"></span>
-                </div>
-              </div>
-            </div>
-            <div class="input-group mb-3">
-              <input type="password" class="form-control" placeholder="Retype password" name="password2"> 
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <span class="fas fa-lock"></span>
-                </div>
-              </div>
-            </div>
-            
-            
-            <div class="row">
-              <div class="col-8">
-              </div>
-              <div class="col-4">
-                <button type="submit" class="btn btn-primary btn-block">Register</button>
-              </div>
-            </div>
-          </form>
-          
-  
-        
-      </div>
-      <!-- /.form-box -->
-    </div><!-- /.card -->
-  </div>
-  <!-- /.register-box -->
-
+    <label for="first-password" class="sr-only">Password</label>
+    <div class="input-group">
+        <input type="password" class="form-control" id="first-password" placeholder="Password" name="password"
+               autocomplete="new-password">
+        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-lock"></span></div></div>
+    </div>
+    <label for="first-password2" class="sr-only">Retype password</label>
+    <div class="input-group">
+        <input type="password" class="form-control" id="first-password2" placeholder="Retype password" name="password2"
+               autocomplete="new-password">
+        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-lock"></span></div></div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-block mt-2">Create administrator</button>
+</form>
 
 <script>
   document.querySelector('input[name="username"]').addEventListener('input', function() {
     this.value = this.value.toLowerCase().replace(/\s/g, '');
   });
 </script>
-
-
-
-
-  {% endblock %}
-``` 
+{% endblock %}

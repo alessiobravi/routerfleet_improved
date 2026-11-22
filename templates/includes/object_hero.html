@@ -1,0 +1,32 @@
+{# The "Hero & timeline" top of an object page: see routerfleet/object_pages.py #}
+<div class="rf-object">
+    <div class="rf-o-card rf-o-hero">
+        {% if page.hero.ring is not None %}
+        <div class="rf-o-ring" style="--rf-pct: {{ page.hero.ring }};" role="img" aria-label="{{ page.hero.ring }}%{% if page.hero.ring_caption %} {{ page.hero.ring_caption }}{% endif %}">
+            <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="rf-o-track" cx="50" cy="50" r="42"/><circle class="rf-o-val rf-o-{{ page.hero.chip.0 }}" cx="50" cy="50" r="42"/></svg>
+            <span>{{ page.hero.ring }}%</span>
+            {% if page.hero.ring_caption %}<small>{{ page.hero.ring_caption }}</small>{% endif %}
+        </div>
+        {% else %}
+        <div class="rf-o-icon rf-o-{{ page.hero.chip.0 }}" aria-hidden="true"><i class="fas {{ page.hero.icon }}"></i></div>
+        {% endif %}
+        <div class="rf-o-title">
+            <h2>{{ page.hero.title }}{% if page.hero.subtitle %} <span>· {{ page.hero.subtitle }}</span>{% endif %}</h2>
+            <span class="rf-o-chip rf-o-{{ page.hero.chip.0 }}"><span class="rf-o-dot"></span>{{ page.hero.chip.1 }}</span>
+            <div class="rf-o-meta">{% for item in page.hero.meta %}<span>{{ item }}</span>{% endfor %}</div>
+        </div>
+        <div class="rf-o-actions">
+            {% for action in page.hero.actions %}
+                {% if action.href %}<a href="{{ action.href }}" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} mr-1"></i>{{ action.label }}</a>
+                {% else %}<button type="button" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" onclick="{{ action.onclick }}"><i class="fas {{ action.icon }} mr-1"></i>{{ action.label }}</button>{% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    <div class="rf-o-tiles">
+        {% for tile in page.tiles %}
+        {% if tile.href %}<a href="{{ tile.href }}" class="rf-o-card rf-o-tile rf-o-{{ tile.state }}">{% else %}<div class="rf-o-card rf-o-tile rf-o-{{ tile.state }}">{% endif %}
+            <div class="rf-o-n">{{ tile.value }}</div><div class="rf-o-l">{{ tile.label }}</div>
+        {% if tile.href %}</a>{% else %}</div>{% endif %}
+        {% endfor %}
+    </div>
+</div>

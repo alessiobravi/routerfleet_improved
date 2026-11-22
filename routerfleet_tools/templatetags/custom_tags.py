@@ -60,3 +60,10 @@ def tag_update_state():
                 'href': state['releases_url'], 'external': True}
     return {'color': 'text-secondary', 'title': f'RouterFleet Improved {release} - updates not checked yet',
             'href': '/about/', 'external': False}
+
+
+@register.filter
+def startswith(value, prefix):
+    """The menu marks the section a page belongs to by the START of its address:
+    /fleet_commander/router/execute/ is Fleet Commander, not Router Manager."""
+    return str(value or '').startswith(str(prefix))

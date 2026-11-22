@@ -375,8 +375,18 @@ earlier RouterFleet project does not pass `HTTPS_REDIRECT_POLICY` to the
 application at all, and then the cookies stay as they were; the current compose
 file does.
 
+When HTTPS is managed in [System settings](https.md) (any mode but *As
+configured in .env*), the cookies are `Secure` exactly when the request
+arrived over HTTPS. nginx sets `X-Forwarded-Proto` on every request and
+overwrites whatever a client sends - behind a reverse proxy, only the listed
+proxies are believed - so a client cannot claim HTTPS it did not use. CI checks
+this on a running stack.
+
 The shipped certificate is self-signed and generated on first start. Replace
-`nginx.pem` and `nginx.key` in the `https_cert` volume with your own. The config
+`nginx.pem` and `nginx.key` in the `https_cert` volume with your own, or use
+[System settings → HTTPS](https.md): Let's Encrypt, an uploaded certificate
+(checked before use; its key never stored in the database), or a reverse
+proxy. Switching HTTPS off there takes an explicit confirmation. The config
 also carries commented-out settings for Cloudflare authenticated origin pulls.
 
 ## Outbound connections

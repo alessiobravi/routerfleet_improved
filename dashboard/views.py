@@ -259,7 +259,26 @@ def online_series(days):
                     offline += 1
         online_data.append(online)
         offline_data.append(offline)
-    return {'dates': [day.isoformat() for day, _, _ in calendar], 'online_data': online_data, 'offline_data': offline_data}
+    disabled_since = _disabled_since()
+    disabled_data = [sum(1 for since in disabled_since if since < end) for _, _start, end in calendar]
+    return {'dates': [day.isoformat() for day, _, _ in calendar], 'online_data': online_data,
+            'offline_data': offline_data, 'disabled_data': disabled_data}
+
+
+def _disabled_since():
+    """When each device that is disabled now was switched off: its latest
+    enable/disable entry in the change log, or - without one, for a device
+    disabled by a bulk edit or before the change log - when it was last saved."""
+    from audit_log.models import ChangeRecord
+    disabled = list(Router.objects.filter(enabled=False).values_list('uuid', 'updated'))
+    if not disabled:
+        return []
+    switched = {}
+    for uuid, created in ChangeRecord.objects.filter(
+            model_label='router_manager.Router', object_uuid__in=[u for u, _ in disabled],
+            changes__has_key='Enabled').order_by('created').values_list('object_uuid', 'created'):
+        switched[uuid] = created
+    return [switched.get(uuid, updated) for uuid, updated in disabled]
 
 
 def _days_parameter(request):

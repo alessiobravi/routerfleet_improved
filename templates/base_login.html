@@ -12,10 +12,76 @@
   <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/fontawesome-free/css/all.min.css">
   <!-- Theme style -->
   <link rel="stylesheet" href="/static/AdminLTE-3.2.0/dist/css/adminlte.min.css">
+  <style>
+    /* The palette of the logo */
+    :root {
+      --rf-navy: #1f3a5f; --rf-navy-deep: #0f2238; --rf-teal: #14a89a; --rf-teal-dark: #0e8a7e;
+      --rf-amber: #f2a93b; --rf-ink: #1d2733; --rf-muted: #6b7785; --rf-line: #dfe5ec;
+    }
+    body.rf-auth {
+      min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px 16px; color: var(--rf-ink);
+      background-color: var(--rf-navy-deep);
+      /* A quiet network: two glows and a grid of nodes, drawn in CSS - no image to load */
+      background-image:
+        radial-gradient(circle at 18% 22%, rgba(20, 168, 154, .28), transparent 42%),
+        radial-gradient(circle at 82% 78%, rgba(242, 169, 59, .16), transparent 40%),
+        radial-gradient(rgba(255, 255, 255, .10) 1.2px, transparent 1.4px),
+        linear-gradient(160deg, var(--rf-navy-deep), var(--rf-navy));
+      background-size: auto, auto, 28px 28px, auto;
+    }
+    .rf-auth-box {
+      width: 100%; max-width: 400px; background: #fff; border-radius: 18px; overflow: hidden;
+      box-shadow: 0 24px 60px rgba(4, 12, 24, .45), 0 2px 6px rgba(4, 12, 24, .2);
+      animation: rf-rise .45s ease-out both;
+    }
+    .rf-auth-box::before {
+      content: ''; display: block; height: 5px;
+      background: linear-gradient(90deg, var(--rf-teal), var(--rf-navy) 55%, var(--rf-amber));
+    }
+    .rf-auth-head { text-align: center; padding: 30px 32px 6px; }
+    .rf-auth-head img { width: 88px; height: 88px; filter: drop-shadow(0 6px 12px rgba(31, 58, 95, .25)); }
+    .rf-auth-head h1 { font-size: 1.55rem; margin: 14px 0 2px; color: var(--rf-navy); font-weight: 400; letter-spacing: .2px; }
+    .rf-auth-head h1 b { font-weight: 700; }
+    .rf-auth-head p { margin: 0; font-size: .85rem; color: var(--rf-muted); }
+    .rf-auth-body { padding: 18px 32px 30px; }
+    .rf-auth-body .rf-auth-message { text-align: center; color: var(--rf-muted); margin-bottom: 18px; }
+    .rf-auth-body .input-group { margin-bottom: 14px; }
+    .rf-auth-body .form-control, .rf-auth-body .input-group-text {
+      height: 46px; border-color: var(--rf-line); background: #f8fafc;
+    }
+    .rf-auth-body .form-control { border-radius: 10px 0 0 10px; font-size: 1rem; }
+    .rf-auth-body .input-group-text { border-radius: 0 10px 10px 0; color: var(--rf-muted); }
+    .rf-auth-body .form-control:focus { background: #fff; border-color: var(--rf-teal); box-shadow: 0 0 0 3px rgba(20, 168, 154, .18); }
+    .rf-auth-body .form-control:focus + .input-group-append .input-group-text { border-color: var(--rf-teal); color: var(--rf-teal); }
+    .rf-auth-body .btn { height: 46px; border-radius: 10px; font-weight: 600; letter-spacing: .2px; }
+    .rf-auth-body .btn-primary { background: var(--rf-navy); border-color: var(--rf-navy); }
+    .rf-auth-body .btn-primary:hover, .rf-auth-body .btn-primary:focus { background: var(--rf-teal-dark); border-color: var(--rf-teal-dark); }
+    .rf-auth-body .btn-outline-primary { color: var(--rf-teal-dark); border-color: var(--rf-teal); }
+    .rf-auth-body .btn-outline-primary:hover { background: var(--rf-teal); border-color: var(--rf-teal); color: #fff; }
+    .rf-auth-body .btn-link { color: var(--rf-teal-dark); height: auto; }
+    .rf-auth-divider { display: flex; align-items: center; gap: 10px; color: var(--rf-muted); font-size: .8rem; margin: 18px 0 14px; }
+    .rf-auth-divider::before, .rf-auth-divider::after { content: ''; flex: 1; border-top: 1px solid var(--rf-line); }
+    .rf-auth-foot { margin-top: 18px; font-size: .8rem; color: rgba(255, 255, 255, .62); text-align: center; }
+    .rf-auth-foot b { color: rgba(255, 255, 255, .85); font-weight: 600; }
+    @keyframes rf-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .rf-auth-box { animation: none; } }
+    @media (max-width: 420px) { .rf-auth-head { padding: 24px 22px 4px; } .rf-auth-body { padding: 16px 22px 24px; } }
+  </style>
 </head>
-<body class="hold-transition register-page">
-{% block content %}
-{% endblock %}
+<body class="rf-auth">
+  <main class="rf-auth-box">
+    <header class="rf-auth-head">
+      <img src="/static/routerfleet/logo.svg" alt="RouterFleet Improved logo" width="88" height="88">
+      <h1><b>RouterFleet</b> Improved</h1>
+      <p>Network fleet management</p>
+    </header>
+    <div class="rf-auth-body">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </main>
+  <div class="rf-auth-foot"><b>RouterFleet Improved</b> by Alessio Bravi</div>
 
 <!-- jQuery -->
 <script src="/static/AdminLTE-3.2.0/plugins/jquery/jquery.min.js"></script>

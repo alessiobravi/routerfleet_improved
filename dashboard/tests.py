@@ -279,3 +279,50 @@ class SchedulerCardTests(TestCase):
         card = self.card()
         self.assertEqual(card['state'], 'bad')
         self.assertIn('scheduler 6 min ago', card['note'])
+
+
+class OneActiveMenuEntryTests(TestCase):
+    """Reported: the Fleet Commander page of a router lit up Router Manager too,
+    because its address contains /router/. The section is the start of the
+    address, and exactly one menu entry is active."""
+
+    def test_exactly_one_entry_is_active(self):
+        import re
+        from router_manager.models import Router
+        self.client.force_login(make_user(50))
+        router = Router.objects.create(name='r', address='192.0.2.1', router_type='routeros')
+        pages = {f'/fleet_commander/router/execute/?uuid={router.uuid}': '/fleet_commander/',
+                 '/router/list/': '/router/list/', '/fleet_commander/': '/fleet_commander/',
+                 '/tools/backup_cleanup/': '/tools/', '/status/': '/status/'}
+        for path, entry in pages.items():
+            with self.subTest(path=path):
+                page = self.client.get(path).content.decode()
+                active = re.findall(r'<a href="([^"]+)"\s+class="nav-link active', page)
+                self.assertEqual(active, [entry])
+
+
+class DevicesStatusChartTests(TestCase):
+    """The devices chart counts disabled devices too, from the day the change
+    log says they were switched off."""
+
+    def test_disabled_devices_from_the_day_they_were_switched_off(self):
+        from audit_log.models import ChangeRecord
+        from dashboard.views import online_series
+        from router_manager.models import Router
+        router = make_router(name='old-ap')
+        two_days_ago = timezone.now() - timezone.timedelta(days=2)
+        Router.objects.filter(pk=router.pk).update(enabled=False)
+        ChangeRecord.objects.create(action='changed', model_label='router_manager.Router', object_uuid=router.uuid,
+                                    object_repr='old-ap', changes={'Enabled': {'old': True, 'new': False}})
+        ChangeRecord.objects.filter(object_uuid=router.uuid).update(created=two_days_ago)
+        data = online_series(7)
+        self.assertEqual(len(data['disabled_data']), 7)
+        self.assertEqual(data['disabled_data'][-1], 1)
+        self.assertEqual(data['disabled_data'][:4], [0, 0, 0, 0], 'not before it was switched off')
+        self.assertEqual(data['disabled_data'][-3:], [1, 1, 1])
+
+    def test_the_chart_is_named_devices_status(self):
+        self.client.force_login(make_user(10))
+        page = self.client.get('/status/')
+        self.assertContains(page, 'Devices status')
+        self.assertContains(page, "label: 'Disabled'")

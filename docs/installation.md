@@ -197,7 +197,9 @@ start. The `routerfleet` container must be able to reach the host and port.
 | `POSTGRES_PASSWORD` | with postgres | — | string | Database password. With the bundled database it is also what the database is created with on first start; changing it later requires changing it inside PostgreSQL too |
 | `POSTGRES_HOST` | external only | empty | hostname | Set only for an external server; empty means the bundled container |
 | `POSTGRES_PORT` | no | `5432` | port | External server's port |
-| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects port 80 to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext |
+| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects port 80 to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext. Applies while [System settings → HTTPS](https.md) is *As configured in .env*, the default |
+| `HTTPS_MODE_OVERRIDE` | no | empty | `env`, `selfsigned` | Emergency override for nginx: wins over [System settings → HTTPS](https.md) until removed |
+| `LETSENCRYPT_STAGING` | no | empty | `1` | Let's Encrypt's test service, for trying a setup |
 
 `localhost`, `127.0.0.1`, `[::1]` and `routerfleet` are always accepted in
 addition to `SERVER_ADDRESS`.

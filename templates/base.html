@@ -39,6 +39,91 @@
 
     {% block page_custom_head %}{% endblock%}
     <style>
+        /* Object pages, "Hero & timeline" (routerfleet/object_pages.py) */
+        .rf-object { --rf-ok: #1f9d55; --rf-run: #2f6fd1; --rf-wait: #e8a317; --rf-bad: #d64545; --rf-info: #8a96a3; --rf-purple: #7e57c2; }
+        .rf-o-card { background: #fff; border: 1px solid #e1e6ec; border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
+        .rf-o-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; padding: 18px 22px; margin-bottom: 14px; }
+        .rf-o-ring { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
+        .rf-o-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+        .rf-o-ring circle { fill: none; stroke-width: 9; }
+        .rf-o-track { stroke: #e9edf2; }
+        .rf-o-val { stroke: var(--rf-ok); stroke-linecap: round; stroke-dasharray: 263.9; stroke-dashoffset: calc(263.9 - 263.9 * var(--rf-pct) / 100); transition: stroke-dashoffset .6s; }
+        .rf-o-val.rf-o-run { stroke: var(--rf-run); } .rf-o-val.rf-o-bad { stroke: var(--rf-bad); } .rf-o-val.rf-o-wait { stroke: var(--rf-wait); } .rf-o-val.rf-o-purple { stroke: var(--rf-purple); }
+        .rf-o-ring span { font-size: 21px; font-weight: 700; color: #1f3a5f; line-height: 1; }
+        .rf-o-ring small { position: absolute; bottom: -18px; white-space: nowrap; font-size: 11px; color: #6b7785; }
+        .rf-o-icon { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; color: #fff; background: var(--rf-info); }
+        .rf-o-icon.rf-o-ok { background: var(--rf-ok); } .rf-o-icon.rf-o-bad { background: var(--rf-bad); } .rf-o-icon.rf-o-run { background: var(--rf-run); }
+        .rf-o-icon.rf-o-wait { background: var(--rf-wait); } .rf-o-icon.rf-o-purple { background: var(--rf-purple); }
+        .rf-o-title h2 { margin: 0 0 6px; font-size: 22px; color: #1f3a5f; font-weight: 700; overflow-wrap: anywhere; }
+        .rf-o-title h2 span { font-weight: 400; color: #6b7785; }
+        .rf-o-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+        .rf-o-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+        .rf-o-chip.rf-o-ok { background: rgba(31, 157, 85, .12); color: #17804a; } .rf-o-chip.rf-o-run { background: rgba(47, 111, 209, .12); color: var(--rf-run); }
+        .rf-o-chip.rf-o-wait { background: rgba(232, 163, 23, .16); color: #9a6a0f; } .rf-o-chip.rf-o-bad { background: rgba(214, 69, 69, .12); color: var(--rf-bad); }
+        .rf-o-chip.rf-o-info { background: #eef1f4; color: #5f6b78; } .rf-o-chip.rf-o-purple { background: rgba(126, 87, 194, .14); color: var(--rf-purple); }
+        .rf-o-chip.rf-o-run .rf-o-dot { animation: rf-o-pulse 1.2s infinite; }
+        @keyframes rf-o-pulse { 50% { opacity: .3; } }
+        .rf-o-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: #6b7785; margin-top: 8px; }
+        .rf-o-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+        .rf-o-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+        .rf-o-tile { padding: 12px 14px; border-left: 4px solid var(--rf-info); color: inherit; }
+        a.rf-o-tile:hover { text-decoration: none; color: inherit; box-shadow: 0 6px 16px rgba(16, 24, 40, .1); }
+        .rf-o-tile.rf-o-ok { border-left-color: var(--rf-ok); } .rf-o-tile.rf-o-run { border-left-color: var(--rf-run); } .rf-o-tile.rf-o-wait { border-left-color: var(--rf-wait); }
+        .rf-o-tile.rf-o-bad { border-left-color: var(--rf-bad); } .rf-o-tile.rf-o-purple { border-left-color: var(--rf-purple); }
+        .rf-o-n { font-size: 24px; font-weight: 700; color: #1d2733; line-height: 1.2; overflow-wrap: anywhere; }
+        .rf-o-l { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: #6b7785; font-weight: 700; }
+        .rf-o-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+        .rf-o-card h3 { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid #e1e6ec; display: flex; justify-content: space-between; align-items: center; }
+        .rf-o-rows .rf-o-r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid #e1e6ec; }
+        .rf-o-rows .rf-o-r:first-child { border-top: 0; }
+        .rf-o-rows .rf-o-name { font-weight: 600; } .rf-o-rows .rf-o-sub { font-size: 12px; color: #6b7785; }
+        .rf-o-rows .rf-o-time { font-size: 12.5px; color: #6b7785; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .rf-o-timeline { padding: 8px 16px 14px; }
+        .rf-o-t { position: relative; padding: 7px 0 7px 22px; margin-left: 6px; border-left: 2px solid #e1e6ec; font-size: 13.5px; }
+        .rf-o-t::before { content: ''; position: absolute; left: -7px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 3px solid var(--rf-info); }
+        .rf-o-t.rf-o-ok::before { border-color: var(--rf-ok); } .rf-o-t.rf-o-bad::before { border-color: var(--rf-bad); } .rf-o-t.rf-o-run::before { border-color: var(--rf-run); }
+        .rf-o-t small { color: #6b7785; }
+        .rf-o-compact .rf-o-timeline { max-height: 260px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 24px; }
+        @media (max-width: 991.98px) {
+            .rf-o-hero { grid-template-columns: auto 1fr; } .rf-o-actions { grid-column: 1 / -1; justify-content: flex-start; }
+            .rf-o-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rf-o-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 575.98px) {
+            .rf-o-hero { grid-template-columns: 1fr; justify-items: start; } .rf-o-rows .rf-o-r { grid-template-columns: minmax(0, 1fr) auto; }
+            .rf-o-rows .rf-o-time { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) { .rf-o-val { transition: none; } .rf-o-chip.rf-o-run .rf-o-dot { animation: none; } }
+
+        /* On/off settings are iPhone-style switches: Bootstrap's switch and
+           checkbox controls alike. A real checkbox - a consent, an agreement -
+           opts out with the class rf-checkbox. */
+        .custom-switch, .custom-checkbox:not(.rf-checkbox) { padding-left: 3.75rem; min-height: 1.9rem; }
+        .custom-switch .custom-control-label, .custom-checkbox:not(.rf-checkbox) .custom-control-label { line-height: 1.9rem; }
+        .custom-switch .custom-control-label::before, .custom-checkbox:not(.rf-checkbox) .custom-control-label::before {
+            left: -3.75rem; top: 0; width: 3.15rem; height: 1.9rem; border-radius: 1rem; border: 0;
+            background-color: #e3e7ec; box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .08); transition: background-color .2s ease;
+        }
+        .custom-switch .custom-control-label::after, .custom-checkbox:not(.rf-checkbox) .custom-control-label::after {
+            left: calc(-3.75rem + 2px); top: 2px; width: calc(1.9rem - 4px); height: calc(1.9rem - 4px); border-radius: 50%;
+            background: #fff; background-image: none; box-shadow: 0 2px 4px rgba(16, 24, 40, .28); transition: transform .2s ease;
+        }
+        .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
+        .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; box-shadow: none; }
+        .custom-switch .custom-control-input:checked ~ .custom-control-label::after,
+        .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::after {
+            background-color: #fff; background-image: none; transform: translateX(1.25rem);
+        }
+        .custom-switch .custom-control-input:focus-visible ~ .custom-control-label::before,
+        .custom-checkbox:not(.rf-checkbox) .custom-control-input:focus-visible ~ .custom-control-label::before { box-shadow: 0 0 0 3px rgba(20, 168, 154, .3); }
+        .custom-switch .custom-control-input:focus:not(:focus-visible) ~ .custom-control-label::before,
+        .custom-checkbox:not(.rf-checkbox) .custom-control-input:focus:not(:focus-visible) ~ .custom-control-label::before { box-shadow: none; }
+        .custom-switch .custom-control-input:disabled ~ .custom-control-label::before,
+        .custom-checkbox:not(.rf-checkbox) .custom-control-input:disabled ~ .custom-control-label::before { opacity: .5; }
+        @media (prefers-reduced-motion: reduce) {
+            .custom-switch .custom-control-label::before, .custom-switch .custom-control-label::after,
+            .custom-checkbox .custom-control-label::before, .custom-checkbox .custom-control-label::after { transition: none; }
+        }
+
         /* Phones: a table the responsive DataTable does not handle scrolls
            sideways inside its card instead of widening the page */
         @media (max-width: 767.98px) {
@@ -110,7 +195,7 @@
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false"
                     style="min-height: calc(100vh - 4.5rem);">
                     <li class="nav-item">
-                        <a href="/status/" class="nav-link {% if '/status/' in request.path %}active{% endif %}">
+                        <a href="/status/" class="nav-link {% if request.path|startswith:'/status/' %}active{% endif %}">
                             <i class="fas fa-tachometer-alt nav-icon"></i>
                             <p>
                                 Status
@@ -120,7 +205,7 @@
 
 
                     <li class="nav-item">
-                        <a href="/router/list/" class="nav-link {% if '/router/' in request.path %}active{% endif %}">
+                        <a href="/router/list/" class="nav-link {% if request.path|startswith:'/router/' %}active{% endif %}">
                             <i class="fas fa-network-wired nav-icon"></i>
                             <p>
                                 Router Manager
@@ -130,7 +215,7 @@
 
 
                     <li class="nav-item">
-                        <a href="/backup/profile_list/" class="nav-link {% if '/backup/' in request.path %}active{% endif %}">
+                        <a href="/backup/profile_list/" class="nav-link {% if request.path|startswith:'/backup/' %}active{% endif %}">
                             <i class="fas fa-box-open"></i>
                             <p>
                                 Backup
@@ -140,7 +225,7 @@
 
                     <li class="nav-item">
                         <a href="/fleet_commander/"
-                            class="nav-link {% if '/fleet_commander/' in request.path %}active{% endif %}">
+                            class="nav-link {% if request.path|startswith:'/fleet_commander/' %}active{% endif %}">
                             <i class="fas fa-terminal nav-icon"></i>
                             <p>
                                 Fleet Commander
@@ -149,7 +234,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="/user/list/" class="nav-link {% if '/user/list/' in request.path or '/user/manage/' in request.path %}active{% endif %}">
+                        <a href="/user/list/" class="nav-link {% if request.path|startswith:'/user/list/' or request.path|startswith:'/user/manage/' %}active{% endif %}">
                             <i class="fas fa-users nav-icon"></i>
                             <p>
                                 User Manager
@@ -158,7 +243,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="/message_center/channel_list/" class="nav-link {% if '/message_center/' in request.path %}active{% endif %}">
+                        <a href="/message_center/channel_list/" class="nav-link {% if request.path|startswith:'/message_center/' %}active{% endif %}">
                             <i class="far fa-envelope nav-icon"></i>
                             <p>
                                 Message Center
@@ -168,7 +253,7 @@
 
 
                     <li class="nav-item">
-                        <a href="/tools/" class="nav-link {% if '/tools/' in request.path %}active{% endif %}">
+                        <a href="/tools/" class="nav-link {% if request.path|startswith:'/tools/' %}active{% endif %}">
                             <i class="fas fa-toolbox nav-icon"></i>
                             <p>
                                 Tools
@@ -177,7 +262,16 @@
                     </li>
 
                     <li class="nav-item">
-                        <a href="/audit_log/login_history/" class="nav-link {% if '/audit_log/' in request.path %}active{% endif %}">
+                        <a href="/system/https/" class="nav-link {% if request.path|startswith:'/system/' %}active{% endif %}">
+                            <i class="fas fa-shield-alt nav-icon"></i>
+                            <p>
+                                System settings
+                            </p>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a href="/audit_log/login_history/" class="nav-link {% if request.path|startswith:'/audit_log/' %}active{% endif %}">
                             <i class="fas fa-clipboard-list nav-icon"></i>
                             <p>
                                 Audit Log
@@ -189,7 +283,7 @@
 
                     <!-- Personal, not administration: at the bottom with About -->
                     <li class="nav-item mt-auto">
-                        <a href="/user/settings/" class="nav-link {% if '/user/settings/' in request.path %}active{% endif %}">
+                        <a href="/user/settings/" class="nav-link {% if request.path|startswith:'/user/settings/' %}active{% endif %}">
                             <i class="fas fa-user-cog nav-icon"></i>
                             <p>
                                 My Settings
@@ -197,7 +291,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="/about/" class="nav-link {% if '/about/' in request.path %}active{% endif %}">
+                        <a href="/about/" class="nav-link {% if request.path|startswith:'/about/' %}active{% endif %}">
                             <i class="fas fa-info-circle nav-icon"></i>
                             <p>
                                 About
@@ -313,8 +407,13 @@
 </script>
 <script>
     var dataTable;
-    $(function () {
-        dataTable = $('.datatables-no-export').DataTable({
+    // Also called for a part of the page that live updates replaced
+    window.rfInitTables = function (root) {
+        var tables = $(root).find('.datatables-no-export').addBack('.datatables-no-export').filter(function () {
+            return !$.fn.dataTable.isDataTable(this);
+        });
+        if (!tables.length) { return; }
+        dataTable = tables.DataTable({
             "paging": true,
             "lengthChange": true,
             "searching": true,
@@ -327,8 +426,11 @@
                 { "orderable": false, "targets": [ 0, -1 ] }
             ]
         });
-    });
-    $('.datatables-no-export').show();
+        tables.show();
+        // Measured while hidden, the columns do not fold on a phone: measure again
+        $.fn.dataTable.tables({visible: true, api: true}).columns.adjust().responsive.recalc();
+    };
+    $(function () { window.rfInitTables(document); });
 </script>
 <script>
     $(document).ready(function() {
@@ -430,6 +532,7 @@
 
 
 {% include "template_messages.html" %}
+<script src="/static/routerfleet/live.js"></script>
 
 <style>
     /* The popup of a configuration change shows the lines of the diff, not the

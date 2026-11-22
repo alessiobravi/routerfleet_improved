@@ -454,13 +454,8 @@
                         if (currentStatus !== newStatus) {
                             $cell.html(newStatusHtml);
 
-                            $(document).Toasts('create', {
-                                class: router.online ? 'bg-success' : 'bg-danger',
-                                title: 'Host status updated',
-                                body: 'Host ' + router.name + ' is now ' + newStatus,
-                                delay: 10000,
-                                autohide: true
-                            });
+                            rfNotify(router.online ? 'success' : 'danger', 'Host status updated',
+                                     'Host ' + router.name + ' is now ' + newStatus);
                         }
                     });
                 }
@@ -905,23 +900,12 @@ $(document).ready(function() {
                    csrfmiddlewaretoken: '{{ csrf_token }}'
               },
               success: function(response) {
-                   $(document).Toasts('create', {
-                        class: 'bg-success',
-                        title: 'Information Update Started',
-                        body: 'Updating information for ' + response.requested + ' router(s). The list will show the new values shortly.',
-                        delay: 10000,
-                        autohide: true
-                   });
+                   rfNotify('success', 'Information update started',
+                            'Updating information for ' + response.requested + ' router(s). The list will show the new values shortly.');
                    updateCheckboxes(false);
               },
               error: function(xhr) {
-                   $(document).Toasts('create', {
-                        class: 'bg-danger',
-                        title: 'Error',
-                        body: 'Error: ' + xhr.responseJSON.error,
-                        delay: 10000,
-                        autohide: true
-                   });
+                   rfNotify('danger', 'Error', (xhr.responseJSON && xhr.responseJSON.error) || 'The request failed.');
                    updateCheckboxes(false);
               }
          });
@@ -953,35 +937,17 @@ $(document).ready(function() {
                    });
 
                    if (successRouters.length > 0) {
-                         $(document).Toasts('create', {
-                              class: 'bg-success',
-                              title: 'Backup Started',
-                              body: 'Backup started for:<br>' + successRouters.join('<br>'),
-                              delay: 10000,
-                              autohide: true
-                         });
+                         rfNotify('success', 'Backup started', successRouters.join('\n'));
                    }
 
                    if (errorMessages.length > 0) {
-                         $(document).Toasts('create', {
-                              class: 'bg-danger',
-                              title: 'Backup Errors',
-                              body: 'Problems:<br>' + errorMessages.join('<br>'),
-                              delay: 10000,
-                              autohide: true
-                         });
+                         rfNotify('danger', 'Backup problems', errorMessages.join('\n'));
                    }
 
                    updateCheckboxes(false);
               },
               error: function(xhr) {
-                   $(document).Toasts('create', {
-                        class: 'bg-danger',
-                        title: 'Error',
-                        body: 'Error: ' + xhr.responseJSON.error,
-                        delay: 10000,
-                        autohide: true
-                   });
+                   rfNotify('danger', 'Error', (xhr.responseJSON && xhr.responseJSON.error) || 'The request failed.');
                    updateCheckboxes(false);
               }
          });

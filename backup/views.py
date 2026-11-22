@@ -100,6 +100,8 @@ def view_backup_list(request):
     context = {
         'backup_list': backup_list,
         'page_title': 'Backup List',
+        # Live while a backup in this list is still being taken
+        'live_active': backup_list.filter(success=False, error=False).exists(),
         'view_type': view_type,
         'recent': recent,
         'day': day,
@@ -133,8 +135,10 @@ def view_backup_details(request):
             hash_list.append(backup_item.backup_text_hash)
             backup_list.append(backup_item)
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+    from routerfleet.object_pages import backup_page
     context = {
         'backup': backup,
+        'page': backup_page(backup),
         'backup_list': backup_list,
         'page_title': 'Backup Details',
         'webadmin_settings': webadmin_settings,

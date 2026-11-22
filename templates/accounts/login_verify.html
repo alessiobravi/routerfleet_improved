@@ -1,35 +1,19 @@
 {% extends "base_login.html" %}
 
 {% block content %}
-
-<div class="register-box">
-    <div class="register-logo">
-      <a href="/"><b>RouterFleet</b> Improved</a>
+<p class="rf-auth-message">Enter the code from your authenticator app</p>
+<form action="/accounts/login/verify/" method="post" autocomplete="off">
+    {% csrf_token %}
+    <label for="verify-code" class="sr-only">Code</label>
+    <div class="input-group">
+        <input type="text" class="form-control text-center" id="verify-code" name="code" inputmode="numeric" pattern="[0-9 ]*"
+               maxlength="7" autocomplete="one-time-code" placeholder="123456" autofocus required
+               style="letter-spacing: .3em; font-size: 1.2rem;">
+        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-shield-alt"></span></div></div>
     </div>
-
-    <div class="card">
-      <div class="card-body register-card-body">
-        <p class="login-box-msg">Enter the code from your authenticator app</p>
-        <form action="/accounts/login/verify/" method="post" autocomplete="off">
-            {% csrf_token %}
-            <div class="input-group mb-3">
-              <input type="text" class="form-control" name="code" inputmode="numeric" pattern="[0-9 ]*"
-                     maxlength="7" autocomplete="one-time-code" placeholder="123456" autofocus required>
-              <div class="input-group-append">
-                <div class="input-group-text">
-                  <span class="fas fa-shield-alt"></span>
-                </div>
-              </div>
-            </div>
-            {% if error %}<p class="text-danger small">{{ error }}</p>{% endif %}
-            <div class="text-center">
-              <button type="submit" class="btn btn-primary px-5">Verify</button>
-              <div><a href="/accounts/login/" class="btn btn-link">Back</a></div>
-            </div>
-        </form>
-        <p class="small text-muted mb-0 mt-2">Lost your phone? An administrator can reset your second factors.</p>
-      </div>
-    </div>
-</div>
-
+    {% if error %}<p class="text-danger small" role="alert">{{ error }}</p>{% endif %}
+    <button type="submit" class="btn btn-primary btn-block mt-2">Verify</button>
+    <div class="text-center"><a href="/accounts/login/" class="btn btn-link">Back</a></div>
+</form>
+<p class="small text-muted text-center mb-0 mt-2">Lost your phone? An administrator can reset your second factors.</p>
 {% endblock %}

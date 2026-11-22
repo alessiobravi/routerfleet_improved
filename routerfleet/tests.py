@@ -84,6 +84,7 @@ class Fixture(TestCase):
             (f'/user/manage/?uuid={self.admin_acl.uuid}', 50, 'page'),
             ('/audit_log/login_history/', 50, 'page'),
             ('/tools/', 50, 'page'),
+            ('/system/https/', 50, 'page'),
             ('/fleet_commander/system/variant/?uuid=00000000-0000-0000-0000-000000000000', 50, 'page'),
             ('/tools/backup_cleanup/', 50, 'page'),
             ('/tools/backup_export/', 50, 'page'),

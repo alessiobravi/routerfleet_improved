@@ -26,6 +26,7 @@ from router_manager.views import view_test_router_connection, view_create_instan
     view_manage_router_groups_multiple, view_edit_routers_multiple, view_update_routers_information_multiple
 from routerfleet_tools.views import view_cron_check_updates
 from routerfleet_tools.tool_views import view_tools, view_backup_cleanup, view_backup_export
+from routerfleet_tools.https_views import view_https
 from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
 
 urlpatterns = [
@@ -38,6 +39,7 @@ urlpatterns = [
     path('tools/', view_tools, name='tools'),
     path('tools/backup_cleanup/', view_backup_cleanup, name='backup_cleanup'),
     path('tools/backup_export/', view_backup_export, name='backup_export'),
+    path('system/https/', view_https, name='system_https'),
     path('router_status_data/', router_status_data, name='router_status_data'),
     path('backup_statistics_data/', backup_statistics_data, name='backup_statistics_data'),
     path('user/list/', view_user_list, name='user_list'),

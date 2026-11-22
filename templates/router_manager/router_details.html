@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div id="rf-live-router" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-interval="5">
+{% include 'includes/object_hero.html' %}
+<div class="rf-object mb-3">{% include 'includes/object_timeline.html' with compact=True %}</div>
     <div class='row'>
         <div class='col-xl-5'>
             <div class="row">
@@ -151,9 +154,10 @@
                             </div>
                             <script>
                             (function () {
-                                var link = document.getElementById('test-connection-stored');
-                                if (!link) { return; }
-                                link.addEventListener('click', function (event) {
+                                if (window.rfTestStoredBound) { return; }
+                                window.rfTestStoredBound = true;
+                                document.addEventListener('click', function (event) {
+                                    if (!event.target.closest('#test-connection-stored')) { return; }
                                     event.preventDefault();
                                     var result = document.getElementById('test-connection-stored-result');
                                     var data = new FormData();
@@ -448,4 +452,5 @@
 
         </div>
     </div>
+</div>
 {% endblock %}

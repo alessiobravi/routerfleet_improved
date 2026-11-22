@@ -211,6 +211,44 @@ jobs:
             echo "::error::nginx announces its version"; exit 1
           fi
 
+      - name: HTTPS modes from System settings reach nginx
+        run: |
+          set -e
+          C="docker compose -f docker-compose-dev.yml"
+          $C exec -T routerfleet-nginx certbot --version
+          wait_for() {
+            for i in $(seq 1 30); do
+              [ "$(curl -sk -o /dev/null -w '%{http_code}' "$1")" = "$2" ] && return 0
+              sleep 1
+            done
+            echo "expected HTTP $2 from $1"; $C logs --tail 30 routerfleet-nginx; return 1
+          }
+          csrf_cookie() { curl -sk -D - -o /dev/null "$@" | grep -i '^set-cookie: csrftoken' || true; }
+          # The certificate already deployed is never replaced by switching modes
+          deployed() { $C exec -T routerfleet-nginx sha256sum /certificate/nginx.pem /certificate/nginx.key; }
+          BEFORE=$(deployed)
+          # Plain HTTP: served without a redirect; the application's cache of
+          # the mode lasts 10 seconds
+          $C exec -T routerfleet python manage.py https mode plain
+          wait_for http://localhost/accounts/login/ 200
+          $C exec -T routerfleet python manage.py https status | grep -q '"applied": true'
+          sleep 11
+          # A client can not claim HTTPS: nginx overwrites X-Forwarded-Proto
+          COOKIE=$(csrf_cookie -H 'X-Forwarded-Proto: https' http://localhost/accounts/login/)
+          test -n "$COOKIE"
+          if echo "$COOKIE" | grep -qi secure; then echo "Secure cookie on plain HTTP: $COOKIE"; exit 1; fi
+          # Self-signed: redirected again, the cookie Secure over HTTPS
+          $C exec -T routerfleet python manage.py https mode selfsigned
+          wait_for http://localhost/accounts/login/ 301
+          sleep 11
+          csrf_cookie https://localhost/accounts/login/ | grep -qi secure
+          # Back to .env, as an installation is after upgrading
+          $C exec -T routerfleet python manage.py https reset
+          wait_for http://localhost/accounts/login/ 301
+          wait_for https://localhost/accounts/login/ 200
+          test "$(deployed)" = "$BEFORE" || { echo "the deployed certificate changed"; exit 1; }
+          echo "HTTPS modes applied; the deployed certificate is unchanged"
+
       - name: The scheduler reaches the application
         run: |
           for _ in $(seq 1 18); do

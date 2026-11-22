@@ -558,9 +558,11 @@ def view_schedule_defaults(request):
 def view_job_list(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    job_list = CommandJob.objects.all().select_related('command').order_by('-created')
     context = {
-        'job_list': CommandJob.objects.all().select_related('command').order_by('-created'),
+        'job_list': job_list,
         'page_title': 'Job History',
+        'live_active': job_list.filter(completed__isnull=True).exists(),
     }
     return render(request, 'fleet_commander/job_list.html', context)
 
@@ -569,10 +571,15 @@ def view_job_list(request):
 def view_job_details(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    from routerfleet.object_pages import job_page, task_state
     job = get_object_or_404(CommandJob, uuid=request.GET.get('uuid'))
+    task_list = list(job.tasks.select_related('router__routerstatus').order_by('-created'))
+    for task in task_list:
+        task.state = task_state(task)
     context = {
         'job': job,
-        'task_list': job.tasks.all().order_by('-created'),
+        'task_list': task_list,
+        'page': job_page(job, task_list),
         'page_title': f'Job: {job.command.name}',
     }
     return render(request, 'fleet_commander/job_details.html', context)
@@ -588,8 +595,10 @@ def view_task_details(request):
         verification_expectations = build_verification_expectations(
             task.command_variant, task.verify_context or {}
         )
+    from routerfleet.object_pages import task_page
     context = {
         'task': task,
+        'page': task_page(task),
         'verification_expectations': verification_expectations,
         'page_title': f'Task: {task.router_name or task.router_uuid}',
     }

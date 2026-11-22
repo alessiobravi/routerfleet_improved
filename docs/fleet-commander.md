@@ -306,6 +306,16 @@ python manage.py schedule_defaults --reset                   # back to 03:00 / 7
 
 In the container: `docker compose exec routerfleet python manage.py schedule_defaults --start-time 03:00 --repeat 7d`.
 
+## Reading a job
+
+A job's page shows a progress ring (tasks finished out of the total), its state
+- *Running*, *Completed*, *Completed with failures*, *Aborted* - and four tiles:
+succeeded, running, waiting and failed tasks. Each device is listed with its
+state; a timeline records when the job was created, when each device started
+and finished (a failure with its first line), and when the job completed. While
+the job runs, the page updates itself
+([Pages that update themselves](operations.md#pages-that-update-themselves)).
+
 ## Reading a task
 
 The task details page shows the payload as stored, the lines actually executed,

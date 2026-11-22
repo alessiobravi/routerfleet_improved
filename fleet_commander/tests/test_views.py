@@ -8,7 +8,8 @@ from django.utils import timezone
 from fleet_commander.forms import CommandScheduleForm, CommandVariantForm
 from fleet_commander.models import (Command, CommandJob, CommandSchedule, CommandTask, CommandVariant,
                                     ScheduleDefaults)
-from router_manager.models import RouterStatus
+from router_manager.models import Router, RouterStatus
+from fleet_commander.command_functions import create_manual_job
 from routerfleet.testing import make_group, make_router, make_user
 
 
@@ -345,3 +346,40 @@ class ExecuteOnRouterTests(TestCase):
     def test_the_icon_sits_in_the_router_list_and_details(self):
         self.assertContains(self.client.get('/router/list/'), f'/fleet_commander/router/execute/?uuid={self.router.uuid}')
         self.assertContains(self.client.get(f'/router/details/?uuid={self.router.uuid}'), 'Execute command')
+
+
+class LivePageTests(TestCase):
+    """Pages with something in progress update themselves: the part is marked
+    active while it runs and done once it settled, which stops the polling."""
+
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def marker(self, path, part):
+        import re
+        page = self.client.get(path).content.decode()
+        return re.search(rf'id="{part}" data-rf-live="(\w+)"', page).group(1)
+
+    def test_a_running_job_is_live_with_progress_and_stops_when_done(self):
+        from django.utils import timezone
+        command = Command.objects.create(name='C')
+        CommandVariant.objects.create(command=command, router_type='routeros', payload='/x')
+        job = create_manual_job(command, routers=Router.objects.filter(pk=make_router().pk))
+        job.update_counters()
+        url = f'/fleet_commander/job/details/?uuid={job.uuid}'
+        self.assertEqual(self.marker(url, 'rf-live-job'), 'active')
+        self.assertContains(self.client.get(url), '0 of 1 tasks finished')
+        self.assertEqual(self.marker('/fleet_commander/job/list/', 'rf-live-jobs'), 'active')
+        task = job.tasks.get()
+        self.assertEqual(self.marker(f'/fleet_commander/task/details/?uuid={task.uuid}', 'rf-live-task'), 'active')
+        CommandTask.objects.filter(pk=task.pk).update(status='success', finished_at=timezone.now())
+        job.update_counters()
+        job.refresh_from_db()
+        self.assertIsNotNone(job.completed)
+        self.assertEqual(self.marker(url, 'rf-live-job'), 'done')
+        self.assertContains(self.client.get(url), '1 of 1 tasks finished')
+        self.assertEqual(self.marker('/fleet_commander/job/list/', 'rf-live-jobs'), 'done')
+
+    def test_every_page_loads_the_live_script(self):
+        self.assertContains(self.client.get('/status/'), '/static/routerfleet/live.js')
+        self.assertContains(self.client.get('/status/'), 'id="rf-live-cards" data-rf-live="active"')

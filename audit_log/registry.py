@@ -316,6 +316,12 @@ def build():
           fields=['start_time', 'repeat_interval'],
           create=False)
 
+    # HTTPS in System settings. The private key is never in the database
+    watch(apps.get_model('routerfleet_tools', 'HttpsSettings'),
+          fields=['mode', 'domain', 'email', 'trusted_proxies', 'custom_subject', 'custom_issuer',
+                  'custom_not_after'],
+          create=True)
+
     watch(apps.get_model('message_center', 'MessageChannel'),
           fields=['name', 'enabled', 'channel_type', 'destination', 'token',
                   'status_change_offline', 'status_change_online', 'backup_fail',

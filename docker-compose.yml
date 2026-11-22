@@ -42,6 +42,8 @@ services:
       - media_root:/var/lib/routerfleet/
       - static_volume:/app_static_files/
       - app_secrets:/app_secrets/
+      # Shared with nginx: HTTPS in System settings writes the mode and certificates here
+      - https_cert:/certificate
     command: /bin/bash /app/init.sh
     healthcheck:
       # gunicorn answering a real page - migrations done, workers up

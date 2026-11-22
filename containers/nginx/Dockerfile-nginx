@@ -1,14 +1,16 @@
 FROM nginx:alpine
 # Every available update at build time, so a release ships with no known
-# vulnerability whose fix exists; openssl generates the first certificate
+# vulnerability whose fix exists; openssl generates the first certificate,
+# jq reads the HTTPS settings, certbot obtains Let's Encrypt certificates
 RUN apk upgrade --no-cache \
-    && apk add --no-cache openssl
+    && apk add --no-cache openssl jq certbot
 COPY nginx_entrypoint.sh /nginx_entrypoint.sh
+COPY rf_https.sh /rf_https.sh
 COPY virtualhost.conf /etc/nginx/virtualhost.conf.disabled
 COPY virtualhost_noredirect.conf /etc/nginx/virtualhost_noredirect.conf.disabled
-RUN chmod +x /nginx_entrypoint.sh
+RUN chmod +x /nginx_entrypoint.sh /rf_https.sh
 # See the note in the Dockerfile of the application: a Windows checkout brings
 # CRLF along, and a shell script with it does not run on Linux
-RUN sed -i 's/\r$//' /nginx_entrypoint.sh
+RUN sed -i 's/\r$//' /nginx_entrypoint.sh /rf_https.sh
 ENTRYPOINT ["/nginx_entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

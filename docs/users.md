@@ -40,6 +40,7 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | Users | List, create, edit | 50 |
 | Import tool | All of it | 50 |
 | Tools | Backup clean-up, export of the latest backups | 50 |
+| System settings | HTTPS | 50 |
 
 ## The first account
 

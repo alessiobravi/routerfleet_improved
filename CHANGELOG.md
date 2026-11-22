@@ -13,6 +13,72 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.16.0] - 2026-11-22
+
+### Added
+- **System settings → HTTPS**, for administrators: a Let's Encrypt
+  certificate obtained and renewed automatically (HTTP-01), a certificate you
+  provide (checked before use: format, matching key, expiry, domain, trusted by
+  browsers or not), a generated self-signed certificate, or HTTPS off - behind
+  a reverse proxy that serves HTTPS, or plain HTTP. The page shows what nginx
+  applied, the certificate's expiry and whether passkeys can work (HTTPS, a
+  domain name, a trusted certificate), and warns before a change that would
+  stop them for users who have one. Switching HTTPS off takes a red button and
+  a sum to solve in a popup. nginx renders its configuration from fixed
+  templates, tests it and reloads; a configuration it refuses is never used.
+  The private key of an uploaded certificate never reaches the database.
+  `manage.py https reset` and `HTTPS_MODE_OVERRIDE` in `.env` are the way back
+  if a change locks you out. **On upgrade nothing changes**: HTTPS follows
+  `HTTPS_REDIRECT_POLICY`, and the certificate already deployed stays.
+
+### Changed
+- **Object pages in the "Hero & timeline" layout**: a Fleet Commander job, a
+  task, a device and a backup open with a hero - a progress ring (job
+  progress, device availability over 7 days, backup phase) or a state icon,
+  the name, a state chip, key facts and the actions - four tiles (a job:
+  succeeded, running, waiting, failed; a device: last backup, failed backups,
+  OS version, downtime; a backup: size, binary, change, retries), and a
+  timeline of what happened. The details follow below. They update live.
+- **"Devices online" is "Devices status"**: stacked by day - online (green),
+  offline but enabled (red), disabled (purple, from the day the change log says
+  the device was switched off). A part opens those devices.
+- **On/off settings are iPhone-style switches** throughout the interface.
+- **The logo on the project's GitHub page is 30% larger** (125 pixels, was 96).
+- **A new sign-in page**: a central box on a dark navy background, in the
+  colours of the logo, with the logo, the name and a short tagline at the top
+  inside the box, and "RouterFleet Improved by Alessio Bravi" beneath it. The
+  second-factor, first-administrator and signed-out pages share it. Fields
+  carry labels for screen readers and the browser's autocomplete hints, the
+  username field is focused on arrival, and the box fits a phone screen.
+- **Notifications are a balloon at the top centre of the page**, gone after 5
+  seconds - a bar shows the time left, and pauses while the pointer rests on
+  it - or on a click. Several stack. They show text only: a device name in a
+  notification can no longer insert markup, which the side toasts allowed.
+
+- **Pages update themselves while something on them is running**: a
+  Fleet Commander job (with a progress bar: tasks finished out of the total,
+  and how many failed) and its tasks, the job list, a backup and the backup
+  list, and a device's page while a backup, a command or an information read is
+  under way. A "Live" pill shows while it updates; it stops by itself once
+  everything has finished, pauses while the tab is hidden, never replaces a
+  field being typed in, and stops on an expired session. The status page's
+  cards refresh every 30 seconds.
+
+### Monitoring
+- No change to how backup rows are written. The compose files now also mount
+  the certificate volume in the application container.
+
+### Fixed
+- **Two menu entries lit up at once** on a page whose address contains another
+  section's name (a device's command page showed Router Manager and Fleet
+  Commander). The menu now goes by the start of the address.
+- **Saving a router said "it may take a few minutes until monitoring starts"
+  whatever was changed**, also when monitoring had just been switched off. The
+  message now says what the save means: monitoring off, router disabled,
+  monitoring starting, or simply saved.
+- **Error messages showed without their red colour** (Django's `error` tag had
+  no matching style).
+
 ## [0.15.3] - 2026-11-22
 
 ### Fixed

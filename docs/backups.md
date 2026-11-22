@@ -250,6 +250,15 @@ ten minutes stays quiet.
 
 Messages older than 30 days are deleted in the same pass.
 
+## The backup page
+
+A backup's page shows its state - *Queued*, *Creating*, *Downloading*,
+*Stored*, *Unchanged* or *Failed* - with a ring for its phase, four tiles
+(configuration size and lines, binary size, whether the configuration changed,
+retries), and a timeline built from its console log: when it was queued, each
+step sent to the device, and the result. It updates itself until the backup is
+done.
+
 ## Comparing backups
 
 Any two backups of a device can be compared from the backup list. The diff is

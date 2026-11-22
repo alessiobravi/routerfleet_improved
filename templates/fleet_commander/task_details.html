@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div id="rf-live-task" data-rf-live="{% if task.status == 'pending' %}active{% else %}done{% endif %}" data-rf-live-interval="3">
+{% include 'includes/object_hero.html' %}
+<div class="rf-object mb-3">{% include 'includes/object_timeline.html' with compact=True %}</div>
     <div class='row'>
         <div class='col-lg-8'>
             <div class="card card-primary card-outline">
@@ -186,6 +189,7 @@
             {% endif %}
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block custom_page_scripts %}

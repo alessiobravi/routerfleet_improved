@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        {% if not shared %}
+        <div class="alert alert-warning">
+            <strong><i class="fas fa-exclamation-triangle"></i> The certificate volume is not shared with the application.</strong>
+            Your compose file is from before this setting. Add <code>- https_cert:/certificate</code> to the
+            <code>volumes:</code> of the <code>routerfleet</code> service (as in the current <code>docker-compose.yml</code>)
+            and run <code>docker compose up -d</code>. Until then HTTPS follows <code>HTTPS_REDIRECT_POLICY</code> in <code>.env</code>.
+        </div>
+        {% endif %}
+        {% for error in errors %}<div class="alert alert-danger py-2 mb-2">{{ error }}</div>{% endfor %}
+    </div>
+
+    <div class="col-xl-5">
+        <div class="card card-primary card-outline" id="rf-live-https" data-rf-live="{% if applying %}active{% else %}done{% endif %}" data-rf-live-interval="3">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-lock"></i> HTTPS now</h3></div>
+            <div class="card-body">
+                <ul class="list-group list-group-unbordered mb-3">
+                    <li class="list-group-item"><b>Mode</b><span class="float-right text-right">{{ current.get_mode_display }}</span></li>
+                    {% if current.domain %}<li class="list-group-item"><b>Domain</b><span class="float-right">{{ current.domain }}</span></li>{% endif %}
+                    {% if current.mode == 'env' %}
+                        <li class="list-group-item"><b>Certificate</b><span class="float-right text-right">
+                            {% if served %}{% if served.self_signed %}self-signed{% else %}{{ served.subject }}{% endif %}, until {{ served.not_after|date:"Y-m-d" }}{% else %}not readable from here{% endif %}</span></li>
+                    {% elif applying %}
+                        <li class="list-group-item"><b>nginx</b><span class="float-right"><i class="fas fa-circle-notch fa-spin text-info"></i> applying...</span></li>
+                    {% elif status %}
+                        <li class="list-group-item"><b>nginx</b><span class="float-right text-right">
+                            {% if status.applied %}<i class="fas fa-check-circle text-success"></i> applied {{ status.checked }}{% else %}<i class="fas fa-times-circle text-danger"></i> kept the previous configuration{% endif %}</span>
+                            {% if status.error %}<div class="text-danger small mt-1" style="clear: both;">{{ status.error }}</div>{% endif %}</li>
+                        {% if status.certificate_not_after %}<li class="list-group-item"><b>Certificate valid until</b><span class="float-right">{{ status.certificate_not_after }}</span></li>{% endif %}
+                        {% if status.letsencrypt_error %}<li class="list-group-item"><b>Let's Encrypt</b><div class="text-danger small mt-1">{{ status.letsencrypt_error }}</div></li>{% endif %}
+                    {% endif %}
+                    {% if current.mode == 'custom' and current.custom_subject %}
+                        <li class="list-group-item"><b>Issued by</b><span class="float-right text-right small">{{ current.custom_issuer }}</span></li>
+                        <li class="list-group-item"><b>Trusted by browsers</b><span class="float-right">{% if current.custom_trusted %}yes{% else %}no{% endif %}</span></li>
+                    {% endif %}
+                </ul>
+                <h6 class="mt-3">Passkeys {% if passkeys_ok %}<span class="badge badge-success">will work</span>{% else %}<span class="badge badge-warning">will not work</span>{% endif %}</h6>
+                <ul class="list-unstyled mb-1">
+                    {% for label, ok in requirements %}
+                    <li>{% if ok is True %}<i class="fas fa-check-circle text-success"></i>{% elif ok is False %}<i class="fas fa-times-circle text-danger"></i>{% else %}<i class="fas fa-question-circle text-muted" title="Decided by the reverse proxy"></i>{% endif %} {{ label }}</li>
+                    {% endfor %}
+                </ul>
+                <small class="text-muted">{{ passkey_users }} user{{ passkey_users|pluralize }} sign{{ passkey_users|pluralize:"s," }} in with a passkey.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-7">
+        <div class="card card-outline card-secondary">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-sliders-h"></i> Change</h3></div>
+            <div class="card-body">
+                <form method="post" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="review">
+                    {% for value, label in modes %}
+                    <div class="custom-control custom-radio mb-1">
+                        <input type="radio" class="custom-control-input" id="mode-{{ value }}" name="mode" value="{{ value }}"
+                               {% if posted %}{% if posted.mode == value %}checked{% endif %}{% elif current.mode == value %}checked{% endif %}>
+                        <label class="custom-control-label" for="mode-{{ value }}">{{ label }}
+                            {% if value == 'plain' or value == 'proxy' %}<span class="badge badge-danger ml-1">HTTPS off</span>{% endif %}</label>
+                    </div>
+                    {% endfor %}
+
+                    <div class="rf-mode-fields mt-3" data-for="letsencrypt custom selfsigned">
+                        <div class="form-group">
+                            <label for="domain">Domain name</label>
+                            <input type="text" class="form-control" id="domain" name="domain" placeholder="routerfleet.example.com"
+                                   value="{% if posted %}{{ posted.domain }}{% else %}{{ current.domain }}{% endif %}" spellcheck="false">
+                            <small class="text-muted rf-only" data-for="selfsigned">Optional: the name the certificate is made for.</small>
+                        </div>
+                    </div>
+                    <div class="rf-mode-fields" data-for="letsencrypt">
+                        <div class="form-group">
+                            <label for="email">Contact email for Let's Encrypt</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{% if posted %}{{ posted.email }}{% else %}{{ current.email }}{% endif %}">
+                            <small class="text-muted">Expiry and account notices only. Port 80 of this server must be reachable from the internet under the domain name.</small>
+                        </div>
+                        <div class="custom-control custom-checkbox rf-checkbox mb-3">
+                            <input type="checkbox" class="custom-control-input" id="accept_terms" name="accept_terms">
+                            <label class="custom-control-label" for="accept_terms">I accept the Let's Encrypt Subscriber Agreement <span class="text-muted">(letsencrypt.org/repository)</span></label>
+                        </div>
+                    </div>
+                    <div class="rf-mode-fields" data-for="custom">
+                        <div class="form-group">
+                            <label for="certificate">Certificate, followed by its chain (PEM)</label>
+                            <textarea class="form-control" id="certificate" name="certificate" rows="5" spellcheck="false" style="font-family: monospace; font-size: 12px;" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="private_key">Private key (PEM, without passphrase)</label>
+                            <textarea class="form-control" id="private_key" name="private_key" rows="4" spellcheck="false" style="font-family: monospace; font-size: 12px;" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                            <small class="text-muted">Checked before use. Stored only on the certificate volume, readable by nginx; never shown again{% if current.mode == 'custom' %} - leave both empty to keep the current certificate{% endif %}.</small>
+                        </div>
+                    </div>
+                    <div class="rf-mode-fields" data-for="proxy">
+                        <div class="form-group">
+                            <label for="trusted_proxies">Addresses of the reverse proxy</label>
+                            <textarea class="form-control" id="trusted_proxies" name="trusted_proxies" rows="3" spellcheck="false" placeholder="192.0.2.5&#10;10.0.0.0/24">{% if posted %}{{ posted.trusted_proxies }}{% else %}{{ current.trusted_proxies }}{% endif %}</textarea>
+                            <small class="text-muted">One address or network per line. Only these may tell RouterFleet that the browser used HTTPS, and who the browser is.</small>
+                        </div>
+                    </div>
+                    <div class="rf-mode-fields" data-for="plain">
+                        <div class="alert alert-danger py-2">Passwords and session cookies will cross the network unencrypted.</div>
+                    </div>
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-search"></i> Review the change</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    (function () {
+        function show() {
+            var chosen = (document.querySelector('input[name=mode]:checked') || {}).value;
+            document.querySelectorAll('.rf-mode-fields, .rf-only').forEach(function (block) {
+                block.style.display = block.dataset.for.split(' ').indexOf(chosen) > -1 ? '' : 'none';
+            });
+        }
+        document.querySelectorAll('input[name=mode]').forEach(function (radio) { radio.addEventListener('change', show); });
+        show();
+    })();
+</script>
+{% endblock %}

@@ -506,3 +506,27 @@ class TestConnectionTests(TestCase):
         self.assertEqual(self.client.get('/router/test_connection/').status_code, 405)
         self.client.force_login(make_user(20))
         self.assertEqual(self.client.post('/router/test_connection/', {'uuid': str(self.router.uuid), 'stored': '1'}).status_code, 403)
+
+
+class SavedRouterMessageTests(TestCase):
+    """The message after saving says what the save means - "monitoring starts"
+    only when it will (reported: shown after switching monitoring off)."""
+
+    def message(self, created=False, changed=(), enabled=True, monitoring=True):
+        from router_manager.views import saved_router_message
+        return saved_router_message(Router(enabled=enabled, monitoring=monitoring), created, set(changed))
+
+    def test_monitoring_switched_off(self):
+        self.assertEqual(self.message(changed={'monitoring'}, monitoring=False), 'Router saved|Monitoring is off for this router.')
+
+    def test_disabled(self):
+        self.assertIn('Router disabled', self.message(changed={'enabled', 'monitoring'}, enabled=False, monitoring=False))
+
+    def test_monitoring_switched_on_or_added(self):
+        self.assertIn('Monitoring starts', self.message(changed={'monitoring'}))
+        self.assertIn('Monitoring starts', self.message(created=True))
+        self.assertIn('Router enabled|Monitoring starts', self.message(changed={'enabled'}))
+
+    def test_other_changes_say_only_saved(self):
+        self.assertEqual(self.message(changed={'username'}), 'Router saved')
+        self.assertEqual(self.message(created=True, monitoring=False), 'Router added|Monitoring is off for this router.')

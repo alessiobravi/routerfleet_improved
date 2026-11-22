@@ -2,6 +2,9 @@
 {% load crispy_forms_tags %}
 
 {% block content %}
+<div id="rf-live-backup" data-rf-live="{% if not backup.success and not backup.error %}active{% else %}done{% endif %}" data-rf-live-interval="5">
+{% include 'includes/object_hero.html' %}
+<div class="rf-object mb-3">{% include 'includes/object_timeline.html' with compact=True %}</div>
     <div class='row'>
         <div class='col-xl-4'>
             <div class="card card-primary card-outline">
@@ -299,6 +302,7 @@
 
 
     </div>
+</div>
 {% endblock %}
 
 {% block custom_page_scripts %}

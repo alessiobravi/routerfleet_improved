@@ -66,6 +66,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # Outermost: decides whether the cookies the others set are Secure
+    'routerfleet.middleware.HttpsCookieMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -80,6 +82,13 @@ MIDDLEWARE = [
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
 CRISPY_TEMPLATE_PACK = "bootstrap4"
+
+# nginx sets X-Forwarded-Proto on every request, overwriting what a client
+# sent (behind a reverse proxy: only from the proxies listed in System
+# settings), so the application knows whether the browser used HTTPS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+# The volume nginx and the application share for certificates (System settings)
+HTTPS_CERT_DIR = '/certificate'
 
 ROOT_URLCONF = 'routerfleet.urls'
 
@@ -164,7 +173,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.15.3'
+ROUTERFLEET_RELEASE = '0.16.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

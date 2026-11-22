@@ -17,6 +17,7 @@ from routerfleet_tools.models import WebadminSettings
 from routerlib.decorators import cron_endpoint
 from routerlib.router_functions import update_router_information
 from user_manager.models import UserAcl
+from routerfleet.object_pages import router_page
 from .forms import RouterForm, RouterBulkEditForm, RouterGroupForm, SSHKeyForm
 from .models import Router, RouterGroup, RouterInformation, RouterStatus, SSHKey, BackupSchedule
 from routerlib.actions import posted_action, posted_confirmation
@@ -209,12 +210,36 @@ def view_router_details(request):
         'offline_time_last_week': downtime_last_week,
         'last_week_availability': last_week_availability,
         'command_task_list': router.commandtask_set.all().order_by('-created')[:25],
+        # Live while a backup, a command or an information read is under way
+        'live_active': bool(router_status.backup_lock or router_status.command_lock
+                            or router.commandtask_set.filter(status='pending').exists()
+                            or (router_information and not router_information.success and not router_information.error)),
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
         'can_edit_routers': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
+        'page': router_page(router, router_status, router_information, last_week_availability,
+                            UserAcl.objects.filter(user=request.user, user_level__gte=40).exists()),
     }
 
 
     return render(request, 'router_manager/router_details.html', context=context)
+
+
+def saved_router_message(router, created, changed):
+    """What the save means for the device, in the words of what was changed:
+    monitoring starting is only announced when it will start."""
+    title = 'Router added' if created else 'Router saved'
+    watched = router.enabled and router.monitoring
+    if not created and 'enabled' in changed:
+        if not router.enabled:
+            return 'Router disabled|No backups, information updates or monitoring until it is enabled again.'
+        title = 'Router enabled'
+    if not created and 'monitoring' in changed and not router.monitoring:
+        return f'{title}|Monitoring is off for this router.'
+    if watched and (created or 'monitoring' in changed or 'enabled' in changed or 'address' in changed):
+        return f'{title}|Monitoring starts within a few minutes.'
+    if created and not watched:
+        return f'{title}|Monitoring is off for this router.'
+    return title
 
 
 @login_required()
@@ -262,8 +287,10 @@ def view_manage_router(request):
 
     form = RouterForm(request.POST or None, instance=router)
     if form.is_valid():
+        created = router is None
+        changed = set(form.changed_data)
         form.save()
-        messages.success(request, 'Router saved successfully|It may take a few minutes until monitoring starts for this router.')
+        messages.success(request, saved_router_message(form.instance, created, changed))
         router_status, router_status_created = RouterStatus.objects.get_or_create(router=form.instance)
         BackupSchedule.objects.filter(router=form.instance).delete()
         if form.instance.router_type == 'monitoring':

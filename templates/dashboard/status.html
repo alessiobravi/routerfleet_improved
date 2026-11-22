@@ -68,19 +68,19 @@
         </div>
         <div class="col-lg-6 mb-3">
             <div class="rf-panel">
-                <h3><span><i class="fas fa-signal"></i> Devices online</span>
+                <h3><span><i class="fas fa-signal"></i> Devices status</span>
                     <span class="rf-range" data-chart="devices">
                         {% for days in chart_days %}<button type="button" data-days="{{ days }}" class="{% if forloop.first %}active{% endif %}">{{ days }}d</button>{% endfor %}
                     </span>
                 </h3>
-                <div class="rf-chart"><canvas id="routerStatusChart" aria-label="Devices online and offline per day" role="img"></canvas></div>
-                <div class="rf-hint">Enabled devices, as of the end of each day.</div>
+                <div class="rf-chart"><canvas id="routerStatusChart" aria-label="Devices online, offline and disabled per day" role="img"></canvas></div>
+                <div class="rf-hint">At the end of each day. Click a part to open those devices.</div>
             </div>
         </div>
     </div>
 
     <!-- The cards: each opens the list of exactly what it counts -->
-    <div class="rf-cards mb-3">
+    <div class="rf-cards mb-3" id="rf-live-cards" data-rf-live="active" data-rf-live-interval="30">
         {% for card in cards %}
         <a href="{{ card.href }}" class="rf-card {{ card.state }}"{% if card.external %} target="_blank" rel="noopener"{% endif %}>
             <div class="rf-row">
@@ -103,7 +103,7 @@
 <script>
     (function () {
         var charts = {};
-        var colors = {teal: '#14a89a', red: '#d64545', navy: '#1f3a5f'};
+        var colors = {teal: '#14a89a', red: '#d64545', navy: '#1f3a5f', green: '#1f9d55', purple: '#7e57c2'};
 
         function draw(kind, days) {
             var url = kind === 'backups' ? '/backup_statistics_data/' : '/router_status_data/';
@@ -130,12 +130,24 @@
                         }
                     }
                 } : {
-                    type: 'line',
+                    type: 'bar',
                     data: {labels: data.dates, datasets: [
-                        {label: 'Online', data: data.online_data, borderColor: colors.navy, backgroundColor: 'rgba(31, 58, 95, .12)', fill: true, tension: .25},
-                        {label: 'Offline', data: data.offline_data, borderColor: colors.red, backgroundColor: 'rgba(214, 69, 69, .10)', fill: true, tension: .25}
+                        {label: 'Online', data: data.online_data, backgroundColor: colors.green, borderRadius: 3, stack: 'devices'},
+                        {label: 'Offline (enabled)', data: data.offline_data, backgroundColor: colors.red, borderRadius: 3, stack: 'devices'},
+                        {label: 'Disabled', data: data.disabled_data, backgroundColor: colors.purple, borderRadius: 3, stack: 'devices'}
                     ]},
-                    options: {maintainAspectRatio: false, scales: {y: {beginAtZero: true, ticks: {precision: 0}}}}
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {x: {stacked: true}, y: {stacked: true, beginAtZero: true, ticks: {precision: 0}}},
+                        onClick: function (event, elements) {
+                            if (!elements.length) { return; }
+                            // The list shows the devices in that state now
+                            window.location = '/router/list/?state=' + ['online', 'offline', 'disabled'][elements[0].datasetIndex];
+                        },
+                        onHover: function (event, elements) {
+                            event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                        }
+                    }
                 };
                 charts[kind] = new Chart(canvas, config);
             });

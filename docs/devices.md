@@ -53,6 +53,16 @@ different key, before sending any credential. After resetting or replacing a
 device, use **Forget host key** on its page — see [Device host
 keys](security.md#device-host-keys).
 
+## The device page
+
+A device's page opens with its state (online, offline, disabled, not
+monitored), a ring with its availability over the last 7 days, and four tiles:
+the last successful backup, failed backups in 7 days, the OS version state and
+downtime in 7 days. The actions are **Edit** and, for operators,
+**Execute command**. A timeline brings together its recent backups, commands,
+and the moments it went offline and came back; the full details follow below.
+The page updates itself while a backup, a command or an information read runs.
+
 ## Inventory
 
 RouterFleet reads each device and stores model, serial number, OS version,

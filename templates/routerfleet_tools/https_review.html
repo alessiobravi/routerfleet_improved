@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card {% if needs_sum %}card-danger{% else %}card-warning{% endif %} card-outline">
+            <div class="card-header"><h3 class="card-title"><i class="fas fa-exclamation-triangle {% if needs_sum %}text-danger{% else %}text-warning{% endif %}"></i> Review: {{ mode_label }}</h3></div>
+            <div class="card-body">
+                <p>From <strong>{{ current.get_mode_display }}</strong> to <strong>{{ mode_label }}</strong>{% if proposal.domain %} for <strong>{{ proposal.domain }}</strong>{% endif %}.</p>
+                {% for note in notes %}
+                <div class="alert {% if needs_sum %}alert-danger{% else %}alert-warning{% endif %} py-2">{{ note }}</div>
+                {% endfor %}
+                {% if proposal.certificate %}
+                <ul class="list-unstyled small">
+                    <li><b>Certificate:</b> {{ proposal.certificate.subject }}</li>
+                    <li><b>Issued by:</b> {{ proposal.certificate.issuer }}</li>
+                    <li><b>Valid until:</b> {{ proposal.certificate.not_after|date:"Y-m-d" }}</li>
+                    <li><b>Names:</b> {{ proposal.certificate.names|join:", " }}</li>
+                    <li><b>Trusted by browsers:</b> {% if proposal.certificate.trusted %}yes{% else %}no - browsers will warn, passkeys will not work{% endif %}</li>
+                </ul>
+                {% endif %}
+                <h6>Passkeys after the change {% if passkeys_ok %}<span class="badge badge-success">will work</span>{% else %}<span class="badge badge-warning">will not work</span>{% endif %}</h6>
+                <ul class="list-unstyled">
+                    {% for label, ok in requirements %}
+                    <li>{% if ok is True %}<i class="fas fa-check-circle text-success"></i>{% elif ok is False %}<i class="fas fa-times-circle text-danger"></i>{% else %}<i class="fas fa-question-circle text-muted"></i>{% endif %} {{ label }}</li>
+                    {% endfor %}
+                </ul>
+                <p class="small text-muted">If the change locks you out, restore the previous behaviour on the server with
+                    <code>docker compose exec routerfleet python manage.py https reset</code>.</p>
+
+                {% if needs_sum %}
+                <div class="text-center mt-3">
+                    <button type="button" class="btn btn-danger btn-lg" data-toggle="modal" data-target="#confirmHttps"><i class="fas fa-unlock"></i> Switch HTTPS off</button>
+                    <a href="/system/https/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+                </div>
+                <div class="modal fade" id="confirmHttps" tabindex="-1" role="dialog" aria-labelledby="confirmHttpsTitle" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <form method="post" class="modal-content border-danger">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="apply"><input type="hidden" name="token" value="{{ token }}">
+                            <div class="modal-header bg-danger"><h5 class="modal-title" id="confirmHttpsTitle"><i class="fas fa-exclamation-triangle"></i> Switch HTTPS off</h5>
+                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+                            <div class="modal-body">
+                                <p>RouterFleet will stop encrypting the connection itself. To confirm that you read the warnings, solve:</p>
+                                <p class="h3 text-center my-3"><strong>{{ first }} + {{ second }} = ?</strong></p>
+                                <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg text-center" name="answer" autocomplete="off" required aria-label="Result of {{ first }} plus {{ second }}">
+                                <small class="text-muted">One attempt: a wrong result cancels the change.</small>
+                            </div>
+                            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger"><i class="fas fa-check"></i> Apply</button></div>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <form method="post" class="text-center mt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="apply"><input type="hidden" name="token" value="{{ token }}">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check"></i> Apply</button>
+                    <a href="/system/https/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

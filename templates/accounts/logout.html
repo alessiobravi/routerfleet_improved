@@ -1,35 +1,6 @@
 {% extends "base_login.html" %}
 
 {% block content %}
-
-<div class="register-box">
-    <div class="register-logo">
-      <a href="/"><b>RouterFleet</b> Improved</a>
-    </div>
-  
-    <div class="card">
-      <div class="card-body register-card-body">
-        <p class="login-box-msg">You have been successfully logged out.</p>
-  
-        
-          
-          
-          <div class="row">
-            
-            <div class="col-12">
-              <a href="/accounts/login/" class="btn btn-primary btn-block">Login again</a>
-            </div>
-          </div>
-  
-        
-      </div>
-      <!-- /.form-box -->
-    </div><!-- /.card -->
-  </div>
-  <!-- /.register-box -->
-
-
-
-
-  {% endblock %}
-``` 
+<p class="rf-auth-message"><i class="fas fa-check-circle mr-1" style="color: var(--rf-teal);"></i> You have been signed out.</p>
+<a href="/accounts/login/" class="btn btn-primary btn-block">Sign in again</a>
+{% endblock %}

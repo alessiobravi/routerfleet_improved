@@ -60,8 +60,11 @@ and a pass that removes nothing writes nothing.
 ## Reading the status page
 
 The status page is the home page and the fastest health check. Two charts on
-top show backups and devices online per calendar day over 7, 15 or 30 days;
-clicking a day's bar opens that day's backups. Below them, one card per signal,
+top show backups and the devices' status per calendar day over 7, 15 or 30
+days: online (green), offline but enabled (red) and disabled (purple, counted
+from the day the change log says the device was switched off). Clicking a
+day's backup bar opens that day's backups; clicking a part of the devices bar
+opens the devices in that state. Below them, one card per signal,
 each with a coloured edge and a chip saying what to do - green *OK*, amber
 *Look*, red *Act*, grey for no information - and a sparkline where RouterFleet
 keeps the history. **Every card opens the list of exactly what it counts.**
@@ -78,8 +81,56 @@ keeps the history. **Every card opens the list of exactly what it counts.**
 - **Devices online, offline, disabled, unmonitored.**
 - **OS versions** — missing an update, up to date (both shown only when they
   count something), without information. Counted by the same rule that colours
-  the device list.
-- **RouterFleet Improved** — whether a newer release exists (see `UPDATE_CHECK`).
+  the device list. airOS devices, which can not be checked for updates, are not
+  counted.
+
+Whether a newer release of RouterFleet Improved exists is shown by the download
+icon in the top bar, on every page: green on the latest release, yellow when an
+update is available, grey when the check is off (`UPDATE_CHECK`) or has not run
+yet.
+
+## Finding your way around the interface
+
+### Object pages
+
+A Fleet Commander job, a task, a device and a backup open the same way:
+
+- a **hero** on top - a progress ring or a state icon, the name, a state chip,
+  the key facts, and the actions (abort, edit, execute a command, download);
+- **four tiles** with the numbers that matter for that object;
+- a **timeline** of what happened, newest first;
+- the full details below.
+
+| Page | Ring | Tiles | Timeline |
+|---|---|---|---|
+| Job | tasks finished out of the total | succeeded, running, waiting, failed | job created, each device started and finished, job completed |
+| Task | a state icon instead | runs, started, finished, verification | queued, started, verifying, result |
+| Device | availability over the last 7 days | last backup, failed backups in 7 days, OS version, downtime in 7 days | backups, commands, going offline and back |
+| Backup | its phase: creating, downloading, stored | configuration size, binary, change, retries | queued, each step sent to the device, result |
+
+### Pages that update themselves
+
+While something on a page is still running, the page keeps itself current: a
+job and its tasks, the job list, a backup and the backup list, and a device's
+page while a backup, a command or an information read is under way. A
+**Live** pill in the corner shows it is updating; it disappears, and the page
+stops asking the server, once everything has finished. It pauses while the
+browser tab is hidden, never replaces a field you are typing in, backs off when
+the server does not answer, and stops on an expired session ("Live updates
+stopped - reload the page"). The status page's cards refresh every 30 seconds.
+
+### Notifications
+
+Messages - saved, started, not applied - appear as a balloon at the **top
+centre** of the page: teal for success, blue for information, amber for a
+warning, red for an error. A balloon closes after **5 seconds** (the bar along
+its bottom shows the time left, and pauses while the pointer rests on it) or
+when you click it; several stack. They show text only.
+
+### Switches
+
+Every on/off setting is a switch. A real checkbox remains only where it means
+consent - accepting the Let's Encrypt agreement.
 
 ## Troubleshooting
 

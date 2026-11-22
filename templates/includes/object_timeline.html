@@ -1,0 +1,13 @@
+<div class="rf-o-card rf-o-timeline-card{% if compact %} rf-o-compact{% endif %}">
+    <h3>Timeline</h3>
+    <div class="rf-o-timeline">
+        {% for event in page.timeline %}
+        <div class="rf-o-t rf-o-{{ event.state|default:'info' }}">
+            <div>{{ event.text }}</div>
+            <small title="{{ event.when }}">{{ event.when|date:"Y-m-d H:i" }}</small>
+        </div>
+        {% empty %}
+        <p class="text-muted mb-0">Nothing recorded yet.</p>
+        {% endfor %}
+    </div>
+</div>
