@@ -227,25 +227,31 @@ jobs:
           # The certificate already deployed is never replaced by switching modes
           deployed() { $C exec -T routerfleet-nginx sha256sum /certificate/nginx.pem /certificate/nginx.key; }
           BEFORE=$(deployed)
+          # What nginx serves is read from a static file nginx answers itself:
+          # 200 where plain HTTP is served, 301 where HTTPS is enforced. The
+          # stack has no user yet, so the application's pages redirect to
+          # creating the first one - which sets the CSRF cookie checked below
+          ASSET=/static/routerfleet/logo.svg
+          PAGE=/accounts/create_first_user/
           # Plain HTTP: served without a redirect; the application's cache of
           # the mode lasts 10 seconds
           $C exec -T routerfleet python manage.py https mode plain
-          wait_for http://localhost/accounts/login/ 200
+          wait_for "http://localhost$ASSET" 200
           $C exec -T routerfleet python manage.py https status | grep -q '"applied": true'
           sleep 11
           # A client can not claim HTTPS: nginx overwrites X-Forwarded-Proto
-          COOKIE=$(csrf_cookie -H 'X-Forwarded-Proto: https' http://localhost/accounts/login/)
+          COOKIE=$(csrf_cookie -H 'X-Forwarded-Proto: https' "http://localhost$PAGE")
           test -n "$COOKIE"
           if echo "$COOKIE" | grep -qi secure; then echo "Secure cookie on plain HTTP: $COOKIE"; exit 1; fi
           # Self-signed: redirected again, the cookie Secure over HTTPS
           $C exec -T routerfleet python manage.py https mode selfsigned
-          wait_for http://localhost/accounts/login/ 301
+          wait_for "http://localhost$ASSET" 301
           sleep 11
-          csrf_cookie https://localhost/accounts/login/ | grep -qi secure
+          csrf_cookie "https://localhost$PAGE" | grep -qi secure
           # Back to .env, as an installation is after upgrading
           $C exec -T routerfleet python manage.py https reset
-          wait_for http://localhost/accounts/login/ 301
-          wait_for https://localhost/accounts/login/ 200
+          wait_for "http://localhost$ASSET" 301
+          wait_for "https://localhost$ASSET" 200
           test "$(deployed)" = "$BEFORE" || { echo "the deployed certificate changed"; exit 1; }
           echo "HTTPS modes applied; the deployed certificate is unchanged"
 

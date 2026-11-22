@@ -13,7 +13,7 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
-## [0.16.1] - 2026-11-22
+## [0.16.2] - 2026-11-22
 
 ### Added
 - **System settings → HTTPS**, for administrators: a Let's Encrypt
