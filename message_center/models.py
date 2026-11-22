@@ -22,7 +22,9 @@ class MessageChannel(models.Model):
     enabled = models.BooleanField(default=True)
     channel_type = models.CharField(
         max_length=100, choices=(
-            ('callmebot', 'CallMeBot (WhatsApp)'), ('telegram', 'Telegram'), ('ntfy', 'ntfy.sh'), ('email', 'Email')
+            ('email', 'Email'), ('ntfy', 'ntfy'), ('telegram', 'Telegram'),
+            # Removed: existing rows are kept, switched off, for their history
+            ('callmebot', 'CallMeBot (removed)')
         )
     )
     # A user's own email channel, kept by My Settings: delivered to the user's
@@ -30,8 +32,12 @@ class MessageChannel(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
                                 related_name='email_channel')
     destination = models.CharField(max_length=100, blank=True, null=True)
-    # Encrypted at rest; reads return the token as written
+    # Encrypted at rest; reads return the token as written. Telegram: the bot
+    # token; ntfy: an optional access token for a protected topic
     token = EncryptedTextField(blank=True, null=True)
+    # ntfy: the server - the public one unless the installation runs its own
+    server_url = models.CharField(max_length=255, default='https://ntfy.sh', blank=True)
+    priority = models.PositiveSmallIntegerField(default=3)
 
     status_change_offline = models.BooleanField(default=True)
     status_change_online = models.BooleanField(default=True)

@@ -37,7 +37,7 @@ def send(to, subject, text, smtp=None):
     from .models import SmtpSettings
     smtp = smtp or SmtpSettings.load()
     if not smtp.ready:
-        raise ValueError('Email is not set up: an administrator configures it in Message Center, Email.')
+        raise ValueError('Email is not set up: an administrator configures it in System Settings, Notifications.')
     try:
         validate_email(to)
         validate_email(smtp.sender_address)

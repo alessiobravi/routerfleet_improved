@@ -235,3 +235,51 @@ class DeployedCertificateTests(VolumeTestCase):
             current.mode = mode
             https.write_state(current)
         self.assertEqual(before, {n: open(os.path.join(self.volume, n)).read() for n in ('nginx.pem', 'nginx.key')})
+
+
+class SystemSettingsTests(TestCase):
+    """System Settings: the hub, notifications and channels."""
+
+    def setUp(self):
+        from message_center.models import MessageChannel
+        self.Channel = MessageChannel
+        self.client.force_login(make_user(50))
+
+    def test_hub_and_levels(self):
+        page = self.client.get('/system/')
+        self.assertContains(page, '/system/https/')
+        self.assertContains(page, '/system/notifications/')
+        self.client.force_login(make_user(40))
+        page = self.client.get('/system/')
+        self.assertNotContains(page, '/system/https/')
+        self.assertContains(self.client.get('/system/notifications/channel/'), 'Telegram')
+        self.assertContains(self.client.get('/system/notifications/email/'), 'Access Denied')
+        self.client.force_login(make_user(30))
+        self.assertContains(self.client.get('/system/'), 'Access Denied')
+
+    def test_removed_callmebot_channels_are_listed(self):
+        self.Channel.objects.create(name='whatsapp', channel_type='callmebot', destination='+391234', enabled=False)
+        page = self.client.get('/system/notifications/')
+        self.assertContains(page, 'CallMeBot is no longer supported')
+        self.assertContains(page, 'whatsapp')
+
+    def test_a_stored_token_is_never_shown_and_empty_keeps_it(self):
+        from unittest import mock
+        channel = self.Channel.objects.create(name='tg', channel_type='telegram', destination='42', token='123:SECRETBOT')
+        page = self.client.get(f'/system/notifications/channel/?uuid={channel.uuid}')
+        self.assertNotContains(page, 'SECRETBOT')
+        self.assertContains(page, 'stored - leave empty to keep it')
+        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=200)) as get:
+            self.client.post(f'/system/notifications/channel/?uuid={channel.uuid}', {
+                'name': 'tg', 'channel_type': 'telegram', 'destination': '42', 'token': '', 'enabled': 'on',
+                'backup_fail': 'on'})
+        channel.refresh_from_db()
+        self.assertEqual(channel.token, '123:SECRETBOT')
+        self.assertTrue(channel.backup_fail)
+        self.assertIn('bot123:SECRETBOT', get.call_args.args[0], 'the test message used the kept token')
+
+    def test_new_channel_offers_three_types(self):
+        page = self.client.get('/system/notifications/channel/').content.decode()
+        for value in ('email', 'ntfy', 'telegram'):
+            self.assertIn(f'name="channel_type" value="{value}"', page)
+        self.assertNotIn('value="callmebot"', page)

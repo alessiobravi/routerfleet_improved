@@ -289,12 +289,12 @@ class MessageViewBranchTests(TestCase):
         response = self.client.post('/message_center/manage_settings/', {
             'max_length': 1500, 'max_retry': 2, 'retry_interval': 60, 'status_change_delay': 120,
             'backup_fails_delay': 600, 'daily_report_time': '06:30', 'concatenate_status_change': 'on'})
-        self.assertRedirects(response, '/message_center/channel_list/', fetch_redirect_response=False)
+        self.assertRedirects(response, '/system/notifications/', fetch_redirect_response=False)
         self.assertEqual(MessageSettings.objects.get().daily_report_time, '06:30')
         with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=200)):
-            response = self.client.post('/message_center/manage_channel/', {
+            response = self.client.post('/system/notifications/channel/', {
                 'name': 'alerts', 'channel_type': 'ntfy', 'destination': 'my-topic', 'enabled': 'on'})
-        self.assertRedirects(response, '/message_center/channel_list/', fetch_redirect_response=False)
+        self.assertRedirects(response, '/system/notifications/', fetch_redirect_response=False)
 
 
 class ImportBranchTests(TestCase):

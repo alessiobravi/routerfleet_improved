@@ -29,6 +29,8 @@ from routerfleet_tools.tool_views import view_tools, view_backup_cleanup, view_b
 from routerfleet_tools.https_views import view_https
 from console.views import view_console
 from message_center.email_views import view_email_settings
+from routerfleet_tools.system_views import view_system, view_notifications, view_notification_channel
+from django.views.generic import RedirectView
 from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
 
 urlpatterns = [
@@ -61,7 +63,12 @@ urlpatterns = [
     path('router/manage/', view_manage_router, name='manage_router'),
     path('router/test_connection/', view_test_router_connection, name='test_router_connection'),
     path('router/console/', view_console, name='router_console'),
-    path('message_center/email/', view_email_settings, name='email_settings'),
+    path('system/', view_system, name='system'),
+    path('system/notifications/', view_notifications, name='system_notifications'),
+    path('system/notifications/channel/', view_notification_channel, name='system_notification_channel'),
+    path('system/notifications/email/', view_email_settings, name='email_settings'),
+    # The pages notifications had before System Settings; bookmarks still arrive
+    path('message_center/email/', RedirectView.as_view(url='/system/notifications/email/', permanent=True)),
     path('router/details/', view_router_details, name='router_details'),
     path('router/availability/', view_router_availability, name='router_availability'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),

@@ -94,6 +94,9 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         key = SSHKey.objects.create(name='fleet-key', public_key='ssh-ed25519 AAAA',
                                     private_key='FAKE-TEST-PRIVATE-KEY-MATERIAL')
         Channel = old.get_model('message_center', 'MessageChannel')
+        callmebot = Channel.objects.create(name='whatsapp-alerts', channel_type='callmebot', destination='+391234567',
+                                           token='FAKE-CALLMEBOT-KEY', enabled=True)
+        old_ntfy = Channel.objects.create(name='old-ntfy', channel_type='ntfy', destination='my-topic', enabled=True)
         channel = Channel.objects.create(name='tg', channel_type='telegram', destination='42',
                                          token='FAKE-TEST-BOT-TOKEN')
         Channel.objects.create(name='topic', channel_type='ntfy', destination='t', token=None)
@@ -109,6 +112,13 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         from backup.models import BackupProfile as NewProfile
         self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
         self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
+        # CallMeBot is no longer supported: kept, with its history, but switched off;
+        # an ntfy channel of before keeps the public server
+        from message_center.models import MessageChannel as NewChannel
+        kept = NewChannel.objects.get(pk=callmebot.pk)
+        self.assertEqual((kept.channel_type, kept.enabled), ('callmebot', False))
+        self.assertEqual(NewChannel.objects.get(pk=old_ntfy.pk).server_url, 'https://ntfy.sh')
+        self.assertTrue(NewChannel.objects.get(pk=old_ntfy.pk).enabled)
         # The system commands arrive with the upgrade, all of them
         from fleet_commander.models import Command as NewCommand
         from fleet_commander.system_commands import SYSTEM_KEYS

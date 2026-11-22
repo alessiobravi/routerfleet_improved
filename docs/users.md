@@ -37,7 +37,8 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | | Edit a system command (with confirmation) | 50 |
 | Notifications | Channel list, message history | 20 |
 | | Channels and settings | 40 |
-| | Email (SMTP server) | 50 |
+| | Channels (System Settings → Notifications) | 40 |
+| | Mail server (SMTP) | 50 |
 | | Own email address and email notifications (My Settings) | signed in |
 | Audit log | Login history, change log | 50 |
 | Users | List, create, edit | 50 |

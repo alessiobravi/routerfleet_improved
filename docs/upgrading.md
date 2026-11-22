@@ -53,8 +53,8 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 16 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), and remove the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 29 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 18 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), add the ntfy server and priority to channels, switch off CallMeBot channels (no longer supported; kept with their history), and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 31 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
@@ -63,7 +63,7 @@ what makes the upgrade a no-drama `migrate`. The test suite holds a fingerprint 
 released migration and fails if one is ever edited, renamed or removed; it also
 checks the counts in this table against the real migration plan.
 
-### What the 29 migrations do when coming from the original
+### What the 31 migrations do when coming from the original
 
 ```mermaid
 flowchart TD
@@ -183,6 +183,10 @@ names `postgres:16` keeps working too.
   **About**, at the bottom of the menu.
 - **Second factors are available** - an authenticator app and passkeys, in
   *My Settings*. Nobody is asked for one until they turn it on.
+- **CallMeBot channels are switched off** (0.18.0): CallMeBot is no longer
+  supported. The channels and their history are kept; *System Settings →
+  Notifications* lists them, to be recreated as email, ntfy or Telegram.
+  Every other channel keeps working as before.
 - **HTTPS does not change.** The new [System settings → HTTPS](https.md) page
   starts on *As configured in .env*: `HTTPS_REDIRECT_POLICY` and the
   certificate already deployed in the volume keep working exactly as before.

@@ -13,6 +13,30 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.18.0] - 2026-11-22
+
+### Changed
+- **Notifications are configured in System Settings.** System Settings opens
+  with HTTPS and Notifications; Notifications holds the mail server, the
+  channels - email, ntfy, Telegram - each in its own editor, grouping and the
+  daily reports, and the way to the message history, which stays in Message
+  Center. The old channel and email pages lead there.
+- **The channel editor explains each setting** for each type, with where the
+  value comes from and realistic examples. A stored token is never shown again;
+  leaving it empty keeps it.
+
+### Added
+- **ntfy with your own server**: server URL (the public ntfy.sh by default),
+  an optional access token for protected topics - encrypted, and only ever sent
+  over HTTPS - and a priority from 1 to 5. A server on RouterFleet's own
+  internal networks is refused. Existing ntfy channels keep ntfy.sh.
+
+### Removed
+- **CallMeBot (WhatsApp) is no longer supported.** Upgrading switches existing
+  CallMeBot channels off and keeps them, with their message history; System
+  Settings lists them so they can be recreated as email, ntfy or Telegram.
+  Messages still queued for them fail with that reason.
+
 ## [0.17.1] - 2026-11-22
 
 ### Added

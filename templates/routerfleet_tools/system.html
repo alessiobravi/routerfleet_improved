@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    <div class="rf-set-title">System</div>
+    <div class="rf-set-group">
+        {% if is_administrator %}
+        <a class="rf-set-row" href="/system/https/">
+            <span class="rf-set-icon teal"><i class="fas fa-lock"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">HTTPS</span>
+                <span class="rf-set-sub d-block">Certificate, Let's Encrypt, reverse proxy, passkey requirements</span></span>
+            <span class="rf-set-value">{{ https.get_mode_display|truncatechars:28 }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        <a class="rf-set-row" href="/system/notifications/">
+            <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Notifications</span>
+                <span class="rf-set-sub d-block">Email, ntfy and Telegram channels; the mail server; grouping and daily reports</span></span>
+            <span class="rf-set-value">{{ channels }} channel{{ channels|pluralize }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+    {% if not is_administrator %}<div class="rf-set-foot">HTTPS and the mail server are for administrators.</div>{% endif %}
+</div>
+{% endblock %}

@@ -6,7 +6,7 @@ from router_manager.models import Router
 from routerfleet_tools.models import WebadminSettings
 from routerlib.decorators import cron_endpoint
 from user_manager.models import UserAcl
-from .forms import MessageSettingsForm, MessageChannelForm
+from .forms import MessageSettingsForm
 from .models import Notification, MessageChannel, Message, MessageSettings
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
@@ -16,8 +16,6 @@ from backup_data.models import RouterBackup
 import datetime
 from django.utils import timezone
 from django.db.models import Q
-import uuid
-from routerlib.actions import posted_action, posted_confirmation
 
 @login_required()
 def view_debug_test_messages(request):
@@ -189,17 +187,8 @@ def view_cron_concatenate_notifications(request):
 
 @login_required()
 def view_message_channel_list(request):
-    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
-        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
-    # Each user's own email channel is managed in My Settings, not here
-    message_channels = MessageChannel.objects.filter(user__isnull=True)
-    context = {
-        'message_settings': message_settings,
-        'message_channels': message_channels,
-    }
-    return render(request, 'message_center/message_channel_list.html', context=context)
-
+    # Channels are configured in System Settings
+    return redirect('/system/notifications/')
 
 @login_required()
 def view_message_history(request):
@@ -223,7 +212,7 @@ def view_manage_message_settings(request):
     if form.is_valid():
         form.save()
         messages.success(request, 'Message Settings saved successfully')
-        return redirect('/message_center/channel_list/')
+        return redirect('/system/notifications/')
     form_description_content = '''
     <strong>Max Length</strong>
     <p>Maximum length of a message in characters. Longer messages will be truncated.</p>
@@ -255,51 +244,7 @@ def view_manage_message_settings(request):
 
 @login_required()
 def view_manage_message_channel(request):
-    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=40).exists():
-        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
+    # Channels are configured in System Settings; old links still arrive
     if request.GET.get('uuid'):
-        message_channel = get_object_or_404(MessageChannel, uuid=request.GET.get('uuid'))
-        if posted_action(request, 'delete'):
-            if posted_confirmation(request) == 'delete':
-                message_channel.delete()
-                messages.success(request, 'Message Channel deleted successfully')
-                return redirect('/message_center/channel_list/')
-            else:
-                messages.warning(request, 'Message Channel not deleted|Invalid confirmation')
-                return redirect('/message_center/channel_list/')
-    else:
-        message_channel = None
-
-    form = MessageChannelForm(request.POST or None, instance=message_channel)
-    if form.is_valid():
-        form.save()
-        messages.success(request, 'Message Channel saved successfully')
-        return redirect('/message_center/channel_list/')
-    form_description_content = f'''
-    <strong>Destination</strong>
-    <p>Destination address for the message channel. 
-    <ul>
-    <li>For CallMeBot, this is the phone number.</li>
-    <li>For Telegram, this is the chat ID.</li>
-    <li>For ntfy.sh, this is the topic name. Consider using something <strong>very</strong> unique, like: routerfleet-{uuid.uuid4()}</li>
-    </ul>
-    </p>
-    <strong>Token</strong>
-    <p>For CallMeBot, this is the API token. For Telegram, this is the bot token. For ntfy.sh, leave this blank.</p>
-    <strong>Status Change and Backup Fail</strong>
-    <p>Enable or disable notifications for status changes and backup failures.</p>
-    <strong>Daily Status and Backup Report</strong>
-    <p>Enable or disable daily status and backup reports. This is a quick summary of online/offline status and backup success/failure.</p>
-    
-    '''
-
-    context = {
-        'message_settings': message_settings,
-        'form': form,
-        'form_description': {
-            'size': '',
-            'content': form_description_content
-        },
-    }
-    return render(request, 'generic_form.html', context=context)
+        return redirect(f"/system/notifications/channel/?uuid={request.GET.get('uuid')}")
+    return redirect('/system/notifications/channel/')

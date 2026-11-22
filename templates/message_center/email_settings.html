@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="rf-settings">
-    {% include 'message_center/message_center_nav_tabs.html' %}
+    <a href="/system/notifications/" class="small"><i class="fas fa-chevron-left"></i> Notifications</a>
     {% for error in errors %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endfor %}
     <form method="post" autocomplete="off">
         {% csrf_token %}

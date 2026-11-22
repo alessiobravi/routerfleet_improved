@@ -134,32 +134,57 @@ class SendTests(TestCase):
         message = Message.objects.create(channel=channel(destination='my-topic'), subject='S', message='body')
         with mock.patch('message_center.channels.requests.post', return_value=self.response()) as post:
             message = self.send(message)
-        post.assert_called_once_with('https://ntfy.sh/my-topic', data=b'body', headers={'Title': 'S'}, timeout=15)
+        post.assert_called_once_with('https://ntfy.sh/my-topic', data=b'body', headers={'Priority': '3', 'Title': 'S'},
+                                     timeout=15, allow_redirects=False)
         self.assertEqual(message.status, 'sent')
         self.assertIsNotNone(message.completed)
 
-    def test_telegram_and_callmebot_use_get(self):
+    def test_telegram_uses_get(self):
         tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='123:ABC'), message='hi')
-        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'), message='yo')
         with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
             self.send(tg)
-            self.send(cb)
-        (tg_call, cb_call) = get.call_args_list
-        self.assertEqual(tg_call.args[0], 'https://api.telegram.org/bot123:ABC/sendMessage')
-        self.assertEqual(tg_call.kwargs['params'], {'chat_id': '42', 'text': 'hi'})
-        self.assertEqual(cb_call.args[0], 'https://api.callmebot.com/whatsapp.php')
-        self.assertEqual(cb_call.kwargs['params'], {'phone': '+391234567', 'text': 'yo', 'apikey': 'K'})
+        self.assertEqual(get.call_args.args[0], 'https://api.telegram.org/bot123:ABC/sendMessage')
+        self.assertEqual(get.call_args.kwargs['params'], {'chat_id': '42', 'text': 'hi'})
+
+    def test_callmebot_is_refused_with_its_reason(self):
+        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'), message='yo')
+        with mock.patch('message_center.channels.requests.get') as get:
+            cb = self.send(cb)
+        get.assert_not_called()
+        self.assertIn('no longer supported', cb.error_message)
 
     def test_message_text_cannot_add_parameters(self):
-        # A device called "edge&apikey=other": the text stays one value
+        # A device called "edge&chat_id=other": the text stays one value
         import requests
-        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'),
-                                    message='edge&apikey=other #1 is offline')
+        tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='1:t'),
+                                    message='edge&chat_id=other #1 is offline')
         with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
-            self.send(cb)
+            self.send(tg)
         prepared = requests.Request('GET', get.call_args.args[0], params=get.call_args.kwargs['params']).prepare()
-        self.assertIn('text=edge%26apikey%3Dother+%231+is+offline', prepared.url)
-        self.assertEqual(prepared.url.count('apikey='), 1)
+        self.assertIn('text=edge%26chat_id%3Dother+%231+is+offline', prepared.url)
+        self.assertEqual(prepared.url.count('chat_id='), 1)
+
+    def test_ntfy_own_server_token_and_priority(self):
+        ch = channel('own', 'ntfy', destination='alerts', token='tk_abc123')
+        ch.server_url, ch.priority = 'https://ntfy.example.net', 5
+        ch.save()
+        message = Message.objects.create(channel=ch, subject='Down\nX-Evil: 1', message='body')
+        with mock.patch('console.network.socket.getaddrinfo', return_value=[(2, 1, 6, '', ('203.0.113.7', 443))]), \
+                mock.patch('message_center.channels.requests.post', return_value=self.response()) as post:
+            self.send(message)
+        self.assertEqual(post.call_args.args[0], 'https://ntfy.example.net/alerts')
+        headers = post.call_args.kwargs['headers']
+        self.assertEqual((headers['Priority'], headers['Authorization'], headers['Title']), ('5', 'Bearer tk_abc123', 'Down X-Evil: 1'))
+
+    def test_ntfy_server_on_routerfleets_own_network_is_refused(self):
+        ch = channel('inside', 'ntfy', destination='alerts')
+        ch.server_url = 'http://routerfleet-postgres:5432'
+        ch.save()
+        message = Message.objects.create(channel=ch, message='body')
+        with mock.patch('message_center.channels.requests.post') as post:
+            message = self.send(message)
+        post.assert_not_called()
+        self.assertIn('RouterFleet itself', message.error_message)
 
     def test_a_failed_send_never_stores_the_token(self):
         import requests
@@ -338,12 +363,15 @@ class ChannelFormTests(TestCase):
         values.update(data)
         return MessageChannelForm(values)
 
-    def test_callmebot_needs_token_and_destination_and_a_working_test(self):
-        self.assertIn('requires a token', str(self.form(channel_type='callmebot').errors))
-        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=500, text='quota')):
-            self.assertIn('quota', str(self.form(channel_type='callmebot', destination='+391234', token='k').errors))
-        with mock.patch('message_center.channels.requests.get', return_value=mock.Mock(status_code=200)):
-            self.assertTrue(self.form(channel_type='callmebot', destination='+391234', token='k').is_valid())
+    def test_callmebot_can_not_be_chosen_any_more(self):
+        form = self.form(channel_type='callmebot', destination='+391234', token='k')
+        self.assertFalse(form.is_valid())
+        self.assertIn('channel_type', form.errors, 'not among the choices')
+
+    def test_ntfy_token_needs_https(self):
+        form = self.form(channel_type='ntfy', destination='t', token='tk_x', server_url='http://ntfy.example.net')
+        with mock.patch('console.network.socket.getaddrinfo', return_value=[(2, 1, 6, '', ('203.0.113.7', 80))]):
+            self.assertIn('only sent over HTTPS', str(form.errors))
 
     def test_telegram_needs_token(self):
         self.assertIn('requires a token', str(self.form(channel_type='telegram', destination='1').errors))
@@ -351,9 +379,10 @@ class ChannelFormTests(TestCase):
     def test_ntfy_test_message_and_failures(self):
         import requests
         with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=200)) as post:
-            form = self.form(channel_type='ntfy', destination='topic', token='ignored')
+            form = self.form(channel_type='ntfy', destination='topic', token='tk_kept')
             self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data['token'], '')
+        self.assertEqual(form.cleaned_data['token'], 'tk_kept')
+        self.assertEqual(post.call_args.kwargs['headers']['Authorization'], 'Bearer tk_kept')
         self.assertEqual(post.call_args.args[0], 'https://ntfy.sh/topic')
         with mock.patch('message_center.channels.requests.post', return_value=mock.Mock(status_code=429, text='slow down')):
             self.assertIn('slow down', str(self.form(channel_type='ntfy', destination='t').errors))
@@ -370,8 +399,7 @@ class ChannelFormTests(TestCase):
         cases = [
             ({'channel_type': 'telegram', 'token': 'not-a-token', 'destination': '42'}, 'token'),
             ({'channel_type': 'telegram', 'token': '1:a', 'destination': '42&text=x'}, 'destination'),
-            ({'channel_type': 'callmebot', 'token': 'k&x=1', 'destination': '+391234'}, 'token'),
-            ({'channel_type': 'callmebot', 'token': 'k', 'destination': '12'}, 'destination'),
+            ({'channel_type': 'ntfy', 'destination': 'topic', 'token': 'bad token!'}, 'token'),
             ({'channel_type': 'ntfy', 'destination': '../v1/account'}, 'destination'),
         ]
         for data, field in cases:
@@ -401,16 +429,21 @@ class ViewTests(TestCase):
         self.client.force_login(make_user(40))
 
     def test_unknown_channel_is_not_found(self):
-        response = self.client.get('/message_center/manage_channel/?uuid=00000000-0000-0000-0000-000000000000')
+        response = self.client.get('/system/notifications/channel/?uuid=00000000-0000-0000-0000-000000000000')
         self.assertEqual(response.status_code, 404)
 
     def test_delete_channel_needs_confirmation(self):
         ch = channel()
-        self.client.post(f'/message_center/manage_channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'no'})
+        self.client.post(f'/system/notifications/channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'no'})
         self.assertTrue(MessageChannel.objects.filter(pk=ch.pk).exists())
-        self.client.post(f'/message_center/manage_channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'delete'})
+        self.client.post(f'/system/notifications/channel/?uuid={ch.uuid}', {'action': 'delete', 'confirmation': 'delete'})
         self.assertFalse(MessageChannel.objects.filter(pk=ch.pk).exists())
 
     def test_list_and_history(self):
-        self.assertEqual(self.client.get('/message_center/channel_list/').status_code, 200)
+        self.assertEqual(self.client.get('/system/notifications/').status_code, 200)
+        # The old pages lead to System Settings
+        self.assertRedirects(self.client.get('/message_center/channel_list/'), '/system/notifications/', fetch_redirect_response=False)
+        ch = channel()
+        self.assertRedirects(self.client.get(f'/message_center/manage_channel/?uuid={ch.uuid}'),
+                             f'/system/notifications/channel/?uuid={ch.uuid}', fetch_redirect_response=False)
         self.assertEqual(self.client.get('/message_center/message_history/').status_code, 200)

@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    {% if removed %}
+    <div class="alert alert-warning mt-2"><strong>CallMeBot is no longer supported.</strong> This channel is kept for its history
+        and sends nothing. Choose another type below to recreate it here, or delete it.</div>
+    {% endif %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+
+    <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <div class="rf-set-title">Channel</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon"><i class="fas fa-tag"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" maxlength="100" required
+                           placeholder="NOC mailbox" value="{{ form.name.value|default_if_none:'' }}">
+                    <small class="text-muted">How the channel appears in lists and in the message history, e.g. <em>NOC mailbox</em>, <em>On-call phones</em>, <em>Ops Telegram group</em>.</small></div>
+            </div>
+            <div class="rf-set-row">
+                <div class="rf-set-text"><div class="rf-set-label">Enabled</div>
+                    <div class="rf-set-sub">A test message is sent when an enabled channel is saved.</div></div>
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="enabled" name="enabled" {% if form.enabled.value %}checked{% endif %}>
+                    <label class="custom-control-label" for="enabled"><span class="sr-only">Enabled</span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="rf-set-title">Type</div>
+        <div class="rf-set-group">
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="channel_type" value="email" {% if form.channel_type.value == 'email' %}checked{% endif %}>
+                <span class="rf-set-icon purple"><i class="fas fa-envelope"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Email</span>
+                    <span class="rf-set-sub d-block">A shared mailbox, through the mail server{% if not smtp_ready %} - not set up yet{% endif %}.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="channel_type" value="ntfy" {% if form.channel_type.value == 'ntfy' or not form.channel_type.value %}checked{% endif %}>
+                <span class="rf-set-icon teal"><i class="fas fa-bell"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">ntfy</span>
+                    <span class="rf-set-sub d-block">Push notifications to phones: the public ntfy.sh or your own server.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+            <label class="rf-set-row rf-set-choice">
+                <input type="radio" name="channel_type" value="telegram" {% if form.channel_type.value == 'telegram' %}checked{% endif %}>
+                <span class="rf-set-icon blue"><i class="fab fa-telegram-plane"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Telegram</span>
+                    <span class="rf-set-sub d-block">A chat or a group, through your bot.</span></span>
+                <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+            </label>
+        </div>
+
+        <div class="rf-set-title">Where to</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row rf-for" data-for="ntfy">
+                <span class="rf-set-icon teal"><i class="fas fa-server"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="server_url">ntfy server</label>
+                    <input type="url" class="form-control" id="server_url" name="server_url" spellcheck="false"
+                           value="{{ form.server_url.value|default:'https://ntfy.sh' }}">
+                    <small class="text-muted">Base URL of the ntfy server, without the topic: <code>https://ntfy.sh</code> for the public
+                        service, or your own, e.g. <code>https://ntfy.example.com</code>. <code>http://</code> is accepted on a trusted
+                        network, but never with an access token.</small></div>
+            </div>
+            <div class="rf-set-row">
+                <span class="rf-set-icon"><i class="fas fa-at"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="destination">
+                        <span class="rf-for" data-for="email">Email address</span><span class="rf-for" data-for="ntfy">Topic</span><span class="rf-for" data-for="telegram">Chat id (a number, or @channelname)</span></label>
+                    <input type="text" class="form-control" id="destination" name="destination" maxlength="100" spellcheck="false"
+                           value="{{ form.destination.value|default_if_none:'' }}">
+                    <small class="text-muted rf-for" data-for="email">The address that receives the messages - a team mailbox or a
+                        distribution list works best, e.g. <code>noc@example.com</code>. Each person's own address belongs in their My Settings.</small>
+                    <small class="text-muted rf-for" data-for="ntfy">Up to 64 letters, digits, <code>-</code> and <code>_</code>. Phones
+                        subscribe to it in the ntfy app. On a public server anyone who knows the name can read the messages: use a
+                        random name such as <code>rf-alerts-7f3k9q2m</code>, or protect the topic with an access token.</small>
+                    <small class="text-muted rf-for" data-for="telegram">Where the bot posts: a group id (negative, e.g.
+                        <code>-1001234567890</code>), a user id (e.g. <code>412345678</code>), or a public channel
+                        (<code>@routerfleet_alerts</code>). Add the bot to the group or channel first; the id appears in the bot's
+                        <code>getUpdates</code> once someone writes in the chat.</small></div>
+            </div>
+            <div class="rf-set-row rf-for" data-for="ntfy telegram">
+                <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="token">
+                        <span class="rf-for" data-for="ntfy">Access token (optional)</span><span class="rf-for" data-for="telegram">Bot token</span></label>
+                    <input type="password" class="form-control" id="token" name="token" autocomplete="new-password"
+                           placeholder="{% if has_token %}stored - leave empty to keep it{% endif %}">
+                    <small class="text-muted rf-for" data-for="ntfy">Only for a protected topic: created on your ntfy server under
+                        Account, Access tokens, a string starting <code>tk_</code>. Leave empty for an open topic.</small>
+                    <small class="text-muted rf-for" data-for="telegram">Issued by <code>@BotFather</code> when you create the bot
+                        (<code>/newbot</code>), in the form <code>123456789:AA...</code>. Whoever holds it
+                        controls the bot.</small>
+                    <small class="text-muted d-block">Encrypted at rest and never shown again.</small></div>
+            </div>
+            <div class="rf-set-row rf-for" data-for="ntfy">
+                <span class="rf-set-icon amber"><i class="fas fa-exclamation"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="priority">Priority</label>
+                    <select class="form-control" id="priority" name="priority">
+                        <option value="1" {% if form.priority.value|stringformat:"s" == '1' %}selected{% endif %}>1 - min</option>
+                        <option value="2" {% if form.priority.value|stringformat:"s" == '2' %}selected{% endif %}>2 - low</option>
+                        <option value="3" {% if form.priority.value|stringformat:"s" == '3' or not form.priority.value %}selected{% endif %}>3 - default</option>
+                        <option value="4" {% if form.priority.value|stringformat:"s" == '4' %}selected{% endif %}>4 - high</option>
+                        <option value="5" {% if form.priority.value|stringformat:"s" == '5' %}selected{% endif %}>5 - urgent</option>
+                    </select>
+                    <small class="text-muted">How the phone announces it: 1-2 silently, 3 as usual, 4-5 with longer vibration and a
+                        pop-up. 4 suits outages, 3 the daily reports.</small></div>
+            </div>
+        </div>
+
+        <div class="rf-set-title">What it receives</div>
+        <div class="rf-set-group">
+            {% for field, label, on in event_states %}
+            <div class="rf-set-row">
+                <div class="rf-set-text"><div class="rf-set-label">{{ label }}</div></div>
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="ev-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
+                    <label class="custom-control-label" for="ev-{{ field }}"><span class="sr-only">{{ label }}</span></label>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <a href="/system/notifications/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+            {% if channel %}<button type="button" class="btn btn-outline-danger btn-lg ml-2" onclick="deleteChannel()">Delete</button>{% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    (function () {
+        function show() {
+            var type = (document.querySelector('input[name=channel_type]:checked') || {}).value;
+            document.querySelectorAll('.rf-for').forEach(function (e) {
+                e.style.display = e.dataset.for.split(' ').indexOf(type) > -1 ? '' : 'none';
+            });
+        }
+        document.querySelectorAll('input[name=channel_type]').forEach(function (r) { r.addEventListener('change', show); });
+        show();
+    })();
+    function deleteChannel() {
+        var confirmation = prompt("Type 'delete' to delete this channel.");
+        if (confirmation) { postAction(window.location.pathname + window.location.search, {action: 'delete', confirmation: confirmation}); }
+    }
+</script>
+{% endblock %}

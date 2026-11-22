@@ -50,7 +50,7 @@ class MessageSettingsForm(forms.ModelForm):
             Div(
                 Div(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/message_center/channel_list/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/system/notifications/">Back</a> '),
                     css_class='col-md-12'
                 ),
             css_class='row')
@@ -97,13 +97,18 @@ class MessageChannelForm(forms.ModelForm):
         model = MessageChannel
         fields = [
             'name', 'enabled', 'channel_type', 'destination', 'token', 'status_change_offline', 'status_change_online',
-            'backup_fail', 'daily_status_report', 'daily_backup_report', 'backup_success', 'command_failed'
+            'backup_fail', 'daily_status_report', 'daily_backup_report', 'backup_success', 'command_failed',
+            'server_url', 'priority'
         ]
 
     def __init__(self, *args, **kwargs):
         super(MessageChannelForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.fields['enabled'].label = 'Channel Enabled'
+        self.fields['server_url'].required = False
+        self.fields['priority'].required = False
+        # New channels: email, ntfy and Telegram (CallMeBot was removed)
+        self.fields['channel_type'].choices = [c for c in self.fields['channel_type'].choices if c[0] != 'callmebot']
         self.helper.layout = Layout(
             Fieldset(
                 'Message Channel',
@@ -132,7 +137,7 @@ class MessageChannelForm(forms.ModelForm):
                     css_class='row'),
                 Div(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/message_center/channel_list/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/system/notifications/">Back</a> '),
                     css_class='col-md-12'
                 ),
             css_class='row')
@@ -151,6 +156,19 @@ class MessageChannelForm(forms.ModelForm):
             self.add_error('token', 'Token must be less than 100 characters.')
 
         channel_type = cleaned_data.get('channel_type')
+        if channel_type == 'callmebot':
+            raise forms.ValidationError(channels.REMOVED)
+        if channel_type != 'ntfy':
+            cleaned_data['server_url'] = channels.PUBLIC_NTFY
+        else:
+            cleaned_data['server_url'] = (cleaned_data.get('server_url') or channels.PUBLIC_NTFY).strip().rstrip('/')
+            problem = channels.ntfy_server_errors(cleaned_data['server_url'], token)
+            if problem:
+                self.add_error('server_url', problem)
+        priority = cleaned_data.get('priority') or 3
+        if not 1 <= priority <= 5:
+            self.add_error('priority', 'Priority is from 1 (lowest) to 5 (urgent).')
+        cleaned_data['priority'] = priority
         if channel_type == 'email':
             # A shared mailbox: the destination is its address; no token
             from django.core.validators import validate_email
@@ -168,26 +186,23 @@ class MessageChannelForm(forms.ModelForm):
                 from .models import SmtpSettings
                 raise forms.ValidationError(f'Test email failed: {email.scrub(e, SmtpSettings.load())}') from None
             return cleaned_data
-        if channel_type == 'ntfy':
-            if not destination:
-                 self.add_error('destination', 'ntfy.sh requires a destination (topic name).')
-            
-            if token:
-                 self.cleaned_data['token'] = ''
+        if channel_type == 'ntfy' and not destination:
+            self.add_error('destination', 'ntfy requires a topic.')
 
         for field, error in channels.format_errors(channel_type, token, destination).items():
             self.add_error(field, error)
         if self.errors or not enabled or channel_type not in channels.FORMATS:
             return cleaned_data
 
-        required = {'callmebot': ('CallMeBot', True), 'telegram': ('Telegram', True), 'ntfy': ('ntfy.sh', False)}
+        required = {'telegram': ('Telegram', True), 'ntfy': ('ntfy', False)}
         label, needs_token = required[channel_type]
         if not destination or (needs_token and not token):
             raise forms.ValidationError(f'{label} requires {"a token and " if needs_token else "a "}destination.')
 
         # A message is sent before the channel is saved, so a wrong setting shows now
         try:
-            message = channels.send(channel_type, token, destination, 'Test message from RouterFleet')
+            message = channels.send(channel_type, token, destination, 'Test message from RouterFleet',
+                                    server_url=cleaned_data.get('server_url'), priority=cleaned_data.get('priority'))
         except requests.exceptions.RequestException as e:
             raise forms.ValidationError(f'Test message failed. Network error: {channels.scrub(e, token)}') from None
         if message.status_code != 200:

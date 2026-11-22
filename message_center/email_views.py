@@ -32,7 +32,7 @@ def view_email_settings(request):
                 messages.success(request, f'Test email sent|To {request.user.email}.')
             except Exception as error:   # noqa: BLE001 - the reason is shown, the password scrubbed
                 messages.error(request, 'Test email failed|' + email.scrub(error, smtp).replace('|', '/')[:300])
-        return redirect('/message_center/email/')
+        return redirect('/system/notifications/email/')
     if request.method == 'POST' and request.POST.get('action') == 'save':
         data = request.POST
         host = data.get('host', '').strip()
@@ -68,7 +68,7 @@ def view_email_settings(request):
             smtp.save()
             messages.success(request, 'Email settings saved|' + ('Notifications are sent by email.' if smtp.ready
                                                                  else 'Email notifications are off.'))
-            return redirect('/message_center/email/')
+            return redirect('/system/notifications/email/')
     return render(request, 'message_center/email_settings.html', {
         'page_title': 'Email notifications', 'smtp': smtp, 'errors': errors, 'posted': request.POST or None,
         'securities': SmtpSettings.SECURITY, 'has_password': bool(smtp.password)})

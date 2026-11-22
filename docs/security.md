@@ -412,7 +412,7 @@ What the installation contacts, and why:
 | Your devices, port 22 | SSH and SCP for backups, inventory and commands | no |
 | MikroTik's update servers | **The device** checks its own channel; RouterFleet only reads the result | Device-side |
 | `downloads.openwrt.org` | OpenWrt release index and per-board image availability | Only by not using OpenWrt devices |
-| Telegram / ntfy.sh / CallMeBot | Whichever notification channels you configure | Yes — configure none |
+| Your mail server / ntfy (ntfy.sh or your own) / Telegram | Whichever notification channels you configure | Yes — configure none |
 | `api.github.com` | The update check: the latest release of RouterFleet Improved, about once an hour. The request carries no information about the installation | Yes: `UPDATE_CHECK=off` |
 
 With `UPDATE_CHECK=off`, the update check makes **no outbound request at all**;

@@ -148,7 +148,8 @@ def send_notification_message(message: Message):
             from .models import SmtpSettings
             smtp = SmtpSettings.load()
         response = channels.send(channel.channel_type, channel.token, destination,
-                                 message.message, message.subject)
+                                 message.message, message.subject, server_url=channel.server_url,
+                                 priority=channel.priority)
         if response.status_code == 200:
             message_response['status'] = 'sent'
         else:
@@ -157,8 +158,8 @@ def send_notification_message(message: Message):
             message_response['error_status_code'] = response.status_code
     except ValueError as e:
         message_response['status'] = 'failed'
-        message_response['error_message'] = (f'Failed to send message: {e}' if channel.channel_type == 'email' else
-                                             'Failed to send message: the channel type, token or destination is not valid')
+        message_response['error_message'] = (f'Failed to send message: {e}' if channel.channel_type in ('email', 'callmebot', 'ntfy')
+                                             else 'Failed to send message: the channel type, token or destination is not valid')
         message_response['error_status_code'] = 0
     except Exception as e:
         # The exception names the URL, which carries the token, or the SMTP

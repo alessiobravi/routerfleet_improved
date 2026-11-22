@@ -83,7 +83,8 @@ encrypted with.
   they count, object pages with progress and a timeline, updating themselves
   while something runs.
 - **Notifications** — email (each user picks what to receive; your own SMTP
-  server), Telegram, ntfy.sh and CallMeBot (WhatsApp), with
+  server), ntfy (ntfy.sh or your own server) and Telegram, configured in
+  System Settings, with
   concatenation so a flapping link does not send fifty messages.
 - **Audit log** — every sign-in attempt, and every configuration change field
   by field, in an append-only trail.

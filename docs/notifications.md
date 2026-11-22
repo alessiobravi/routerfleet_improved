@@ -15,7 +15,7 @@ flowchart LR
     conc["/cron/concatenate_notifications/<br/>every minute"]
     msg["Message rows<br/>per channel, pending"]
     send["/cron/send_messages/<br/>every minute"]
-    out["Email · Telegram · ntfy.sh · CallMeBot"]
+    out["Email · ntfy · Telegram"]
 
     ev1 & ev2 & ev3 & ev5 & ev4 --> note --> conc --> msg --> send --> out
     ev6 --> msg
@@ -23,12 +23,28 @@ flowchart LR
 
 ## Channels
 
+Channels are configured in **System Settings → Notifications** (Configuration
+Manager and above); the message history stays in Message Center.
+
 | Type | Transport | Needs |
 |---|---|---|
 | **Email** | the installation's SMTP server ([below](#email)) | an address: each user's own, or a shared mailbox |
-| Telegram | `GET api.telegram.org/bot<token>/sendMessage` | Bot token, chat id |
-| ntfy.sh | `POST ntfy.sh/<topic>`, subject as `Title` header | Topic name |
-| CallMeBot (WhatsApp) | `GET api.callmebot.com/whatsapp.php` | Phone number, API key |
+| **ntfy** | `POST <server>/<topic>`, subject as `Title`, `Priority` header | server (default `https://ntfy.sh`, or your own), topic; optional access token and priority |
+| **Telegram** | `GET api.telegram.org/bot<token>/sendMessage` | bot token (from `@BotFather`), chat id |
+
+**ntfy** works with the public ntfy.sh or a server of your own. A protected
+topic takes an access token, sent as `Authorization: Bearer` - only to an
+`https://` server - and stored encrypted. Priority (1 to 5) decides how phones
+announce a message. A server on RouterFleet's own internal networks is
+refused, as for the [device console](console.md#security).
+
+A stored token is never shown again in the editor; leaving the field empty
+keeps it. An enabled channel sends a test message when it is saved, so a wrong
+setting shows at once.
+
+**CallMeBot (WhatsApp) is no longer supported.** Upgrading switches existing
+CallMeBot channels off and keeps them, with their history; System Settings
+lists them so they can be recreated as email, ntfy or Telegram.
 
 Each channel independently selects which events it wants:
 
@@ -64,8 +80,8 @@ management.
 **A shared mailbox** - a team address - is an ordinary channel of type
 *Email* in Message Center, with the address as its destination.
 
-**The mail server** is set once, by an administrator, in *Message Center →
-Email*: server and port, the connection's security (STARTTLS, SSL/TLS, or none
+**The mail server** is set once, by an administrator, in *System Settings →
+Notifications → Mail server*: server and port, the connection's security (STARTTLS, SSL/TLS, or none
 - with a warning), an optional username and password, and the sender's address
 and name. The password is encrypted like device passwords and never shown
 again; leaving the field empty keeps it. *Send a test email* sends one to your

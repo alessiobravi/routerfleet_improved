@@ -39,18 +39,18 @@ class SmtpSettingsPageTests(TestCase):
                 'username': 'rf', 'password': 'smtp-secret-1', 'sender_address': 'routerfleet@example.net',
                 'sender_name': 'RouterFleet Improved', 'enabled': 'on'}
         base.update(data)
-        return self.client.post('/message_center/email/', base)
+        return self.client.post('/system/notifications/email/', base)
 
     def test_only_administrators(self):
         self.client.force_login(make_user(40))
-        self.assertContains(self.client.get('/message_center/email/'), 'Access Denied')
+        self.assertContains(self.client.get('/system/notifications/email/'), 'Access Denied')
 
     def test_saved_encrypted_and_never_shown(self):
         self.save()
         smtp = SmtpSettings.load()
         self.assertTrue(smtp.ready)
         self.assertEqual(smtp.password, 'smtp-secret-1')
-        page = self.client.get('/message_center/email/')
+        page = self.client.get('/system/notifications/email/')
         self.assertNotContains(page, 'smtp-secret-1')
         self.assertContains(page, 'stored - leave empty to keep it')
         self.save(password='')                                   # empty keeps it
@@ -66,7 +66,7 @@ class SmtpSettingsPageTests(TestCase):
 
     def test_test_email(self):
         self.save()
-        self.client.post('/message_center/email/', {'action': 'test'})
+        self.client.post('/system/notifications/email/', {'action': 'test'})
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['admin@example.net'])
         self.assertIn('RouterFleet Improved <routerfleet@example.net>', mail.outbox[0].from_email)
@@ -90,7 +90,7 @@ class MySettingsEmailTests(TestCase):
         page = self.client.get('/user/settings/')
         self.assertContains(page, 'id="email-backup_fail" name="backup_fail" checked')
         self.assertContains(page, 'Email is not set up yet')
-        self.assertNotContains(self.client.get('/message_center/channel_list/'), channel.name)
+        self.assertNotContains(self.client.get('/system/notifications/'), channel.name)
 
     def test_nothing_chosen_or_no_address_means_off(self):
         self.client.post('/user/settings/', {'action': 'email', 'email': 'me@example.net'})
@@ -168,7 +168,7 @@ class SharedMailboxTests(TestCase):
     def test_an_email_channel_for_a_team_address(self):
         configure()
         self.client.force_login(make_user(40))
-        self.client.post('/message_center/manage_channel/', {
+        self.client.post('/system/notifications/channel/', {
             'name': 'NOC mailbox', 'channel_type': 'email', 'destination': 'noc@example.net', 'enabled': 'on',
             'backup_fail': 'on'})
         channel = MessageChannel.objects.get(name='NOC mailbox')
