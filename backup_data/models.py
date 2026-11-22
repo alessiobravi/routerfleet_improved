@@ -134,6 +134,14 @@ class RouterBackup(models.Model):
         texts += [(str(e.get('name', '')), str(e.get('text', ''))) for e in (content.extra_texts or [])]
         return texts
 
+    def text_named(self, name=None):
+        """The text of one named text backup (the first when no name is given),
+        '' when this backup has none of that name."""
+        texts = self.named_texts()
+        if not name:
+            return texts[0][1]
+        return next((text for text_name, text in texts if text_name == name), '')
+
     def save(self, *args, **kwargs):
         if self.backup_text:
             self.backup_text_hash = self.texts_hash()

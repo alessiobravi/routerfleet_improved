@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
+    <div class="rf-set-title">{{ image.device_type.name }} {{ image.version }}</div>
+    <div class="rf-set-group">
+        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">File</span><span class="rf-set-sub d-block">{{ image.filename }} · {{ image.size|filesizeformat }} ({{ image.size }} bytes)</span></span></div>
+        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">SHA-256</span><code class="small" style="word-break: break-all">{{ image.sha256 }}</code></span></div>
+        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">For</span><span class="rf-set-sub d-block">{% if image.models_pattern %}models matching {{ image.models_pattern }}{% else %}every model{% endif %}{% if image.architecture %}, {{ image.architecture }}{% endif %}</span></span></div>
+        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">Uploaded</span><span class="rf-set-sub d-block">{{ image.uploaded_by_name }}, {{ image.created|date:"Y-m-d H:i" }}</span></span></div>
+        {% if image.notes %}<div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-sub d-block">{{ image.notes|linebreaksbr }}</span></span></div>{% endif %}
+    </div>
+    <div class="rf-set-foot">{{ candidates|length }} enabled device{{ candidates|length|pluralize }} can take it.</div>
+    <div class="text-center mt-3">
+        {% if image.enabled %}<a href="/system/firmware/rollout/start/?uuid={{ image.uuid }}" class="btn btn-primary btn-lg"><i class="fas fa-rocket mr-1"></i>Update devices</a>{% endif %}
+        <button type="button" class="btn btn-outline-secondary btn-lg ml-1" onclick="postAction(window.location.pathname + window.location.search, {action: 'toggle'})">{% if image.enabled %}Switch off{% else %}Offer again{% endif %}</button>
+        <button type="button" class="btn btn-outline-danger btn-lg ml-1" onclick="var c = rfConfirm('Delete this firmware from the repository? The file is removed.', 'delete'); if (c) { postAction(window.location.pathname + window.location.search, {action: 'delete', confirmation: c}); }">Delete</button>
+    </div>
+</div>
+{% endblock %}

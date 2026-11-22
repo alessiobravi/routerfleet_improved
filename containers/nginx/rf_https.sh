@@ -67,6 +67,21 @@ locations() {
         proxy_send_timeout 4h;
     }
 
+    # Firmware uploads (System settings): the only place a large body is
+    # accepted; every other page keeps nginx's 1 MB
+    location = /system/firmware/upload/ {
+        client_max_body_size 1024m;
+        client_body_timeout 30m;
+        proxy_request_buffering on;
+        proxy_read_timeout 30m;
+        proxy_send_timeout 30m;
+        proxy_pass http://routerfleet:8001;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $1;
+    }
+
     location / {
         proxy_pass http://routerfleet:8001;
         proxy_set_header Host \$host;

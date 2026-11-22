@@ -30,10 +30,13 @@ def view_system(request):
     if user_level < CONFIGURATION_MANAGER:
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     from .models import HttpsSettings, DisplaySettings
+    from router_manager.models import DeviceType
     return render(request, 'routerfleet_tools/system.html', {
         'page_title': 'System settings', 'is_administrator': user_level >= ADMINISTRATOR,
         'https': HttpsSettings.load(), 'smtp': SmtpSettings.load(), 'display': DisplaySettings.load(),
         'current': django_settings.ROUTERFLEET_RELEASE, 'update_available': _available(),
+        'can_firmware': user_level >= CONFIGURATION_MANAGER,
+        'device_type_count': DeviceType.objects.count(),
         'channels': MessageChannel.objects.filter(user__isnull=True, enabled=True).count()})
 
 

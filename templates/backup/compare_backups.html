@@ -60,11 +60,16 @@
                             <button type="button" class="btn btn-outline-primary" data-mode="side-by-side">Side by side</button>
                             <button type="button" class="btn btn-outline-primary" data-mode="inline">Inline</button>
                         </div>
+                        {% if text_names %}
+                        <div class="btn-group btn-group-sm mb-1" role="group" aria-label="Text backup">
+                            {% for name in text_names %}<a class="btn btn-outline-info {% if name == text_chosen %}active{% endif %}" href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&text={{ name|urlencode }}{% if show_all %}&display=all{% endif %}">{{ name }}</a>{% endfor %}
+                        </div>
+                        {% endif %}
                         <div class="btn-group btn-group-sm mb-1" role="group" aria-label="Extent">
                             <a class="btn btn-outline-secondary {% if not show_all %}active{% endif %}"
-                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}">Changed parts</a>
+                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&text={{ text_chosen|urlencode }}">Changed parts</a>
                             <a class="btn btn-outline-secondary {% if show_all %}active{% endif %}"
-                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&display=all">Complete file</a>
+                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&text={{ text_chosen|urlencode }}&display=all">Complete file</a>
                         </div>
                         <div id="diff-container"></div>
                     </div>

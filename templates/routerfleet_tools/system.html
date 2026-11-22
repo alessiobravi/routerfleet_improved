@@ -28,6 +28,27 @@
         </a>
     </div>
 
+    {% if is_administrator or can_firmware %}
+    <div class="rf-set-title">Devices</div>
+    <div class="rf-set-group">
+        {% if is_administrator %}
+        <a class="rf-set-row" href="/system/device-types/">
+            <span class="rf-set-icon teal"><i class="fas fa-network-wired"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Device types</span>
+                <span class="rf-set-sub d-block">How RouterFleet talks to each kind of device: connection, recognition, inventory, backups, update checks, firmware</span></span>
+            <span class="rf-set-value">{{ device_type_count }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        <a class="rf-set-row" href="/system/firmware/">
+            <span class="rf-set-icon purple"><i class="fas fa-microchip"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Firmware repository</span>
+                <span class="rf-set-sub d-block">Firmware per device type, and updating devices with it - one device first, then the rest</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+    {% endif %}
+
     <div class="rf-set-title">Display</div>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/system/display/">

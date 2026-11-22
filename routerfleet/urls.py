@@ -31,6 +31,8 @@ from console.views import view_console
 from message_center.email_views import view_email_settings
 from routerfleet_tools.system_views import view_system, view_notifications, view_notification_channel, view_display, view_updates
 from django.views.generic import RedirectView
+from router_manager.device_type_views import view_device_types, view_device_type, view_device_type_new, view_device_type_try
+from firmware import views as firmware_views
 from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
 
 urlpatterns = [
@@ -67,6 +69,16 @@ urlpatterns = [
     path('system/notifications/', view_notifications, name='system_notifications'),
     path('system/display/', view_display, name='system_display'),
     path('system/updates/', view_updates, name='system_updates'),
+    path('system/device-types/', view_device_types, name='device_types'),
+    path('system/device-types/new/', view_device_type_new, name='device_type_new'),
+    path('system/device-types/edit/', view_device_type, name='device_type_edit'),
+    path('system/device-types/try/', view_device_type_try, name='device_type_try'),
+    path('system/firmware/', firmware_views.view_repository, name='firmware'),
+    path('system/firmware/upload/', firmware_views.view_upload, name='firmware_upload'),
+    path('system/firmware/image/', firmware_views.view_image, name='firmware_image'),
+    path('system/firmware/rollout/start/', firmware_views.view_start_rollout, name='firmware_rollout_start'),
+    path('system/firmware/rollout/', firmware_views.view_rollout, name='firmware_rollout'),
+    path('cron/firmware_rollouts/', firmware_views.view_cron_rollouts, name='cron_firmware_rollouts'),
     path('system/notifications/channel/', view_notification_channel, name='system_notification_channel'),
     path('system/notifications/email/', view_email_settings, name='email_settings'),
     # The pages notifications had before System Settings; bookmarks still arrive

@@ -12,5 +12,7 @@ MAILTO=""
 * * * * *    root sleep 30; /usr/bin/curl -s http://routerfleet:8001/cron/send_messages/             >> /var/log/cron.log 2>&1
 * * * * *    root sleep 50; /usr/bin/curl -s http://routerfleet:8001/cron/perform_command_tasks/             >> /var/log/cron.log 2>&1
 * * * * *    root sleep 40; /usr/bin/curl -s http://routerfleet:8001/cron/create_command_jobs/             >> /var/log/cron.log 2>&1
+# Firmware rollouts: one step per device per minute
+* * * * *    root sleep 25; /usr/bin/curl -s --max-time 330 http://routerfleet:8001/cron/firmware_rollouts/        >> /var/log/cron.log 2>&1
 # Updates approved in System settings (does nothing unless set up)
 * * * * *    root /usr/local/bin/rf-update run >> /var/log/rf-update.log 2>&1

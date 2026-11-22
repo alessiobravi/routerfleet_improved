@@ -329,6 +329,19 @@ def build():
           create=True)
 
     watch(apps.get_model('routerfleet_tools', 'DisplaySettings'), fields=['default_page_size'], create=True)
+    # Device types: what RouterFleet sends to a kind of device
+    watch(apps.get_model('router_manager', 'DeviceType'),
+          fields=['name', 'enabled', 'session_mode', 'prompt_pattern', 'session_setup', 'enable_command',
+                  'management_links', 'test_pattern', 'inventory_fields', 'inventory_repeat', 'text_extension',
+                  'binary_extension', 'text_ignore_pattern', 'option_sensitive', 'option_terse', 'check_device',
+                  'check_vendor', 'check_repository', 'vendor_url', 'vendor_keys', 'vendor_confirm_url',
+                  'vendor_target', 'vendor_version_field', 'firmware_upload_path', 'firmware_verify'],
+          create=True)
+    watch(apps.get_model('firmware', 'FirmwareImage'),
+          fields=['device_type', 'version', 'filename', 'sha256', 'models_pattern', 'architecture', 'enabled'],
+          create=True)
+    watch(apps.get_model('firmware', 'FirmwareRollout'), fields=['image', 'batch_size', 'state', 'message'],
+          create=True, delete=False)
     # Who approved which update, and how it ended
     watch(apps.get_model('routerfleet_tools', 'UpdateRun'),
           fields=['from_version', 'to_version', 'approved_by_name', 'state', 'message'], create=True, delete=False)

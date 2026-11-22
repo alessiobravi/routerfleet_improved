@@ -172,9 +172,16 @@ def view_compare_backups(request):
 
     # A backup that brought no configuration compares as an empty one, so a
     # pending or failed backup does not end the page in an error
-    # An unchanged backup's configuration is the stored one it points to
-    diff = difflib.unified_diff(normalize_text(backup1.content.backup_text or '').splitlines(),
-                                normalize_text(backup2.content.backup_text or '').splitlines(),
+    # An unchanged backup's configuration is the stored one it points to.
+    # A device type with several named texts compares one of them at a time.
+    names = []
+    for backup in (backup1, backup2):
+        for name, _ in backup.named_texts():
+            if name not in names:
+                names.append(name)
+    chosen = request.GET.get('text') if request.GET.get('text') in names else names[0]
+    diff = difflib.unified_diff(normalize_text(backup1.text_named(chosen) or '').splitlines(),
+                                normalize_text(backup2.text_named(chosen) or '').splitlines(),
                                 fromfile=backup1.backup_text_hash[:16] + '...',
                                 tofile=backup2.backup_text_hash[:16] + '...',
                                 lineterm='', n=show_lines)
@@ -184,6 +191,8 @@ def view_compare_backups(request):
         'backup1': backup1,
         'backup2': backup2,
         'diff_str': diff_str,
+        'text_names': names if len(names) > 1 else [],
+        'text_chosen': chosen,
         'page_title': 'Compare Backups',
         'show_all': show_all
     }
@@ -270,12 +279,18 @@ def view_backup_download(request):
     # An unchanged backup downloads the stored configuration it is the same as
     backup = get_object_or_404(RouterBackup, uuid=request.GET.get('uuid')).content
     if request.GET.get('type') == 'text':
-        response = HttpResponse(backup.backup_text, content_type='text/plain')
+        names = [name for name, _ in backup.named_texts()]
+        name = request.GET.get('name') if request.GET.get('name') in names else None
+        response = HttpResponse(backup.text_named(name), content_type='text/plain')
         if backup.backup_text_filename:
             filename = backup.backup_text_filename
         else:
             filename = gen_backup_name(backup)
             filename += f'.missing_backup_name.{get_router_backup_file_extension(backup.router.router_type)["text"]}'
+        if name and name != names[0]:
+            # The other named texts: their name before the extension
+            stem, dot, extension = filename.rpartition('.')
+            filename = f'{stem}-{name}.{extension}' if dot else f'{filename}-{name}'
         response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
     elif request.GET.get('type') == 'binary':

@@ -88,6 +88,10 @@ class Fixture(TestCase):
             ('/system/notifications/', 40, 'page'),
             ('/system/display/', 40, 'page'),
             ('/system/updates/', 50, 'page'),
+            ('/system/device-types/', 50, 'page'),
+            ('/system/device-types/new/', 50, 'page'),
+            ('/system/firmware/', 40, 'page'),
+            ('/system/firmware/upload/', 40, 'page'),
             ('/system/notifications/channel/', 40, 'page'),
             ('/tools/', 50, 'page'),
             ('/system/https/', 50, 'page'),
@@ -192,7 +196,7 @@ class CronEndpointTests(TestCase):
                 if str(pattern.pattern).startswith('cron/')]
 
     def test_all_cron_routes_are_covered(self):
-        self.assertEqual(len(self.cron_paths()), 11)
+        self.assertEqual(len(self.cron_paths()), 12)
 
     @mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('no network in tests'))
     def test_direct_call_runs(self, _):

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/system/firmware/image/?uuid={{ image.uuid }}" class="small"><i class="fas fa-chevron-left"></i> {{ image }}</a>
+    <form method="post" id="rollout-form">
+        {% csrf_token %}
+        <input type="hidden" name="confirmation" id="confirmation">
+        <div class="rf-set-title">Devices to update to {{ image.version }}</div>
+        <div class="rf-set-group">
+            {% for c in candidates %}
+            <label class="rf-set-row mb-0" style="cursor: pointer">
+                <span class="custom-control custom-checkbox mr-2">
+                    <input type="checkbox" class="custom-control-input" id="r-{{ c.router.uuid }}" name="routers" value="{{ c.router.uuid }}" {% if c.behind %}checked{% endif %}>
+                    <span class="custom-control-label" for="r-{{ c.router.uuid }}"></span></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{{ c.router.name }}</span>
+                    <span class="rf-set-sub d-block">{{ c.router.address }} · runs {{ c.running|default:"an unknown version" }}{% if c.behind is False %} - not older{% endif %}</span></span>
+                <span class="small text-muted mr-1">first</span><input type="radio" name="canary" value="{{ c.router.uuid }}" {% if forloop.first %}checked{% endif %} title="Goes first, alone">
+            </label>
+            {% empty %}
+            <div class="rf-set-row"><span class="rf-set-text text-muted">No enabled device of this type and model.</span></div>
+            {% endfor %}
+        </div>
+        <div class="rf-set-title">How</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="batch_size">Devices at a time after the first</label>
+                <input type="number" class="form-control" id="batch_size" name="batch_size" min="1" max="20" value="3"></div></div>
+        </div>
+        <div class="rf-set-foot">For every device: a backup first; the file is uploaded and checked on the device against the repository; then it is installed and must come back reporting {{ image.version }}. The device marked "first" goes alone; the others follow only when it is back on the new version, a few at a time. Any failure stops the devices not started yet. Devices reboot.</div>
+        {% if candidates %}<div class="text-center mt-3"><button type="button" class="btn btn-danger btn-lg" onclick="var c = rfConfirm('Update the chosen devices to {{ image.version|escapejs }}? They reboot.', 'update'); if (c) { document.getElementById('confirmation').value = c; document.getElementById('rollout-form').submit(); }"><i class="fas fa-rocket mr-1"></i>Start the update</button></div>{% endif %}
+    </form>
+</div>
+{% endblock %}

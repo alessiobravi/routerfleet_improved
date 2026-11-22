@@ -41,6 +41,8 @@ PRESET_COMMANDS = {
         'backup_download': '/{{ backup_name }}.backup',
         'backup_remove': '/file remove "{{ backup_name }}.backup"',
         'backup_cleanup': 'file remove [find where name~"routerfleet-backup-"]',
+        'firmware_verify': ':put [/file get [find name="{{ firmware_name }}"] size]',
+        'firmware_install': '/system reboot',
     },
     'openwrt': {
         'connection_test': 'ubus call system board',
@@ -51,6 +53,8 @@ PRESET_COMMANDS = {
         'backup_download': '/tmp/{{ backup_name }}.tar.gz',  # nosec B108 - a path on the device
         'backup_remove': 'rm /tmp/{{ backup_name }}.tar.gz',
         'backup_cleanup': 'rm /tmp/routerfleet-backup-*',
+        'firmware_verify': 'sha256sum {{ firmware_path }}',
+        'firmware_install': 'sysupgrade {{ firmware_path }}',
     },
     'ubiquiti-airos': {
         'connection_test': 'cat /etc/version',

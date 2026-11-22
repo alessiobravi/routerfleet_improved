@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'user_manager',
     'router_manager',
     'monitoring',
+    'firmware',
     'backup',
     'backup_data',
     'integration_manager',
@@ -95,6 +96,8 @@ HTTPS_CERT_DIR = '/certificate'
 # Shared with the scheduler's updater (System settings, Updates); see
 # routerfleet_tools/updates.py and containers/cron/rf-update
 UPDATE_DIR = '/update'
+# The largest firmware file the repository accepts (nginx allows it on the upload page only)
+FIRMWARE_MAX_BYTES = 1024 * 1024 * 1024
 
 ROOT_URLCONF = 'routerfleet.urls'
 # The console's WebSocket is served by uvicorn (port 8002, routerfleet/asgi.py);

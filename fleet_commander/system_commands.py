@@ -81,6 +81,22 @@ DEFAULTS = {
         'placeholders': (),
         'required': False,
     },
+    'firmware_verify': {
+        'name': 'System: firmware - verify the upload',
+        'description': 'After a firmware file is uploaded to a device: prints what proves it arrived whole - its '
+                       'SHA-256 or its size in bytes, as the device type says. The install starts only when it '
+                       'matches the repository. Empty: not verified.',
+        'placeholders': ('firmware_name', 'firmware_path', 'firmware_version'),
+        'required': False,
+    },
+    'firmware_install': {
+        'name': 'System: firmware - install',
+        'description': 'Installs the uploaded firmware - usually ending in a reboot. RouterFleet then waits for '
+                       'the device to come back reporting the new version. Empty: the device type has no '
+                       'firmware updates.',
+        'placeholders': ('firmware_name', 'firmware_path', 'firmware_version'),
+        'required': False,
+    },
 }
 
 

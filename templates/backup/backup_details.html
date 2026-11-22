@@ -185,9 +185,7 @@
                                 <b>Download</b>
                                 <span class="float-right">
                                 {% if backup.content.backup_text %}
-                                    <a href="/backup/download/?uuid={{ backup.uuid }}&type=text" download>
-                                    Text
-                                </a>
+                                    {% for name, text in backup.named_texts %}<a href="/backup/download/?uuid={{ backup.uuid }}&type=text&name={{ name|urlencode }}" download>{% if backup.named_texts|length > 1 %}{{ name }}{% else %}Text{% endif %}</a>{% if not forloop.last %} - {% endif %}{% endfor %}
                                     {% if backup.content.backup_binary %} - {% endif %}
                                 {% endif %}
                                     {% if backup.content.backup_binary %}
@@ -289,15 +287,17 @@
             {% endif %}
             <div class="card card-primary card-outline">
 
+                {% for name, text in backup.named_texts %}
                 <div class="card-header">
-                    <h3 class="card-title">Text Backup</h3>
+                    <h3 class="card-title">Text Backup{% if backup.named_texts|length > 1 %}: {{ name }}{% endif %}</h3>
                 </div>
 
                 <div class="card-body row">
                     <div class="col-lg-12">
-                        <pre>{{ backup.content.backup_text|default_if_none:"" }}</pre>
+                        <pre>{{ text|default_if_none:"" }}</pre>
                     </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
 

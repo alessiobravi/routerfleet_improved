@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
+    <form method="post" enctype="multipart/form-data" action="/system/firmware/upload/">
+        {% csrf_token %}
+        <div class="rf-set-title">Firmware</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="device_type">Device type</label>
+                <select class="form-control" id="device_type" name="device_type" required>
+                    <option value="">---------</option>
+                    {% for type in types %}<option value="{{ type.uuid }}">{{ type.name }}</option>{% endfor %}
+                </select></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="version">Version it installs</label>
+                <input type="text" class="form-control" id="version" name="version" maxlength="64" required placeholder="7.18.2">
+                <small class="text-muted">As the device reports it after the update: RouterFleet compares it with what the device says once it is back.</small></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="file">File</label>
+                <input type="file" class="form-control-file" id="file" name="file" required>
+                <small class="text-muted">Up to {{ max_mb }} MB. RouterOS: the .npk of the device's architecture; OpenWrt: the sysupgrade image of the board.</small></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="expected_sha256">Vendor checksum (SHA-256, recommended)</label>
+                <input type="text" class="form-control" id="expected_sha256" name="expected_sha256" maxlength="64" spellcheck="false" placeholder="64 hexadecimal characters from the vendor's download page">
+                <small class="text-muted">When given, a file that does not match is refused - it is not the file the vendor published.</small></div></div>
+        </div>
+        <div class="rf-set-title">Which devices it is for</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="models_pattern">Models (regular expression, optional)</label>
+                <input type="text" class="form-control" id="models_pattern" name="models_pattern" maxlength="200" spellcheck="false" placeholder="^(hAP ax|C53UiG)">
+                <small class="text-muted">Matched against the model and model version of the inventory. Empty: every model of the type.</small></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="architecture">Architecture (optional)</label>
+                <input type="text" class="form-control" id="architecture" name="architecture" maxlength="50" placeholder="arm64">
+                <small class="text-muted">As the inventory reports it (arm64, mipsbe, arm...). Empty: every architecture.</small></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="notes">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="2" maxlength="2000"></textarea></div></div>
+        </div>
+        <div class="text-center mt-3"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-upload mr-1"></i>Upload</button></div>
+    </form>
+</div>
+{% endblock %}

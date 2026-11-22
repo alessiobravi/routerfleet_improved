@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings rf-dt {% if new %}rf-wizard{% endif %}">
+    <a href="/system/device-types/" class="small"><i class="fas fa-chevron-left"></i> Device types</a>
+    {% if new %}
+    <ol class="rf-steps mt-2" id="steps">
+        <li data-step="1">Identity</li><li data-step="2">Connection</li><li data-step="3">Recognition</li><li data-step="4">Inventory</li>
+        <li data-step="5">Backups</li><li data-step="6">Update checks</li><li data-step="7">Firmware</li><li data-step="8">Try it</li>
+    </ol>
+    {% endif %}
+    <form method="post" id="dt-form" autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="uuid" value="{% if device_type.pk %}{{ device_type.uuid }}{% endif %}">
+
+        <section data-step="1">
+            <div class="rf-set-title">Identity</div>
+            <div class="rf-set-group">
+                {% if new %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="start">Start from</label>
+                    <select class="form-control" id="start"><option value="">An empty type</option>
+                        <option value="routeros">Mikrotik (RouterOS)</option><option value="openwrt">OpenWrt</option><option value="ubiquiti-airos">Ubiquiti airOS</option>
+                        <option value="cisco-ios">Cisco IOS / IOS-XE</option><option value="juniper-junos">Juniper Junos</option><option value="huawei-vrp">Huawei VRP</option></select>
+                    <small class="text-muted">Copies a shipped type's settings and commands into the form, to change what differs.</small></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="slug">Short name</label>
+                    <input type="text" class="form-control" id="slug" name="slug" maxlength="49" required pattern="[a-z0-9][a-z0-9\-]{1,48}" value="{{ device_type.slug|default_if_none:'' }}" placeholder="fortinet-fortios">
+                    <small class="text-muted">How devices and commands refer to the type, and the device_type column of a CSV import. It can not change later.</small></div></div>
+                {% else %}
+                <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">Short name</span><code>{{ device_type.slug }}</code> · {{ devices }} device{{ devices|pluralize }}{% if device_type.preset %} · shipped type{% endif %}</span></div>
+                {% endif %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" maxlength="100" required value="{{ device_type.name|default_if_none:'' }}" placeholder="Fortinet FortiOS"></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="vendor">Vendor</label>
+                    <input type="text" class="form-control" id="vendor" name="vendor" maxlength="100" value="{{ device_type.vendor }}"></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="description">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="2">{{ device_type.description }}</textarea></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Offered for new devices</div></div>
+                    <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="enabled" name="enabled" {% if device_type.enabled or new %}checked{% endif %}><label class="custom-control-label" for="enabled"><span class="sr-only">Offered</span></label></div></div>
+            </div>
+        </section>
+
+        {% if device_type.managed or new %}
+        <section data-step="2">
+            <div class="rf-set-title">Connection</div>
+            <div class="rf-set-group">
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="session_mode">How commands are sent</label>
+                    <select class="form-control" id="session_mode" name="session_mode">{% for value, label in device_type.SESSION_MODES %}<option value="{{ value }}" {% if device_type.session_mode == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                    <small class="text-muted">One channel per command suits Linux-like systems. Network operating systems that only offer a CLI need the interactive shell.</small></div></div>
+                <div class="rf-set-row rf-shell"><div class="rf-set-text"><label class="small mb-0" for="prompt_pattern">Prompt (regular expression)</label>
+                    <input type="text" class="form-control" id="prompt_pattern" name="prompt_pattern" spellcheck="false" value="{{ device_type.prompt_pattern }}" placeholder="(?m)^[\w.\-@]+[>#]\s*$">
+                    <small class="text-muted">Matched against the last line: when it appears, a command has finished. Cisco: <code>router#</code>, Juniper: <code>user@router&gt;</code>, Huawei: <code>&lt;router&gt;</code>.</small></div></div>
+                <div class="rf-set-row rf-shell"><div class="rf-set-text"><label class="small mb-0" for="session_setup">Sent once after login</label>
+                    <textarea class="form-control" id="session_setup" name="session_setup" rows="2" spellcheck="false" placeholder="terminal length 0">{{ device_type.session_setup }}</textarea>
+                    <small class="text-muted">Turns paging off, so long output is not cut at "--More--". Cisco: <code>terminal length 0</code>; Juniper: <code>set cli screen-length 0</code>; Huawei: <code>screen-length 0 temporary</code>.</small></div></div>
+                <div class="rf-set-row rf-shell"><div class="rf-set-text"><label class="small mb-0" for="enable_command">Enable command</label>
+                    <input type="text" class="form-control" id="enable_command" name="enable_command" value="{{ device_type.enable_command }}" placeholder="enable">
+                    <small class="text-muted">Sent with the device's enable password, when it has one. Empty: never.</small></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="management_links">Links on the address in the device list</label>
+                    <textarea class="form-control" id="management_links" name="management_links" rows="2" spellcheck="false" placeholder="Winbox: winbox://{address}">{{ device_type.management_links }}</textarea>
+                    <small class="text-muted">One per line, "Label: scheme://..." with {address}, {port}, {username}. SSH is always offered.</small></div></div>
+            </div>
+        </section>
+
+        <section data-step="3">
+            <div class="rf-set-title">Recognition</div>
+            <div class="rf-set-group">
+                {% if new %}{% for key, definition, payload in commands %}{% if key == 'connection_test' %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">Connection test commands</label>
+                    <textarea class="form-control rf-mono" id="command_{{ key }}" name="command_{{ key }}" rows="2" spellcheck="false">{{ payload }}</textarea>
+                    <small class="text-muted">{{ definition.description }}</small></div></div>{% endif %}{% endfor %}{% endif %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="test_pattern">Recognition pattern</label>
+                    <input type="text" class="form-control rf-mono" id="test_pattern" name="test_pattern" spellcheck="false" value="{{ device_type.test_pattern }}" placeholder="Cisco IOS|IOS-XE">
+                    <small class="text-muted">The connection test output must match it. A group, e.g. <code>Version (\S+)</code>, is shown in the result.</small></div></div>
+            </div>
+        </section>
+
+        <section data-step="4">
+            <div class="rf-set-title">Inventory</div>
+            <div class="rf-set-group">
+                {% if new %}{% for key, definition, payload in commands %}{% if key == 'inventory' %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">Inventory commands</label>
+                    <textarea class="form-control rf-mono" id="command_{{ key }}" name="command_{{ key }}" rows="3" spellcheck="false">{{ payload }}</textarea>
+                    <small class="text-muted">{{ definition.description }}</small></div></div>{% endif %}{% endfor %}{% endif %}
+                {% for field, label, sources in inventory_rows %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="inventory_{{ field }}">{{ label }}</label>
+                    <textarea class="form-control rf-mono" id="inventory_{{ field }}" name="inventory_{{ field }}" rows="1" spellcheck="false">{{ sources }}</textarea></div></div>
+                {% endfor %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="inventory_repeat">Line to repeat until the offered version is known (optional)</label>
+                    <input type="text" class="form-control rf-mono" id="inventory_repeat" name="inventory_repeat" spellcheck="false" value="{{ device_type.inventory_repeat }}"></div></div>
+            </div>
+            <div class="rf-set-foot">Each field: one source per line, the first that gives a value wins. <code>key:NAME</code> takes NAME from "NAME: value" or "NAME=value" lines; <code>re:PATTERN</code> takes the first group of a regular expression on the whole output, e.g. <code>re:Version ([\w.()]+)</code>.</div>
+        </section>
+
+        <section data-step="5">
+            <div class="rf-set-title">Backups</div>
+            <div class="rf-set-group">
+                {% if new %}{% for key, definition, payload in commands %}{% if key == 'backup_text' or key == 'backup_create' or key == 'backup_download' or key == 'backup_remove' or key == 'backup_cleanup' %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">{{ definition.name|cut:"System: backup - "|capfirst }}</label>
+                    <textarea class="form-control rf-mono" id="command_{{ key }}" name="command_{{ key }}" rows="2" spellcheck="false">{{ payload }}</textarea>
+                    <small class="text-muted">{{ definition.description }}</small></div></div>{% endif %}{% endfor %}{% endif %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="text_ignore_pattern">Lines to ignore in text backups</label>
+                    <input type="text" class="form-control rf-mono" id="text_ignore_pattern" name="text_ignore_pattern" spellcheck="false" value="{{ device_type.text_ignore_pattern }}" placeholder="^! Last configuration change">
+                    <small class="text-muted">Timestamps and counters that change every time: dropped, so they are not a configuration change.</small></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="text_extension">File extensions: text / binary</label>
+                    <div class="d-flex"><input type="text" class="form-control mr-2" id="text_extension" name="text_extension" maxlength="10" value="{{ device_type.text_extension|default:'txt' }}">
+                    <input type="text" class="form-control" id="binary_extension" name="binary_extension" maxlength="10" value="{{ device_type.binary_extension }}" aria-label="Binary extension"></div></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="option_sensitive">Export options the backup profile can switch on: passwords and keys / one line per item</label>
+                    <div class="d-flex"><input type="text" class="form-control mr-2 rf-mono" id="option_sensitive" name="option_sensitive" value="{{ device_type.option_sensitive }}" placeholder="show-sensitive">
+                    <input type="text" class="form-control rf-mono" id="option_terse" name="option_terse" value="{{ device_type.option_terse }}" placeholder="terse" aria-label="One line per item"></div>
+                    <small class="text-muted">Filled into {% templatetag openvariable %} export_parameters {% templatetag closevariable %}. Empty: the type has no such option.</small></div></div>
+            </div>
+        </section>
+
+        <section data-step="6">
+            <div class="rf-set-title">Update checks</div>
+            <div class="rf-set-group">
+                <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">The device itself tells</div><div class="rf-set-sub">The inventory field "Version offered by the device" is the version it could update to (RouterOS check-for-updates).</div></div>
+                    <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="check_device" name="check_device" {% if device_type.check_device %}checked{% endif %}><label class="custom-control-label" for="check_device"><span class="sr-only">Device check</span></label></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">The vendor's release list</div><div class="rf-set-sub">RouterFleet reads the vendor's published releases (https only, cached for hours).</div></div>
+                    <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="check_vendor" name="check_vendor" {% if device_type.check_vendor %}checked{% endif %}><label class="custom-control-label" for="check_vendor"><span class="sr-only">Vendor check</span></label></div></div>
+                <div class="rf-set-row rf-vendor"><div class="rf-set-text"><label class="small mb-0" for="vendor_url">Release list (JSON)</label>
+                    <input type="url" class="form-control" id="vendor_url" name="vendor_url" spellcheck="false" value="{{ device_type.vendor_url }}" placeholder="https://downloads.openwrt.org/.versions.json"></div></div>
+                <div class="rf-set-row rf-vendor"><div class="rf-set-text"><label class="small mb-0" for="vendor_keys">Keys holding release numbers, in order of preference</label>
+                    <input type="text" class="form-control rf-mono" id="vendor_keys" name="vendor_keys" value="{{ device_type.vendor_keys }}" placeholder="stable_version oldstable_version">
+                    <small class="text-muted">Separated by spaces; a dotted key reaches into nested objects (releases.stable).</small></div></div>
+                <div class="rf-set-row rf-vendor"><div class="rf-set-text"><label class="small mb-0" for="vendor_confirm_url">Confirmation address (optional)</label>
+                    <input type="text" class="form-control" id="vendor_confirm_url" name="vendor_confirm_url" spellcheck="false" value="{{ device_type.vendor_confirm_url }}" placeholder="https://.../releases/{version}/targets/{target}/profiles.json">
+                    <small class="text-muted">A release counts only if this address answers - e.g. it ships images for the device's board. {version} and {target} are filled in.</small></div></div>
+                <div class="rf-set-row rf-vendor"><div class="rf-set-text"><label class="small mb-0" for="vendor_target">Target, for {target}</label>
+                    <input type="text" class="form-control rf-mono" id="vendor_target" name="vendor_target" value="{{ device_type.vendor_target }}" placeholder="key:OPENWRT_BOARD"></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="vendor_version_field">Compared with the inventory field</label>
+                    <select class="form-control" id="vendor_version_field" name="vendor_version_field">{% for field, label, sources in inventory_rows %}{% if field != 'available_version' %}<option value="{{ field }}" {% if device_type.vendor_version_field == field %}selected{% endif %}>{{ label }}</option>{% endif %}{% endfor %}</select></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">The firmware repository</div><div class="rf-set-sub">A device is behind when the repository holds a newer firmware for its type, model and architecture.</div></div>
+                    <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="check_repository" name="check_repository" {% if device_type.check_repository %}checked{% endif %}><label class="custom-control-label" for="check_repository"><span class="sr-only">Repository check</span></label></div></div>
+            </div>
+            <div class="rf-set-foot">The newest version any of them offers counts. With none switched on, devices of this type show "no update check" instead of a guess.</div>
+        </section>
+
+        <section data-step="7">
+            <div class="rf-set-title">Firmware</div>
+            <div class="rf-set-group">
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="firmware_upload_path">Where the file is uploaded on the device</label>
+                    <input type="text" class="form-control rf-mono" id="firmware_upload_path" name="firmware_upload_path" spellcheck="false" value="{{ device_type.firmware_upload_path }}" placeholder="/tmp/{% templatetag openvariable %} firmware_name {% templatetag closevariable %}"></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="firmware_verify">Proof that the upload arrived whole</label>
+                    <select class="form-control" id="firmware_verify" name="firmware_verify">{% for value, label in device_type.FIRMWARE_VERIFY %}<option value="{{ value }}" {% if device_type.firmware_verify == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
+                {% if new %}{% for key, definition, payload in commands %}{% if key == 'firmware_verify' or key == 'firmware_install' %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">{{ definition.name|cut:"System: firmware - "|capfirst }}</label>
+                    <textarea class="form-control rf-mono" id="command_{{ key }}" name="command_{{ key }}" rows="2" spellcheck="false">{{ payload }}</textarea>
+                    <small class="text-muted">{{ definition.description }}</small></div></div>{% endif %}{% endfor %}{% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if not new and stored_commands and device_type.managed %}
+        <div class="rf-set-title">Commands</div>
+        <div class="rf-set-group">
+            {% for key, definition, variant in stored_commands %}
+            <a class="rf-set-row" href="{% if variant %}/fleet_commander/system/variant/?uuid={{ variant.uuid }}{% else %}#{% endif %}">
+                <span class="rf-set-icon grey"><i class="fas fa-lock"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{{ definition.name|cut:"System: " }}</span>
+                    <span class="rf-set-sub d-block rf-mono">{% if variant and variant.payload %}{{ variant.payload|truncatechars:90 }}{% else %}empty{% endif %}</span></span>
+                <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+            </a>
+            {% endfor %}
+        </div>
+        <div class="rf-set-foot">Edited one by one, with a review of the change, as every system command.</div>
+        {% endif %}
+
+        {% if device_type.managed or new %}
+        <section data-step="8">
+            <div class="rf-set-title">Try on a device</div>
+            <div class="rf-set-group">
+                <div class="rf-set-row"><div class="rf-set-text"><div class="d-flex flex-wrap">
+                    <input type="text" class="form-control mr-2 mb-1" style="max-width: 14rem" id="try_address" placeholder="Address" aria-label="Address">
+                    <input type="number" class="form-control mr-2 mb-1" style="max-width: 6rem" id="try_port" value="22" aria-label="Port">
+                    <input type="text" class="form-control mr-2 mb-1" style="max-width: 10rem" id="try_username" placeholder="Username" aria-label="Username">
+                    <input type="password" class="form-control mr-2 mb-1" style="max-width: 10rem" id="try_password" placeholder="Password" aria-label="Password" autocomplete="new-password">
+                    <input type="password" class="form-control mr-2 mb-1 rf-shell" style="max-width: 10rem" id="try_enable_password" placeholder="Enable password" aria-label="Enable password" autocomplete="new-password">
+                    <button type="button" class="btn btn-outline-primary mb-1" id="try-button"><i class="fas fa-vial mr-1"></i>Try</button></div>
+                    <small class="text-muted">Runs the connection test, the inventory and the text backups of this form - saved or not - and shows what each found. Nothing is stored.</small>
+                    <div id="try-result" class="mt-2"></div></div></div>
+            </div>
+        </section>
+        {% endif %}
+
+        <div class="text-center mt-4" id="form-buttons">
+            {% if new %}<button type="button" class="btn btn-secondary btn-lg mr-2" id="prev">Back</button><button type="button" class="btn btn-primary btn-lg mr-2" id="next">Next</button>{% endif %}
+            <button type="submit" class="btn btn-success btn-lg" id="save">{% if new %}Create the device type{% else %}Save{% endif %}</button>
+            {% if not new and device_type.preset %}<button type="button" class="btn btn-outline-secondary btn-lg ml-2" onclick="var c = rfConfirm('Restore the shipped settings of {{ device_type.name|escapejs }}? Commands are restored one by one.', 'restore'); if (c) { postAction(window.location.pathname + window.location.search, {action: 'restore'}); }">Restore preset</button>{% endif %}
+            {% if not new and not devices and device_type.slug != 'monitoring' %}<button type="button" class="btn btn-outline-danger btn-lg ml-2" onclick="var c = rfConfirm('Delete the device type {{ device_type.name|escapejs }} and its commands?', 'delete'); if (c) { postAction(window.location.pathname + window.location.search, {action: 'delete', confirmation: c}); }">Delete</button>{% endif %}
+        </div>
+    </form>
+</div>
+{{ presets_json|json_script:"dt-presets" }}
+<style>
+    .rf-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; }
+    .rf-steps { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; list-style: none; counter-reset: s; }
+    .rf-steps li { counter-increment: s; font-size: .78rem; padding: 3px 9px; border-radius: 12px; background: var(--rf-hover); color: var(--rf-muted); cursor: pointer; }
+    .rf-steps li::before { content: counter(s) ". "; }
+    .rf-steps li.active { background: #2f6fd1; color: #fff; }
+    .rf-wizard section { display: none; } .rf-wizard section.active { display: block; }
+    .rf-try-step { border: 1px solid var(--rf-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .rf-try-step pre { max-height: 220px; overflow: auto; font-size: .75rem; margin: 6px 0 0; white-space: pre-wrap; }
+</style>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+(function () {
+    var form = document.getElementById('dt-form');
+    function shell() {
+        var mode = document.getElementById('session_mode');
+        var on = mode && mode.value === 'shell';
+        document.querySelectorAll('.rf-shell').forEach(function (e) { e.style.display = on ? '' : 'none'; });
+        var vendor = document.getElementById('check_vendor');
+        document.querySelectorAll('.rf-vendor').forEach(function (e) { e.style.display = vendor && vendor.checked ? '' : 'none'; });
+    }
+    ['session_mode', 'check_vendor'].forEach(function (id) { var e = document.getElementById(id); if (e) { e.addEventListener('change', shell); } });
+    shell();
+
+    // Wizard: one section at a time
+    var sections = Array.prototype.slice.call(document.querySelectorAll('.rf-wizard section'));
+    var step = 0;
+    function show(n) {
+        if (!sections.length) { return; }
+        step = Math.max(0, Math.min(n, sections.length - 1));
+        sections.forEach(function (s, i) { s.classList.toggle('active', i === step); });
+        document.querySelectorAll('#steps li').forEach(function (l, i) { l.classList.toggle('active', i === step); });
+        document.getElementById('prev').style.display = step ? '' : 'none';
+        document.getElementById('next').style.display = step < sections.length - 1 ? '' : 'none';
+        window.scrollTo(0, 0);
+    }
+    if (sections.length) {
+        document.getElementById('next').addEventListener('click', function () { show(step + 1); });
+        document.getElementById('prev').addEventListener('click', function () { show(step - 1); });
+        document.querySelectorAll('#steps li').forEach(function (l, i) { l.addEventListener('click', function () { show(i); }); });
+        show(0);
+    }
+
+    // Start from a shipped type: copies its settings and commands into the form
+    var presets = JSON.parse(JSON.parse(document.getElementById('dt-presets').textContent));
+    var start = document.getElementById('start');
+    if (start) {
+        start.addEventListener('change', function () {
+            var p = presets[start.value];
+            if (!p) { return; }
+            Object.keys(p).forEach(function (field) {
+                var e = document.getElementById(field);
+                if (!e || field === 'name') { return; }
+                if (e.type === 'checkbox') { e.checked = !!p[field]; } else if (typeof p[field] !== 'object') { e.value = p[field]; }
+            });
+            var inv = p.inventory_fields || {};
+            document.querySelectorAll('[id^="inventory_"]').forEach(function (e) {
+                var f = e.id.replace('inventory_', ''); if (f !== 'repeat') { e.value = (inv[f] || []).join('\n'); }
+            });
+            Object.keys(p.commands || {}).forEach(function (key) {
+                var e = document.getElementById('command_' + key); if (e) { e.value = p.commands[key]; }
+            });
+            shell();
+        });
+    }
+
+    // Try on a device
+    var tryButton = document.getElementById('try-button');
+    if (tryButton) {
+        tryButton.addEventListener('click', function () {
+            var data = new FormData(form);
+            ['try_address', 'try_port', 'try_username', 'try_password', 'try_enable_password'].forEach(function (id) {
+                data.append(id, document.getElementById(id).value);
+            });
+            var out = document.getElementById('try-result');
+            out.textContent = 'Connecting...';
+            tryButton.disabled = true;
+            fetch('/system/device-types/try/', {method: 'POST', body: data, credentials: 'same-origin'})
+                .then(function (r) { return r.json(); })
+                .then(function (result) {
+                    out.textContent = '';
+                    if (result.message && !(result.steps || []).length) {
+                        var m = document.createElement('div'); m.className = 'text-danger'; m.textContent = result.message; out.appendChild(m);
+                    }
+                    (result.steps || []).forEach(function (s) {
+                        var box = document.createElement('div'); box.className = 'rf-try-step';
+                        var head = document.createElement('div');
+                        head.innerHTML = '<i class="fas ' + (s.ok ? 'fa-check text-success' : 'fa-times text-danger') + ' mr-1"></i>';
+                        var title = document.createElement('strong'); title.textContent = s.title; head.appendChild(title);
+                        if (s.message) { head.appendChild(document.createTextNode(' - ' + s.message)); }
+                        box.appendChild(head);
+                        if (s.fields) {
+                            var list = document.createElement('div'); list.className = 'small';
+                            s.fields.forEach(function (f) { var row = document.createElement('div'); row.textContent = f[0] + ': ' + (f[1] || '-'); list.appendChild(row); });
+                            box.appendChild(list);
+                        }
+                        if (s.output) { var pre = document.createElement('pre'); pre.textContent = s.output; box.appendChild(pre); }
+                        out.appendChild(box);
+                    });
+                    if (result.message && (result.steps || []).length) {
+                        var e = document.createElement('div'); e.className = 'text-danger'; e.textContent = result.message; out.appendChild(e);
+                    }
+                })
+                .catch(function () { out.textContent = 'The try could not be run.'; })
+                .finally(function () { tryButton.disabled = false; });
+        });
+    }
+})();
+</script>
+{% endblock %}
