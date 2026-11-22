@@ -72,11 +72,19 @@ def test_authentication(router_type, address, port, username, password, sshkey=N
 
 
 def test_ssh_authentication(router_type, address, port, username, password, sshkey=None):
+    from fleet_commander import system_commands
     try:
+        if router_type not in system_commands.DEVICE_TYPES:
+            return False, 'Unsupported device type'
         ssh_client = connect_to_ssh(address, port, username, password, sshkey)
+        # The commands are the system command "connection test"
+        output = ''
+        for line in system_commands.lines('connection_test', router_type):
+            # The system command: edited only by an administrator after an explicit
+            # confirmation, with no placeholder an outside value could fill
+            stdin, stdout, stderr = ssh_client.exec_command(line)  # nosec B601
+            output += stdout.read().decode('utf-8', errors='replace')
         if router_type == 'routeros' or router_type == 'routeros-branded':
-            stdin, stdout, stderr = ssh_client.exec_command('/system resource print')
-            output = stdout.read().decode()
             if router_type == 'routeros':
                 if 'platform: MikroTik' in output:
                     result = True, 'Success: MikroTik device confirmed'
@@ -91,18 +99,15 @@ def test_ssh_authentication(router_type, address, port, username, password, sshk
                     result = False, 'Device is not MikroTik'
 
         elif router_type == 'openwrt':
-            stdin, stdout, stderr = ssh_client.exec_command('ubus call system board')
-            output = stdout.read().decode()
             if 'OpenWrt' in output:
                 result = True, 'Success: OpenWRT device confirmed'
             else:
                 result = False, 'Device is not OpenWRT'
 
         elif router_type == 'ubiquiti-airos':
-            stdin, stdout, stderr = ssh_client.exec_command('cat /etc/version')
-            output = stdout.read().decode().strip()
-            if re.match(r'^[A-Z]{2}\.v\d.*$', output):
-                result = True, f'Success: Ubiquiti airOS device confirmed ({output})'
+            match = re.search(r'(?m)^\s*([A-Z]{2}\.v\d\S*)', output)
+            if match:
+                result = True, f'Success: Ubiquiti airOS device confirmed ({match.group(1)})'
             else:
                 result = False, 'Device is not airOS'
 

@@ -84,6 +84,7 @@ class Fixture(TestCase):
             (f'/user/manage/?uuid={self.admin_acl.uuid}', 50, 'page'),
             ('/audit_log/login_history/', 50, 'page'),
             ('/tools/', 50, 'page'),
+            ('/fleet_commander/system/variant/?uuid=00000000-0000-0000-0000-000000000000', 50, 'page'),
             ('/tools/backup_cleanup/', 50, 'page'),
             ('/tools/backup_export/', 50, 'page'),
             ('/audit_log/change_log/', 50, 'page'),
@@ -148,8 +149,7 @@ class LevelGateTests(Fixture):
             with self.subTest(path=path):
                 self.assert_refused(self.client.get(path), kind, path)
 
-    @mock.patch('import_tool.views.test_authentication', return_value=(False, 'mocked'))
-    @mock.patch('import_tool.views.socket.gethostbyname', return_value='192.0.2.1')
+    @mock.patch('routerlib.functions.test_authentication', return_value=(False, 'mocked'))
     def test_exactly_at_the_level_is_allowed(self, *_):
         for path, level, _ in self.gated():
             with self.subTest(path=path):

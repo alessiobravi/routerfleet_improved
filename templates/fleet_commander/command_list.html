@@ -60,4 +60,33 @@
             </div>
         </div>
     </div>
+    {% if system_command_list %}
+    <div class='row'>
+        <div class='col-lg-12'>
+            <div class="card card-outline card-secondary">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-lock"></i> System commands</h3>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">What RouterFleet itself sends to devices - the connection test, the inventory
+                        and every step of a backup. They can not be deleted, disabled or run by hand; an administrator
+                        can edit their variants after a confirmation.</p>
+                    <table class="table table-sm table-hover mb-0">
+                        <thead><tr><th>Name</th><th>Purpose</th><th>Variants</th></tr></thead>
+                        <tbody>
+                        {% for command in system_command_list %}
+                            <tr>
+                                <td class="text-nowrap"><a href="/fleet_commander/command/details/?uuid={{ command.uuid }}"><i class="fas fa-lock text-muted mr-1"></i>{{ command.name }}</a>
+                                    <span class="badge badge-secondary ml-1">System</span></td>
+                                <td class="small text-muted">{{ command.description|truncatewords:18 }}</td>
+                                <td>{{ command.variants.count }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 {% endblock %}

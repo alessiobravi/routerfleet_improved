@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card card-danger card-outline">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-lock text-danger"></i> {{ command.name }} &middot; {{ variant.get_router_type_display }}</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <strong><i class="fas fa-exclamation-triangle"></i> System command.</strong>
+                    RouterFleet runs it itself, for every {{ variant.get_router_type_display }} device. A mistake here
+                    stops that feature for all of them. The next page shows the change and asks for a confirmation.
+                </div>
+                <p class="text-muted">{{ definition.description }}</p>
+                {% if problems %}
+                <div class="alert alert-warning"><ul class="mb-0">{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul></div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="payload">{% if command.system_key == 'backup_download' %}Files to download, one path per line{% else %}Commands, one per line{% endif %}</label>
+                        <textarea class="form-control" id="payload" name="payload" rows="8" spellcheck="false"
+                                  style="font-family: monospace;">{{ payload }}</textarea>
+                        <small class="text-muted">
+                            {% if definition.placeholders %}Placeholders: {% for name in definition.placeholders %}<code>{% templatetag openvariable %} {{ name }} {% templatetag closevariable %}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.{% else %}No placeholders.{% endif %}
+                            {% if not definition.required %} Empty: nothing is run for this device type.{% endif %}
+                        </small>
+                    </div>
+                    <button type="submit" name="action" value="review" class="btn btn-warning"><i class="fas fa-search"></i> Review the change</button>
+                    {% if not is_default %}
+                    <button type="submit" name="action" value="restore" class="btn btn-outline-secondary"><i class="fas fa-undo"></i> Restore default</button>
+                    {% endif %}
+                    <a href="{{ details_url }}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-outline card-secondary">
+            <div class="card-header"><h3 class="card-title">Default {% if is_default %}<span class="badge badge-success ml-1">in use</span>{% else %}<span class="badge badge-warning ml-1">edited</span>{% endif %}</h3></div>
+            <div class="card-body p-0">
+                <pre class="m-0 p-3" style="white-space: pre-wrap; word-break: break-word;">{{ default_payload|default:"(nothing)" }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

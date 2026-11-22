@@ -40,27 +40,6 @@ def _parse_routeros_key_value_output(output: str) -> dict:
     return data
 
 
-def _get_routeros_update_info(ssh) -> dict:
-    """
-    Ask the router to check MikroTik's update server and read the result back.
-
-    The check runs in the background on the router, so the result only shows up
-    a few seconds after the command has been issued.
-    """
-    ssh.exec_command('/system package update check-for-updates')
-    # Read until the router has its answer: a slow update server used to leave
-    # the device counted as having no information after one fixed wait
-    waited, info = 0, {}
-    while waited < ROUTEROS_UPDATE_CHECK_TIMEOUT:
-        time.sleep(ROUTEROS_UPDATE_CHECK_DELAY)
-        waited += ROUTEROS_UPDATE_CHECK_DELAY
-        stdin, stdout, stderr = ssh.exec_command('/system package update print')
-        info = _parse_routeros_key_value_output(stdout.read().decode('utf-8', errors='ignore'))
-        if info.get('latest-version') or 'error' in info.get('status', '').lower():
-            break
-    return info
-
-
 def _parse_routeros_update_info(update_info: dict, resource_info: dict) -> tuple:
     """Return (available_version, update_available) for a RouterOS device."""
     from router_manager.templatetags.router_tags import compare_versions
@@ -144,165 +123,124 @@ def get_openwrt_available_version(os_release: dict) -> tuple:
     return installed_version, False
 
 
+def _read_line(ssh, line):
+    stdin, stdout, stderr = ssh.exec_command(line)
+    return stdout.read().decode('utf-8', errors='ignore')
+
+
+def _run_inventory(ssh, router):
+    """Runs the system command "inventory" line by line. A line that fails
+    does not fail the others - a failed update check never fails the read.
+    A line that prints the RouterOS update status is read again, every few
+    seconds for a bounded time, until the device has its answer."""
+    from fleet_commander import system_commands
+    outputs = {}
+    for line in system_commands.lines('inventory', router.router_type):
+        try:
+            outputs[line] = _read_line(ssh, line)
+        except Exception as e:
+            logger.warning(f'Inventory line failed for {router.name} ({line}): {e}')
+            outputs[line] = ''
+    values = system_commands.parse_values('\n'.join(outputs.values()))
+    status_line = next((line for line in outputs if 'package update print' in line.replace('/', ' ')), None)
+    if status_line and not values.get('latest-version'):
+        waited = 0
+        while waited < ROUTEROS_UPDATE_CHECK_TIMEOUT and not values.get('latest-version'):
+            time.sleep(ROUTEROS_UPDATE_CHECK_DELAY)
+            waited += ROUTEROS_UPDATE_CHECK_DELAY
+            try:
+                outputs[status_line] = _read_line(ssh, status_line)
+            except Exception as e:
+                logger.warning(f'Update check failed for {router.name}: {e}')
+                break
+            fresh = system_commands.parse_values(outputs[status_line])
+            if fresh.get('latest-version') or 'error' in fresh.get('status', '').lower():
+                values.update(fresh)
+                break
+    return outputs, values
+
+
 def get_router_information(router_information: RouterInformation):
     """
-    Connect to the router, retrieve info, and store it in RouterInformation.
+    Connect to the router, run the system command "inventory", and store what
+    its output says in RouterInformation.
     """
     router = router_information.router
     field_max_length = 100
     success = False
     error_message = ''
+    ssh = None
+
+    def fit(value):
+        return (value or '')[:field_max_length]
 
     try:
+        if router.router_type not in ('routeros', 'routeros-branded', 'openwrt', 'ubiquiti-airos'):
+            return False, f"Router type not supported: {router.get_router_type_display()}"
         ssh = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-        json_data = {}
+        outputs, values = _run_inventory(ssh, router)
+        json_data = dict(outputs)
 
         if router.router_type in ('routeros', 'routeros-branded'):
-            for cmd in ['/system resource print', '/system routerboard print']:
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                raw = stdout.read().decode('utf-8', errors='ignore')
-                parsed = _parse_routeros_key_value_output(raw)
-                json_data[cmd] = parsed
-
-            rb = json_data['/system routerboard print']
-            sr = json_data['/system resource print']
-
-            if sr:
-                router_information.model_name = sr.get('board-name', '')[:field_max_length]
-                router_information.os_version = sr.get('version', '')[:field_max_length]
-                router_information.architecture = sr.get('architecture-name', '')[:field_max_length]
-                router_information.cpu = sr.get('cpu', '')[:field_max_length]
-                success = True
-            if rb:
-                router_information.model_version = rb.get('model', '')[:field_max_length]
-                router_information.serial_number = rb.get('serial-number', '')[:field_max_length]
-                router_information.firmware_version = rb.get('current-firmware', '')[:field_max_length]
-                success = True
-            if not success:
+            if not (values.get('board-name') or values.get('version') or values.get('model')):
                 return False, 'Failed to retrieve router information'
-
-            # A failed update check must not fail the information update itself
+            router_information.model_name = fit(values.get('board-name'))
+            router_information.os_version = fit(values.get('version'))
+            router_information.architecture = fit(values.get('architecture-name'))
+            router_information.cpu = fit(values.get('cpu'))
+            router_information.model_version = fit(values.get('model'))
+            router_information.serial_number = fit(values.get('serial-number'))
+            router_information.firmware_version = fit(values.get('current-firmware'))
             try:
-                update_info = _get_routeros_update_info(ssh)
-                json_data['/system package update print'] = update_info
-                available_version, update_available = _parse_routeros_update_info(update_info, sr)
+                available_version, update_available = _parse_routeros_update_info(values, values)
             except Exception as e:
                 logger.warning(f'Update check failed for {router.name}: {e}')
                 available_version, update_available = '', False
-            router_information.available_version = available_version[:field_max_length]
+            router_information.available_version = fit(available_version)
             router_information.update_available = update_available
 
         elif router.router_type == 'openwrt':
-            stdin, stdout, stderr = ssh.exec_command('cat /etc/os-release')
-            osrel = {}
-            for line in stdout.read().decode('utf-8').splitlines():
-                if '=' in line:
-                    k, v = line.split('=', 1)
-                    osrel[k] = v.strip().strip('"')
-            json_data['cat /etc/os-release'] = osrel
-
-            # hostname
-            stdin, stdout, stderr = ssh.exec_command('uci get system.@system[0].hostname')
-            hostname = stdout.read().decode('utf-8').strip()
-            json_data['uci get system.@system[0].hostname'] = hostname
-
-            # architecture
-            stdin, stdout, stderr = ssh.exec_command('uname -m')
-            arch = stdout.read().decode('utf-8').strip()
-            json_data['uname -m'] = arch
-
-            # fallback serial (MAC of eth0)
-            stdin, stdout, stderr = ssh.exec_command('cat /sys/class/net/eth0/address')
-            mac = stdout.read().decode('utf-8').strip()
-            json_data['cat /sys/class/net/eth0/address'] = mac
-
-            if osrel:
-                router_information.model_name       = osrel.get('OPENWRT_DEVICE_MODEL', '')[:field_max_length]
-                router_information.model_version    = osrel.get('VERSION_ID', '')[:field_max_length]
-                router_information.serial_number    = mac[:field_max_length]
-                router_information.os_version       = osrel.get('VERSION', '')[:field_max_length]
-                router_information.firmware_version = osrel.get('OPENWRT_RELEASE', '')[:field_max_length]
-                router_information.architecture     = arch[:field_max_length]
-                success = True
-            if not success:
+            if not values.get('VERSION_ID') and not values.get('OPENWRT_DEVICE_MODEL'):
                 return False, 'Failed to retrieve router information'
-
+            router_information.model_name = fit(values.get('OPENWRT_DEVICE_MODEL'))
+            router_information.model_version = fit(values.get('VERSION_ID'))
+            router_information.serial_number = fit(values.get('mac'))
+            router_information.os_version = fit(values.get('VERSION'))
+            router_information.firmware_version = fit(values.get('OPENWRT_RELEASE'))
+            router_information.architecture = fit(values.get('architecture'))
             # A failed update check must not fail the information update itself
             try:
-                available_version, update_available = get_openwrt_available_version(osrel)
+                available_version, update_available = get_openwrt_available_version(values)
             except Exception as e:
                 logger.warning(f'Update check failed for {router.name}: {e}')
                 available_version, update_available = '', False
-            router_information.available_version = available_version[:field_max_length]
+            router_information.available_version = fit(available_version)
             router_information.update_available = update_available
 
-        elif router.router_type == 'ubiquiti-airos':
-            stdin, stdout, stderr = ssh.exec_command('cat /etc/version')
-            version_raw = stdout.read().decode('utf-8', errors='ignore').strip()
-            json_data['cat /etc/version'] = version_raw
-            stdin, stdout, stderr = ssh.exec_command('cat /etc/board.info')
-            board_raw = stdout.read().decode('utf-8', errors='ignore')
-            json_data['cat /etc/board.info'] = board_raw
-            board = {}
-            for line in board_raw.splitlines():
-                line = line.strip()
-                if not line or '=' not in line:
-                    continue
-                k, v = line.split('=', 1)
-                board[k.strip()] = v.strip()
-            if not board:
+        else:  # ubiquiti-airos
+            if not any(key.startswith('board.') for key in values):
                 return False, 'Failed to retrieve router information from /etc/board.info'
-
-            stdin, stdout, stderr = ssh.exec_command('uname -r')
-            kernel_version = stdout.read().decode('utf-8', errors='ignore').strip()
-            json_data['uname -r'] = kernel_version
-
-            stdin, stdout, stderr = ssh.exec_command('cat /proc/cpuinfo')
-            cpuinfo_raw = stdout.read().decode('utf-8', errors='ignore')
-            json_data['cat /proc/cpuinfo'] = cpuinfo_raw
-            cpuinfo = {}
-
-            for line in cpuinfo_raw.splitlines():
-                if ':' not in line:
-                    continue
-                k, v = line.split(':', 1)
-                cpuinfo[k.strip().lower()] = v.strip()
-
-            router_information.model_name = board.get('board.name', '')[:field_max_length]
-            router_information.model_version = (
-                    board.get('board.model', '') or board.get('board.shortname', '')
-            )[:field_max_length]
-
-            router_information.serial_number = (
-                    board.get('board.device_id', '') or board.get('board.hwaddr', '')
-            )[:field_max_length]
-            router_information.firmware_version = version_raw[:field_max_length]
-            router_information.os_version = kernel_version[:field_max_length]
-            cpu_model = cpuinfo.get('cpu model', '')
-            router_information.architecture = (
-                cpu_model.split()[0] if cpu_model else ''
-            )[:field_max_length]
-            router_information.cpu = (
-                    cpuinfo.get('system type', '')
-                    or cpu_model
-                    or board.get('board.cpurevision', '')
-            )[:field_max_length]
+            cpu_model = values.get('cpu model', '')
+            router_information.model_name = fit(values.get('board.name'))
+            router_information.model_version = fit(values.get('board.model') or values.get('board.shortname'))
+            router_information.serial_number = fit(values.get('board.device_id') or values.get('board.hwaddr'))
+            router_information.firmware_version = fit(values.get('firmware'))
+            router_information.os_version = fit(values.get('kernel'))
+            router_information.architecture = fit(cpu_model.split()[0] if cpu_model else '')
+            router_information.cpu = fit(values.get('system type') or cpu_model or values.get('board.cpurevision'))
             # airOS has no reliable update check over SSH
             router_information.available_version = ''
             router_information.update_available = False
-            success = True
-        else:
-            return False, f"Router type not supported: {router.get_router_type_display()}"
+        success = True
 
-        if success:
-            router_information.success        = True
-            router_information.error          = False
-            router_information.retry_count    = 0
-            router_information.next_retry     = None
-            router_information.error_message = ''
-            router_information.last_retrieval = timezone.now()
-            router_information.json_data = json.dumps(json_data)
-            router_information.save()
+        router_information.success        = True
+        router_information.error          = False
+        router_information.retry_count    = 0
+        router_information.next_retry     = None
+        router_information.error_message = ''
+        router_information.last_retrieval = timezone.now()
+        router_information.json_data = json.dumps(json_data)
+        router_information.save()
 
     except Exception as e:
         success = False
@@ -310,7 +248,8 @@ def get_router_information(router_information: RouterInformation):
 
     finally:
         try:
-            ssh.close()
+            if ssh:
+                ssh.close()
         except Exception:
             pass
 

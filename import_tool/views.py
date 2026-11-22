@@ -5,13 +5,12 @@ from django.contrib.auth.decorators import login_required
 from backup.models import BackupProfile
 from router_manager.models import Router, SSHKey, SUPPORTED_ROUTER_TYPES, RouterGroup, RouterStatus
 from routerlib.encryption import decrypt_value, encrypt_value, mask_passwords_in_csv
-from routerlib.functions import test_authentication
+from router_manager.forms import HOSTNAME
 from user_manager.models import UserAcl
 from .models import CsvData, ImportTask
 from .forms import CsvDataForm
 from django.contrib import messages
 import ipaddress
-import socket
 from routerlib.actions import posted_action
 
 SUPPORTED_ROUTER_TYPES = [rt[0] for rt in SUPPORTED_ROUTER_TYPES]
@@ -49,11 +48,10 @@ def run_import_task(request):
 
     address = import_task.address.lower()
     try:
-        socket.gethostbyname(address)
-    except socket.gaierror:
-        try:
-            ipaddress.ip_address(address)
-        except ValueError:
+        ipaddress.ip_address(address)
+    except ValueError:
+        # Written correctly is enough: the name may not resolve yet
+        if not HOSTNAME.match(address):
             error_message = 'The address field must be a valid hostname or IP address.'
             import_task.import_error = True
             import_task.import_error_message = error_message
@@ -99,18 +97,9 @@ def run_import_task(request):
         import_task.save()
         return JsonResponse({'status': 'error', 'error_message': error_message})
 
-    test_authentication_success, test_authentication_message = test_authentication(
-        import_task.router_type, address, import_task.port, import_task.username, import_task.password, ssh_key
-    )
-    if not test_authentication_success:
-        if test_authentication_message:
-            error_message = 'Could not authenticate: ' + test_authentication_message
-        else:
-            error_message = 'Could not authenticate to the router. Please check the credentials and try again.'
-        import_task.import_error = True
-        import_task.import_error_message = error_message
-        import_task.save()
-        return JsonResponse({'status': 'error', 'error_message': error_message})
+    # Importing never connects to the device, as adding one by hand does not:
+    # a device that does not answer yet can be imported. "Test connection" on
+    # its page checks the credentials on request.
 
     new_router = Router.objects.create(
         name=import_task.name, username=import_task.username, password=import_task.password, ssh_key=ssh_key,

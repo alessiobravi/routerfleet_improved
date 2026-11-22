@@ -65,8 +65,9 @@ class ValidationTests(TestCase):
         self.assertEqual(form.cleaned_data['missing_groups'], ['Alpha'])
 
 
-@mock.patch('import_tool.views.socket.gethostbyname', return_value='192.0.2.1')
-@mock.patch('import_tool.views.test_authentication', return_value=(True, 'ok'))
+# Importing never connects to the device
+@mock.patch('routerlib.functions.connect_to_ssh', side_effect=AssertionError('importing must not connect'))
+@mock.patch('routerlib.functions.test_authentication', return_value=(True, 'ok'))
 class ImportFlowTests(TestCase):
     def setUp(self):
         self.client.force_login(make_user(50))
@@ -141,10 +142,10 @@ class ImportFlowTests(TestCase):
                 self.assertIn(message, result['error_message'])
                 self.assertTrue(task.import_error)
 
-    def test_authentication_failure(self, auth, _dns):
-        auth.return_value = (False, 'Device is not OpenWRT')
+    def test_a_device_that_does_not_answer_is_imported(self, auth, _connect):
         result, _ = self.run_task()
-        self.assertEqual(result['error_message'], 'Could not authenticate: Device is not OpenWRT')
+        self.assertEqual(result['status'], 'success')
+        auth.assert_not_called()
 
     def test_key_based_import(self, auth, _dns):
         key = make_sshkey(name='fleet-key')

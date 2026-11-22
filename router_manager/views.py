@@ -140,6 +140,46 @@ def view_router_availability(request):
 
 
 @login_required()
+def view_test_router_connection(request):
+    """The connection test, on request: with the values of the router form
+    (nothing is saved), or with a saved router's own settings (stored=1)."""
+    from routerlib.functions import test_authentication
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=30).exists():
+        return JsonResponse({'success': False, 'message': 'Permission denied.'}, status=403)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'}, status=405)
+    router = get_object_or_404(Router, uuid=request.POST['uuid']) if request.POST.get('uuid') else None
+    if router and request.POST.get('stored'):
+        settings_ = {'router_type': router.router_type, 'address': router.address, 'port': router.port,
+                     'username': router.username, 'password': router.password, 'ssh_key': router.ssh_key}
+    else:
+        # Read before the form: validating copies the typed values onto the
+        # instance, and the stored password must be compared with what is stored
+        stored_address, stored_port, stored_password = (router.address, router.port, router.password) if router else (None, None, '')
+        form = RouterForm(request.POST, instance=router)
+        if not form.is_valid():
+            errors = [e for field_errors in form.errors.values() for e in field_errors]
+            return JsonResponse({'success': False, 'message': errors[0] if errors else 'Check the form.'})
+        data = form.cleaned_data
+        password = request.POST.get('password') or ''
+        if not password and not data.get('ssh_key') and router:
+            # The stored password is only sent to the address it was stored for
+            if (data['address'], data['port']) != (stored_address, stored_port):
+                return JsonResponse({'success': False, 'message': 'Type the password to test a new address or port: '
+                                                                  'the stored one is only used for the stored address.'})
+            password = stored_password
+        settings_ = {'router_type': data['router_type'], 'address': data['address'], 'port': data['port'],
+                     'username': data['username'], 'password': password, 'ssh_key': data.get('ssh_key')}
+    if settings_['router_type'] == 'monitoring':
+        return JsonResponse({'success': False, 'message': 'A monitoring-only device is not connected to over SSH.'})
+    success, message = test_authentication(settings_['router_type'], settings_['address'], settings_['port'],
+                                           settings_['username'], settings_['password'], settings_['ssh_key'])
+    if not success:
+        message = 'Could not authenticate: ' + (message or 'check the credentials.')
+    return JsonResponse({'success': success, 'message': message})
+
+
+@login_required()
 def view_router_details(request):
     router = get_object_or_404(Router, uuid=request.GET.get('uuid'))
     router_status, router_status_created = RouterStatus.objects.get_or_create(router=router)
@@ -170,6 +210,7 @@ def view_router_details(request):
         'last_week_availability': last_week_availability,
         'command_task_list': router.commandtask_set.all().order_by('-created')[:25],
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'can_edit_routers': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
     }
 
 

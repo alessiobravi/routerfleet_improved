@@ -142,67 +142,87 @@ def handle_backup_failure(router_backup: RouterBackup, error_message):
     append_task_console_output(router_backup, f"Backup failed: {error_message}")
 
 
+def _backup_values(router_backup):
+    """The placeholders the backup system commands may use."""
+    parameters = ''
+    profile = router_backup.router.backup_profile
+    if profile and router_backup.router.router_type in ('routeros', 'routeros-branded'):
+        if profile.parameter_sensitive:
+            parameters += ' show-sensitive'
+        if profile.parameter_terse:
+            parameters += ' terse'
+    return {'backup_name': gen_backup_name(router_backup), 'export_parameters': parameters}
+
+
+SUPPORTED_TYPES = ('routeros', 'routeros-branded', 'openwrt', 'ubiquiti-airos')
+# Types whose text backup is the output of the first "create" line (uci export)
+TEXT_FROM_OUTPUT = ('openwrt',)
+
+
 def execute_backup(router_backup: RouterBackup):
-    append_task_console_output(router_backup, '=== Starting remote backup ===')
+    """First phase: the system command "backup - create"."""
+    from fleet_commander import system_commands
     error_message = ""
     router = router_backup.router
-    backup_name = gen_backup_name(router_backup)
-    file_extension = get_router_backup_file_extension(router.router_type)
     ssh_client = None
-    additional_parameters = ""
+    if router.router_type not in SUPPORTED_TYPES:
+        return False, [], f"Router type not supported: {router.get_router_type_display()}"
+    values = _backup_values(router_backup)
+    file_extension = get_router_backup_file_extension(router.router_type)
     try:
-        if router_backup.router.router_type == 'routeros' or router_backup.router.router_type == 'routeros-branded':
-            if router.backup_profile:
-                if router.backup_profile.parameter_sensitive:
-                    additional_parameters += ' show-sensitive'
-                if router.backup_profile.parameter_terse:
-                    additional_parameters += ' terse'
-
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            command = f'/system backup save name={backup_name}.{file_extension["binary"]}'
-            run_ssh_command(ssh_client, command, router_backup)
-            command = f'/export file={backup_name}.{file_extension["text"]} {additional_parameters}'
-            run_ssh_command(ssh_client, command, router_backup)
-            return True, [f'{backup_name}.{file_extension["binary"]}', f'{backup_name}.{file_extension["text"]}'], error_message
-
-        elif router_backup.router.router_type == 'openwrt':
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            command = 'uci export'
-            exit_code, stdout_text, stderr_text = run_ssh_command(ssh_client, command, router_backup, skip_stdout=True)
-            backup_text = stdout_text
-            if backup_text:
-                router_backup.backup_text = backup_text
-                router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
+        create = system_commands.lines('backup_create', router.router_type, **values)
+        if not create:
+            append_task_console_output(router_backup, '=== Nothing to create on the device: the files are downloaded as they are ===')
+            return True, [], error_message
+        ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
+        for number, command in enumerate(create):
+            text_line = number == 0 and router.router_type in TEXT_FROM_OUTPUT
+            exit_code, stdout_text, stderr_text = run_ssh_command(ssh_client, command, router_backup, skip_stdout=text_line)
+            if text_line:
+                if not stdout_text:
+                    return False, [], "Failed to execute backup: Empty backup text"
+                router_backup.backup_text = stdout_text
+                router_backup.backup_text_filename = f'{values["backup_name"]}.{file_extension["text"]}'
                 router_backup.save()
-            else:
-                return False, [], "Failed to execute backup: Empty backup text"
-            command = f'sysupgrade --create-backup /tmp/{backup_name}.{file_extension["binary"]}'
-            run_ssh_command(ssh_client, command, router_backup)
-            return True, [f'/tmp/{backup_name}.{file_extension["binary"]}', f'{backup_name}.{file_extension["text"]}'], error_message
-
-        elif router_backup.router.router_type == 'ubiquiti-airos':
-            append_task_console_output(router_backup, '=== Skipping remote backup (airOS uses existing /tmp/system.cfg) ===')
-            return True, ['/tmp/system.cfg'], error_message
-
-        else:
-            error_message = f"Router type not supported: {router_backup.router.get_router_type_display()}"
-            return False, [], error_message
+        return True, [], error_message
     except Exception as e:
-        error_message = f"Failed to execute backup: {str(e)}"
-        return False, [], error_message
+        return False, [], f"Failed to execute backup: {str(e)}"
     finally:
         if ssh_client:
             ssh_client.close()
 
 
+def _store_text(router_backup, local_path, file_extension, backup_name):
+    with open(local_path, 'rb') as handle:
+        raw_bytes = handle.read()
+    try:
+        text = raw_bytes.decode('utf-8')
+        if router_backup.router.router_type == 'ubiquiti-airos':
+            append_task_console_output(router_backup, '[decode=utf-8]')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('latin-1', errors='replace')
+        append_task_console_output(router_backup, '[decode=latin-1 fallback]')
+    if router_backup.router.router_type in ('routeros', 'routeros-branded'):
+        # Comment lines carry a timestamp: stripped, so they are not a change
+        text = '\n'.join(line for line in text.split('\n') if not line.strip().startswith('#'))
+    router_backup.backup_text = text
+    router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
+
+
 def retrieve_backup(router_backup: RouterBackup):
+    """Second phase: the files of "backup - files to download" by SCP, then
+    "backup - remove from device"."""
+    from fleet_commander import system_commands
     append_task_console_output(router_backup, '=== Retrieving backup files ===')
     error_message = ""
     router = router_backup.router
-    backup_name = gen_backup_name(router_backup)
     success = False
-    file_extension = get_router_backup_file_extension(router.router_type)
     ssh_client = None
+    if router.router_type not in SUPPORTED_TYPES:
+        return success, f"Router type not supported: {router.get_router_type_display()}"
+    values = _backup_values(router_backup)
+    backup_name = values['backup_name']
+    file_extension = get_router_backup_file_extension(router.router_type)
     # A directory of its own for the files on their way into the database: not a
     # name another process can predict in the shared /tmp, and removed in the
     # finally below whether the retrieval worked or not - a failed one used to
@@ -210,68 +230,26 @@ def retrieve_backup(router_backup: RouterBackup):
     work = tempfile.mkdtemp(prefix='routerfleet-backup-')
 
     try:
-        if router_backup.router.router_type == 'routeros' or router_backup.router.router_type == 'routeros-branded':
-            rsc_file_path = os.path.join(work, f'{backup_name}.{file_extension["text"]}')
-            backup_file_path = os.path.join(work, f'{backup_name}.{file_extension["binary"]}')
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
-            run_scp_get(scp_client, f'/{backup_name}.{file_extension["text"]}', rsc_file_path, router_backup)
-            run_scp_get(scp_client, f'/{backup_name}.{file_extension["binary"]}', backup_file_path, router_backup)
-
-            with open(rsc_file_path, 'r') as rsc_file:
-                rsc_content = rsc_file.read()
-                rsc_content_cleaned = '\n'.join(
-                    line for line in rsc_content.split('\n') if not line.strip().startswith('#'))
-                router_backup.backup_text = rsc_content_cleaned
-                router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
-
-            with open(backup_file_path, 'rb') as backup_file:
-                router_backup.backup_binary.save(f"{backup_name}.{file_extension['binary']}", ContentFile(backup_file.read()))
-
-            router_backup.save()
-            command = f'/file remove "{backup_name}.{file_extension["text"]}"'
-            run_ssh_command(ssh_client, command, router_backup)
-            command = f'/file remove "{backup_name}.{file_extension["binary"]}"'
-            run_ssh_command(ssh_client, command, router_backup)
-            success = True
-
-        elif router_backup.router.router_type == 'openwrt':
-            remote_backup_file_path = f'/tmp/{backup_name}.{file_extension["binary"]}'
-            local_backup_file_path = os.path.join(work, f'{backup_name}.{file_extension["binary"]}')
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
-            run_scp_get(scp_client, remote_backup_file_path, local_backup_file_path, router_backup)
-            with open(local_backup_file_path, 'rb') as backup_file:
-                router_backup.backup_binary.save(f"{backup_name}.{file_extension['binary']}", ContentFile(backup_file.read()))
-            router_backup.save()
-            command = f'rm {remote_backup_file_path}'
-            run_ssh_command(ssh_client, command, router_backup)
-            success = True
-
-        elif router_backup.router.router_type == 'ubiquiti-airos':
-            remote_path = '/tmp/system.cfg'
-            local_path = os.path.join(work, f'{backup_name}.{file_extension["text"]}')
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
+        downloads = system_commands.lines('backup_download', router.router_type, **values)
+        if not downloads:
+            return success, 'Failed to retrieve backup files: the system command "backup - files to download" is empty'
+        ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
+        scp_client = SCPClient(ssh_client.get_transport(), socket_timeout=300)
+        for number, remote_path in enumerate(downloads):
+            remote_path = remote_path.strip()
+            is_text = remote_path.endswith('.' + file_extension['text'])
+            local_path = os.path.join(work, f'{number}-{os.path.basename(remote_path) or "file"}')
             run_scp_get(scp_client, remote_path, local_path, router_backup)
-            with open(local_path, 'rb') as f:
-                raw_bytes = f.read()
-
-            try:
-                text = raw_bytes.decode('utf-8')
-                append_task_console_output(router_backup, '[decode=utf-8]')
-            except UnicodeDecodeError:
-                text = raw_bytes.decode('latin-1', errors='replace')
-                append_task_console_output(router_backup, '[decode=latin-1 fallback]')
-
-            router_backup.backup_text = text
-            router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
-            router_backup.save()
-            success = True
-
-        else:
-            error_message = f"Router type not supported: {router_backup.router.get_router_type_display()}"
-            return success, error_message
+            if is_text:
+                _store_text(router_backup, local_path, file_extension, backup_name)
+            else:
+                extension = file_extension['binary'] or 'bin'
+                with open(local_path, 'rb') as backup_file:
+                    router_backup.backup_binary.save(f"{backup_name}.{extension}", ContentFile(backup_file.read()))
+        router_backup.save()
+        for command in system_commands.lines('backup_remove', router.router_type, **values):
+            run_ssh_command(ssh_client, command, router_backup)
+        success = True
 
     except Exception as e:
         return success, f"Failed to retrieve backup files: {str(e)}"
@@ -284,23 +262,22 @@ def retrieve_backup(router_backup: RouterBackup):
 
 
 def clean_up_backup_files(router_backup: RouterBackup):
+    """After a successful backup: "backup - clean leftovers"."""
+    from fleet_commander import system_commands
     append_task_console_output(router_backup, '=== Cleaning up leftover backup files on the router ===')
     router = router_backup.router
     ssh_client = None
     try:
-        if router_backup.router.router_type == 'routeros' or router_backup.router.router_type == 'routeros-branded':
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            command = 'file remove [find where name~"routerfleet-backup-"]'
-            run_ssh_command(ssh_client, command, router_backup)
-        elif router_backup.router.router_type == 'openwrt':
-            ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-            command = 'rm /tmp/routerfleet-backup-*'
-            run_ssh_command(ssh_client, command, router_backup)
-        elif router_backup.router.router_type == 'ubiquiti-airos':
-            append_task_console_output(router_backup, 'airOS: skipping cleanup (no remote temp files created)')
+        if router.router_type not in SUPPORTED_TYPES:
+            append_task_console_output(router_backup, f"Router type not supported: {router.get_router_type_display()}")
             return
-        else:
-            append_task_console_output(router_backup, f"Router type not supported: {router_backup.router.get_router_type_display()}")
+        commands = system_commands.lines('backup_cleanup', router.router_type)
+        if not commands:
+            append_task_console_output(router_backup, 'Nothing to clean up on this device type')
+            return
+        ssh_client = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
+        for command in commands:
+            run_ssh_command(ssh_client, command, router_backup)
     except Exception as e:
         append_task_console_output(router_backup, f"Failed to clean up backup files: {str(e)}")
     finally:

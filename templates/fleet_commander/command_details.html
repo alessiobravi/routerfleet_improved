@@ -7,9 +7,11 @@
                 <div class="col-lg-12">
                     <div class="card card-primary card-outline">
                         <div class="card-header">
-                            <h3 class="card-title">{{ command.name }}</h3>
+                            <h3 class="card-title">{% if command.system_key %}<i class="fas fa-lock text-muted"></i> {% endif %}{{ command.name }}
+                                {% if command.system_key %}<span class="badge badge-secondary ml-1">System</span>{% endif %}</h3>
                             <span class="float-right">
-                            {% if command.can_execute %}
+                            {% if command.system_key %}
+                            {% elif command.can_execute %}
                                 <a href="/fleet_commander/command/execute/?command_uuid={{ command.uuid }}"
                                    class="btn btn-primary btn-sm mr-2">
                                 <i class="fas fa-play"></i> Execute
@@ -26,14 +28,22 @@
                                 ><i class="fas fa-play"></i> Execute
                                 </a>
                             {% endif %}
+                            {% if not command.system_key %}
                                 <a href="/fleet_commander/command/manage/?uuid={{ command.uuid }}"
                                    class="btn btn-default btn-sm">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
+                            {% endif %}
                         </span>
                         </div>
                         <div class="card-body row">
                             <div class="col-lg-12">
+                                {% if command.system_key %}
+                                <div class="alert alert-secondary">
+                                    <strong><i class="fas fa-lock"></i> System command.</strong> {{ command.description }}
+                                    It can not be deleted, disabled, scheduled or run by hand.
+                                </div>
+                                {% endif %}
                                 <ul class="list-group list-group-unbordered mb-3">
                                     <li class="list-group-item">
                                         <b>Enabled</b>
@@ -143,8 +153,10 @@
                                     {% endfor %}
                                     </tbody>
                                 </table>
+{% if not command.system_key %}
                                 <a href="/fleet_commander/schedule/manage/?command_uuid={{ command.uuid }}"
                                    class="btn btn-primary btn-sm mt-2">Add Schedule</a>
+{% endif %}
                             </div>
                         </div>
                     </div>
@@ -171,13 +183,19 @@
                                         {% else %}
                                             <i class="far fa-times-circle text-danger mr-2" title="Disabled"></i>
                                         {% endif %}
+                                        {% if not command.system_key %}
                                         <a href="/fleet_commander/variant/manage/?command_uuid={{ command.uuid }}&uuid={{ variant.uuid }}">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                        {% elif is_administrator %}
+                                        <a href="/fleet_commander/system/variant/?uuid={{ variant.uuid }}" class="text-danger" title="Edit system command (administrators)">
+                                                <i class="fas fa-lock-open"></i>
+                                            </a>
+                                        {% endif %}
                                     </span>
                                 </div>
                                 <div class="card-body p-0">
-                                    <pre class="m-0 p-3" style="background-color: #f8f9fa; border: none;"><code>{{ variant.payload }}</code></pre>
+                                    <pre class="m-0 p-3" style="background-color: #f8f9fa; border: none;"><code>{% if command.system_key and not variant.payload %}(nothing is run for this device type){% else %}{{ variant.payload }}{% endif %}</code></pre>
                                     {% if variant.has_verification %}
                                         <div class="p-3 border-top">
                                             <b>Verification</b>
@@ -200,7 +218,9 @@
                         {% empty %}
                             <p class="text-muted">No variants defined.</p>
                         {% endfor %}
+                        {% if not command.system_key %}
                         <a href="/fleet_commander/variant/manage/?command_uuid={{ command.uuid }}" class="btn btn-primary btn-sm mt-2">Add Variant</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>

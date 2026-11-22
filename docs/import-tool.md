@@ -9,10 +9,11 @@ The import happens in three steps:
    imported.
 2. **Create tasks** turns each row into an import task. Running it twice
    creates nothing new.
-3. **Start import** runs the tasks one by one. Each connects to its device to
-   confirm the credentials and the device type before the device is created, and
-   a task that fails keeps its error message; failed tasks can be removed and
-   the CSV deleted from the same page. Devices that were imported stay.
+3. **Start import** runs the tasks one by one and creates the devices. It does
+   not connect to them, so devices that do not answer yet can be imported; use
+   *Test connection* on a device's page to check its credentials. A task that
+   fails keeps its error message; failed tasks can be removed and the CSV
+   deleted from the same page. Devices that were imported stay.
 
 ```mermaid
 flowchart LR

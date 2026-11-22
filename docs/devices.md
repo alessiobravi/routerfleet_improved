@@ -23,8 +23,17 @@ configurable port (22 by default). Passwords are encrypted at rest — see
 [Security](security.md). SSH keys are stored once under a name and shared by as
 many devices as you like; RSA, ECDSA and Ed25519 keys are accepted.
 
-When a device is saved, RouterFleet connects and confirms the type matches
-reality:
+**Saving a device never connects to it.** A device that does not answer - not
+installed yet, unreachable, being replaced - can still be added, imported,
+disabled or have its monitoring switched off, all in one save. The address must
+be a valid IP address or hostname; the name does not have to resolve yet.
+
+**Test connection** checks the credentials on request: on the device form, with
+the values typed in (nothing is saved), and on the device's page, with its
+saved settings. The stored password is only used for the stored address and
+port: to test a new address, type the password again. The test is the [system
+command](fleet-commander.md#system-commands) *connection test*, and confirms
+the type matches reality:
 
 | Type | Check | Must show |
 |---|---|---|
@@ -37,7 +46,8 @@ A branded unit declared as `routeros` is rejected with the reason, and so is the
 reverse — the two need different handling, so the distinction is enforced rather
 than trusted.
 
-That first connection also stores the device's **SSH host key**. From then on
+The first connection to a device - a test, an inventory read or a backup -
+also stores its **SSH host key**. From then on
 RouterFleet refuses to talk to anything at that address and port presenting a
 different key, before sending any credential. After resetting or replacing a
 device, use **Forget host key** on its page — see [Device host
@@ -47,7 +57,9 @@ keys](security.md#device-host-keys).
 
 RouterFleet reads each device and stores model, serial number, OS version,
 firmware version, architecture and CPU, plus the raw command output as JSON for
-reference.
+reference. What it sends is the [system
+command](fleet-commander.md#system-commands) *inventory and versions*; the
+fields are taken from the `key: value` and `key=value` lines of its output.
 
 ```mermaid
 flowchart TD
@@ -231,5 +243,5 @@ operate on — see
 |---|---|
 | View the device list, device details, groups and SSH key names | signed in — no level needed |
 | Instant backup, group membership | 20 — Backup Operator |
-| Create or edit a device, bulk edit, refresh inventory | 30 — Host Manager |
+| Create or edit a device, bulk edit, refresh inventory, test connection | 30 — Host Manager |
 | Create or edit groups and SSH keys | 40 — Configuration Manager |

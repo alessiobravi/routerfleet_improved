@@ -83,6 +83,8 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
                                          router_type='routeros')
 
         Command = old.get_model('fleet_commander', 'Command')
+        # A command of its own that happens to carry a system command's name
+        clashing = Command.objects.create(name='System: connection test')
         Variant = old.get_model('fleet_commander', 'CommandVariant')
         own_update = Command.objects.create(name='Our update')
         own_variant = Variant.objects.create(command_id=own_update.id, router_type='routeros',
@@ -107,6 +109,14 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         from backup.models import BackupProfile as NewProfile
         self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
         self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
+        # The system commands arrive with the upgrade, all of them
+        from fleet_commander.models import Command as NewCommand
+        from fleet_commander.system_commands import SYSTEM_KEYS
+        self.assertEqual(sorted(NewCommand.objects.exclude(system_key=None).values_list('system_key', flat=True)),
+                         sorted(SYSTEM_KEYS))
+        # ...and the installation's own command of the same name stays as it was
+        self.assertIsNone(NewCommand.objects.get(pk=clashing.pk).system_key)
+        self.assertEqual(NewCommand.objects.get(system_key='connection_test').name, 'System: connection test (2)')
         # The warning seen during the upgrade names the harmless cause
         self.assertIn('not encrypted yet', ' '.join(logs.output))
 
@@ -249,6 +259,11 @@ class UpgradeFromLaterPredecessorTests(TransactionTestCase):
         from backup.models import BackupProfile as NewProfile
         self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
         self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
+        # The system commands arrive with the upgrade, all of them
+        from fleet_commander.models import Command as NewCommand
+        from fleet_commander.system_commands import SYSTEM_KEYS
+        self.assertEqual(sorted(NewCommand.objects.exclude(system_key=None).values_list('system_key', flat=True)),
+                         sorted(SYSTEM_KEYS))
 
         from audit_log.models import ChangeRecord, LoginRecord
         from fleet_commander.models import CommandSchedule

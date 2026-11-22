@@ -18,6 +18,7 @@ from .forms import CommandForm, CommandVariantForm, CommandScheduleForm, Command
 from .models import Command, CommandVariant, CommandSchedule, CommandJob, CommandTask, \
     ScheduleDefaults
 from routerlib.actions import posted_action, posted_confirmation
+from .system_commands import SYSTEM_KEYS as SYSTEM_ORDER
 
 
 def create_default_commands():
@@ -82,17 +83,19 @@ def create_default_commands():
 def view_command_list(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    command_list = Command.objects.all().order_by('name')
-    if not command_list:
+    command_list = Command.objects.all().order_by('system_key', 'name')
+    if not Command.objects.filter(system_key__isnull=True).exists():
         # Seeded while a page is being rendered, so nothing is recorded: the
         # application made these for itself, nobody did
         with suspend():
             create_default_commands()
         messages.success(request, 'Default commands created successfully')
-        command_list = Command.objects.all().order_by('name')
+        command_list = Command.objects.all().order_by('system_key', 'name')
 
     context = {
-        'command_list': command_list,
+        'command_list': [c for c in command_list if not c.system_key],
+        'system_command_list': sorted((c for c in command_list if c.system_key),
+                                      key=lambda c: SYSTEM_ORDER.index(c.system_key) if c.system_key in SYSTEM_ORDER else 99),
         'page_title': 'Fleet Commander',
     }
     return render(request, 'fleet_commander/command_list.html', context)
@@ -108,6 +111,7 @@ def view_command_details(request):
         'variant_list': command.variants.all().order_by('router_type'),
         'schedule_list': command.schedules.all().order_by('-created'),
         'page_title': command.name,
+        'is_administrator': UserAcl.objects.filter(user=request.user, user_level__gte=50).exists(),
     }
     return render(request, 'fleet_commander/command_details.html', context)
 
@@ -119,6 +123,10 @@ def view_manage_command(request):
 
     if request.GET.get('uuid'):
         command = get_object_or_404(Command, uuid=request.GET.get('uuid'))
+        if command.system_key:
+            messages.warning(request, 'System command|It can not be edited, disabled or deleted here: RouterFleet '
+                                      'needs it. An administrator can edit its variants.')
+            return redirect(f'/fleet_commander/command/details/?uuid={command.uuid}')
         if posted_action(request, 'delete'):
             if posted_confirmation(request) == 'delete':
                 try:
@@ -182,7 +190,8 @@ def view_execute_command(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=40).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
 
-    command = get_object_or_404(Command, uuid=request.GET.get('command_uuid'), enabled=True)
+    command = get_object_or_404(Command, uuid=request.GET.get('command_uuid'), enabled=True,
+                                system_key__isnull=True)
     if not command.can_execute:
         messages.warning(request, 'No variants defined for this command. Please create a variant before executing.')
         return redirect(f'/fleet_commander/command/details/?uuid={command.uuid}')
@@ -261,12 +270,13 @@ def view_execute_on_router(request):
     router = get_object_or_404(Router, uuid=request.GET.get('uuid') or request.POST.get('router'))
     back_url = f'/router/details/?uuid={router.uuid}'
     if request.method == 'POST' and request.POST.get('command'):
-        command = get_object_or_404(Command, uuid=request.POST.get('command'), enabled=True)
+        command = get_object_or_404(Command, uuid=request.POST.get('command'), enabled=True,
+                                    system_key__isnull=True)
         routers = Router.objects.filter(pk=router.pk)
         plan = _execution_plan(command, routers=routers)
         hidden = [('router', str(router.uuid)), ('command', str(command.uuid))]
         return _confirm_then_run(request, command, plan, hidden, back_url, routers=routers)
-    commands = Command.objects.filter(enabled=True, variants__router_type=router.router_type,
+    commands = Command.objects.filter(enabled=True, system_key__isnull=True, variants__router_type=router.router_type,
                                       variants__enabled=True).distinct().order_by('name')
     return render(request, 'fleet_commander/execute_on_router.html', {
         'page_title': f'Execute command on {router.name}', 'router': router, 'commands': commands,
@@ -303,7 +313,7 @@ def view_run_command_multiple(request):
             messages.warning(request, 'No command selected')
             return redirect('router_list')
 
-        command = get_object_or_404(Command, uuid=command_uuid, enabled=True)
+        command = get_object_or_404(Command, uuid=command_uuid, enabled=True, system_key__isnull=True)
         routers = Router.objects.filter(uuid__in=router_uuids)
 
         if not command.can_execute:
@@ -324,7 +334,7 @@ def view_run_command_multiple(request):
         return redirect('router_list')
 
     routers = Router.objects.filter(uuid__in=router_uuids)
-    commands = Command.objects.filter(enabled=True).order_by('name')
+    commands = Command.objects.filter(enabled=True, system_key__isnull=True).order_by('name')
 
     context = {
         'routers': routers,
@@ -343,6 +353,8 @@ def view_manage_command_variant(request):
     if request.GET.get('uuid'):
         variant = get_object_or_404(CommandVariant, uuid=request.GET.get('uuid'))
         command = variant.command
+        if command.system_key:
+            return redirect(f'/fleet_commander/system/variant/?uuid={variant.uuid}')
         if posted_action(request, 'delete'):
             if posted_confirmation(request) == 'delete':
                 variant.delete()
@@ -353,6 +365,9 @@ def view_manage_command_variant(request):
     else:
         variant = None
         command = get_object_or_404(Command, uuid=request.GET.get('command_uuid'))
+        if command.system_key:
+            messages.warning(request, 'System command|Its variants are fixed: one per device type.')
+            return redirect(f'/fleet_commander/command/details/?uuid={command.uuid}')
 
     form = CommandVariantForm(request.POST or None, instance=variant, command=command)
     if form.is_valid():
@@ -424,6 +439,9 @@ def view_manage_command_schedule(request):
     else:
         schedule = None
         command = get_object_or_404(Command, uuid=request.GET.get('command_uuid'))
+        if command.system_key:
+            messages.warning(request, 'System command|RouterFleet runs it itself: it can not be scheduled.')
+            return redirect(f'/fleet_commander/command/details/?uuid={command.uuid}')
 
     # Read before the form is built. Binding a form fills the instance in from
     # what was sent, so by the time it is valid the switch is already off and
@@ -671,3 +689,75 @@ def view_cron_perform_command_tasks(request):
             break
 
     return JsonResponse(data)
+
+
+# --- System commands: edited only by an administrator, after a review of the
+# change and a confirmation that takes attention: a red button, and a small
+# sum to solve in the confirmation popup, checked here on the server
+
+SYSTEM_CHALLENGE_SECONDS = 600
+
+
+def _payload_digest(variant_uuid, payload):
+    import hashlib
+    return hashlib.sha256(f'{variant_uuid}|{payload}'.encode()).hexdigest()
+
+
+@login_required()
+def view_edit_system_variant(request):
+    import difflib
+    import secrets
+    import time
+    from . import system_commands
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    variant = get_object_or_404(CommandVariant, uuid=request.GET.get('uuid'), command__system_key__isnull=False)
+    command = variant.command
+    key = command.system_key
+    default = system_commands.default_payload(key, variant.router_type)
+    details_url = f'/fleet_commander/command/details/?uuid={command.uuid}'
+    edit_url = f'/fleet_commander/system/variant/?uuid={variant.uuid}'
+    context = {'page_title': f'Edit system command: {command.name}', 'command': command, 'variant': variant,
+               'definition': system_commands.DEFAULTS[key], 'default_payload': default,
+               'is_default': (variant.payload or '').strip() == default.strip(), 'details_url': details_url}
+
+    action = request.POST.get('action') if request.method == 'POST' else None
+    if action in ('review', 'restore'):
+        payload = default if action == 'restore' else request.POST.get('payload', '').replace('\r\n', '\n')
+        problems = system_commands.validate_payload(key, variant.router_type, payload)
+        if problems:
+            return render(request, 'fleet_commander/system_variant_edit.html',
+                          dict(context, payload=payload, problems=problems))
+        if payload.strip() == (variant.payload or '').strip():
+            messages.info(request, 'No change|The payload is the same as the stored one.')
+            return redirect(edit_url)
+        first, second = 3 + secrets.randbelow(7), 11 + secrets.randbelow(29)
+        request.session['system_variant_challenge'] = {
+            'variant': str(variant.uuid), 'digest': _payload_digest(variant.uuid, payload),
+            'answer': first + second, 'expires': time.time() + SYSTEM_CHALLENGE_SECONDS}
+        diff = list(difflib.unified_diff((variant.payload or '').splitlines(), payload.splitlines(),
+                                         'stored', 'new', lineterm=''))
+        return render(request, 'fleet_commander/system_variant_review.html',
+                      dict(context, payload=payload, diff=diff[2:], first=first, second=second,
+                           restoring=action == 'restore'))
+
+    if action == 'apply':
+        payload = request.POST.get('payload', '').replace('\r\n', '\n')
+        # One attempt per review: a wrong answer means reviewing again
+        challenge = request.session.pop('system_variant_challenge', None) or {}
+        answer = request.POST.get('answer', '').strip()
+        valid = (challenge.get('variant') == str(variant.uuid)
+                 and challenge.get('digest') == _payload_digest(variant.uuid, payload)
+                 and time.time() < challenge.get('expires', 0)
+                 and answer.isdigit() and int(answer) == challenge.get('answer'))
+        if not valid or system_commands.validate_payload(key, variant.router_type, payload):
+            messages.error(request, 'Not applied|The confirmation was wrong, expired or did not match the reviewed '
+                                    'change. Nothing was changed.')
+            return redirect(edit_url)
+        variant.payload = payload
+        variant.save()
+        messages.success(request, f'System command changed|{command.name}, {variant.get_router_type_display()}. '
+                                  'Recorded in the change log.')
+        return redirect(details_url)
+
+    return render(request, 'fleet_commander/system_variant_edit.html', dict(context, payload=variant.payload))

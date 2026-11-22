@@ -148,7 +148,7 @@ class DeviceTypeTests(SimpleTestCase):
         self.assertIsNone(load_private_key_from_string('not a key'))
 
 
-class AuthenticationTests(SimpleTestCase):
+class AuthenticationTests(TestCase):
     def check(self, router_type, responses):
         client = FakeSSHClient(responses)
         with fake_ssh('routerlib.functions', client):
@@ -256,7 +256,7 @@ class RouterOSInformationTests(TestCase):
                 '/system routerboard print': ROUTEROS_RB,
                 '/system package update check-for-updates': RuntimeError('no route to update server'),
             })
-        self.assertIn('Update check failed', ' '.join(logs.output))
+        self.assertIn('Inventory line failed', ' '.join(logs.output))
         self.assertTrue(ok)
         info = RouterInformation.objects.get(pk=self.info.pk)
         self.assertEqual(info.available_version, '')
@@ -277,24 +277,31 @@ class RouterOSInformationTests(TestCase):
         self.assertFalse(router_functions._parse_routeros_update_info(
             {'latest-version': '7.17'}, {'version': '7.17 (stable)'})[1])
 
+    def status_client(self, answers):
+        class Client:
+            def exec_command(self, command):
+                if command.endswith('update print'):
+                    body = next(answers)
+                elif command.endswith('resource print'):
+                    body = ROUTEROS_RESOURCE
+                else:
+                    body = ''
+                return None, io.BytesIO(body.encode()), io.BytesIO()
+        return Client()
+
     def test_a_slow_update_server_is_waited_for(self, sleep):
         answers = iter(['installed-version: 7.16.2\nstatus: finding out latest version...\n',
                         'installed-version: 7.16.2\nstatus: finding out latest version...\n',
                         'installed-version: 7.16.2\nlatest-version: 7.17\nstatus: New version is available\n'])
-
-        class Client:
-            def exec_command(self, command):
-                body = next(answers) if command.endswith('print') else ''
-                return None, io.BytesIO(body.encode()), io.BytesIO()
-        info = router_functions._get_routeros_update_info(Client())
-        self.assertEqual(info['latest-version'], '7.17')
-        self.assertEqual(sleep.call_count, 3)
+        _, values = router_functions._run_inventory(self.status_client(answers), self.router)
+        self.assertEqual(values['latest-version'], '7.17')
+        self.assertEqual(sleep.call_count, 2)
 
     def test_the_wait_is_bounded(self, sleep):
-        class Client:
-            def exec_command(self, command):
-                return None, io.BytesIO(b'status: finding out latest version...\n'), io.BytesIO()
-        self.assertNotIn('latest-version', router_functions._get_routeros_update_info(Client()))
+        import itertools
+        answers = itertools.repeat('status: finding out latest version...\n')
+        _, values = router_functions._run_inventory(self.status_client(answers), self.router)
+        self.assertNotIn('latest-version', values)
         self.assertEqual(sleep.call_count * router_functions.ROUTEROS_UPDATE_CHECK_DELAY,
                          router_functions.ROUTEROS_UPDATE_CHECK_TIMEOUT)
 
@@ -341,9 +348,9 @@ class OpenWrtInformationTests(TestCase):
     def test_fields_and_newer_release_with_images(self):
         client = FakeSSHClient({
             'cat /etc/os-release': OS_RELEASE,
-            'uci get system.@system[0].hostname': 'ap-1\n',
-            'uname -m': 'mips\n',
-            'cat /sys/class/net/eth0/address': 'aa:bb:cc:dd:ee:ff\n',
+            'echo "hostname=$(uci get system.@system[0].hostname)"': 'hostname=ap-1\n',
+            'echo "architecture=$(uname -m)"': 'architecture=mips\n',
+            'echo "mac=$(cat /sys/class/net/eth0/address)"': 'mac=aa:bb:cc:dd:ee:ff\n',
         })
         with fake_ssh('routerlib.router_functions', client), self.fake_requests():
             ok, error = router_functions.get_router_information(self.info)
@@ -421,9 +428,9 @@ class AirOSInformationTests(TestCase):
         router = make_router(router_type='ubiquiti-airos')
         info = make_information(router, available_version='stale', update_available=True)
         client = FakeSSHClient({
-            'cat /etc/version': 'XW.v6.3.11\n',
+            'echo "firmware=$(cat /etc/version)"': 'firmware=XW.v6.3.11\n',
             'cat /etc/board.info': 'board.name=NanoStation M5\nboard.model=NSM5\nboard.device_id=DEV1\n',
-            'uname -r': '2.6.32.71\n',
+            'echo "kernel=$(uname -r)"': 'kernel=2.6.32.71\n',
             'cat /proc/cpuinfo': 'system type : Atheros AR9342\ncpu model : MIPS 74Kc V5.0\n',
         })
         with fake_ssh('routerlib.router_functions', client):
@@ -465,6 +472,8 @@ class UpdateRouterInformationTests(TestCase):
         self.assertIn('not supported', self.info.error_message)
 
     def test_connection_failure_is_recorded(self):
+        self.router.router_type = 'routeros'
+        self.router.save()
         with mock.patch('routerlib.router_functions.connect_to_ssh', side_effect=OSError('timed out')):
             ok, error = router_functions.update_router_information(self.info)
         self.assertFalse(ok)

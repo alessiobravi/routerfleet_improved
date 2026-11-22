@@ -15,6 +15,10 @@ retention.
 
 Files are named `routerfleet-backup-<id>-<kind>-<YYYY-MM-DD_HH-MM>`.
 
+These are the defaults of four [system commands](fleet-commander.md#system-commands)
+- *backup - create*, *files to download*, *remove from device* and *clean
+leftovers* - which an administrator can adjust per device type.
+
 The configuration **text** is stored in the database, which is what makes
 diffing and change detection possible. The **binary** image is stored as a file
 under `MEDIA_ROOT`. For RouterOS, comment lines are stripped from the `.rsc`

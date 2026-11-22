@@ -195,8 +195,9 @@ class ListAndDetailTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
-@mock.patch('router_manager.forms.socket.gethostbyname', return_value='192.0.2.1')
-@mock.patch('router_manager.forms.test_authentication', return_value=(True, 'ok'))
+# Saving never connects to the device: connecting fails the test
+@mock.patch('routerlib.functions.connect_to_ssh', side_effect=AssertionError('saving must not connect'))
+@mock.patch('routerlib.functions.test_authentication', return_value=(True, 'ok'))
 class ManageRouterTests(TestCase):
     def setUp(self):
         self.client.force_login(make_user(30))
@@ -215,12 +216,25 @@ class ManageRouterTests(TestCase):
         self.assertEqual(router.password, 'pw')
         self.assertTrue(RouterStatus.objects.filter(router=router).exists())
         self.assertIsNotNone(WebadminSettings.objects.get().router_config_last_updated)
-        auth.assert_called_once()
+        auth.assert_not_called()
 
-    def test_failed_authentication_is_shown(self, auth, _dns):
-        auth.return_value = (False, 'Device is not MikroTik')
-        response = self.post({'password': 'pw'})
-        self.assertContains(response, 'Could not authenticate: Device is not MikroTik')
+    def test_an_unreachable_router_can_be_disabled_with_its_monitoring(self, auth, _connect):
+        # The reported case: disabling a device that does not answer failed on
+        # the credential test, alone or together with monitoring
+        router = make_router(name='edge-1', password='pw')
+        response = self.post({'password': '', 'enabled': '', 'monitoring': ''}, router)
+        self.assertRedirects(response, '/router/list/', fetch_redirect_response=False)
+        router.refresh_from_db()
+        self.assertEqual((router.enabled, router.monitoring), (False, False))
+        auth.assert_not_called()
+
+    def test_a_router_that_does_not_answer_yet_can_be_added(self, auth, _connect):
+        self.assertRedirects(self.post({'password': 'pw', 'address': 'future-site.example.net'}), '/router/list/',
+                             fetch_redirect_response=False)
+        auth.assert_not_called()
+
+    def test_the_form_has_a_test_connection_button(self, _auth, _connect):
+        self.assertContains(self.client.get('/router/manage/'), 'id="test-connection"')
 
     def test_password_or_key_not_both_not_neither(self, _auth, _dns):
         self.assertContains(self.post({}), 'You must provide a password or an SSH Key')
@@ -250,11 +264,9 @@ class ManageRouterTests(TestCase):
     def test_invalid_port(self, _auth, _dns):
         self.assertContains(self.post({'password': 'p', 'port': 70000}), 'Invalid port number')
 
-    def test_unresolvable_address(self, _auth, dns):
-        import socket
-        dns.side_effect = socket.gaierror
-        self.assertContains(self.post({'password': 'p', 'address': 'no.such.host'}),
-                            'valid hostname or IP address')
+    def test_invalid_address(self, _auth, _connect):
+        for address in ('not a host', 'bad_name!', '-start.example'):
+            self.assertContains(self.post({'password': 'p', 'address': address}), 'valid hostname or IP address')
 
     def test_saving_resets_the_backup_schedule(self, _auth, _dns):
         router = make_router(name='edge-1')
@@ -452,3 +464,45 @@ class AirOsUpdateStateTests(TestCase):
         self.assertEqual(update_state_counts(), {'up_to_date': 0, 'update_waiting': 0, 'no_information': 0})
         self.assertEqual(os_version_state(info)['css_class'], '')
         self.assertIn('airOS', os_version_state(info)['title'])
+
+
+@mock.patch('routerlib.functions.test_authentication', return_value=(True, 'Success: MikroTik device confirmed'))
+class TestConnectionTests(TestCase):
+    """The connection test, on request only."""
+
+    def setUp(self):
+        self.client.force_login(make_user(30))
+        self.router = make_router(name='edge-1', address='192.0.2.1', password='stored-secret')
+        self.form = {'name': 'edge-1', 'address': '192.0.2.1', 'port': 22, 'username': 'admin',
+                     'router_type': 'routeros', 'password': ''}
+
+    def ask(self, data):
+        return self.client.post('/router/test_connection/', data).json()
+
+    def test_uses_the_form_values_and_saves_nothing(self, auth):
+        answer = self.ask(dict(self.form, uuid=str(self.router.uuid), username='other'))
+        self.assertTrue(answer['success'])
+        self.assertEqual(auth.call_args.args[3:5], ('other', 'stored-secret'))
+        self.assertEqual(Router.objects.get(pk=self.router.pk).username, self.router.username)
+
+    def test_the_stored_password_only_goes_to_the_stored_address(self, auth):
+        answer = self.ask(dict(self.form, uuid=str(self.router.uuid), address='198.51.100.9'))
+        self.assertFalse(answer['success'])
+        self.assertIn('Type the password', answer['message'])
+        auth.assert_not_called()
+        self.assertTrue(self.ask(dict(self.form, uuid=str(self.router.uuid), address='198.51.100.9',
+                                       password='typed'))['success'])
+
+    def test_with_the_saved_settings(self, auth):
+        self.assertTrue(self.ask({'uuid': str(self.router.uuid), 'stored': '1'})['success'])
+        self.assertEqual(auth.call_args.args[1], '192.0.2.1')
+
+    def test_a_failure_is_explained(self, auth):
+        auth.return_value = (False, 'timed out')
+        answer = self.ask({'uuid': str(self.router.uuid), 'stored': '1'})
+        self.assertEqual(answer, {'success': False, 'message': 'Could not authenticate: timed out'})
+
+    def test_permissions_and_method(self, _auth):
+        self.assertEqual(self.client.get('/router/test_connection/').status_code, 405)
+        self.client.force_login(make_user(20))
+        self.assertEqual(self.client.post('/router/test_connection/', {'uuid': str(self.router.uuid), 'stored': '1'}).status_code, 403)

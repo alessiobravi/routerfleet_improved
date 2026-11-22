@@ -12,7 +12,7 @@ from backup_data.views import view_cron_generate_backup_schedule, view_cron_crea
 from dashboard.views import view_dashboard, view_status, view_about, backup_statistics_data, router_status_data
 from fleet_commander.views import view_command_list, view_command_details, view_manage_command, \
     view_manage_command_variant, view_manage_command_schedule, view_job_list, view_job_details, view_task_details, \
-    view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, view_execute_on_router, \
+    view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, view_execute_on_router, view_edit_system_variant, \
     view_abort_command_task, view_abort_command_job, view_schedule_defaults
 from import_tool.views import view_import_tool_list, view_import_csv_file, view_import_details, run_import_task
 from message_center.views import view_message_channel_list, view_manage_message_settings, view_manage_message_channel, \
@@ -20,7 +20,7 @@ from message_center.views import view_message_channel_list, view_manage_message_
     view_message_history
 from monitoring.views import view_export_router_list, view_update_router_status, view_router_config_timestamp, \
     view_router_last_status_change
-from router_manager.views import view_create_instant_backup_multiple_routers, view_router_list, view_manage_router, \
+from router_manager.views import view_test_router_connection, view_create_instant_backup_multiple_routers, view_router_list, view_manage_router, \
     view_router_group_list, view_ssh_key_list, view_manage_router_group, view_manage_sshkey, view_router_details, \
     view_create_instant_backup_task, view_router_availability, view_cron_update_router_information, \
     view_manage_router_groups_multiple, view_edit_routers_multiple, view_update_routers_information_multiple
@@ -55,6 +55,7 @@ urlpatterns = [
     path('accounts/logout/', view_logout, name='logout'),
     path('router/list/', view_router_list, name='router_list'),
     path('router/manage/', view_manage_router, name='manage_router'),
+    path('router/test_connection/', view_test_router_connection, name='test_router_connection'),
     path('router/details/', view_router_details, name='router_details'),
     path('router/availability/', view_router_availability, name='router_availability'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),
@@ -112,6 +113,7 @@ urlpatterns = [
     path('fleet_commander/job/abort/', view_abort_command_job, name='fleet_commander_abort_job'),
     path('fleet_commander/command/execute_multiple/', view_run_command_multiple, name='fleet_commander_execute_multiple'),
     path('fleet_commander/router/execute/', view_execute_on_router, name='fleet_commander_execute_on_router'),
+    path('fleet_commander/system/variant/', view_edit_system_variant, name='fleet_commander_system_variant'),
     path('cron/create_command_jobs/', view_cron_create_command_jobs, name='cron_create_command_jobs'),
     path('cron/perform_command_tasks/', view_cron_perform_command_tasks, name='cron_perform_command_tasks'),
 ]

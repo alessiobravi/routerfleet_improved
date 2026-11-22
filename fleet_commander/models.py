@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Count, Q
+from django.db.models import Count, ProtectedError, Q
 from django.utils import timezone
 
 from router_manager.models import Router, RouterGroup, SUPPORTED_ROUTER_TYPES
@@ -79,6 +79,10 @@ class Command(models.Model):
     verify_interval = models.PositiveIntegerField(
         default=30, help_text="Seconds between two verification attempts")
 
+    # Set on the commands RouterFleet itself runs (connection test, inventory,
+    # backup steps): protected, never run by hand. See system_commands.py
+    system_key = models.CharField(max_length=40, unique=True, null=True, blank=True, editable=False)
+
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
@@ -87,8 +91,17 @@ class Command(models.Model):
         return self.name
 
     @property
+    def is_system(self):
+        return bool(self.system_key)
+
+    @property
     def can_execute(self):
-        return self.enabled and self.variants.exists()
+        return not self.system_key and self.enabled and self.variants.exists()
+
+    def delete(self, *args, **kwargs):
+        if self.system_key:
+            raise ProtectedError('A system command can not be deleted: RouterFleet needs it.', {self})
+        return super().delete(*args, **kwargs)
 
 
 class CommandSchedule(models.Model):
@@ -318,6 +331,11 @@ class CommandVariant(models.Model):
     @property
     def has_verification(self):
         return bool((self.verify_payload or '').strip() and (self.verify_expect or '').strip())
+
+    def delete(self, *args, **kwargs):
+        if self.command.system_key:
+            raise ProtectedError('A variant of a system command can not be deleted.', {self})
+        return super().delete(*args, **kwargs)
 
     class Meta:
         constraints = [

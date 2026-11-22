@@ -143,7 +143,35 @@
                                     {% else %}
                                         <a href="#" onclick="postAction('/router/manage/?uuid={{ router.uuid }}', {action: 'refresh_information'}); return false;"><i class="fas fa-sync"></i></a>
                                     {% endif %}
+                                    {% if can_execute_commands or can_edit_routers %}
+                                    <a href="#" class="ml-2" id="test-connection-stored" title="Test connection with the saved settings"><i class="fas fa-plug"></i></a>
+                                    {% endif %}
+                                </span>
+                                <div id="test-connection-stored-result" class="small" role="status" aria-live="polite"></div>
                             </div>
+                            <script>
+                            (function () {
+                                var link = document.getElementById('test-connection-stored');
+                                if (!link) { return; }
+                                link.addEventListener('click', function (event) {
+                                    event.preventDefault();
+                                    var result = document.getElementById('test-connection-stored-result');
+                                    var data = new FormData();
+                                    data.append('uuid', '{{ router.uuid }}');
+                                    data.append('stored', '1');
+                                    data.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                                    result.className = 'small text-muted';
+                                    result.textContent = 'Connecting...';
+                                    fetch('/router/test_connection/', {method: 'POST', body: data, credentials: 'same-origin'})
+                                        .then(function (r) { return r.json(); })
+                                        .then(function (answer) {
+                                            result.className = 'small ' + (answer.success ? 'text-success' : 'text-danger');
+                                            result.textContent = answer.message;
+                                        })
+                                        .catch(function () { result.className = 'small text-danger'; result.textContent = 'The test could not be run.'; });
+                                });
+                            })();
+                            </script>
                             <div class="card-body row">
                                 <div class="col-lg-12">
                                     <ul class="list-group list-group-unbordered mb-3">

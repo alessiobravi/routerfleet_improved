@@ -18,7 +18,9 @@ class CommandViewTests(TestCase):
 
     def test_default_commands_are_seeded_once(self):
         self.client.get('/fleet_commander/')
-        names = set(Command.objects.values_list('name', flat=True))
+        # The system commands exist from the migration; the installation's own
+        # defaults are still seeded next to them
+        names = set(Command.objects.filter(system_key__isnull=True).values_list('name', flat=True))
         self.assertEqual(names, {'Show Version', 'Update Router Firmware'})
         update = Command.objects.get(name='Update Router Firmware')
         self.assertEqual(update.verify_timeout, 600)
@@ -26,7 +28,7 @@ class CommandViewTests(TestCase):
         self.assertIn('expected-version=', variant.payload)
         self.assertEqual(variant.verify_expect, 'installed-version: {{ expected_version }}')
         self.client.get('/fleet_commander/')
-        self.assertEqual(Command.objects.count(), 2)
+        self.assertEqual(Command.objects.filter(system_key__isnull=True).count(), 2)
 
     def test_command_in_use_cannot_be_deleted(self):
         command = Command.objects.create(name='C')

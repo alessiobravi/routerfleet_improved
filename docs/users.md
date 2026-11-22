@@ -33,6 +33,7 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | | Stop a job or task | 20 |
 | | Run a command (always confirmed on a page showing the exact commands) | 40 |
 | | Commands, variants, schedules, defaults | 40 |
+| | Edit a system command (with confirmation) | 50 |
 | Notifications | Channel list, message history | 20 |
 | | Channels and settings | 40 |
 | Audit log | Login history, change log | 50 |

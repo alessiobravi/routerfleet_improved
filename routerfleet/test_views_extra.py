@@ -314,15 +314,12 @@ class ImportBranchTests(TestCase):
     def test_list_page(self):
         self.assertEqual(self.client.get('/router/import_tool/').status_code, 200)
 
-    @mock.patch('import_tool.views.test_authentication', return_value=(True, 'ok'))
-    def test_unresolvable_address(self, _auth):
-        import socket
+    def test_an_invalid_address_is_refused(self):
         from import_tool.models import CsvData, ImportTask
         data = CsvData.objects.create(raw_csv_data='x', import_data=[])
         task = ImportTask.objects.create(csv_data=data, import_id=1, name='n', username='u', password='p',
-                                         address='no.such.host', router_type='routeros')
-        with mock.patch('import_tool.views.socket.gethostbyname', side_effect=socket.gaierror):
-            result = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
+                                         address='not a host', router_type='routeros')
+        result = self.client.post(f'/router/import_tool/run_import_task/?uuid={task.uuid}').json()
         self.assertIn('valid hostname or IP address', result['error_message'])
 
 

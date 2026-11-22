@@ -318,6 +318,43 @@ the device list opens, because a command that went wrong is usually followed by
 wanting to reach the device. A task outlives its device: the row keeps the name
 it ran under, and a device that no longer exists stays plain text with no link.
 
+## System commands
+
+What RouterFleet itself sends to devices is defined as Fleet Commander
+commands too, tagged **System**, in a section of their own on the Fleet
+Commander page:
+
+| System command | Used by | Placeholders |
+|---|---|---|
+| connection test | *Test connection* on a device | none |
+| inventory and versions | the inventory read, every 24 h and on request | none |
+| backup - create | phase 1 of every backup | `{{ backup_name }}`, `{{ export_parameters }}` |
+| backup - files to download | phase 2: paths fetched by SCP, one per line | `{{ backup_name }}` |
+| backup - remove from device | after the download | `{{ backup_name }}` |
+| backup - clean leftovers | after every successful backup | none |
+
+Each has one variant per device type. An empty variant means nothing is run for
+that type (airOS creates nothing: its configuration is already a file); the
+connection test, the inventory and the download list can not be empty.
+
+They are **protected**: they can not be deleted, disabled, scheduled or run by
+hand, and their variants can not be added or removed. An upgrade creates them
+without touching anything that exists; a command of the installation's own with
+the same name keeps its name, and the system command gets a number.
+
+**Editing** a variant is for administrators (level 50) and takes three steps:
+
+1. Change the payload. A placeholder that does not belong to the command is
+   refused; *Restore default* puts the default back.
+2. Review the change, line by line.
+3. Press the red **Apply** button and solve the sum shown in the confirmation
+   popup. The answer is checked on the server, once: a wrong result, an expired
+   review (10 minutes) or a payload different from the reviewed one changes
+   nothing.
+
+The change is recorded in the change log. From then on, every device of that
+type gets the new commands.
+
 ## Permissions
 
 | Action | Minimum level |

@@ -3,9 +3,36 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from backup.models import BackupProfile
 from .models import Router, RouterGroup, SSHKey
-from routerlib.functions import test_authentication
 import ipaddress
-import socket
+import re
+
+# A hostname as it may be written (RFC 1123), whether or not it resolves yet:
+# a device can be added before its name exists in DNS
+HOSTNAME = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.?$')
+
+TEST_CONNECTION_HTML = '''
+ <button type="button" class="btn btn-outline-primary" id="test-connection"
+         title="Connects with the values in this form, saves nothing"><i class="fas fa-plug"></i> Test connection</button>
+ <span id="test-connection-result" class="d-block mt-2 small" role="status" aria-live="polite"></span>
+<script>
+document.getElementById('test-connection').addEventListener('click', function () {
+    var button = this, result = document.getElementById('test-connection-result');
+    var data = new FormData(button.form);
+    {% if instance.uuid %}data.append('uuid', '{{ instance.uuid }}');{% endif %}
+    button.disabled = true;
+    result.className = 'd-block mt-2 small text-muted';
+    result.textContent = 'Connecting...';
+    fetch('/router/test_connection/', {method: 'POST', body: data, credentials: 'same-origin'})
+        .then(function (r) { return r.json(); })
+        .then(function (answer) {
+            result.className = 'd-block mt-2 small ' + (answer.success ? 'text-success' : 'text-danger');
+            result.textContent = answer.message;
+        })
+        .catch(function () { result.className = 'd-block mt-2 small text-danger'; result.textContent = 'The test could not be run.'; })
+        .finally(function () { button.disabled = false; });
+});
+</script>
+'''
 
 
 class RouterForm(forms.ModelForm):
@@ -51,6 +78,7 @@ class RouterForm(forms.ModelForm):
                     Submit('submit', 'Save', css_class='btn btn-success'),
                     HTML(' <a class="btn btn-secondary" href="/router/list/">Back</a> '),
                     HTML(delete_html),
+                    HTML(TEST_CONNECTION_HTML),
                     css_class='col-md-12'),
                 css_class='form-row'
             )
@@ -60,7 +88,6 @@ class RouterForm(forms.ModelForm):
         cleaned_data = super().clean()
         name = cleaned_data.get('name')
         ssh_key = cleaned_data.get('ssh_key')
-        username = cleaned_data.get('username')
         password = cleaned_data.get('password')
         address = cleaned_data.get('address')
         router_type = cleaned_data.get('router_type')
@@ -76,11 +103,9 @@ class RouterForm(forms.ModelForm):
             cleaned_data['address'] = address
 
             try:
-                socket.gethostbyname(address)
-            except socket.gaierror:
-                try:
-                    ipaddress.ip_address(address)
-                except ValueError:
+                ipaddress.ip_address(address)
+            except ValueError:
+                if not HOSTNAME.match(address):
                     raise forms.ValidationError('The address field must be a valid hostname or IP address.') from None
 
         if router_type == 'monitoring':
@@ -106,14 +131,9 @@ class RouterForm(forms.ModelForm):
         if ssh_key and not password:
             cleaned_data['password'] = ''
 
-        test_authentication_success, test_authentication_message = test_authentication(
-            router_type, cleaned_data['address'], port, username, cleaned_data['password'], ssh_key
-        )
-        if not test_authentication_success:
-            if test_authentication_message:
-                raise forms.ValidationError('Could not authenticate: ' + test_authentication_message)
-            else:
-                raise forms.ValidationError('Could not authenticate to the router. Please check the credentials and try again.')
+        # Saving never connects to the device: a router that does not answer
+        # can still be added, disabled or have its monitoring switched off.
+        # "Test connection" checks the credentials on request.
         return cleaned_data
 
 

@@ -10,6 +10,32 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.15.0] - 2026-11-22
+
+### Added
+- **System commands.** Everything RouterFleet itself sends to devices - the
+  connection test, the inventory and versions read, and each step of a backup
+  (create, files to download, remove from the device, clean leftovers) - is a
+  Fleet Commander command now, tagged **System**, with one variant per device
+  type. Their defaults are exactly what the code sent before. They can not be
+  deleted, disabled, scheduled or run by hand. An administrator can edit a
+  variant after reviewing the change line by line and confirming it with a red
+  button and a sum to solve in the confirmation popup, checked on the server;
+  *Restore default* goes back. Every change is recorded in the change log.
+- **Test connection**, on the device form (the values typed in, nothing saved)
+  and on the device's page (its saved settings).
+
+### Changed
+- **Saving a device never connects to it.** The credential test used to run on
+  every save, so a device that did not answer could not be disabled, have its
+  monitoring switched off, or be added in advance. The import tool does not
+  connect either. The address must be a valid IP address or hostname; it no
+  longer has to resolve.
+
+### Security
+- **The stored password is only sent to the stored address.** Testing a new
+  address or port needs the password typed again.
+
 ## [0.14.0] - 2026-11-22
 
 ### Added
