@@ -53,15 +53,17 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 9 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, and remove the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 22 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 11 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 24 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
 here, byte-identical. Nothing was renumbered, squashed or rewritten, which is
-what makes the upgrade a no-drama `migrate`.
+what makes the upgrade a no-drama `migrate`. The test suite holds a fingerprint of every
+released migration and fails if one is ever edited, renamed or removed; it also
+checks the counts in this table against the real migration plan.
 
-### What the 22 migrations do when coming from the original
+### What the 24 migrations do when coming from the original
 
 ```mermaid
 flowchart TD

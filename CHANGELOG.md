@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.15.2] - 2026-11-22
+
+### Fixed
+- **The upgrade guide's migration counts**: from RouterFleet Extended 11
+  migrations apply (it said 9), from the original RouterFleet 24 (it said 22) -
+  the two system-command migrations of 0.15.0 were missing. Upgrades themselves
+  were unaffected.
+
+### Added
+- **The upgrade rule is enforced by the test suite**: every released migration -
+  all of the predecessors' among them - is pinned by its SHA-256, and a
+  migration that is edited, renamed or removed fails the build. The counts in
+  the upgrade guide are computed from the real migration plan and checked.
+
 ## [0.15.1] - 2026-11-22
 
 ### Monitoring
