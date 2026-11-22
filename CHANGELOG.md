@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.21.1] - 2026-11-22
+
+### Changed
+- **Lists on a phone**: the name, the selection and the quick actions stay on
+  each row, side by side, instead of folding behind a "+"; columns that do not
+  fit are left out (the name opens everything). The device list shows each
+  device's status next to its name.
+
+### Security
+- 0.21.0 was stopped by the release gate: the cosign binary in the scheduler
+  image bundled a `golang.org/x/net` with a known high-severity vulnerability.
+  The image now builds cosign from its pinned source with the fixed library.
+- The update request file is written owner-only. Reported by CodeQL.
+
 ## [0.21.0] - 2026-11-22
 
 ### Added

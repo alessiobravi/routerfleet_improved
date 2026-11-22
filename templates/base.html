@@ -64,6 +64,9 @@
         html.rf-dark .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
         html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; }
         html.rf-dark .rf-set-group, html.rf-dark .rf-o-card { box-shadow: none; }
+        /* Quick actions of a list row side by side, never wrapped under each other */
+        table.dataTable td:last-child { white-space: nowrap; }
+        table.dataTable td:last-child a, table.dataTable td:last-child button { display: inline-block; padding: 2px 4px; }
         /* Command payloads and output, code, and blocks written for a light page */
         html.rf-dark pre { color: var(--rf-text); }
         html.rf-dark code { color: #f39bc0; }
@@ -505,9 +508,15 @@
             "order": [],
             "info": true,
             "autoWidth": false,
-            "responsive": true,
+            // On a narrow screen the columns that do not fit are left out
+            // instead of folding behind a "+": the name (which opens the
+            // details), the selection and the quick actions always stay on the
+            // row; a header with data-priority says what to keep next
+            "responsive": { "details": false },
             "columnDefs": [
-                { "orderable": false, "targets": [ 0, -1 ] }
+                { "orderable": false, "targets": [ 0, -1 ] },
+                { "className": "all", "targets": [ 0, -1 ] },
+                { "responsivePriority": 1, "targets": 1 }
             ]
         });
         tables.show();

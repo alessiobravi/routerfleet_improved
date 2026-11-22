@@ -88,5 +88,6 @@ def request(version, username):
     request_id = secrets.token_hex(16)
     body = {'id': request_id, 'version': version, 'approved_by': username,
             'approved_at': timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ')}
-    _write_atomically(os.path.join(directory(), 'request.json'), json.dumps(body).encode(), mode=0o644)
+    # Owner-only: both containers that touch it run as root
+    _write_atomically(os.path.join(directory(), 'request.json'), json.dumps(body).encode())
     return request_id

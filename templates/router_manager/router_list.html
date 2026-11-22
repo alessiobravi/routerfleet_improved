@@ -91,7 +91,7 @@
                                     <th data-column="address">Address</th>
                                     {% endif %}
                                     {% if "status" in visible_columns %}
-                                    <th data-column="status">Status</th>
+                                    <th data-column="status" data-priority="2">Status</th>
                                     {% endif %}
                                     {% if "backup" in visible_columns %}
                                     <th data-column="backup">Backup</th>
@@ -153,7 +153,7 @@
                                     <tr {% if not router.enabled %}style="text-decoration: line-through;"{% endif %}>
                                         <td><input type="checkbox" class="router-checkbox" data-uuid="{{ router.uuid }}"></td>
                                         {% if "name" in visible_columns %}
-                                        <td data-column="name"><a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a></td>
+                                        <td data-column="name">{% if router.monitoring %}<span class="d-md-none mr-1">{% if router.routerstatus.status_online %}<i class="far fa-check-circle text-success" title="Online"></i>{% else %}<i class="far fa-times-circle text-danger" title="Unavailable"></i>{% endif %}</span>{% endif %}<a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a></td>
                                         {% endif %}
                                         {% if "type" in visible_columns %}
                                         <td data-column="type">{{ router.get_router_type_display }}</td>
