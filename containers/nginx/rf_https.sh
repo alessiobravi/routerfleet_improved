@@ -207,7 +207,17 @@ apply() {
     [ -f "$CONF" ] && cp "$CONF" "$CONF.bak"
     mv "$CONF.new" "$CONF"
     if nginx -t 2> /tmp/rf_nginx_test; then
-        pgrep -x nginx >/dev/null 2>&1 && nginx -s reload
+        # The watcher runs beside nginx, so it reloads it. At start-up (apply
+        # before nginx starts) there is nothing to reload yet. pgrep is not
+        # used to tell the two apart: it is not reliable in this image, and a
+        # skipped reload looked applied while nginx kept the old configuration
+        if [ "$RF_RELOAD" = "1" ]; then
+            if ! nginx -s reload 2> /tmp/rf_nginx_reload; then
+                write_status false "nginx did not reload: $(head -c 300 /tmp/rf_nginx_reload)"
+                log "reload failed: $(cat /tmp/rf_nginx_reload)"
+                return 1
+            fi
+        fi
         write_status true ""
         log "applied mode $(mode)"
     else
@@ -279,6 +289,7 @@ case "$1" in
         }
         ;;
     watch)
+        RF_RELOAD=1
         last=$(signature)
         while true; do
             sleep 5
