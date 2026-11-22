@@ -315,7 +315,17 @@ jobs:
           from console.models import ConsoleSession
           s = ConsoleSession.objects.get(pk=$ROW)
           assert s.connected_at and s.ended_at, 'session not recorded as ended'
-          print('recorded:', s.username, s.transport, s.end_reason)"
+          print('recorded:', s.username, s.transport, s.end_reason)
+          # Leave the stack as the next steps expect it: the stand-in device,
+          # the host key learned from it and the test account go again
+          from router_manager.models import Router, SSHHostKey
+          from django.contrib.auth.models import User
+          r = Router.objects.get(name='ci-console-device')
+          SSHHostKey.objects.filter(address=r.address, port=r.port).delete()
+          ConsoleSession.objects.filter(router=r).delete()
+          r.delete()
+          User.objects.filter(username='ci-console').delete()
+          print('test device removed')"
           docker stop rf-console-sshd >/dev/null
           # A device address on RouterFleet's own network is refused
           OUT=$($C exec -T routerfleet python -c "

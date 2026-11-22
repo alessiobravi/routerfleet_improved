@@ -13,7 +13,7 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
-## [0.17.0] - 2026-11-22
+## [0.17.1] - 2026-11-22
 
 ### Added
 - **Device console: a terminal on any device, in the browser.** SSH - the
