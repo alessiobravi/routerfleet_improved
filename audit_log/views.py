@@ -1,5 +1,6 @@
 import uuid
 
+from audit_log.registry import recorded_order
 from django.contrib.auth.decorators import login_required
 from django.contrib.sessions.models import Session
 from django.http import JsonResponse
@@ -84,8 +85,8 @@ def changes_of(record):
     changes = record.changes
     if not isinstance(changes, dict):
         return []
-    return [(label, change if isinstance(change, dict) else {})
-            for label, change in changes.items()]
+    return [(label, changes[label] if isinstance(changes[label], dict) else {})
+            for label in recorded_order(record.model_label, changes)]
 
 
 def open_sessions(records):

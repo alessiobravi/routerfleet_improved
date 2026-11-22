@@ -267,7 +267,7 @@ class MessageViewBranchTests(TestCase):
         settings = MessageSettings.objects.create(daily_report_time='99:99')
         data = self.client.get('/cron/daily_reports/').json()
         self.assertFalse(data['report_time_exception'])
-        settings.daily_report_time = 'garbage'
+        settings.daily_report_time = 'ab:cd'  # fits the field, but is no time
         settings.save()
         data = self.client.get('/cron/daily_reports/').json()
         self.assertTrue(data['report_time_exception'])

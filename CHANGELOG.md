@@ -10,6 +10,27 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.12.3] - 2026-11-22
+
+### Fixed
+- **Command schedules failed with "Server Error (500)" on PostgreSQL.** The
+  schedule defaults row is named `schedule_defaults` - 17 characters - in a
+  column created for 16, so PostgreSQL refused to store it and every page that
+  loads the defaults failed. A migration widens the column; installations
+  repair themselves on upgrade, with nothing to do by hand. (The flaw came with
+  the schedule defaults of the earlier projects' history.)
+- **The change log listed a record's fields in the wrong order on
+  PostgreSQL**, which stores JSON without key order. The order is rebuilt from
+  the list of fields each model is recorded with, which also corrects the
+  entries recorded before this fix.
+
+### Added
+- **CI runs the whole test suite on PostgreSQL 16 as well**, including the
+  upgrade from both earlier projects' databases. The suite ran on SQLite only,
+  which ignores length limits and keeps JSON key order - how both bugs above
+  passed every test. A test also checks that every default and choice of every
+  text field fits its field.
+
 ## [0.12.2] - 2026-11-22
 
 ### Fixed

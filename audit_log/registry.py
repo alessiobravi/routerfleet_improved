@@ -211,6 +211,24 @@ def shown(value, display=None):
     return _short(value, TEXT_LIMIT)
 
 
+def recorded_order(model_label, labels):
+    """The labels of a record's changes, in the order they are recorded in.
+
+    PostgreSQL stores a JSON object as jsonb, which keeps no key order, so the
+    order of the stored dict cannot be relied on. The order of recording is the
+    watched model's own list of fields, so it is rebuilt from that - which also
+    puts back in order the entries stored before this was known. Labels the
+    registry does not know (a field since removed, a bulk entry) follow, in
+    alphabetical order."""
+    labels = list(labels)
+    entry = WATCHED.get(model_label)
+    if entry is None:
+        return sorted(labels, key=str)
+    known = [entry.label_of(name) for name in tuple(entry.fields) + tuple(entry.m2m)]
+    position = {label: index for index, label in enumerate(known)}
+    return sorted(labels, key=lambda label: (position.get(label, len(known)), str(label)))
+
+
 def diff(watched, before, after):
     """What changed between two snapshots, keyed by the name it is written under.
 

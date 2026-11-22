@@ -161,7 +161,8 @@ class ChangeRecord(models.Model):
         if self.action == self.ACTION_BULK:
             return f'{self.affected_count} rows'
         if isinstance(self.changes, dict):
-            return ', '.join(str(name) for name in self.changes)
+            from audit_log.registry import recorded_order
+            return ', '.join(str(name) for name in recorded_order(self.model_label, self.changes))
         return ''
 
     @property

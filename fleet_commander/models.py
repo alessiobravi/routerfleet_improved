@@ -255,7 +255,10 @@ class ScheduleDefaults(models.Model):
     every command. Only a schedule that is created gets them: one that already
     exists keeps its own values, whatever is set here afterwards.
     """
-    name = models.CharField(max_length=16, default='schedule_defaults', unique=True)
+    # 32, not the 16 it was created with: the default itself is 17 characters, and
+    # PostgreSQL refused to store it, so the row - and the schedule pages that
+    # load it - never worked there
+    name = models.CharField(max_length=32, default='schedule_defaults', unique=True)
 
     # The time of day a new schedule starts at. The day is the next one this time
     # comes around, so a new schedule starts at the next maintenance window

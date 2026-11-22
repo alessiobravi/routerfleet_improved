@@ -252,12 +252,20 @@ class ViewTests(TestCase):
     def setUp(self):
         self.client.force_login(make_user(50))
 
-    def test_change_detail_json_keeps_field_order(self):
-        record = ChangeRecord.objects.create(action='changed', model_label='router_manager.Router',
-                                             object_repr='r', changes={'B': {'old': 1, 'new': 2},
-                                                                       'A': {'old': 3, 'new': 4}})
+    def test_change_detail_lists_fields_in_recorded_order(self):
+        # Recorded order for a router: Name, Enabled, Address, Port. Stored in
+        # another order on purpose - PostgreSQL's jsonb sorts keys by length,
+        # which would give Name, Port, Enabled, Address
+        record = ChangeRecord.objects.create(action='changed', model_label='router_manager.Router', object_repr='r',
+                                             changes={'Port': {'old': 22, 'new': 2222},
+                                                      'Address': {'old': 'a', 'new': 'b'},
+                                                      'Name': {'old': 'x', 'new': 'y'},
+                                                      'Enabled': {'old': True, 'new': False},
+                                                      'Retired field': {'old': 1, 'new': 2}})
         data = self.client.get(f'/audit_log/change_detail/?uuid={record.uuid}').json()
-        self.assertEqual([c['field'] for c in data['changes']], ['B', 'A'])
+        order = ['Name', 'Enabled', 'Address', 'Port', 'Retired field']
+        self.assertEqual([c['field'] for c in data['changes']], order)
+        self.assertEqual(record.field_summary, ', '.join(order))
         self.assertEqual(data['model'], 'Router')
 
     def test_change_detail_unknown_or_malformed(self):

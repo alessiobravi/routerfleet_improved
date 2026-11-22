@@ -467,3 +467,36 @@ class ErrorLoggingTests(TestCase):
         self.assertIn('ERROR django.request: Internal Server Error: /status/', logged)
         self.assertIn('RuntimeError: boom', logged)
         self.assertIn('Traceback', logged)
+
+
+class FieldFitTests(TestCase):
+    """Every default and every choice of a text field fits the field.
+
+    The test databases are SQLite, which ignores max_length; PostgreSQL - what
+    installations run - refuses a value that does not fit. A default one
+    character too long made the schedule pages fail on every PostgreSQL
+    installation while every test passed. This catches that class of mistake
+    on any database.
+    """
+
+    def test_defaults_and_choices_fit_their_fields(self):
+        from django.apps import apps
+        from django.db import models
+        from django.db.models.fields import NOT_PROVIDED
+        problems = []
+        for model in apps.get_models():
+            for field in model._meta.get_fields():
+                if not isinstance(field, models.CharField) or not field.max_length:
+                    continue
+                default = field.default
+                if default is not NOT_PROVIDED and not callable(default) and default is not None \
+                        and len(str(default)) > field.max_length:
+                    problems.append(f'{model._meta.label}.{field.name} default {default!r}')
+                for value, _ in field.flatchoices:
+                    if value is not None and len(str(value)) > field.max_length:
+                        problems.append(f'{model._meta.label}.{field.name} choice {value!r}')
+        self.assertEqual(problems, [])
+
+    def test_schedule_defaults_can_be_stored(self):
+        from fleet_commander.models import ScheduleDefaults
+        self.assertEqual(ScheduleDefaults.load().name, 'schedule_defaults')
