@@ -42,11 +42,24 @@ class Router(models.Model):
     # sends everything, a password included, unencrypted
     console_telnet = models.BooleanField(default=False, verbose_name='Allow a Telnet console (unencrypted)')
     telnet_port = models.PositiveIntegerField(default=23, verbose_name='Telnet port')
+    # When the device was last enabled or disabled - kept on every save, single
+    # or bulk edit alike - so the status page can tell which days it was off
+    enabled_changed_at = models.DateTimeField(null=True, blank=True, editable=False)
     router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
     enabled = models.BooleanField(default=True)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            before = Router.objects.filter(pk=self.pk).values_list('enabled', flat=True).first()
+            if before is not None and before != self.enabled:
+                from django.utils import timezone
+                self.enabled_changed_at = timezone.now()
+                if kwargs.get('update_fields') is not None:
+                    kwargs['update_fields'] = set(kwargs['update_fields']) | {'enabled_changed_at'}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

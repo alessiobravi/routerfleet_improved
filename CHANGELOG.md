@@ -13,6 +13,28 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.19.0] - 2026-11-22
+
+### Added
+- **Console: a way back when the connection closes.** *Connection closed*
+  appears over the terminal with the reason, a button back to the devices list
+  and one to the device; the output can be kept on screen to read or copy.
+- **Devices remember when they were enabled or disabled**, on every save,
+  single or bulk. Upgrading fills it in from the change log; a device already
+  disabled with no record counts as off since its last change.
+
+### Fixed
+- **The devices chart showed wrong figures.** Online counted only devices whose
+  status had changed before that day, so the line climbed as devices merely
+  changed state; a device that changed today vanished from earlier days; and
+  disabled devices were dated from change-log entries a bulk edit does not
+  write per device, so a bulk disable appeared all on one day. Each day now
+  counts each device once, from the day it was added: disabled from when it was
+  switched off, offline during the offline periods the monitoring recorded,
+  online otherwise.
+- **Dark mode: command payloads and output were unreadable** (dark text on a
+  dark background), as were other blocks styled for a light page.
+
 ## [0.18.1] - 2026-11-22
 
 ### Security

@@ -62,6 +62,8 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         router = Router.objects.create(name='edge-01', address='10.0.0.1', router_type='routeros',
                                        password='SuperSecret123!')
         Router.objects.create(name='edge-02', address='10.0.0.2', router_type='routeros', password='')
+        switched_off = Router.objects.create(name='edge-03', address='10.0.0.3', router_type='routeros',
+                                             password='', enabled=False)
 
         Backup = old.get_model('backup_data', 'RouterBackup')
         base = timezone.now() - datetime.timedelta(days=3)
@@ -112,6 +114,12 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         from backup.models import BackupProfile as NewProfile
         self.assertTrue(NewProfile.objects.get(pk=existing_profile.pk).keep_unchanged)
         self.assertFalse(NewProfile.objects.create(name='created-after-upgrade').keep_unchanged)
+        # A device that was already disabled: off since its last save, as far as
+        # anyone can tell; enabled devices without a record stay as they are
+        from router_manager.models import Router as NewRouter
+        off = NewRouter.objects.get(pk=switched_off.pk)
+        self.assertEqual(off.enabled_changed_at, off.updated)
+        self.assertIsNone(NewRouter.objects.get(pk=router.pk).enabled_changed_at)
         # CallMeBot is no longer supported: kept, with its history, but switched off;
         # an ntfy channel of before keeps the public server
         from message_center.models import MessageChannel as NewChannel

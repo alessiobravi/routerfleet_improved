@@ -103,11 +103,15 @@ class ChartDataTests(TestCase):
         self.assertEqual(len(data['dates']), 3)
 
     def test_router_status_data(self):
+        from monitoring.models import RouterDownTime
+        from router_manager.models import Router
         router = make_router(status_online=False)
-        RouterStatus.objects.filter(router=router).update(
-            last_status_change=timezone.now() - datetime.timedelta(days=10))
+        ten_days_ago = timezone.now() - datetime.timedelta(days=10)
+        Router.objects.filter(pk=router.pk).update(created=ten_days_ago, monitoring=True)
+        RouterDownTime.objects.create(router=router, start_time=ten_days_ago)
         data = self.client.get('/router_status_data/?days=5').json()
         self.assertEqual(data['offline_data'], [1] * 5)
+        self.assertEqual(data['online_data'], [0] * 5)
 
     def test_days_must_be_an_allowed_value(self):
         for path in ('/backup_statistics_data/', '/router_status_data/'):
@@ -306,20 +310,47 @@ class DevicesStatusChartTests(TestCase):
     log says they were switched off."""
 
     def test_disabled_devices_from_the_day_they_were_switched_off(self):
-        from audit_log.models import ChangeRecord
         from dashboard.views import online_series
         from router_manager.models import Router
         router = make_router(name='old-ap')
-        two_days_ago = timezone.now() - timezone.timedelta(days=2)
-        Router.objects.filter(pk=router.pk).update(enabled=False)
-        ChangeRecord.objects.create(action='changed', model_label='router_manager.Router', object_uuid=router.uuid,
-                                    object_repr='old-ap', changes={'Enabled': {'old': True, 'new': False}})
-        ChangeRecord.objects.filter(object_uuid=router.uuid).update(created=two_days_ago)
+        Router.objects.filter(pk=router.pk).update(created=timezone.now() - timezone.timedelta(days=30), monitoring=True)
+        router.refresh_from_db()
+        router.enabled = False
+        router.save()
+        router.refresh_from_db()
+        self.assertIsNotNone(router.enabled_changed_at, 'saving records when it was switched off')
+        Router.objects.filter(pk=router.pk).update(enabled_changed_at=timezone.now() - timezone.timedelta(days=2))
         data = online_series(7)
-        self.assertEqual(len(data['disabled_data']), 7)
-        self.assertEqual(data['disabled_data'][-1], 1)
         self.assertEqual(data['disabled_data'][:4], [0, 0, 0, 0], 'not before it was switched off')
+        self.assertEqual(data['online_data'][:4], [1, 1, 1, 1], 'it was online before')
         self.assertEqual(data['disabled_data'][-3:], [1, 1, 1])
+        self.assertEqual(data['online_data'][-3:], [0, 0, 0])
+
+    def test_each_device_counted_once_and_from_the_day_it_was_added(self):
+        from monitoring.models import RouterDownTime
+        from dashboard.views import online_series
+        from router_manager.models import Router
+        now = timezone.now()
+        old = make_router(name='a')
+        new = make_router(name='b')
+        Router.objects.filter(pk=old.pk).update(created=now - timezone.timedelta(days=30), monitoring=True)
+        Router.objects.filter(pk=new.pk).update(created=now - timezone.timedelta(hours=1), monitoring=True)
+        # 'a' was offline for a while three days ago, and is back
+        RouterDownTime.objects.create(router=old, start_time=now - timezone.timedelta(days=4, hours=1),
+                                      end_time=now - timezone.timedelta(days=2, hours=23))
+        data = online_series(7)
+        totals = [a + b + c for a, b, c in zip(data['online_data'], data['offline_data'], data['disabled_data'])]
+        self.assertEqual(totals, [1, 1, 1, 1, 1, 1, 2])
+        self.assertEqual(data['offline_data'][-4:], [0, 0, 0, 0])
+        self.assertEqual(sum(data['offline_data']), 1, 'offline only on the day it ended down')
+
+    def test_unmonitored_enabled_devices_have_no_status(self):
+        from dashboard.views import online_series
+        from router_manager.models import Router
+        router = make_router(name='quiet')
+        Router.objects.filter(pk=router.pk).update(monitoring=False)
+        data = online_series(7)
+        self.assertEqual(data['online_data'][-1] + data['offline_data'][-1] + data['disabled_data'][-1], 0)
 
     def test_the_chart_is_named_devices_status(self):
         self.client.force_login(make_user(10))

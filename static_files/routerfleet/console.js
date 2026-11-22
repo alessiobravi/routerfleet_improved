@@ -93,7 +93,20 @@
       }
       term.options.disableStdin = true;
       socket = null;
+      showEnded();
     };
+  }
+
+  // When the connection is over, a way back to the devices list over the screen
+  var ended = document.getElementById('console-ended');
+  function showEnded() {
+    if (!ended) { return; }
+    document.getElementById('console-ended-reason').textContent = state.textContent;
+    ended.hidden = false;
+    document.getElementById('console-ended-list').focus();
+  }
+  if (ended) {
+    document.getElementById('console-ended-keep').addEventListener('click', function () { ended.hidden = true; });
   }
 
   function tick() {

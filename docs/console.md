@@ -50,7 +50,10 @@ A console never stays open behind your back. It closes:
 | No input for 15 minutes | at 15 minutes |
 | The session has lasted 4 hours | at 4 hours |
 
-Each time, the device connection is closed too, and the reason is recorded. A session left open by a server restart is closed by the housekeeping (every 10 minutes), with that reason; tickets never used are removed after a week.
+Each time, the device connection is closed too, and the reason is recorded.
+The page then shows *Connection closed* over the terminal, with the reason and
+a button back to the devices list (or to the device); *Keep the output on
+screen* hides it to read or copy what the session printed. A session left open by a server restart is closed by the housekeeping (every 10 minutes), with that reason; tickets never used are removed after a week.
 
 ## Security
 

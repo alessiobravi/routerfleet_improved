@@ -3,6 +3,7 @@ from datetime import datetime, time, timedelta
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
+from django.db.models import Q
 from django.utils import timezone
 
 from backup_data.models import RouterBackup
@@ -240,45 +241,49 @@ def backup_series(days):
 
 
 def online_series(days):
-    """Enabled devices online and offline at the end of each calendar day, as far
-    as the status history tells: the state of a device that did not change that
-    day is the one it had before."""
+    """Devices online, offline and disabled at the end of each calendar day -
+    today, as of now - from what RouterFleet recorded:
+
+    - disabled: whether the device was enabled at that moment, from when it was
+      last enabled or disabled (Router.enabled_changed_at);
+    - offline: whether an offline period the monitoring recorded covers that
+      moment (RouterDownTime); a monitored, enabled device outside one was
+      online.
+
+    A device counts from the day it was added, in exactly one of the three; an
+    enabled device that is not monitored has no status and is in none."""
+    from monitoring.models import RouterDownTime
+    now = timezone.now()
     calendar = _calendar_days(days)
-    statuses = list(RouterStatus.objects.filter(router__enabled=True))
-    online_data, offline_data = [], []
+    first_start = calendar[0][1]
+    routers = list(Router.objects.values('id', 'enabled', 'monitoring', 'created', 'enabled_changed_at'))
+    periods = {}
+    for down in RouterDownTime.objects.filter(start_time__isnull=False, start_time__lte=now) \
+            .filter(Q(end_time__isnull=True) | Q(end_time__gte=first_start)).values('router_id', 'start_time', 'end_time'):
+        periods.setdefault(down['router_id'], []).append((down['start_time'], down['end_time']))
+    online_data, offline_data, disabled_data = [], [], []
     for _, _start, end in calendar:
-        online = offline = 0
-        for status in statuses:
-            # Known for that day only when the device's last change came before
-            # the day ended; a device with no change since is not counted
-            changed = status.last_status_change
-            if changed and changed < end:
-                if status.status_online:
-                    online += 1
-                else:
+        moment = min(end, now)
+        online = offline = disabled = 0
+        for router in routers:
+            if router['created'] and router['created'] > moment:
+                continue
+            changed = router['enabled_changed_at']
+            enabled = router['enabled'] if changed is None or changed <= moment else not router['enabled']
+            if not enabled:
+                disabled += 1
+            elif router['monitoring']:
+                down = any(start <= moment and (finish is None or finish > moment)
+                           for start, finish in periods.get(router['id'], ()))
+                if down:
                     offline += 1
+                else:
+                    online += 1
         online_data.append(online)
         offline_data.append(offline)
-    disabled_since = _disabled_since()
-    disabled_data = [sum(1 for since in disabled_since if since < end) for _, _start, end in calendar]
+        disabled_data.append(disabled)
     return {'dates': [day.isoformat() for day, _, _ in calendar], 'online_data': online_data,
             'offline_data': offline_data, 'disabled_data': disabled_data}
-
-
-def _disabled_since():
-    """When each device that is disabled now was switched off: its latest
-    enable/disable entry in the change log, or - without one, for a device
-    disabled by a bulk edit or before the change log - when it was last saved."""
-    from audit_log.models import ChangeRecord
-    disabled = list(Router.objects.filter(enabled=False).values_list('uuid', 'updated'))
-    if not disabled:
-        return []
-    switched = {}
-    for uuid, created in ChangeRecord.objects.filter(
-            model_label='router_manager.Router', object_uuid__in=[u for u, _ in disabled],
-            changes__has_key='Enabled').order_by('created').values_list('object_uuid', 'created'):
-        switched[uuid] = created
-    return [switched.get(uuid, updated) for uuid, updated in disabled]
 
 
 def _days_parameter(request):

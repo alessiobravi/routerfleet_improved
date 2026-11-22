@@ -61,8 +61,11 @@ and a pass that removes nothing writes nothing.
 
 The status page is the home page and the fastest health check. Two charts on
 top show backups and the devices' status per calendar day over 7, 15 or 30
-days: online (green), offline but enabled (red) and disabled (purple, counted
-from the day the change log says the device was switched off). Clicking a
+days: online (green), offline but enabled (red) and disabled (purple). Each
+device is counted once a day, from the day it was added, as it was at the end
+of that day (today: now): disabled from when it was last switched off, offline
+during the offline periods the monitoring recorded, online otherwise. An
+enabled device that is not monitored has no status and is not counted. Clicking a
 day's backup bar opens that day's backups; clicking a point of a devices line
 opens the devices in that state. Below them, one card per signal,
 each with a coloured edge and a chip saying what to do - green *OK*, amber

@@ -27,7 +27,19 @@
     </form>
     {% endif %}
 
-    <div class="rf-console-screen" id="console-screen" aria-label="Console of {{ router.name }}"></div>
+    <div class="rf-console-stage">
+        <div class="rf-console-screen" id="console-screen" aria-label="Console of {{ router.name }}"></div>
+        <div class="rf-console-ended" id="console-ended" hidden role="dialog" aria-labelledby="console-ended-title">
+            <div class="rf-console-ended-card">
+                <i class="fas fa-plug fa-2x mb-2" aria-hidden="true"></i>
+                <div class="h5 mb-1" id="console-ended-title">Connection closed</div>
+                <div class="small mb-3" id="console-ended-reason"></div>
+                <a href="/router/list/" class="btn btn-primary" id="console-ended-list"><i class="fas fa-list mr-1"></i>Back to devices</a>
+                <a href="{{ back }}" class="btn btn-outline-light ml-1">This device</a>
+                <button type="button" class="btn btn-link text-light d-block mx-auto mt-2 small" id="console-ended-keep">Keep the output on screen</button>
+            </div>
+        </div>
+    </div>
 
     <div class="rf-console-keys" aria-label="Extra keys">
         <button type="button" data-key="esc">Esc</button><button type="button" data-key="tab">Tab</button>
@@ -49,6 +61,11 @@
     .rf-console-login { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--rf-surface); border: 1px solid var(--rf-line);
         border-radius: 12px; padding: 10px 14px; }
     .rf-console-login input { max-width: 260px; }
+    .rf-console-stage { position: relative; }
+    .rf-console-ended { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: rgba(8, 14, 22, .72); border-radius: 12px; backdrop-filter: blur(2px); }
+    .rf-console-ended[hidden] { display: none; }
+    .rf-console-ended-card { text-align: center; color: #e8eef5; padding: 24px 28px; max-width: 92%; }
     .rf-console-screen { background: #0f1a28; border-radius: 12px; padding: 10px; height: calc(100vh - 290px); min-height: 320px; }
     .rf-console-keys { display: none; gap: 6px; flex-wrap: wrap; }
     .rf-console-keys button { flex: 1; min-width: 56px; border: 1px solid var(--rf-line); background: var(--rf-surface); color: var(--rf-text); border-radius: 8px; padding: 8px 0; font-weight: 600; }

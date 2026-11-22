@@ -64,6 +64,14 @@
         html.rf-dark .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
         html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; }
         html.rf-dark .rf-set-group, html.rf-dark .rf-o-card { box-shadow: none; }
+        /* Command payloads and output, code, and blocks written for a light page */
+        html.rf-dark pre { color: var(--rf-text); }
+        html.rf-dark code { color: #f39bc0; }
+        html.rf-dark pre code { color: inherit; }
+        html.rf-dark .bg-light, html.rf-dark .bg-white, html.rf-dark pre[style*="#fafafa"] { background-color: #23282d !important; color: var(--rf-text) !important; }
+        html.rf-dark .border { border-color: var(--rf-line) !important; }
+        html.rf-dark .text-dark { color: var(--rf-text) !important; }
+        html.rf-dark .text-muted { color: var(--rf-muted) !important; }
 
         /* Object pages, "Hero & timeline" (routerfleet/object_pages.py) */
         .rf-object { --rf-ok: #1f9d55; --rf-run: #2f6fd1; --rf-wait: #e8a317; --rf-bad: #d64545; --rf-info: #8a96a3; --rf-purple: #7e57c2; }
