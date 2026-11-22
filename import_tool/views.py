@@ -3,7 +3,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 
 from backup.models import BackupProfile
-from router_manager.models import Router, SSHKey, SUPPORTED_ROUTER_TYPES, RouterGroup, RouterStatus
+from router_manager.models import Router, SSHKey, RouterGroup, RouterStatus
+from router_manager import device_types
 from routerlib.encryption import decrypt_value, encrypt_value, mask_passwords_in_csv
 from router_manager.forms import HOSTNAME
 from user_manager.models import UserAcl
@@ -13,7 +14,6 @@ from django.contrib import messages
 import ipaddress
 from routerlib.actions import posted_action
 
-SUPPORTED_ROUTER_TYPES = [rt[0] for rt in SUPPORTED_ROUTER_TYPES]
 
 
 @login_required()
@@ -65,7 +65,7 @@ def run_import_task(request):
         import_task.save()
         return JsonResponse({'status': 'error', 'error_message': error_message})
 
-    if import_task.router_type not in SUPPORTED_ROUTER_TYPES:
+    if import_task.router_type not in [slug for slug, _ in device_types.choices()]:
         error_message = f'Invalid router_type "{import_task.router_type}"'
         import_task.import_error = True
         import_task.import_error_message = error_message

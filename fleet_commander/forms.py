@@ -3,7 +3,7 @@ from crispy_forms.layout import Layout, Submit, Div, Field, HTML, Row, Column
 from django import forms
 
 from router_manager.models import Router
-from router_manager.models import SUPPORTED_ROUTER_TYPES
+from router_manager import device_types
 from .models import Command, CommandVariant, CommandSchedule, ScheduleDefaults, parse_interval
 
 # How a moment is written into a datetime-local input, and read back out of one.
@@ -133,8 +133,10 @@ class CommandVariantForm(forms.ModelForm):
                 .values_list('router_type', flat=True)
             )
 
-        valid_choices = [c for c in SUPPORTED_ROUTER_TYPES if c[0] != 'monitoring' and c[0] not in existing_types]
-        self.fields['router_type'].choices = [('', '---------')] + valid_choices
+        valid_choices = [c for c in device_types.choices(managed_only=True, include=self.instance.router_type or None)
+                         if c[0] not in existing_types]
+        self.fields['router_type'] = forms.ChoiceField(choices=[('', '---------')] + valid_choices,
+                                                       label='Device type')
 
         self.fields['verify_payload'].required = False
         self.fields['verify_payload'].label = 'Verification commands'

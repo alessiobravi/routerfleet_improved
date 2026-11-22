@@ -30,7 +30,7 @@ def create_default_commands():
         max_retry=3,
         retry_interval=30,
     )
-    for router_type in ['routeros', 'routeros-branded']:
+    for router_type in ['routeros']:
         CommandVariant.objects.create(
             command=new_command, router_type=router_type, enabled=True,
             payload='/system resource print\n/system package print'
@@ -54,7 +54,7 @@ def create_default_commands():
         verify_timeout=600,
         verify_interval=30,
     )
-    for router_type in ['routeros', 'routeros-branded']:
+    for router_type in ['routeros']:
         CommandVariant.objects.create(
             command=new_command, router_type=router_type, enabled=True,
             # The download is a step of its own, so a missing update file is

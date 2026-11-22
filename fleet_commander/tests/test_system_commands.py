@@ -14,7 +14,7 @@ class DefinitionTests(TestCase):
         for key in system_commands.SYSTEM_KEYS:
             command = Command.objects.get(system_key=key)
             self.assertEqual(sorted(command.variants.values_list('router_type', flat=True)),
-                             sorted(system_commands.DEVICE_TYPES), key)
+                             sorted(system_commands.device_types()), key)
 
     def test_the_migration_matches_the_defaults(self):
         # The migration holds a frozen copy: a default changed in the code
@@ -24,9 +24,13 @@ class DefinitionTests(TestCase):
                 self.assertEqual(variant.payload, system_commands.default_payload(key, variant.router_type),
                                  f'{key} {variant.router_type}')
 
-    def test_the_defaults_are_what_the_code_sent_before(self):
+    def test_the_defaults(self):
         lines = system_commands.lines('backup_create', 'routeros', backup_name='b', export_parameters=' terse')
-        self.assertEqual(lines, ['/system backup save name=b.backup', '/export file=b.rsc  terse'])
+        self.assertEqual(lines, ['/system backup save name=b.backup'])
+        self.assertEqual(system_commands.lines('backup_text', 'routeros', export_parameters=' terse'),
+                         ['configuration: /export  terse'])
+        self.assertEqual(system_commands.lines('backup_text', 'juniper-junos'),
+                         ['configuration: show configuration', 'set: show configuration | display set'])
         self.assertEqual(system_commands.lines('connection_test', 'openwrt'), ['ubus call system board'])
         self.assertEqual(system_commands.lines('backup_download', 'ubiquiti-airos', backup_name='b'), ['/tmp/system.cfg'])
 

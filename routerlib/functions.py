@@ -6,22 +6,13 @@ import paramiko
 from routerlib import host_keys
 
 
-def get_router_features(router_type):
-    if router_type in ['openwrt', 'routeros', 'routeros-branded', 'ubiquiti-airos']:
-        return ['backup', 'reverse_monitoring', 'ssh', 'ssh_key']
-    else:
-        return []
-
-
 def get_router_backup_file_extension(router_type):
-    if router_type == 'routeros' or router_type == 'routeros-branded':
-        return {'text': 'rsc', 'binary': 'backup'}
-    elif router_type == 'openwrt':
-        return {'text': 'txt', 'binary': 'tar.gz'}
-    elif router_type == 'ubiquiti-airos':
-        return {'text': 'cfg', 'binary': None}
-    else:
+    """The file extensions of a device type's text and binary backups."""
+    from router_manager import device_types
+    device_type = device_types.get(router_type)
+    if device_type is None:
         return {'text': 'txt', 'binary': 'bin'}
+    return {'text': device_type.text_extension or 'txt', 'binary': device_type.binary_extension or None}
 
 
 def gen_backup_name(router_backup):
@@ -64,58 +55,27 @@ def connect_to_ssh(address, port, username, password, sshkey=None):
     return ssh_client
 
 
-def test_authentication(router_type, address, port, username, password, sshkey=None):
-    router_features = get_router_features(router_type)
-    if 'ssh' not in router_features:
-        return False, 'Router type not supported'
-    return test_ssh_authentication(router_type, address, port, username, password, sshkey)
-
-
-def test_ssh_authentication(router_type, address, port, username, password, sshkey=None):
+def test_authentication(router_type, address, port, username, password, sshkey=None, enable_password=None):
+    """Connects as the device type says, runs its connection test and checks
+    the output against the type's recognition pattern."""
     from fleet_commander import system_commands
+    from router_manager import device_types
+    from routerlib import device_session
+    device_type = device_types.get(router_type)
+    if device_type is None or not device_type.managed:
+        return False, 'This device type is not reached over SSH'
+    session = None
     try:
-        if router_type not in system_commands.DEVICE_TYPES:
-            return False, 'Unsupported device type'
-        ssh_client = connect_to_ssh(address, port, username, password, sshkey)
-        # The commands are the system command "connection test"
+        session = device_session.connect(device_type, address, port, username, password, sshkey, enable_password)
         output = ''
         for line in system_commands.lines('connection_test', router_type):
             # The system command: edited only by an administrator after an explicit
             # confirmation, with no placeholder an outside value could fill
-            stdin, stdout, stderr = ssh_client.exec_command(line)  # nosec B601
+            stdin, stdout, stderr = session.exec_command(line)  # nosec B601
             output += stdout.read().decode('utf-8', errors='replace')
-        if router_type == 'routeros' or router_type == 'routeros-branded':
-            if router_type == 'routeros':
-                if 'platform: MikroTik' in output:
-                    result = True, 'Success: MikroTik device confirmed'
-                else:
-                    result = False, 'Device is not MikroTik'
-            else:
-                if 'platform: MikroTik' in output:
-                    result = False, 'Device is not branded. Please select Mikrotik (RouterOS)'
-                elif 'platform: ' in output:
-                    result = True, 'Success: MikroTik branded device confirmed'
-                else:
-                    result = False, 'Device is not MikroTik'
-
-        elif router_type == 'openwrt':
-            if 'OpenWrt' in output:
-                result = True, 'Success: OpenWRT device confirmed'
-            else:
-                result = False, 'Device is not OpenWRT'
-
-        elif router_type == 'ubiquiti-airos':
-            match = re.search(r'(?m)^\s*([A-Z]{2}\.v\d\S*)', output)
-            if match:
-                result = True, f'Success: Ubiquiti airOS device confirmed ({match.group(1)})'
-            else:
-                result = False, 'Device is not airOS'
-
-        else:
-            result = False, 'Unsupported device type'
-
-        ssh_client.close()
-        return result
+        return device_types.test_result(device_type, output)
     except Exception as e:
         return False, str(e)
-
+    finally:
+        if session is not None:
+            session.close()

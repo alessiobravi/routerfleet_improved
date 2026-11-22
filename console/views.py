@@ -26,7 +26,7 @@ def view_console(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     router = get_object_or_404(Router, uuid=request.GET.get('uuid') or request.POST.get('router'))
     back = f'/router/details/?uuid={router.uuid}'
-    if router.router_type == 'monitoring':
+    if not router.is_managed:
         messages.warning(request, 'No console|A monitoring-only device has no credentials to connect with.')
         return redirect(back)
     status = RouterStatus.objects.filter(router=router).first()

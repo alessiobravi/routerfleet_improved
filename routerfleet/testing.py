@@ -149,7 +149,7 @@ class FakeSCPClient:
 @contextmanager
 def fake_ssh(target, client):
     """Patch connect_to_ssh where `target` imported it, handing out `client`."""
-    with mock.patch(f'{target}.connect_to_ssh', return_value=client) as patched:
+    with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client) as patched:
         yield patched
 
 
@@ -173,3 +173,16 @@ def files_in(path):
     for root, _, names in os.walk(path):
         found.extend(os.path.join(root, name) for name in names)
     return found
+
+
+def edit_type(slug, **fields):
+    """Changes fields of a device type in a test. The type is fetched (and a
+    shipped preset created) first, so the change can not miss a row that a
+    database reset removed."""
+    from router_manager import device_types
+    device_types.clear_cache()
+    device_type = device_types.get(slug)
+    for name, value in fields.items():
+        setattr(device_type, name, value)
+    device_type.save()
+    return device_type

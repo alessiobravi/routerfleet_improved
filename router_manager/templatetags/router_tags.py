@@ -14,9 +14,6 @@ VERSION_PATTERN = re.compile(r'\d+(?:\.\d+)*')
 # Version strings that are only known after the router information was read
 NEUTRAL_STATE = {'css_class': '', 'title': ''}
 
-# Device types RouterFleet has no way to ask for updates: never counted as
-# missing information that an information update could fill in
-NOT_CHECKABLE = ('ubiquiti-airos',)
 
 
 def version_key(value):
@@ -81,8 +78,10 @@ def os_version_state(router_information):
 
     if not os_version:
         return NEUTRAL_STATE
-    if getattr(getattr(router_information, 'router', None), 'router_type', '') in NOT_CHECKABLE:
-        return {'css_class': '', 'title': 'airOS can not be checked for updates over SSH'}
+    device_type = getattr(getattr(router_information, 'router', None), 'device_type', None)
+    if device_type is not None and not device_type.checks:
+        # Not missing information: the device type has no way to tell
+        return {'css_class': '', 'title': f'{device_type.name} has no update check configured'}
     if not available_version:
         return {'css_class': 'text-warning',
                 'title': 'No version known the router could update to. Update the router information.'}
@@ -100,6 +99,13 @@ def os_version_state(router_information):
     return NEUTRAL_STATE
 
 
+def _untracked_types():
+    """Slugs of the types with no update check, and of unmanaged ones: their
+    devices are never counted as missing version information."""
+    from router_manager.models import DeviceType
+    return [d.slug for d in DeviceType.objects.all() if not d.managed or not d.checks]
+
+
 def update_state_counts():
     """How many devices are up to date, are missing an update and have no
     information at all.
@@ -111,7 +117,7 @@ def update_state_counts():
     """
     information_of_router = {
         information.router_id: information
-        for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=('monitoring',) + NOT_CHECKABLE)
+        for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=_untracked_types())
     }
     counts = {'up_to_date': 0, 'update_waiting': 0, 'no_information': 0}
     for state in update_state_of_routers(information_of_router).values():
@@ -126,10 +132,10 @@ def update_state_of_routers(information_of_router=None):
     if information_of_router is None:
         information_of_router = {
             information.router_id: information
-            for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=('monitoring',) + NOT_CHECKABLE)
+            for information in RouterInformation.objects.select_related('router').exclude(router__router_type__in=_untracked_types())
         }
     states = {}
-    for router_id in Router.objects.exclude(router_type__in=('monitoring',) + NOT_CHECKABLE).values_list('id', flat=True):
+    for router_id in Router.objects.exclude(router_type__in=_untracked_types()).values_list('id', flat=True):
         css_class = os_version_state(information_of_router.get(router_id))['css_class']
         if css_class == 'text-success':
             states[router_id] = 'up_to_date'
@@ -140,3 +146,10 @@ def update_state_of_routers(information_of_router=None):
             # compare the one it runs with
             states[router_id] = 'no_information'
     return states
+
+
+@register.simple_tag
+def device_links(router):
+    """The management links of a device's type: [(label, url)]."""
+    from router_manager.device_types import links_for
+    return links_for(router)

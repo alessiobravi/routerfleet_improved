@@ -24,6 +24,11 @@ class RouterBackup(models.Model):
     backup_text = models.TextField(blank=True, null=True)
     backup_text_hash = models.CharField(max_length=64, blank=True, db_index=True)
     backup_text_filename = models.CharField(max_length=255, blank=True, null=True)
+    # The name of backup_text when the device type defines named text backups
+    # ('configuration', 'running-config'), and the other named texts of the same
+    # backup: [{"name": ..., "text": ...}]. Change detection covers all of them.
+    backup_text_name = models.CharField(max_length=40, blank=True, default='')
+    extra_texts = models.JSONField(default=list, blank=True)
     backup_binary = models.FileField(upload_to='backups/', blank=True, null=True)
     # An unchanged backup whose content was not stored again: the backup that
     # holds that same configuration
@@ -107,13 +112,31 @@ class RouterBackup(models.Model):
         if self.backup_binary:
             self.backup_binary.delete(save=False)
         self.backup_text = ''
+        self.extra_texts = []
         self.same_as = stored
         self.save()
         return True
 
+    def texts_hash(self):
+        """The hash of the configuration: of backup_text alone - as every backup
+        before named texts had it - or of every named text together."""
+        digest = hashlib.sha256(self.backup_text.encode('utf-8'))
+        for extra in self.extra_texts or []:
+            digest.update(b'\0' + str(extra.get('name', '')).encode('utf-8') + b'\0'
+                          + str(extra.get('text', '')).encode('utf-8'))
+        return digest.hexdigest()
+
+    def named_texts(self):
+        """[(name, text)] of the configuration this backup holds (followed to
+        the stored one for an unchanged backup)."""
+        content = self.content
+        texts = [(content.backup_text_name or 'configuration', content.backup_text or '')]
+        texts += [(str(e.get('name', '')), str(e.get('text', ''))) for e in (content.extra_texts or [])]
+        return texts
+
     def save(self, *args, **kwargs):
         if self.backup_text:
-            self.backup_text_hash = hashlib.sha256(self.backup_text.encode('utf-8')).hexdigest()
+            self.backup_text_hash = self.texts_hash()
         elif self.same_as_id:
             # Not stored again, but the configuration is known: it is the stored one
             self.backup_text_hash = self.same_as.backup_text_hash

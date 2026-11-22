@@ -155,7 +155,7 @@ class ConsoleConsumer(AsyncWebsocketConsumer):
             return None, 'This console link is not valid any more. Open the console again.'
         session = ConsoleSession.objects.select_related('router', 'router__ssh_key').get(ticket_hash=hash_ticket(ticket))
         router = session.router
-        if router is None or router.router_type == 'monitoring':
+        if router is None or not router.is_managed:
             return session, 'This device can not be reached by a console.'
         if session.transport == 'telnet' and not router.console_telnet:
             return session, 'Telnet is not allowed for this device.'

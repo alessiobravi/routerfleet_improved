@@ -7,12 +7,11 @@ from django.http import HttpResponse
 from django.test import RequestFactory, SimpleTestCase, TestCase
 from django.utils import timezone
 
-from routerfleet.testing import FakeSSHClient, fake_ssh, make_information, make_router
+from routerfleet.testing import edit_type, FakeSSHClient, fake_ssh, make_information, make_router
 from routerlib import encryption, router_functions
 from routerlib.decorators import cron_endpoint
 from routerlib.functions import (gen_backup_name, get_router_backup_file_extension,
-                                 get_router_features, load_private_key_from_string,
-                                 test_authentication)
+                                 load_private_key_from_string, test_authentication)
 from router_manager.models import Router, RouterInformation
 
 
@@ -123,20 +122,12 @@ class CronEndpointTests(SimpleTestCase):
         self.assertEqual(cron_endpoint(my_view).__name__, 'my_view')
 
 
-class DeviceTypeTests(SimpleTestCase):
-    def test_features(self):
-        for router_type in ('routeros', 'routeros-branded', 'openwrt', 'ubiquiti-airos'):
-            self.assertEqual(get_router_features(router_type),
-                             ['backup', 'reverse_monitoring', 'ssh', 'ssh_key'])
-        self.assertEqual(get_router_features('monitoring'), [])
-        self.assertEqual(get_router_features('unknown'), [])
-
-    def test_file_extensions(self):
+class DeviceTypeTests(TestCase):
+    def test_file_extensions_come_from_the_type(self):
         self.assertEqual(get_router_backup_file_extension('routeros'), {'text': 'rsc', 'binary': 'backup'})
-        self.assertEqual(get_router_backup_file_extension('routeros-branded'),
-                         {'text': 'rsc', 'binary': 'backup'})
         self.assertEqual(get_router_backup_file_extension('openwrt'), {'text': 'txt', 'binary': 'tar.gz'})
         self.assertEqual(get_router_backup_file_extension('ubiquiti-airos'), {'text': 'cfg', 'binary': None})
+        self.assertEqual(get_router_backup_file_extension('cisco-ios'), {'text': 'cfg', 'binary': None})
         self.assertEqual(get_router_backup_file_extension('other'), {'text': 'txt', 'binary': 'bin'})
 
     def test_backup_name(self):
@@ -158,39 +149,34 @@ class AuthenticationTests(TestCase):
         ok, message = self.check('routeros', {'/system resource print': 'platform: MikroTik\n'})
         self.assertTrue(ok, message)
 
-    def test_routeros_rejects_branded_device(self):
+    def test_routeros_rejects_another_platform(self):
         ok, message = self.check('routeros', {'/system resource print': 'platform: Acme\n'})
         self.assertFalse(ok)
-        self.assertIn('not MikroTik', message)
-
-    def test_branded_confirmed(self):
-        ok, _ = self.check('routeros-branded', {'/system resource print': 'platform: Acme\n'})
-        self.assertTrue(ok)
-
-    def test_branded_rejects_a_plain_mikrotik(self):
-        ok, message = self.check('routeros-branded', {'/system resource print': 'platform: MikroTik\n'})
-        self.assertFalse(ok)
-        self.assertIn('not branded', message)
-
-    def test_branded_rejects_non_routeros(self):
-        ok, _ = self.check('routeros-branded', {'/system resource print': 'Linux\n'})
-        self.assertFalse(ok)
+        self.assertIn('not Mikrotik (RouterOS)', message)
 
     def test_openwrt(self):
         self.assertTrue(self.check('openwrt', {'ubus call system board': '{"release": "OpenWrt"}'})[0])
         self.assertFalse(self.check('openwrt', {'ubus call system board': 'Debian'})[0])
 
-    def test_airos(self):
-        self.assertTrue(self.check('ubiquiti-airos', {'cat /etc/version': 'XW.v6.3.11\n'})[0])
+    def test_airos_names_the_version_found(self):
+        ok, message = self.check('ubiquiti-airos', {'cat /etc/version': 'XW.v6.3.11\n'})
+        self.assertTrue(ok)
+        self.assertIn('(XW.v6.3.11)', message)
         self.assertFalse(self.check('ubiquiti-airos', {'cat /etc/version': 'something'})[0])
 
-    def test_monitoring_type_is_not_supported(self):
+    def test_the_pattern_of_an_edited_type_is_used(self):
+        edit_type('openwrt', test_pattern=r'Debian (\d+)')
+        ok, message = self.check('openwrt', {'ubus call system board': 'Debian 12'})
+        self.assertTrue(ok)
+        self.assertIn('(12)', message)
+
+    def test_monitoring_type_is_not_reached(self):
         ok, message = test_authentication('monitoring', '192.0.2.1', 22, 'u', 'p')
         self.assertFalse(ok)
-        self.assertIn('not supported', message)
+        self.assertIn('not reached over SSH', message)
 
     def test_connection_error_is_reported(self):
-        with mock.patch('routerlib.functions.connect_to_ssh', side_effect=OSError('refused')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('refused')):
             ok, message = test_authentication('routeros', '192.0.2.1', 22, 'u', 'p')
         self.assertFalse(ok)
         self.assertIn('refused', message)
@@ -267,15 +253,21 @@ class RouterOSInformationTests(TestCase):
         self.assertFalse(ok)
         self.assertIn('Failed to retrieve', error)
 
+    def offered(self, version, latest):
+        (ok, error), _ = self.run_with({
+            '/system resource print': ROUTEROS_RESOURCE.replace('7.16.2 (stable)', version),
+            '/system routerboard print': ROUTEROS_RB,
+            '/system package update print': f'latest-version: {latest}\n',
+        })
+        self.assertTrue(ok, error)
+        info = RouterInformation.objects.get(pk=self.info.pk)
+        return info.available_version, info.update_available
+
     def test_up_to_date(self, _sleep):
-        self.assertEqual(router_functions._parse_routeros_update_info(
-            {'installed-version': '7.17', 'latest-version': '7.17'}, {}), ('7.17', False))
+        self.assertEqual(self.offered('7.17 (stable)', '7.17'), ('7.17', False))
 
     def test_ahead_of_the_channel_is_not_an_update(self, _sleep):
-        self.assertEqual(router_functions._parse_routeros_update_info(
-            {'installed-version': '7.18beta2', 'latest-version': '7.17'}, {}), ('7.17', False))
-        self.assertFalse(router_functions._parse_routeros_update_info(
-            {'latest-version': '7.17'}, {'version': '7.17 (stable)'})[1])
+        self.assertEqual(self.offered('7.18beta2', '7.17'), ('7.17', False))
 
     def status_client(self, answers):
         class Client:
@@ -302,19 +294,15 @@ class RouterOSInformationTests(TestCase):
         answers = itertools.repeat('status: finding out latest version...\n')
         _, values = router_functions._run_inventory(self.status_client(answers), self.router)
         self.assertNotIn('latest-version', values)
-        self.assertEqual(sleep.call_count * router_functions.ROUTEROS_UPDATE_CHECK_DELAY,
-                         router_functions.ROUTEROS_UPDATE_CHECK_TIMEOUT)
+        self.assertEqual(sleep.call_count * router_functions.REPEAT_DELAY,
+                         router_functions.REPEAT_TIMEOUT)
 
-    def test_installed_falls_back_to_resource_version(self, _sleep):
-        self.assertEqual(router_functions._parse_routeros_update_info(
-            {'latest-version': '7.18'}, {'version': '7.17'}), ('7.18', True))
+    def test_an_older_version_is_behind(self, _sleep):
+        self.assertEqual(self.offered('7.17', '7.18'), ('7.18', True))
 
-
-class KeyValueParserTests(SimpleTestCase):
-    def test_skips_prompts_and_blank_lines(self):
-        parsed = router_functions._parse_routeros_key_value_output(
-            '[admin@r] > print\r\n\r\n  name: r1\r\n  no colon here\n  url: http://x\n')
-        self.assertEqual(parsed, {'name': 'r1', 'url': 'http://x'})
+    def test_without_the_device_check_nothing_is_offered(self, _sleep):
+        edit_type('routeros', check_device=False)
+        self.assertEqual(self.offered('7.17', '7.18'), ('', False))
 
 
 OS_RELEASE = '''NAME="OpenWrt"
@@ -327,16 +315,23 @@ OPENWRT_RELEASE="OpenWrt 23.05.3 r23809"
 
 
 class OpenWrtInformationTests(TestCase):
+    """The OpenWrt preset's vendor check: the published release list, and a
+    release counts only when it ships images for the device's board."""
+
     def setUp(self):
-        router_functions._openwrt_release_cache.update({'time': 0, 'stable': '', 'oldstable': ''})
-        router_functions._openwrt_target_cache.clear()
+        router_functions._vendor_cache.clear()
+        router_functions._confirm_cache.clear()
         self.router = make_router(router_type='openwrt')
         self.info = make_information(self.router)
+        patcher = mock.patch('console.network.check', return_value='198.51.100.1')
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.device_type = self.router.device_type
 
     def fake_requests(self, stable='24.10.1', oldstable='23.05.5', boards_with_images=('24.10.1',)):
-        def get(url, timeout=None, stream=False):
+        def get(url, **kwargs):
             response = mock.Mock()
-            if url == router_functions.OPENWRT_VERSIONS_URL:
+            if url == self.device_type.vendor_url:
                 response.json.return_value = {'stable_version': stable, 'oldstable_version': oldstable}
                 response.raise_for_status.return_value = None
             else:
@@ -345,6 +340,10 @@ class OpenWrtInformationTests(TestCase):
             return response
         return mock.patch('routerlib.router_functions.requests.get', side_effect=get)
 
+    def offered(self, version_id='23.05.3', board='ramips/mt7621'):
+        values = {'VERSION_ID': version_id, 'OPENWRT_BOARD': board}
+        return router_functions.vendor_available_version(self.device_type, version_id, values, '')
+
     def test_fields_and_newer_release_with_images(self):
         client = FakeSSHClient({
             'cat /etc/os-release': OS_RELEASE,
@@ -352,7 +351,7 @@ class OpenWrtInformationTests(TestCase):
             'echo "architecture=$(uname -m)"': 'architecture=mips\n',
             'echo "mac=$(cat /sys/class/net/eth0/address)"': 'mac=aa:bb:cc:dd:ee:ff\n',
         })
-        with fake_ssh('routerlib.router_functions', client), self.fake_requests():
+        with fake_ssh('routerlib.router_functions', client), self.fake_requests() as get:
             ok, error = router_functions.get_router_information(self.info)
         self.assertTrue(ok, error)
         info = RouterInformation.objects.get(pk=self.info.pk)
@@ -364,59 +363,62 @@ class OpenWrtInformationTests(TestCase):
         self.assertEqual(info.architecture, 'mips')
         self.assertEqual(info.available_version, '24.10.1')
         self.assertTrue(info.update_available)
+        self.assertIn('/releases/24.10.1/targets/ramips/mt7621/profiles.json', get.call_args_list[-1].args[0])
+        self.assertFalse(get.call_args_list[0].kwargs['allow_redirects'])
 
     def test_release_without_images_for_the_board_is_not_offered(self):
         with self.fake_requests(boards_with_images=()):
-            # Checked, nothing installable is newer: up to date with what it runs
-            self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'ramips/mt7621'}), ('23.05.3', False))
+            self.assertEqual(self.offered(), ('23.05.3', False))
 
     def test_falls_back_to_oldstable_when_stable_has_no_image(self):
         with self.fake_requests(boards_with_images=('23.05.5',)):
-            self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'}), ('23.05.5', True))
+            self.assertEqual(self.offered(), ('23.05.5', True))
 
     def test_older_releases_are_not_offered(self):
         with self.fake_requests(stable='23.05.3', oldstable='22.03.7', boards_with_images=('23.05.3', '22.03.7')):
-            self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'}), ('23.05.3', False))
+            self.assertEqual(self.offered(), ('23.05.3', False))
 
     def test_an_up_to_date_device_counts_as_up_to_date(self):
-        # It used to get no version to compare with, and was counted as a
-        # device without information on the status page
         from router_manager.templatetags.router_tags import os_version_state
         with self.fake_requests(stable='23.05.3', oldstable='22.03.7'):
-            available, _ = router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'})
+            available, _ = self.offered()
         self.info.os_version, self.info.available_version = '23.05.3', available
         self.assertEqual(os_version_state(self.info)['css_class'], 'text-success')
 
     def test_snapshot_and_unreadable_release_list_are_unknown(self):
         with self.fake_requests():
-            self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': 'SNAPSHOT', 'OPENWRT_BOARD': 'b'}), ('', False))
-        router_functions._openwrt_release_cache.update({'time': 0, 'stable': '', 'oldstable': ''})
+            self.assertEqual(self.offered('SNAPSHOT'), ('', False))
         with mock.patch('routerlib.router_functions.requests.get', side_effect=OSError('down')), \
                 self.assertLogs('routerlib.router_functions', level='WARNING'):
-            self.assertEqual(router_functions.get_openwrt_available_version(
-                {'VERSION_ID': '23.05.3', 'OPENWRT_BOARD': 'b'}), ('', False))
+            self.assertEqual(self.offered(), ('', False))
 
-    def test_missing_board_or_version(self):
-        self.assertEqual(router_functions.get_openwrt_available_version({'VERSION_ID': '1'}), ('', False))
+    def test_missing_board_is_not_confirmed(self):
+        with self.fake_requests():
+            self.assertEqual(self.offered(board=''), ('23.05.3', False))
 
     def test_release_list_is_cached(self):
         with self.fake_requests() as get:
-            router_functions._openwrt_release_versions()
-            router_functions._openwrt_release_versions()
-        version_calls = [c for c in get.call_args_list if c.args[0] == router_functions.OPENWRT_VERSIONS_URL]
-        self.assertEqual(len(version_calls), 1)
+            self.offered()
+            self.offered()
+        list_calls = [c for c in get.call_args_list if c.args[0] == self.device_type.vendor_url]
+        self.assertEqual(len(list_calls), 1)
 
-    def test_unreachable_download_server_is_not_retried_per_router(self):
-        with mock.patch('routerlib.router_functions.requests.get', side_effect=OSError('down')) as get, \
+    def test_only_https_and_never_an_internal_address(self):
+        from console.network import Refused
+        from router_manager.models import DeviceType
+        DeviceType.objects.filter(pk=self.device_type.pk).update(vendor_url='http://downloads.example.com/v.json')
+        self.device_type.refresh_from_db()
+        with mock.patch('routerlib.router_functions.requests.get') as get, \
                 self.assertLogs('routerlib.router_functions', level='WARNING'):
-            self.assertEqual(router_functions._openwrt_release_versions(), ('', ''))
-            self.assertEqual(router_functions._openwrt_release_versions(), ('', ''))
-        self.assertEqual(get.call_count, 1)
+            self.assertEqual(self.offered(), ('', False))
+        get.assert_not_called()
+        DeviceType.objects.filter(pk=self.device_type.pk).update(vendor_url='https://internal.example/v.json')
+        self.device_type.refresh_from_db()
+        with mock.patch('console.network.check', side_effect=Refused('internal')), \
+                mock.patch('routerlib.router_functions.requests.get') as get, \
+                self.assertLogs('routerlib.router_functions', level='WARNING'):
+            self.assertEqual(self.offered(), ('', False))
+        get.assert_not_called()
 
     def test_version_key(self):
         self.assertLess(router_functions._version_key('23.05.3'), router_functions._version_key('24.10.0'))
@@ -453,7 +455,7 @@ class AirOSInformationTests(TestCase):
         with fake_ssh('routerlib.router_functions', FakeSSHClient({})):
             ok, error = router_functions.get_router_information(info)
         self.assertFalse(ok)
-        self.assertIn('board.info', error)
+        self.assertIn('Failed to retrieve router information', error)
 
 
 class UpdateRouterInformationTests(TestCase):
@@ -474,7 +476,7 @@ class UpdateRouterInformationTests(TestCase):
     def test_connection_failure_is_recorded(self):
         self.router.router_type = 'routeros'
         self.router.save()
-        with mock.patch('routerlib.router_functions.connect_to_ssh', side_effect=OSError('timed out')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('timed out')):
             ok, error = router_functions.update_router_information(self.info)
         self.assertFalse(ok)
         self.assertIn('timed out', error)

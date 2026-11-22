@@ -154,11 +154,13 @@ def view_test_router_connection(request):
     router = get_object_or_404(Router, uuid=request.POST['uuid']) if request.POST.get('uuid') else None
     if router and request.POST.get('stored'):
         settings_ = {'router_type': router.router_type, 'address': router.address, 'port': router.port,
-                     'username': router.username, 'password': router.password, 'ssh_key': router.ssh_key}
+                     'username': router.username, 'password': router.password, 'ssh_key': router.ssh_key,
+                     'enable_password': router.enable_password}
     else:
         # Read before the form: validating copies the typed values onto the
         # instance, and the stored password must be compared with what is stored
         stored_address, stored_port, stored_password = (router.address, router.port, router.password) if router else (None, None, '')
+        stored_enable = router.enable_password if router else None
         form = RouterForm(request.POST, instance=router)
         if not form.is_valid():
             errors = [e for field_errors in form.errors.values() for e in field_errors]
@@ -171,12 +173,21 @@ def view_test_router_connection(request):
                 return JsonResponse({'success': False, 'message': 'Type the password to test a new address or port: '
                                                                   'the stored one is only used for the stored address.'})
             password = stored_password
+        enable_password = request.POST.get('enable_password') or ''
+        if not enable_password and router and stored_enable:
+            # Like the password: only to the address it was stored for
+            if (data['address'], data['port']) == (stored_address, stored_port):
+                enable_password = stored_enable
         settings_ = {'router_type': data['router_type'], 'address': data['address'], 'port': data['port'],
-                     'username': data['username'], 'password': password, 'ssh_key': data.get('ssh_key')}
-    if settings_['router_type'] == 'monitoring':
+                     'username': data['username'], 'password': password, 'ssh_key': data.get('ssh_key'),
+                     'enable_password': enable_password or None}
+    from router_manager import device_types
+    chosen = device_types.get(settings_['router_type'])
+    if chosen is None or not chosen.managed:
         return JsonResponse({'success': False, 'message': 'A monitoring-only device is not connected to over SSH.'})
     success, message = test_authentication(settings_['router_type'], settings_['address'], settings_['port'],
-                                           settings_['username'], settings_['password'], settings_['ssh_key'])
+                                           settings_['username'], settings_['password'], settings_['ssh_key'],
+                                           settings_['enable_password'])
     if not success:
         message = 'Could not authenticate: ' + (message or 'check the credentials.')
     return JsonResponse({'success': success, 'message': message})
@@ -303,7 +314,7 @@ def view_manage_router(request):
         messages.success(request, saved_router_message(form.instance, created, changed))
         router_status, router_status_created = RouterStatus.objects.get_or_create(router=form.instance)
         BackupSchedule.objects.filter(router=form.instance).delete()
-        if form.instance.router_type == 'monitoring':
+        if not form.instance.is_managed:
             RouterInformation.objects.filter(router=form.instance).delete()
         webadmin_settings.router_config_last_updated = timezone.now()
         webadmin_settings.save()
@@ -541,7 +552,7 @@ def view_edit_routers_multiple(request):
                         router.backup_profile = backup_profile
                     if form.cleaned_data.get('internal_notes'):
                         router.internal_notes = form.cleaned_data['internal_notes']
-                    if router.router_type != 'monitoring':
+                    if router.is_managed:
                         if form.cleaned_data.get('password'):
                             router.password = form.cleaned_data['password']
                             router.ssh_key = None
@@ -678,7 +689,9 @@ def view_cron_update_router_information(request):
     # requested routers is not spread over one minute per router
     deadline = time.time() + MAX_UPDATE_INFORMATION_RUNTIME
 
-    router_list = Router.objects.filter(enabled=True).exclude(router_type='monitoring').exclude(routerstatus__status_online=False)
+    from router_manager.models import DeviceType
+    unmanaged = DeviceType.objects.filter(managed=False).values_list('slug', flat=True)
+    router_list = Router.objects.filter(enabled=True).exclude(router_type__in=list(unmanaged)).exclude(routerstatus__status_online=False)
 
     while time.time() < deadline:
         router = _router_due_for_information_update(router_list, refresh_interval)

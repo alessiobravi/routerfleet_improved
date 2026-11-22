@@ -17,8 +17,8 @@ class UserAcl(models.Model):
     address_link = models.CharField(max_length=10, default='none', choices=(
         ('none', 'No links'),
         ('ssh', 'Open with SSH'),
-        ('winbox', 'Open with Winbox'),
-        ('both', 'Show a menu (SSH / Winbox)'),
+        ('winbox', "Open with the device type's own tool (Winbox for RouterOS)"),
+        ('both', "Show a menu (SSH and the device type's tools)"),
     ), help_text='What a click on the address of a router in the router list does.')
 
     created = models.DateTimeField(auto_now_add=True)

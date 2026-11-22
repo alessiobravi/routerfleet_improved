@@ -331,13 +331,16 @@ class DevicesStatusChartTests(TestCase):
         from dashboard.views import online_series
         from router_manager.models import Router
         now = timezone.now()
+        # Anchored to the calendar days, not to the time the test runs at
+        midnight = timezone.localtime(now).replace(hour=0, minute=0, second=0, microsecond=0)
         old = make_router(name='a')
         new = make_router(name='b')
         Router.objects.filter(pk=old.pk).update(created=now - timezone.timedelta(days=30), monitoring=True)
-        Router.objects.filter(pk=new.pk).update(created=now - timezone.timedelta(hours=1), monitoring=True)
-        # 'a' was offline for a while three days ago, and is back
-        RouterDownTime.objects.create(router=old, start_time=now - timezone.timedelta(days=4, hours=1),
-                                      end_time=now - timezone.timedelta(days=2, hours=23))
+        Router.objects.filter(pk=new.pk).update(created=min(now, midnight + timezone.timedelta(seconds=1)),
+                                                monitoring=True)
+        # 'a' went offline at noon four days ago and was back at noon the next day
+        RouterDownTime.objects.create(router=old, start_time=midnight - timezone.timedelta(days=4) + timezone.timedelta(hours=12),
+                                      end_time=midnight - timezone.timedelta(days=3) + timezone.timedelta(hours=12))
         data = online_series(7)
         totals = [a + b + c for a, b, c in zip(data['online_data'], data['offline_data'], data['disabled_data'])]
         self.assertEqual(totals, [1, 1, 1, 1, 1, 1, 2])

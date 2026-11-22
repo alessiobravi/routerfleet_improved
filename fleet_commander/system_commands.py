@@ -16,73 +16,56 @@ import re
 
 logger = logging.getLogger(__name__)
 
-ROUTEROS = ('routeros', 'routeros-branded')
-DEVICE_TYPES = ROUTEROS + ('openwrt', 'ubiquiti-airos')
-
 PLACEHOLDER = re.compile(r'\{\{\s*([a-z_]+)\s*\}\}')
 
 
-def _per_type(routeros, openwrt, airos):
-    return {'routeros': routeros, 'routeros-branded': routeros, 'openwrt': openwrt, 'ubiquiti-airos': airos}
+def _presets(key):
+    """The commands of every shipped device type for one system key."""
+    from router_manager.device_types import PRESET_COMMANDS, PRESETS
+    return {slug: PRESET_COMMANDS.get(slug, {}).get(key, '')
+            for slug, preset in PRESETS.items() if preset.get('managed', True)}
 
 
 DEFAULTS = {
     'connection_test': {
         'name': 'System: connection test',
-        'description': 'Run by "Test connection" on a router, to check the credentials and that the device is '
-                       'of the type selected. RouterOS: the output must show the platform; OpenWrt: it must '
-                       'name OpenWrt; airOS: it must start with the firmware version (XW.v6...).',
+        'description': 'Run by "Test connection" on a device, to check the credentials and that the device is of '
+                       'the type selected: the output must match the recognition pattern of the device type.',
         'placeholders': (),
         'required': True,
-        'variants': _per_type('/system resource print', 'ubus call system board', 'cat /etc/version'),
     },
     'inventory': {
         'name': 'System: inventory and versions',
         'description': 'Reads model, serial number, firmware, OS version and the version the device can update '
-                       'to, every 24 hours and on request. RouterFleet reads "key: value" and "key=value" lines '
-                       'from the output; a line that prints the update status is repeated for up to 15 seconds '
-                       'until the device has the answer. A line that fails does not fail the others.',
+                       'to, every 24 hours and on request. Where each value is found is set by the device type '
+                       '(key: value lines, or patterns). A line the device type marks to repeat is repeated for '
+                       'up to 15 seconds until the device has the answer. A line that fails does not fail the '
+                       'others.',
         'placeholders': (),
         'required': True,
-        'variants': _per_type(
-            '/system resource print\n'
-            '/system routerboard print\n'
-            '/system package update check-for-updates\n'
-            '/system package update print',
-            'cat /etc/os-release\n'
-            'echo "hostname=$(uci get system.@system[0].hostname)"\n'
-            'echo "architecture=$(uname -m)"\n'
-            'echo "mac=$(cat /sys/class/net/eth0/address)"',
-            'echo "firmware=$(cat /etc/version)"\n'
-            'cat /etc/board.info\n'
-            'echo "kernel=$(uname -r)"\n'
-            'cat /proc/cpuinfo'),
+    },
+    'backup_text': {
+        'name': 'System: backup - text',
+        'description': 'The text backups, taken from the output of commands - nothing is written on the device. '
+                       'One per line, "name: command" (a line without a name is called "configuration"). Each '
+                       'named text is kept, compared and downloaded on its own.',
+        'placeholders': ('export_parameters',),
+        'required': False,
     },
     'backup_create': {
         'name': 'System: backup - create',
-        'description': 'First phase of a backup: makes the backup files on the device. For OpenWrt, the output '
-                       'of the first line is stored as the text backup. Empty: nothing is created (airOS keeps '
-                       'its configuration in a file already).',
+        'description': 'Makes backup files on the device, to be downloaded next (RouterOS .backup, OpenWrt '
+                       'archive). Empty: no files are made.',
         'placeholders': ('backup_name', 'export_parameters'),
         'required': False,
-        'variants': _per_type(
-            '/system backup save name={{ backup_name }}.backup\n'
-            '/export file={{ backup_name }}.rsc {{ export_parameters }}',
-            'uci export\n'
-            'sysupgrade --create-backup /tmp/{{ backup_name }}.tar.gz',
-            ''),
     },
     'backup_download': {
         'name': 'System: backup - files to download',
-        'description': 'Second phase: the files fetched from the device by SCP, one path per line - not '
-                       'commands. A file with the text extension of the device type (.rsc, .cfg) is stored as '
-                       'the text backup, any other as the binary backup.',
+        'description': 'The files fetched from the device by SCP, one path per line - not commands. A file with '
+                       'the text extension of the device type is stored as the text backup when the device type '
+                       'takes no text from commands; any other file is the binary backup. Empty: no files.',
         'placeholders': ('backup_name',),
-        'required': True,
-        'variants': _per_type('/{{ backup_name }}.rsc\n/{{ backup_name }}.backup',
-                              # Paths on the device, sent as text - not local temporary files
-                              '/tmp/{{ backup_name }}.tar.gz',  # nosec B108
-                              '/tmp/system.cfg'),  # nosec B108
+        'required': False,
     },
     'backup_remove': {
         'name': 'System: backup - remove from device',
@@ -90,9 +73,6 @@ DEFAULTS = {
                        'to remove.',
         'placeholders': ('backup_name',),
         'required': False,
-        'variants': _per_type('/file remove "{{ backup_name }}.rsc"\n/file remove "{{ backup_name }}.backup"',
-                              'rm /tmp/{{ backup_name }}.tar.gz',
-                              ''),
     },
     'backup_cleanup': {
         'name': 'System: backup - clean leftovers',
@@ -100,11 +80,15 @@ DEFAULTS = {
                        'the device. Empty: nothing to clean.',
         'placeholders': (),
         'required': False,
-        'variants': _per_type('file remove [find where name~"routerfleet-backup-"]',
-                              'rm /tmp/routerfleet-backup-*',
-                              ''),
     },
 }
+
+
+def device_types():
+    """The slugs of the device types RouterFleet talks to."""
+    from router_manager.models import DeviceType
+    return list(DeviceType.objects.filter(managed=True).values_list('slug', flat=True))
+
 
 SYSTEM_KEYS = tuple(DEFAULTS)
 
@@ -114,7 +98,12 @@ class SystemCommandError(Exception):
 
 
 def default_payload(key, router_type):
-    return DEFAULTS[key]['variants'].get(router_type, '')
+    """The shipped payload for a type: its preset's, empty for a type of the
+    installation's own."""
+    from router_manager.models import DeviceType
+    device_type = DeviceType.objects.filter(slug=router_type).first()
+    preset = device_type.preset if device_type else router_type
+    return _presets(key).get(preset, '')
 
 
 def validate_payload(key, router_type, payload):

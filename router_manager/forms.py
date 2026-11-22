@@ -37,14 +37,25 @@ document.getElementById('test-connection').addEventListener('click', function ()
 
 class RouterForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput, required=False)
+    enable_password = forms.CharField(widget=forms.PasswordInput, required=False, label='Enable password',
+                                      help_text='Only for device types with an enable step (Cisco), when the account '
+                                                'does not land in privileged mode. Empty keeps the stored one.')
 
     class Meta:
         model = Router
         fields = ['name', 'port', 'address', 'username', 'password', 'ssh_key', 'monitoring', 'router_type', 'enabled',
-                  'backup_profile', 'keep_unchanged', 'console_telnet', 'telnet_port']
+                  'backup_profile', 'keep_unchanged', 'console_telnet', 'telnet_port', 'enable_password']
 
     def __init__(self, *args, **kwargs):
         super(RouterForm, self).__init__(*args, **kwargs)
+        from router_manager import device_types
+        self.fields['router_type'] = forms.ChoiceField(
+            choices=[('', '---------')] + device_types.choices(include=self.instance.router_type or None),
+            label='Device type', initial=self.instance.router_type or None)
+        self._stored_enable_password = self.instance.enable_password if self.instance.pk else None
+        self.fields['enable_password'].initial = ''
+        if self._stored_enable_password:
+            self.fields['enable_password'].widget.attrs['placeholder'] = '************'
         # Only used by the console's Telnet: empty means the standard port
         self.fields['telnet_port'].required = False
         self.fields['telnet_port'].help_text = 'Used only when the Telnet console is allowed.'
@@ -84,6 +95,7 @@ class RouterForm(forms.ModelForm):
                 css_class='form-row'
             ),
             'router_type',
+            'enable_password',
             'monitoring',
             'enabled',
             Row(
@@ -130,11 +142,17 @@ class RouterForm(forms.ModelForm):
                 if not HOSTNAME.match(address):
                     raise forms.ValidationError('The address field must be a valid hostname or IP address.') from None
 
-        if router_type == 'monitoring':
+        from router_manager import device_types
+        chosen_type = device_types.get(router_type)
+        # Empty keeps the stored enable password
+        if not cleaned_data.get('enable_password'):
+            cleaned_data['enable_password'] = self._stored_enable_password
+        if chosen_type is not None and not chosen_type.managed:
             cleaned_data['password'] = ''
             cleaned_data['ssh_key'] = None
+            cleaned_data['enable_password'] = None
             if backup_profile:
-                raise forms.ValidationError('Monitoring only routers cannot have a backup profile')
+                raise forms.ValidationError(f'{chosen_type.name} devices cannot have a backup profile')
             return cleaned_data
         else:
             if not port:

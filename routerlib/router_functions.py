@@ -3,91 +3,22 @@ import datetime
 import logging
 import re
 import time
+from urllib.parse import urlsplit
+
 import requests
 from django.utils import timezone
 from router_manager.models import RouterInformation
-from routerlib.functions import connect_to_ssh
 
 logger = logging.getLogger(__name__)
 
-ROUTEROS_UPDATE_CHECK_DELAY = 3  # seconds between reads while the router asks MikroTik's update server
-ROUTEROS_UPDATE_CHECK_TIMEOUT = 15  # how long the answer is waited for at most
+# A line the device type marks (inventory_repeat) is read again until the
+# device has its answer - RouterOS asks MikroTik's update server first
+REPEAT_DELAY = 3  # seconds between reads
+REPEAT_TIMEOUT = 15  # how long the answer is waited for at most
 
-OPENWRT_VERSIONS_URL = 'https://downloads.openwrt.org/.versions.json'
-OPENWRT_TARGET_URL = 'https://downloads.openwrt.org/releases/{version}/targets/{board}/profiles.json'
-OPENWRT_RELEASE_CACHE_TTL = 6 * 60 * 60  # seconds
-
-_openwrt_release_cache = {'time': 0, 'stable': '', 'oldstable': ''}
-_openwrt_target_cache = {}
-
-
-def _parse_routeros_key_value_output(output: str) -> dict:
-    """
-    Parse lines like "key:    value" into a dict.
-    Skip blank lines or lines starting with '[' (the prompt).
-    """
-    data = {}
-    # Normalize and split
-    for raw_line in output.replace('\r', '').splitlines():
-        line = raw_line.strip()
-        # skip empty or prompt lines
-        if not line or line.startswith('['):
-            continue
-        if ':' not in line:
-            continue
-        key, val = line.split(':', 1)
-        data[key.strip()] = val.strip()
-    return data
-
-
-def _parse_routeros_update_info(update_info: dict, resource_info: dict) -> tuple:
-    """Return (available_version, update_available) for a RouterOS device."""
-    from router_manager.templatetags.router_tags import compare_versions
-    latest_version = update_info.get('latest-version', '')
-    installed_version = update_info.get('installed-version', '') or resource_info.get('version', '')
-    # Compared as numbers, by the rule the router list colours with: a device
-    # ahead of its channel, or '7.16.2' against '7.16.2 (stable)', is not behind
-    update_available = compare_versions(installed_version, latest_version) == -1
-    return latest_version, update_available
-
-
-def _openwrt_release_versions() -> tuple:
-    """
-    Return the (stable, oldstable) OpenWrt release versions.
-
-    Cached for a few hours so that a large fleet does not query the download
-    server once per router.
-    """
-    if time.time() - _openwrt_release_cache['time'] > OPENWRT_RELEASE_CACHE_TTL:
-        # Remember the attempt even when it fails, so an unreachable download
-        # server is not retried for every single router
-        _openwrt_release_cache['time'] = time.time()
-        try:
-            response = requests.get(OPENWRT_VERSIONS_URL, timeout=15)
-            response.raise_for_status()
-            versions = response.json()
-            _openwrt_release_cache['stable'] = versions.get('stable_version', '')
-            _openwrt_release_cache['oldstable'] = versions.get('oldstable_version', '')
-        except Exception as e:
-            logger.warning(f'Could not retrieve the OpenWrt release list: {e}')
-    return _openwrt_release_cache['stable'], _openwrt_release_cache['oldstable']
-
-
-def _openwrt_target_available(version: str, board: str) -> bool:
-    """Whether a release still ships images for the given OpenWrt board."""
-    cache_key = (version, board)
-    if cache_key not in _openwrt_target_cache:
-        available = False
-        try:
-            response = requests.get(
-                OPENWRT_TARGET_URL.format(version=version, board=board), timeout=15, stream=True
-            )
-            available = response.status_code == 200
-            response.close()
-        except Exception as e:
-            logger.warning(f'Could not check OpenWrt release "{version}" for board "{board}": {e}')
-        _openwrt_target_cache[cache_key] = available
-    return _openwrt_target_cache[cache_key]
+VENDOR_CACHE_TTL = 6 * 60 * 60  # seconds: a fleet does not ask once per device
+_vendor_cache = {}   # url -> (time, data)
+_confirm_cache = {}  # url -> bool
 
 
 def _version_key(version: str) -> tuple:
@@ -95,142 +26,201 @@ def _version_key(version: str) -> tuple:
     return tuple(int(part) if part.isdigit() else 0 for part in re.split(r'[.\-]', version or ''))
 
 
-def get_openwrt_available_version(os_release: dict) -> tuple:
-    """
-    Return (available_version, update_available) for an OpenWrt device.
+def _safe_url(url):
+    """Only https, and never an address on RouterFleet's own networks: the
+    URL is configured in a device type, and is fetched by the server."""
+    from console import network
+    parts = urlsplit(url or '')
+    if parts.scheme != 'https' or not parts.hostname:
+        raise ValueError('only https:// addresses are fetched')
+    network.check(parts.hostname, parts.port or 443)
+    return url
 
-    Only releases newer than the installed one and that still ship images for
-    the device's board are offered.
-    """
-    installed_version = os_release.get('VERSION_ID', '')
-    board = os_release.get('OPENWRT_BOARD', '')
-    # A snapshot build has no release number to compare with
-    if not installed_version or not board or not installed_version[:1].isdigit():
-        return '', False
 
-    stable_version, oldstable_version = _openwrt_release_versions()
-    if not stable_version:
-        # The release list could not be read: unknown, not up to date
+def _fetch_json(url):
+    cached = _vendor_cache.get(url)
+    if cached and time.time() - cached[0] < VENDOR_CACHE_TTL:
+        return cached[1]
+    response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
+                            headers={'User-Agent': 'RouterFleet-Improved-update-check'})
+    response.raise_for_status()
+    data = response.json()
+    _vendor_cache[url] = (time.time(), data)
+    return data
+
+
+def _confirmed(url):
+    if url not in _confirm_cache:
+        try:
+            response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
+                                    headers={'User-Agent': 'RouterFleet-Improved-update-check'})
+            _confirm_cache[url] = response.status_code == 200
+        except (requests.RequestException, ValueError):
+            return False  # not cached: asked again next time
+    return _confirm_cache[url]
+
+
+def _dig(data, path):
+    for part in path.split('.'):
+        if isinstance(data, dict):
+            data = data.get(part)
+        else:
+            return ''
+    return '' if data is None or isinstance(data, (dict, list)) else str(data)
+
+
+def vendor_available_version(device_type, installed, values, output):
+    """(available_version, update_available) from the vendor's published
+    releases, as the device type describes them: a JSON document, the keys
+    holding release numbers in order of preference, and optionally an address
+    that must answer for a release to count for this device (its target).
+
+    A release newer than the installed one is offered; none newer: up to date
+    (the installed one). Unknown - no number to compare, the list unreadable -
+    gives ('', False)."""
+    from router_manager.device_types import source_value
+    if not installed or not installed[:1].isdigit() or not device_type.vendor_url:
         return '', False
-    installed_key = _version_key(installed_version)
-    for version in (stable_version, oldstable_version):
-        if not version or _version_key(version) <= installed_key:
+    try:
+        data = _fetch_json(device_type.vendor_url)
+    except Exception as error:
+        logger.warning(f'Vendor check of {device_type.name} failed: {error}')
+        return '', False
+    candidates = [_dig(data, key) for key in (device_type.vendor_keys or '').split()]
+    candidates = [c for c in candidates if c]
+    if not candidates:
+        return '', False
+    target = source_value(device_type.vendor_target, values, output) if device_type.vendor_target else ''
+    installed_key = _version_key(installed)
+    for version in candidates:
+        if _version_key(version) <= installed_key:
             continue
-        if _openwrt_target_available(version, board):
-            return version, True
-    # Checked, and nothing newer is offered for this board: up to date. Left
-    # empty before, which counted an up-to-date device as having no information
-    return installed_version, False
+        if device_type.vendor_confirm_url:
+            if device_type.vendor_target and not target:
+                continue
+            url = device_type.vendor_confirm_url.replace('{version}', version).replace('{target}', target)
+            if not _confirmed(url):
+                continue
+        return version, True
+    return installed, False
 
 
-def _read_line(ssh, line):
-    stdin, stdout, stderr = ssh.exec_command(line)
+def _read_line(session, line):
+    stdin, stdout, stderr = session.exec_command(line)
     return stdout.read().decode('utf-8', errors='ignore')
 
 
-def _run_inventory(ssh, router):
+def _run_inventory(session, router):
     """Runs the system command "inventory" line by line. A line that fails
     does not fail the others - a failed update check never fails the read.
-    A line that prints the RouterOS update status is read again, every few
-    seconds for a bounded time, until the device has its answer."""
+    A line the device type marks to repeat (inventory_repeat) is read again,
+    every few seconds for a bounded time, until the version the device offers
+    is known."""
     from fleet_commander import system_commands
+    from router_manager import device_types
+    device_type = router.device_type
     outputs = {}
     for line in system_commands.lines('inventory', router.router_type):
         try:
-            outputs[line] = _read_line(ssh, line)
+            outputs[line] = _read_line(session, line)
         except Exception as e:
             logger.warning(f'Inventory line failed for {router.name} ({line}): {e}')
             outputs[line] = ''
     values = system_commands.parse_values('\n'.join(outputs.values()))
-    status_line = next((line for line in outputs if 'package update print' in line.replace('/', ' ')), None)
-    if status_line and not values.get('latest-version'):
+    try:
+        repeat = device_types.compile_pattern(device_type.inventory_repeat) if device_type else None
+    except ValueError:
+        repeat = None
+
+    def offered(found):
+        return device_types.read_inventory(device_type, found, '\n'.join(outputs.values())).get('available_version')
+
+    repeat_line = next((line for line in outputs if repeat and repeat.search(line)), None)
+    if repeat_line and not offered(values):
         waited = 0
-        while waited < ROUTEROS_UPDATE_CHECK_TIMEOUT and not values.get('latest-version'):
-            time.sleep(ROUTEROS_UPDATE_CHECK_DELAY)
-            waited += ROUTEROS_UPDATE_CHECK_DELAY
+        while waited < REPEAT_TIMEOUT and not offered(values):
+            time.sleep(REPEAT_DELAY)
+            waited += REPEAT_DELAY
             try:
-                outputs[status_line] = _read_line(ssh, status_line)
+                outputs[repeat_line] = _read_line(session, repeat_line)
             except Exception as e:
                 logger.warning(f'Update check failed for {router.name}: {e}')
                 break
-            fresh = system_commands.parse_values(outputs[status_line])
-            if fresh.get('latest-version') or 'error' in fresh.get('status', '').lower():
+            fresh = system_commands.parse_values(outputs[repeat_line])
+            if offered(fresh) or 'error' in fresh.get('status', '').lower():
                 values.update(fresh)
                 break
     return outputs, values
 
 
+def available_version(device_type, found, values, output):
+    """(available_version, update_available) from the checks the device type
+    has: what the device itself offers, the vendor's releases, and the
+    firmware repository - the newest of them."""
+    from router_manager.templatetags.router_tags import compare_versions
+    installed = found.get(device_type.vendor_version_field or 'os_version') or found.get('os_version', '')
+    offers = []
+    if device_type.check_device and found.get('available_version'):
+        offers.append(found['available_version'])
+    if device_type.check_vendor:
+        version, _ = vendor_available_version(device_type, installed, values, output)
+        if version:
+            offers.append(version)
+    if device_type.check_repository:
+        try:
+            from firmware.models import FirmwareImage
+            image = FirmwareImage.newest_for(device_type, found)
+            if image:
+                offers.append(image.version)
+        except Exception as error:  # the repository never fails the inventory
+            logger.warning(f'Repository check of {device_type.name} failed: {error}')
+    if not offers:
+        return '', False
+    best = offers[0]
+    for offer in offers[1:]:
+        if compare_versions(best, offer) == -1:
+            best = offer
+    return best, compare_versions(installed, best) == -1
+
+
 def get_router_information(router_information: RouterInformation):
     """
-    Connect to the router, run the system command "inventory", and store what
-    its output says in RouterInformation.
+    Connect to the device, run the system command "inventory", and store what
+    its output says in RouterInformation - where each value is found is set by
+    the device type.
     """
+    from router_manager import device_types
+    from routerlib import device_session
     router = router_information.router
     field_max_length = 100
     success = False
     error_message = ''
-    ssh = None
+    session = None
 
     def fit(value):
         return (value or '')[:field_max_length]
 
     try:
-        if router.router_type not in ('routeros', 'routeros-branded', 'openwrt', 'ubiquiti-airos'):
-            return False, f"Router type not supported: {router.get_router_type_display()}"
-        ssh = connect_to_ssh(router.address, router.port, router.username, router.password, router.ssh_key)
-        outputs, values = _run_inventory(ssh, router)
+        device_type = router.device_type
+        if device_type is None or not device_type.managed:
+            return False, f"Device type not supported: {router.get_router_type_display()}"
+        session = device_session.connect_router(router)
+        outputs, values = _run_inventory(session, router)
         json_data = dict(outputs)
-
-        if router.router_type in ('routeros', 'routeros-branded'):
-            if not (values.get('board-name') or values.get('version') or values.get('model')):
-                return False, 'Failed to retrieve router information'
-            router_information.model_name = fit(values.get('board-name'))
-            router_information.os_version = fit(values.get('version'))
-            router_information.architecture = fit(values.get('architecture-name'))
-            router_information.cpu = fit(values.get('cpu'))
-            router_information.model_version = fit(values.get('model'))
-            router_information.serial_number = fit(values.get('serial-number'))
-            router_information.firmware_version = fit(values.get('current-firmware'))
-            try:
-                available_version, update_available = _parse_routeros_update_info(values, values)
-            except Exception as e:
-                logger.warning(f'Update check failed for {router.name}: {e}')
-                available_version, update_available = '', False
-            router_information.available_version = fit(available_version)
-            router_information.update_available = update_available
-
-        elif router.router_type == 'openwrt':
-            if not values.get('VERSION_ID') and not values.get('OPENWRT_DEVICE_MODEL'):
-                return False, 'Failed to retrieve router information'
-            router_information.model_name = fit(values.get('OPENWRT_DEVICE_MODEL'))
-            router_information.model_version = fit(values.get('VERSION_ID'))
-            router_information.serial_number = fit(values.get('mac'))
-            router_information.os_version = fit(values.get('VERSION'))
-            router_information.firmware_version = fit(values.get('OPENWRT_RELEASE'))
-            router_information.architecture = fit(values.get('architecture'))
-            # A failed update check must not fail the information update itself
-            try:
-                available_version, update_available = get_openwrt_available_version(values)
-            except Exception as e:
-                logger.warning(f'Update check failed for {router.name}: {e}')
-                available_version, update_available = '', False
-            router_information.available_version = fit(available_version)
-            router_information.update_available = update_available
-
-        else:  # ubiquiti-airos
-            if not any(key.startswith('board.') for key in values):
-                return False, 'Failed to retrieve router information from /etc/board.info'
-            cpu_model = values.get('cpu model', '')
-            router_information.model_name = fit(values.get('board.name'))
-            router_information.model_version = fit(values.get('board.model') or values.get('board.shortname'))
-            router_information.serial_number = fit(values.get('board.device_id') or values.get('board.hwaddr'))
-            router_information.firmware_version = fit(values.get('firmware'))
-            router_information.os_version = fit(values.get('kernel'))
-            router_information.architecture = fit(cpu_model.split()[0] if cpu_model else '')
-            router_information.cpu = fit(values.get('system type') or cpu_model or values.get('board.cpurevision'))
-            # airOS has no reliable update check over SSH
-            router_information.available_version = ''
-            router_information.update_available = False
+        output = '\n'.join(outputs.values())
+        found = device_types.read_inventory(device_type, values, output)
+        if not any(found.get(field) for field in device_types.INVENTORY_IDENTITY):
+            return False, 'Failed to retrieve router information'
+        for field, _ in device_types.INVENTORY_FIELDS:
+            if field != 'available_version':
+                setattr(router_information, field, fit(found.get(field)))
+        try:
+            offered, update_available = available_version(device_type, found, values, output)
+        except Exception as e:
+            logger.warning(f'Update check failed for {router.name}: {e}')
+            offered, update_available = '', False
+        router_information.available_version = fit(offered)
+        router_information.update_available = update_available
         success = True
 
         router_information.success        = True
@@ -248,8 +238,8 @@ def get_router_information(router_information: RouterInformation):
 
     finally:
         try:
-            if ssh:
-                ssh.close()
+            if session:
+                session.close()
         except Exception:
             pass
 

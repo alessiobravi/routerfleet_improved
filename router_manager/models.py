@@ -5,13 +5,69 @@ from django.db import models
 from backup.models import BackupProfile
 from routerlib.encryption import EncryptedTextField
 
-SUPPORTED_ROUTER_TYPES = (
-    ('monitoring', 'Monitoring Only'),
-    ('routeros', 'Mikrotik (RouterOS)'),
-    ('routeros-branded', 'Mikrotik (Branded)'),
-    ('openwrt', 'OpenWRT'),
-    ('ubiquiti-airos', 'Ubiquiti airOS')
-)
+
+
+class DeviceType(models.Model):
+    """A kind of device, as data - see router_manager/device_types.py.
+
+    Devices and Fleet Commander variants refer to it by its slug, which never
+    changes once created; everything else can be edited."""
+    SESSION_MODES = [('exec', 'One SSH command per channel (RouterOS, OpenWrt, Linux)'),
+                     ('shell', 'Interactive shell with a prompt (Cisco, Juniper, Huawei)')]
+    FIRMWARE_VERIFY = [('none', 'Not checked'), ('size', 'File size'), ('sha256', 'SHA-256')]
+
+    slug = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=100, unique=True)
+    vendor = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    preset = models.CharField(max_length=50, blank=True, help_text='The shipped preset it started from')
+    position = models.PositiveIntegerField(default=100)
+    enabled = models.BooleanField(default=True, help_text='Offered for new devices')
+    managed = models.BooleanField(default=True, help_text='Reached over SSH. Off: availability monitoring only')
+    # Connection
+    session_mode = models.CharField(max_length=8, choices=SESSION_MODES, default='exec')
+    prompt_pattern = models.CharField(max_length=300, blank=True)
+    session_setup = models.TextField(blank=True, help_text='Sent once after login in a shell: paging off and similar')
+    enable_command = models.CharField(max_length=100, blank=True)
+    # Links the router list offers on a device's address besides SSH: "Label: scheme://{address}"
+    management_links = models.TextField(blank=True)
+    # Recognition and inventory
+    test_pattern = models.CharField(max_length=300, blank=True)
+    inventory_fields = models.JSONField(default=dict, blank=True)
+    inventory_repeat = models.CharField(max_length=300, blank=True)
+    # Backups
+    text_extension = models.CharField(max_length=10, default='txt')
+    binary_extension = models.CharField(max_length=10, blank=True)
+    text_ignore_pattern = models.CharField(max_length=300, blank=True)
+    option_sensitive = models.CharField(max_length=100, blank=True)
+    option_terse = models.CharField(max_length=100, blank=True)
+    # Which version the device could run
+    check_device = models.BooleanField(default=False)
+    check_vendor = models.BooleanField(default=False)
+    check_repository = models.BooleanField(default=False)
+    vendor_url = models.CharField(max_length=300, blank=True)
+    vendor_keys = models.CharField(max_length=200, blank=True)
+    vendor_confirm_url = models.CharField(max_length=300, blank=True)
+    vendor_target = models.CharField(max_length=200, blank=True)
+    vendor_version_field = models.CharField(max_length=30, default='os_version')
+    # Firmware
+    firmware_upload_path = models.CharField(max_length=200, blank=True)
+    firmware_verify = models.CharField(max_length=8, choices=FIRMWARE_VERIFY, default='none')
+
+    updated = models.DateTimeField(auto_now=True)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    class Meta:
+        ordering = ['position', 'name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def checks(self):
+        return [label for on, label in ((self.check_device, 'device'), (self.check_vendor, 'vendor'),
+                                        (self.check_repository, 'repository')) if on]
 
 
 class SSHKey(models.Model):
@@ -60,7 +116,10 @@ class Router(models.Model):
         if self.keep_unchanged == 'changes':
             return False
         return bool(profile and profile.keep_unchanged)
-    router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
+    # The slug of a DeviceType
+    router_type = models.CharField(max_length=100)
+    # For devices whose account does not land in privileged mode (Cisco enable)
+    enable_password = EncryptedTextField(null=True, blank=True)
     enabled = models.BooleanField(default=True)
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -78,6 +137,19 @@ class Router(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def device_type(self):
+        from . import device_types
+        return device_types.get(self.router_type)
+
+    def get_router_type_display(self):
+        return self.device_type.name if self.device_type else self.router_type
+
+    @property
+    def is_managed(self):
+        """Reached over SSH: backups, commands, console."""
+        return bool(self.device_type and self.device_type.managed)
 
 
 class RouterStatus(models.Model):

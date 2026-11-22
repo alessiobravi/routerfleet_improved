@@ -154,9 +154,9 @@ def router_page(router, router_status, router_information, availability, can_exe
     if groups:
         meta.append(groups)
     actions = [{'label': 'Edit', 'icon': 'fa-edit', 'href': f'/router/manage/?uuid={router.uuid}', 'style': ''}]
-    if can_console and router.router_type != 'monitoring':
+    if can_console and router.is_managed:
         actions.append({'label': 'Console', 'icon': 'fa-keyboard', 'href': f'/router/console/?uuid={router.uuid}', 'style': ''})
-    if can_execute and router.router_type != 'monitoring':
+    if can_execute and router.is_managed:
         actions.append({'label': 'Execute command', 'icon': 'fa-terminal',
                         'href': f'/fleet_commander/router/execute/?uuid={router.uuid}', 'style': 'primary'})
     hero = {'title': router.name, 'subtitle': '', 'chip': chip,

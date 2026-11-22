@@ -112,7 +112,7 @@ class PlainExecutionTests(ExecutionFixture):
     def test_retry_count_above_max_stops_before_connecting(self):
         self.task.retry_count = 3
         self.task.save()
-        with mock.patch(f'{SSH}.connect_to_ssh') as connect:
+        with mock.patch('routerlib.device_session.connect_to_ssh') as connect:
             cf.execute_command_task(self.task)
         connect.assert_not_called()
         self.task.refresh_from_db()
@@ -125,7 +125,7 @@ class PlainExecutionTests(ExecutionFixture):
         self.assertEqual(task.status, 'pending')
 
     def test_connect_failure_is_retried(self):
-        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('unreachable')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('unreachable')):
             cf.execute_command_task(self.task)
         self.task.refresh_from_db()
         self.assertEqual(self.task.error_message, 'unreachable')
@@ -160,7 +160,7 @@ class PlainExecutionTests(ExecutionFixture):
 class AbortTests(ExecutionFixture):
     def test_aborted_before_start_does_nothing(self):
         cf.abort_command_task(self.task)
-        with mock.patch(f'{SSH}.connect_to_ssh') as connect:
+        with mock.patch('routerlib.device_session.connect_to_ssh') as connect:
             cf.execute_command_task(self.task)
         connect.assert_not_called()
 
@@ -293,7 +293,7 @@ class VerificationTests(ExecutionFixture):
         self.task.verify_context = context
         self.task.payload_executed = True
         self.task.save()
-        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('still booting')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('still booting')):
             cf.execute_command_task(self.task)
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, 'pending')

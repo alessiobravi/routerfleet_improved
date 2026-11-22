@@ -36,7 +36,7 @@
                                         <b>Address</b>
                                         <span class="float-right">{{ router.address }}</span>
                                     </li>
-                                    {% if router.router_type != 'monitoring' %}
+                                    {% if router.is_managed %}
                                         <li class="list-group-item">
                                             <b>SSH Host Key</b>
                                             <span class="float-right">
@@ -102,7 +102,7 @@
                                 {% endfor %}
                                 </span>
                                     </li>
-                                    {% if router.router_type != 'monitoring' %}
+                                    {% if router.is_managed %}
                                         <li class="list-group-item">
                                             <b>Backup Profile</b>
                                             <span class="float-right">
@@ -278,7 +278,7 @@
 
             <div class="row">
                 <div class="col-lg-12">
-                    {% if router_backup_list or router.router_type != 'monitoring' %}
+                    {% if router_backup_list or router.is_managed %}
                         <div class="card card-primary card-outline">
                             <div class="card-header">
                                 <h3 class="card-title">Backup history</h3>
@@ -382,7 +382,7 @@
 
                 </div>
                 <div class="col-lg-12">
-                    {% if router.router_type != 'monitoring' %}
+                    {% if router.is_managed %}
                         <div class="card card-primary card-outline">
                             <div class="card-header">
                                 <h3 class="card-title">Fleet Commander tasks</h3>

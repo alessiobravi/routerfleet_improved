@@ -1,5 +1,6 @@
 from backup.models import BackupProfile
-from router_manager.models import SUPPORTED_ROUTER_TYPES, SSHKey, RouterGroup
+from router_manager.models import SSHKey, RouterGroup
+from router_manager import device_types
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
@@ -9,7 +10,6 @@ import io
 import re
 from django.core.exceptions import ValidationError
 
-SUPPORTED_ROUTER_TYPES = [rt[0] for rt in SUPPORTED_ROUTER_TYPES]
 
 
 class CsvDataForm(forms.ModelForm):
@@ -96,7 +96,7 @@ class CsvDataForm(forms.ModelForm):
                     raise ValidationError(f"Duplicate name '{row['name']}' found on line {line_number}")
                 seen_names.add(row['name'])
 
-                if row['router_type'] not in SUPPORTED_ROUTER_TYPES:
+                if row['router_type'] not in [slug for slug, _ in device_types.choices()]:
                     raise ValidationError(f"Invalid router_type '{row['router_type']}' on line {line_number}")
 
                 if row['monitoring'].lower() not in {'true', 'false'}:

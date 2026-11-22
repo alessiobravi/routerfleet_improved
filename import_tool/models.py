@@ -1,7 +1,7 @@
 from django.db import models
 
 from backup.models import BackupProfile
-from router_manager.models import Router, SSHKey, SUPPORTED_ROUTER_TYPES, RouterGroup
+from router_manager.models import Router, SSHKey, RouterGroup
 from routerlib.encryption import EncryptedTextField
 import uuid
 
@@ -33,7 +33,7 @@ class ImportTask(models.Model):
     port = models.IntegerField(default=22)
     backup_profile = models.ForeignKey(BackupProfile, on_delete=models.SET_NULL, blank=True, null=True)
     backup_profile_name = models.CharField(max_length=100, blank=True, null=True)
-    router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
+    router_type = models.CharField(max_length=100)
     monitoring = models.BooleanField(default=True)
 
     import_success = models.BooleanField(default=False)

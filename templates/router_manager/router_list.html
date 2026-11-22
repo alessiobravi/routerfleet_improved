@@ -161,22 +161,19 @@
                                         {% if "address" in visible_columns %}
                                         <td data-column="address">
                                             {# What a click on the address does is a per user setting #}
-                                            {% if address_link == 'none' or not router.username or router.router_type == 'monitoring' %}
+                                            {% device_links router as links %}
+                                            {% if address_link == 'none' or not router.username or not router.is_managed %}
                                                 {{ router.address }}
                                             {% elif address_link == 'ssh' %}
                                                 <a href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}">{{ router.address }}</a>
                                             {% elif address_link == 'winbox' %}
-                                                {% if router.router_type == 'routeros' or router.router_type == 'routeros-branded' %}
-                                                    <a href="winbox://{{ router.address }}">{{ router.address }}</a>
-                                                {% else %}
-                                                    {{ router.address }}
-                                                {% endif %}
-                                            {% elif router.router_type == 'routeros' or router.router_type == 'routeros-branded' %}
+                                                {% if links %}<a href="{{ links.0.1 }}">{{ router.address }}</a>{% else %}{{ router.address }}{% endif %}
+                                            {% elif links %}
                                                 <div class="dropdown d-inline address-dropdown">
                                                     <a class="dropdown-toggle" href="#" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ router.address }}</a>
                                                     <div class="dropdown-menu">
                                                         <a class="dropdown-item" href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}" aria-label="Open SSH" data-label="SSH"></a>
-                                                        <a class="dropdown-item" href="winbox://{{ router.address }}" aria-label="Open Winbox" data-label="Winbox"></a>
+                                                        {% for label, url in links %}<a class="dropdown-item" href="{{ url }}" aria-label="Open {{ label }}" data-label="{{ label }}"></a>{% endfor %}
                                                     </div>
                                                 </div>
                                             {% else %}
@@ -199,7 +196,7 @@
                                         {% endif %}
                                         {% if "backup" in visible_columns %}
                                         <td data-column="backup">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {% if router.backup_profile %}
                                                     {{ router.backup_profile }} {% if router.routerstatus.last_backup_failed %}<i class="fas fa-exclamation-triangle text-danger" title="Last backup failed to complete"></i>{% endif %}
                                                 {% else %}
@@ -210,7 +207,7 @@
                                         {% endif %}
                                         {% if "last_backup" in visible_columns %}
                                         <td data-column="last_backup">
-                                            {% if router.router_type != 'monitoring' and router.routerstatus.last_backup %}
+                                            {% if router.is_managed and router.routerstatus.last_backup %}
                                                 {{ router.routerstatus.last_backup|date:"Y-m-d H:i:s" }}
                                             {% else %}
                                                 ---
@@ -232,7 +229,7 @@
                                         {% endif %}
                                         {% if "next_daily_backup" in visible_columns %}
                                         <td data-column="next_daily_backup">
-                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_daily_backup %}
+                                            {% if router.is_managed and router.backupschedule.next_daily_backup %}
                                                 {{ router.backupschedule.next_daily_backup|date:"Y-m-d H:i:s" }}
                                             {% else %}
                                                 ---
@@ -241,7 +238,7 @@
                                         {% endif %}
                                         {% if "next_weekly_backup" in visible_columns %}
                                         <td data-column="next_weekly_backup">
-                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_weekly_backup %}
+                                            {% if router.is_managed and router.backupschedule.next_weekly_backup %}
                                                 {{ router.backupschedule.next_weekly_backup|date:"Y-m-d H:i:s" }}
                                             {% else %}
                                                 ---
@@ -250,7 +247,7 @@
                                         {% endif %}
                                         {% if "next_monthly_backup" in visible_columns %}
                                         <td data-column="next_monthly_backup">
-                                            {% if router.router_type != 'monitoring' and router.backupschedule.next_monthly_backup %}
+                                            {% if router.is_managed and router.backupschedule.next_monthly_backup %}
                                                 {{ router.backupschedule.next_monthly_backup|date:"Y-m-d H:i:s" }}
                                             {% else %}
                                                 ---
@@ -274,7 +271,7 @@
                                         {% endif %}
                                         {% if "auth" in visible_columns %}
                                         <td data-column="auth" class="min-width">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {% if router.ssh_key %}
                                                     <span style="display: none">sshkey</span><i class="fas fa-key" title="SSH Key: {{ router.ssh_key }}"></i>
                                                 {% elif router.password %}
@@ -287,7 +284,7 @@
                                         {% endif %}
                                         {% if "os_version" in visible_columns %}
                                         <td data-column="os_version">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {% with state=router.routerinformation|os_version_state %}
                                                     <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.os_version|default_if_none:'' }}</span>
                                                 {% endwith %}
@@ -296,28 +293,28 @@
                                         {% endif %}
                                         {% if "model_name" in visible_columns %}
                                         <td data-column="model_name">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {{ router.routerinformation.model_name|default_if_none:'' }}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         {% if "model_version" in visible_columns %}
                                         <td data-column="model_version">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {{ router.routerinformation.model_version|default_if_none:'' }}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         {% if "serial_number" in visible_columns %}
                                         <td data-column="serial_number">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {{ router.routerinformation.serial_number|default_if_none:'' }}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         {% if "firmware_version" in visible_columns %}
                                         <td data-column="firmware_version">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {% with state=router.routerinformation|firmware_state %}
                                                     <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.firmware_version|default_if_none:'' }}</span>
                                                 {% endwith %}
@@ -326,7 +323,7 @@
                                         {% endif %}
                                         {% if "available_version" in visible_columns %}
                                         <td data-column="available_version">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {% if router.routerinformation.update_available %}
                                                     <span class="text-warning" title="Upgrade available">{{ router.routerinformation.available_version }}
                                                         <i class="fas fa-arrow-up"></i></span>
@@ -338,24 +335,24 @@
                                         {% endif %}
                                         {% if "architecture" in visible_columns %}
                                         <td data-column="architecture">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {{ router.routerinformation.architecture|default_if_none:'' }}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         {% if "cpu" in visible_columns %}
                                         <td data-column="cpu">
-                                            {% if router.router_type != 'monitoring' %}
+                                            {% if router.is_managed %}
                                                 {{ router.routerinformation.cpu|default_if_none:'' }}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         <td class="min-width">
                                             <a href="/router/manage/?uuid={{ router.uuid }}" title="Edit"><i class="fas fa-edit"></i></a>
-                                            {% if can_open_console and router.router_type != 'monitoring' %}
+                                            {% if can_open_console and router.is_managed %}
                                             <a href="/router/console/?uuid={{ router.uuid }}" class="ml-1" title="Console" aria-label="Console of {{ router.name }}"><i class="fas fa-keyboard"></i></a>
                                             {% endif %}
-                                            {% if can_execute_commands and router.router_type != 'monitoring' %}
+                                            {% if can_execute_commands and router.is_managed %}
                                             <a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="ml-1" title="Execute command" aria-label="Execute command on {{ router.name }}"><i class="fas fa-terminal"></i></a>
                                             {% endif %}
                                         </td>

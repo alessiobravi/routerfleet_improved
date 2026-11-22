@@ -194,7 +194,7 @@ class CronEndpointTests(TestCase):
     def test_all_cron_routes_are_covered(self):
         self.assertEqual(len(self.cron_paths()), 11)
 
-    @mock.patch('routerlib.router_functions.connect_to_ssh', side_effect=OSError('no network in tests'))
+    @mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('no network in tests'))
     def test_direct_call_runs(self, _):
         for route in self.cron_paths():
             with self.subTest(route=route):

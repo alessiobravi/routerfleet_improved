@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from fleet_commander.models import CommandJob, CommandSchedule, CommandTask, CommandVariant
 from router_manager.models import RouterInformation, RouterStatus
-from routerlib.functions import connect_to_ssh
+from routerlib.device_session import connect_router
 
 # Placeholders that can be used in the expectations of a verification
 PLACEHOLDER_PATTERN = re.compile(r'\{\{\s*([a-z_]+)\s*\}\}')
@@ -90,9 +90,7 @@ def expectation_matches(expectation, output):
 def run_variant_verification(router, variant):
     """Runs the verification commands of a variant. Returns (output, error)."""
     try:
-        ssh_client = connect_to_ssh(
-            router.address, router.port, router.username, router.password, router.ssh_key
-        )
+        ssh_client = connect_router(router)
     except Exception as e:
         return '', f'Unable to connect: {e}'
 
@@ -300,9 +298,7 @@ def execute_command_task(task):
             task.save(update_fields=['started_at', 'status', 'retry_count', 'command_variant',
                                      'command_payload', 'verify_context'])
 
-            ssh_client = connect_to_ssh(
-                router.address, router.port, router.username, router.password, router.ssh_key
-            )
+            ssh_client = connect_router(router)
 
             if verification_enabled:
                 # The payload is executed once, a later attempt only verifies the

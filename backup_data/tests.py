@@ -11,7 +11,7 @@ from backup_data import views as cron
 from backup_data.models import RouterBackup
 from message_center.models import Message, MessageChannel, Notification
 from router_manager.models import BackupSchedule, RouterStatus
-from routerfleet.testing import (FakeSCPClient, FakeSSHClient, make_profile, make_router,
+from routerfleet.testing import (edit_type, FakeSCPClient, FakeSSHClient, make_profile, make_router,
                                  temporary_media_root)
 from routerlib import backup_functions
 
@@ -189,7 +189,7 @@ class PipelineTests(TestCase):
                                            schedule_time=timezone.now())
 
     def run_phase(self, backup, client):
-        with mock.patch(f'{SSH}.connect_to_ssh', return_value=client), \
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), \
                 mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
             backup_functions.perform_backup(backup)
         backup.refresh_from_db()
@@ -198,29 +198,79 @@ class PipelineTests(TestCase):
     def test_routeros_two_phases(self):
         backup = self.make_backup('routeros')
         name = backup_functions.gen_backup_name(backup)
-        client = FakeSSHClient()
+        # The text backup is the output of /export, with the profile's options
+        client = FakeSSHClient({'/export  show-sensitive terse': RSC})
         with temporary_media_root() as media:
             backup = self.run_phase(backup, client)
             self.assertTrue(backup.backup_pending_retrieval)
             self.assertFalse(backup.success)
-            self.assertIn(f'/system backup save name={name}.backup', client.commands)
-            self.assertIn(f'/export file={name}.rsc  show-sensitive terse', client.commands)
-
-            FakeSCPClient.files = {f'/{name}.rsc': RSC, f'/{name}.backup': b'\x00binary'}
-            backup = self.run_phase(backup, client)
-            self.assertTrue(backup.success)
-            self.assertFalse(backup.backup_pending_retrieval)
+            self.assertEqual(client.commands[:2], ['/export  show-sensitive terse',
+                                                   f'/system backup save name={name}.backup'])
+            self.assertNotIn('/export file=', ' '.join(client.commands), 'no export file on the device any more')
             # Comment lines are stripped, so a header timestamp is not a change
             self.assertNotIn('header comment', backup.backup_text)
             self.assertIn('add address=10.0.0.1/24', backup.backup_text)
+            self.assertEqual(backup.backup_text_name, 'configuration')
+            self.assertIn('[stdout suppressed]', backup.task_console_output)
+
+            FakeSCPClient.files = {f'/{name}.backup': b'\x00binary'}
+            backup = self.run_phase(backup, client)
+            self.assertTrue(backup.success)
+            self.assertFalse(backup.backup_pending_retrieval)
             self.assertTrue(os.path.exists(backup.backup_binary.path))
             self.assertTrue(backup.backup_binary.path.startswith(media))
-            self.assertIn(f'/file remove "{name}.rsc"', client.commands)
+            self.assertIn(f'/file remove "{name}.backup"', client.commands)
             self.assertIn('file remove [find where name~"routerfleet-backup-"]', client.commands)
         status = RouterStatus.objects.get(router=backup.router)
         self.assertIsNone(status.backup_lock)
         self.assertIsNotNone(status.last_backup)
         self.assertIn('=== Retrieving backup files ===', backup.task_console_output)
+
+    def test_an_edited_routeros_backup_keeps_its_exported_file(self):
+        """An installation whose RouterOS backup commands were edited keeps them:
+        no text command, and the downloaded .rsc is still the text backup."""
+        from fleet_commander.models import CommandVariant
+        CommandVariant.objects.filter(command__system_key='backup_text', router_type='routeros').update(payload='')
+        CommandVariant.objects.filter(command__system_key='backup_create', router_type='routeros').update(
+            payload='/system backup save name={{ backup_name }}.backup\n/export file={{ backup_name }}.rsc')
+        CommandVariant.objects.filter(command__system_key='backup_download', router_type='routeros').update(
+            payload='/{{ backup_name }}.rsc\n/{{ backup_name }}.backup')
+        backup = self.make_backup('routeros')
+        name = backup_functions.gen_backup_name(backup)
+        client = FakeSSHClient()
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+            FakeSCPClient.files = {f'/{name}.rsc': RSC, f'/{name}.backup': b'\x00binary'}
+            backup = self.run_phase(backup, client)
+        self.assertTrue(backup.success)
+        self.assertIn('add address=10.0.0.1/24', backup.backup_text)
+        self.assertNotIn('header comment', backup.backup_text)
+
+    def test_named_text_backups_are_kept_apart_and_all_count_as_change(self):
+        from fleet_commander.models import CommandVariant
+        backup = self.make_backup('juniper-junos')
+        router = backup.router
+        Router = type(router)
+        # Juniper talks through a shell; the fake client answers per command here
+        edit_type('juniper-junos', session_mode='exec')
+        client = FakeSSHClient({'show configuration': '## Last commit: 2026-11-22\nsystem { host-name r1; }\n',
+                                'show configuration | display set': 'set system host-name r1\n'})
+        backup = self.run_phase(backup, client)
+        self.assertTrue(backup.backup_pending_retrieval, backup.error_message)
+        # Nothing to download: the second phase completes without a connection
+        backup = self.run_phase(backup, client)
+        self.assertTrue(backup.success, backup.error_message)
+        self.assertEqual(backup.backup_text_name, 'configuration')
+        self.assertNotIn('Last commit', backup.backup_text, "the type's noise lines are dropped")
+        self.assertEqual(backup.extra_texts, [{'name': 'set', 'text': 'set system host-name r1\n'}])
+        self.assertEqual([n for n, _ in backup.named_texts()], ['configuration', 'set'])
+        # Only the set format changes: still a change
+        RouterStatus.objects.filter(router=router).update(backup_lock=timezone.now())
+        second = RouterBackup.objects.create(router=router, schedule_type='instant', schedule_time=timezone.now())
+        client.responses['show configuration | display set'] = 'set system host-name r2\n'
+        second = self.run_phase(self.run_phase(second, client), client)
+        self.assertTrue(second.success, second.error_message)
+        self.assertTrue(second.config_change_detected)
 
     def test_openwrt_text_comes_from_phase_one(self):
         backup = self.make_backup('openwrt')
@@ -240,7 +290,7 @@ class PipelineTests(TestCase):
         backup = self.make_backup('openwrt')
         backup = self.run_phase(backup, FakeSSHClient({'uci export': ''}))
         self.assertEqual(backup.retry_count, 1)
-        self.assertIn('Empty backup text', backup.error_message)
+        self.assertIn("the text backup 'configuration' is empty", backup.error_message)
 
     def test_airos_fetches_system_cfg_with_latin1_fallback(self):
         backup = self.make_backup('ubiquiti-airos')
@@ -256,7 +306,7 @@ class PipelineTests(TestCase):
     def test_failure_retries_after_retry_interval_minutes(self):
         backup = self.make_backup('routeros')
         now = timezone.now()
-        with at(now), mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('refused')):
+        with at(now), mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('refused')):
             backup_functions.perform_backup(backup)
         backup.refresh_from_db()
         self.assertEqual(backup.retry_count, 1)
@@ -294,7 +344,7 @@ class PipelineTests(TestCase):
         backup = self.make_backup('routeros')
         backup.success = True
         backup.save()
-        with mock.patch(f'{SSH}.connect_to_ssh') as connect:
+        with mock.patch('routerlib.device_session.connect_to_ssh') as connect:
             backup_functions.perform_backup(backup)
         connect.assert_not_called()
         self.assertIsNone(RouterStatus.objects.get(router=backup.router).backup_lock)
@@ -487,7 +537,7 @@ class RetrievalLeavesNothingBehindTests(TestCase):
         backup = RouterBackup.objects.create(router=make_router(router_type='routeros', backup_profile=make_profile()),
                                              schedule_type='instant', backup_pending_retrieval=True)
         FakeSCPClient.files = files(backup_functions.gen_backup_name(backup))
-        with mock.patch(f'{SSH}.connect_to_ssh', return_value=FakeSSHClient()), \
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=FakeSSHClient()), \
                 mock.patch(f'{SSH}.SCPClient', FakeSCPClient), temporary_media_root():
             return backup_functions.retrieve_backup(backup)
 
@@ -520,10 +570,10 @@ class KeepOnlyChangesPipelineTests(TestCase):
         RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
         backup = RouterBackup.objects.create(router=self.router, schedule_type=kind, schedule_time=timezone.now())
         name = backup_functions.gen_backup_name(backup)
-        client = FakeSSHClient()
-        with mock.patch(f'{SSH}.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
+        client = FakeSSHClient({'/export': rsc})
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
             backup_functions.perform_backup(backup)
-            FakeSCPClient.files = {f'/{name}.rsc': rsc, f'/{name}.backup': b'\x00binary-' + name.encode()}
+            FakeSCPClient.files = {f'/{name}.backup': b'\x00binary-' + name.encode()}
             backup_functions.perform_backup(backup)
         backup.refresh_from_db()
         self.assertTrue(backup.success)
@@ -581,7 +631,7 @@ class MonitoringContractTests(KeepOnlyChangesPipelineTests):
     def test_failed_rows_have_no_finish_time(self):
         RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
         backup = RouterBackup.objects.create(router=self.router, schedule_type='daily', schedule_time=timezone.now())
-        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('refused')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('refused')):
             backup_functions.perform_backup(backup)
         self.assertEqual(self.contract(backup), (False, False, False, False))
         backup.retry_count = self.profile.max_retry + 1
@@ -595,7 +645,7 @@ class MonitoringContractTests(KeepOnlyChangesPipelineTests):
             self.run_backup(RSC)
         RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
         failed = RouterBackup.objects.create(router=self.router, schedule_type='daily', schedule_time=timezone.now())
-        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('refused')):
+        with mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('refused')):
             backup_functions.perform_backup(failed)
         latest = RouterBackup.objects.filter(router=self.router).order_by('-id').first()
         self.assertEqual(latest, failed)

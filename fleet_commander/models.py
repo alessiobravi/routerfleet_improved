@@ -7,7 +7,7 @@ from django.db import models
 from django.db.models import Count, ProtectedError, Q
 from django.utils import timezone
 
-from router_manager.models import Router, RouterGroup, SUPPORTED_ROUTER_TYPES
+from router_manager.models import Router, RouterGroup
 
 INTERVAL_UNIT_ERROR = ("You must specify 'd' for days, 'h' for hours, or 'm' for minutes "
                        "(e.g. 7d, 24h, 30m).")
@@ -312,7 +312,8 @@ class ScheduleDefaults(models.Model):
 
 class CommandVariant(models.Model):
     command = models.ForeignKey(Command, on_delete=models.PROTECT, related_name="variants")
-    router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
+    # The slug of a DeviceType
+    router_type = models.CharField(max_length=100)
     payload = models.TextField()
 
     # Optional verification. These commands are executed after the payload and
@@ -350,6 +351,10 @@ class CommandVariant(models.Model):
 
     def __str__(self) -> str:
         return f"{self.command.name} ({self.router_type})"
+
+    def get_router_type_display(self):
+        from router_manager import device_types
+        return device_types.name_of(self.router_type)
 
 
 class CommandJob(models.Model):
