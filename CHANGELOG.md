@@ -13,6 +13,13 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.21.3] - 2026-11-22
+
+### Fixed
+- **The menu needed two taps on a phone** after the sidebar had been left
+  collapsed: the first tap was spent on the hover that shows the labels. On
+  touch screens the menu no longer expands on hover; one tap opens the page.
+
 ## [0.21.2] - 2026-11-22
 
 ### Changed

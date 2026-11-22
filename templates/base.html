@@ -645,6 +645,11 @@
 </script>
 
 <script>
+    // On a touch screen the menu must not expand on hover: iOS spends the first
+    // tap on a hover that shows the labels, so a link needed two taps
+    if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
+        document.querySelectorAll('.main-sidebar').forEach(function (s) { s.classList.add('sidebar-no-expand'); });
+    }
     $(document).ready(function() {
         var sidebarState = getCookie('sidebarState');
         if (sidebarState === 'collapsed') {
