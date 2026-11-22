@@ -113,9 +113,10 @@ container of an earlier RouterFleet project keeps working during an upgrade.
 The token and destination of a channel must look like what the service issues
 — a Telegram bot token, a chat id or @channel, a phone number, an ntfy topic —
 before the channel is saved, and requests are built with encoded parameters and
-quoted path segments, never by pasting text into a URL — a device name is part
-of the messages sent, and a `&` in it must not cut a message short or add a
-parameter to the request. The error text of a failed
+quoted path segments, never by pasting text into a URL. The formats are checked
+again whenever a message is sent, so a channel saved by an earlier version
+cannot steer a request either. A device name is part of the messages sent, and
+a `&` in it must not cut a message short or add a parameter to the request. The error text of a failed
 send is stored with the channel's token removed: it names the request's URL,
 and for Telegram the token is part of that URL.
 

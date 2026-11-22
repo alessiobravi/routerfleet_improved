@@ -10,6 +10,17 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.12.1] - 2026-11-22
+
+### Security
+- A notification channel's token and destination are checked again every time a
+  message is sent, not only when the channel is saved: a channel saved by an
+  earlier version, never checked, could otherwise put an arbitrary path into
+  the request to the notification service. Such a channel now fails with a
+  message asking to edit it.
+- The passkey endpoints answer with a fixed sentence when passkeys cannot be
+  used, never with the text of an exception.
+
 ## [0.12.0] - 2026-11-22
 
 ### Added

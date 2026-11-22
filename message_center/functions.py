@@ -147,7 +147,7 @@ def send_notification_message(message: Message):
             message_response['error_status_code'] = response.status_code
     except ValueError:
         message_response['status'] = 'failed'
-        message_response['error_message'] = 'Failed to send message: Invalid channel type'
+        message_response['error_message'] = 'Failed to send message: the channel type, token or destination is not valid'
         message_response['error_status_code'] = 0
     except Exception as e:
         # The exception names the URL, which carries the token: never stored as is

@@ -98,8 +98,8 @@ def view_passkey_login_options(request):
     """The challenge for signing in with a passkey."""
     try:
         rp_id, _ = mfa.relying_party(request)
-    except mfa.PasskeyUnavailable as error:
-        return JsonResponse({'error': str(error)}, status=400)
+    except mfa.PasskeyUnavailable:
+        return JsonResponse({'error': mfa.PASSKEY_UNAVAILABLE}, status=400)
     if lockout.address_locked_out(request):
         return JsonResponse({'error': 'Too many failed sign-in attempts. Try again later.'}, status=429)
     options = generate_authentication_options(rp_id=rp_id, user_verification=UserVerificationRequirement.REQUIRED)

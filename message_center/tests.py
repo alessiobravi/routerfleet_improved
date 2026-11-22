@@ -140,7 +140,7 @@ class SendTests(TestCase):
 
     def test_telegram_and_callmebot_use_get(self):
         tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='123:ABC'), message='hi')
-        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+39', token='K'), message='yo')
+        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'), message='yo')
         with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
             self.send(tg)
             self.send(cb)
@@ -148,12 +148,12 @@ class SendTests(TestCase):
         self.assertEqual(tg_call.args[0], 'https://api.telegram.org/bot123:ABC/sendMessage')
         self.assertEqual(tg_call.kwargs['params'], {'chat_id': '42', 'text': 'hi'})
         self.assertEqual(cb_call.args[0], 'https://api.callmebot.com/whatsapp.php')
-        self.assertEqual(cb_call.kwargs['params'], {'phone': '+39', 'text': 'yo', 'apikey': 'K'})
+        self.assertEqual(cb_call.kwargs['params'], {'phone': '+391234567', 'text': 'yo', 'apikey': 'K'})
 
     def test_message_text_cannot_add_parameters(self):
         # A device called "edge&apikey=other": the text stays one value
         import requests
-        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+39', token='K'),
+        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'),
                                     message='edge&apikey=other #1 is offline')
         with mock.patch('message_center.channels.requests.get', return_value=self.response()) as get:
             self.send(cb)
@@ -172,11 +172,24 @@ class SendTests(TestCase):
         self.assertNotIn('SECRET', tg.error_message)
         self.assertIn('***', tg.error_message)
 
-    def test_a_topic_cannot_leave_its_path(self):
-        message = Message.objects.create(channel=channel(destination='../v1/account'), message='x')
+    def test_a_channel_saved_before_validation_cannot_steer_the_request(self):
+        # Channels saved by earlier versions were never checked: a topic or token
+        # that would leave its place in the URL is refused before any request
+        ntfy = Message.objects.create(channel=channel(destination='../v1/account'), message='x')
+        tg = Message.objects.create(channel=channel('tg', 'telegram', destination='42', token='x/../../evil'), message='y')
+        with mock.patch('message_center.channels.requests.post') as post, \
+                mock.patch('message_center.channels.requests.get') as get:
+            ntfy, tg = self.send(ntfy), self.send(tg)
+        post.assert_not_called()
+        get.assert_not_called()
+        for message in (ntfy, tg):
+            self.assertIn('not valid', message.error_message)
+
+    def test_quoting_still_applies_to_valid_values(self):
+        from message_center import channels
         with mock.patch('message_center.channels.requests.post', return_value=self.response()) as post:
-            self.send(message)
-        self.assertEqual(post.call_args.args[0], 'https://ntfy.sh/..%2Fv1%2Faccount')
+            channels.send('ntfy', None, 'topic_1-a', 'x')
+        self.assertEqual(post.call_args.args[0], 'https://ntfy.sh/topic_1-a')
 
     def test_failure_is_stored_and_retried(self):
         MessageSettings.objects.create(retry_interval=60)

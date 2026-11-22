@@ -71,8 +71,8 @@ def view_passkey_options(request):
     """The options for creating a new passkey."""
     try:
         rp_id, _ = mfa.relying_party(request)
-    except mfa.PasskeyUnavailable as error:
-        return JsonResponse({'error': str(error)}, status=400)
+    except mfa.PasskeyUnavailable:
+        return JsonResponse({'error': mfa.PASSKEY_UNAVAILABLE}, status=400)
     existing = [PublicKeyCredentialDescriptor(id=mfa.from_b64url(passkey.credential_id))
                 for passkey in UserPasskey.objects.filter(user=request.user, rp_id=rp_id)]
     options = generate_registration_options(

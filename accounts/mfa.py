@@ -93,6 +93,11 @@ class PasskeyUnavailable(Exception):
     """The installation is reached in a way browsers do not allow passkeys for."""
 
 
+# What a visitor is told when passkeys cannot be used here - a fixed sentence,
+# never the text of an exception
+PASSKEY_UNAVAILABLE = 'Passkeys need the installation to be reached by a name, not by an IP address.'
+
+
 def relying_party(request):
     """(rp_id, origin) for this request.
 
@@ -106,7 +111,7 @@ def relying_party(request):
     except ValueError:
         pass
     else:
-        raise PasskeyUnavailable('Passkeys need the installation to be reached by a name, not by an IP address.')
+        raise PasskeyUnavailable(PASSKEY_UNAVAILABLE)
     origin = request.headers.get('Origin', '')
     parts = urlsplit(origin)
     if parts.scheme == 'https' and parts.hostname == host:

@@ -48,8 +48,15 @@ def format_errors(channel_type, token, destination):
 
 
 def send(channel_type, token, destination, text, subject=None):
-    """Send `text`; returns the response. Raises ValueError for an unknown type,
-    and whatever requests raises for a network failure."""
+    """Send `text`; returns the response. Raises ValueError for an unknown type
+    or for a token or destination that does not look like what the service
+    issues, and whatever requests raises for a network failure.
+
+    The formats are checked here as well as when a channel is saved: a channel
+    saved by an earlier version was never checked, and the token and the topic
+    end up in the request's path."""
+    if channel_type in FORMATS and format_errors(channel_type, token, destination):
+        raise ValueError('The channel token or destination is not valid; edit the channel.')
     if channel_type == 'callmebot':
         return requests.get('https://api.callmebot.com/whatsapp.php',
                             params={'phone': destination, 'text': text, 'apikey': token}, timeout=TIMEOUT)
