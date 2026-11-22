@@ -446,4 +446,7 @@ class ViewTests(TestCase):
         ch = channel()
         self.assertRedirects(self.client.get(f'/message_center/manage_channel/?uuid={ch.uuid}'),
                              f'/system/notifications/channel/?uuid={ch.uuid}', fetch_redirect_response=False)
+        # Anything but an identifier is not carried over
+        self.assertRedirects(self.client.get('/message_center/manage_channel/?uuid=x%26next%3D//evil.example'),
+                             '/system/notifications/channel/', fetch_redirect_response=False)
         self.assertEqual(self.client.get('/message_center/message_history/').status_code, 200)

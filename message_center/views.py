@@ -245,6 +245,10 @@ def view_manage_message_settings(request):
 @login_required()
 def view_manage_message_channel(request):
     # Channels are configured in System Settings; old links still arrive
-    if request.GET.get('uuid'):
-        return redirect(f"/system/notifications/channel/?uuid={request.GET.get('uuid')}")
-    return redirect('/system/notifications/channel/')
+    # Only a well-formed identifier is carried over, as its parsed form
+    import uuid as uuid_module
+    try:
+        channel_id = uuid_module.UUID(str(request.GET.get('uuid', '')))
+    except ValueError:
+        return redirect('/system/notifications/channel/')
+    return redirect(f'/system/notifications/channel/?uuid={channel_id}')

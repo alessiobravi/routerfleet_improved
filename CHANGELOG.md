@@ -13,6 +13,13 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.18.1] - 2026-11-22
+
+### Security
+- **The old channel address carries over only a valid identifier**: the
+  redirect from Message Center to System Settings passed the `uuid` value on
+  as received; it now passes it only as a parsed UUID. Reported by CodeQL.
+
 ## [0.18.0] - 2026-11-22
 
 ### Changed
