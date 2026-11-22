@@ -197,6 +197,30 @@ flowchart TD
     same -->|yes| record["Recorded as unchanged:<br/>points to the stored backup,<br/>text and binary not kept"]
 ```
 
+### A contract for integrations
+
+Monitoring that reads backup health from the database - the
+[Zabbix kit](zabbix.md) does - can rely on this, and the test suite enforces
+it:
+
+| Row in `backup_data_routerbackup` | `success` | `error` | `finish_time` | `same_as_id` |
+|---|---|---|---|---|
+| Succeeded, stored in full | true | false | set | empty |
+| Succeeded, **unchanged** (not stored again) | true | false | set | the stored backup |
+| Failed, will be retried | false | false | empty | empty |
+| Failed for good | false | true | empty | empty |
+
+- **Every attempt is a row.** An unchanged backup is a row like any other; only
+  its content is not stored again.
+- **The latest attempt of a device is its row with the highest `id`** - never
+  the one with the latest `finish_time`, which is empty exactly when an attempt
+  failed.
+- **The age of a device's backups** is measured from the latest `finish_time`
+  of its successful rows.
+
+A release that changes any of this, or the columns the Zabbix kit reads, says
+so in the changelog under **Monitoring**.
+
 ## Retention
 
 Housekeeping deletes backups older than their kind's retention, per profile:

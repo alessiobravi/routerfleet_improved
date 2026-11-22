@@ -10,6 +10,26 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+A release that changes how backup rows are written, or the database columns
+the Zabbix kit reads, says so under **Monitoring**.
+
+## [0.15.1] - 2026-11-22
+
+### Monitoring
+- **Backup rows are a documented contract for integrations** (Backups, "A
+  contract for integrations"): every attempt is a row; a backup that kept only
+  changes is still a success with its finish time; a failed attempt has no
+  finish time; the latest attempt is the highest `id`. Tests enforce it. Future
+  changes to it, or to the columns the Zabbix kit reads, are announced under
+  this heading. Nothing in how rows are written changed in this release.
+
+### Changed
+- **Zabbix kit**: explains why keeping only changes leaves the backup-age
+  signal intact, with a query to confirm it after an upgrade; recommends a
+  `sudoers` rule scoped to the collector instead of `docker` group membership;
+  documents what `-1` and the probe's `0` mean. The column-level grants and the
+  `-1` handling stay as they were.
+
 ## [0.15.0] - 2026-11-22
 
 ### Added

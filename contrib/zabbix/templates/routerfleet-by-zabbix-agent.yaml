@@ -17,7 +17,9 @@ zabbix_export:
 
         The authoritative health signal is backup AGE, not backup RESULT.
         RouterFleet does not backfill a missed backup, so a growing age always
-        means backups are not completing. See docs/design-notes.md.
+        means backups are not completing. A backup whose content is not stored
+        again because it did not change still records its finish_time, so this
+        signal is unaffected. See docs/design-notes.md.
       groups:
         - name: Templates/Applications
       items:
@@ -187,7 +189,9 @@ zabbix_export:
               description: |
                 No successful backup within the allowed window. This is the
                 reliable failure signal: RouterFleet never backfills, so the
-                age only stops growing when a backup actually completes.
+                age only stops growing when a backup actually completes. A
+                backup that was unchanged, and so not stored again, still
+                records a finish_time and still counts.
               manual_close: 'YES'
               tags:
                 - tag: scope

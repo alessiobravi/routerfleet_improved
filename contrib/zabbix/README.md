@@ -199,6 +199,25 @@ answered.
 
 ## Troubleshooting
 
+**Values and what they mean**
+
+Every count returns **-1** when its query could not run - database
+unreachable, role missing, column not granted - as distinct from running and
+finding nothing. Triggers test `>= 0` before comparing, and one trigger watches
+for `-1` directly, so an upgrade that needs a new grant is noticed rather than
+silently narrowing what is monitored.
+
+The probe item is the exception: there `0` genuinely means "could not reach the
+database", which is the thing being measured.
+
+**Backups that keep only changes**
+
+A backup whose configuration did not change is still recorded - succeeded, with
+its finish time - and only its content is not stored again. The age and result
+items count it like any other backup. RouterFleet keeps this as a contract for
+integrations; [design note 1](docs/design-notes.md) has a query to confirm it
+after an upgrade.
+
 | Symptom | Cause |
 |---|---|
 | All items unsupported | Agent cannot run `docker exec`; check the sudoers rule |

@@ -558,3 +558,48 @@ class KeepOnlyChangesPipelineTests(TestCase):
             second = self.run_backup(RSC)
             self.assertIsNone(second.same_as_id)
             self.assertEqual(len(self.files_on_disk(media)), 2)
+
+
+
+class MonitoringContractTests(KeepOnlyChangesPipelineTests):
+    """The contract integrations rely on (docs/backups.md, "A contract for
+    integrations"): what a row of each kind looks like. Changing it means a
+    changelog entry under Monitoring - and a change to this test."""
+
+    def contract(self, backup):
+        backup.refresh_from_db()
+        return (backup.success, backup.error, backup.finish_time is not None, backup.same_as_id is not None)
+
+    def test_stored_and_unchanged_rows(self):
+        with temporary_media_root():
+            stored = self.run_backup(RSC)
+            unchanged = self.run_backup(RSC)
+        self.assertEqual(self.contract(stored), (True, False, True, False))
+        self.assertEqual(self.contract(unchanged), (True, False, True, True), 'an unchanged backup is still a row, '
+                                                                             'and still a success with its finish time')
+
+    def test_failed_rows_have_no_finish_time(self):
+        RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
+        backup = RouterBackup.objects.create(router=self.router, schedule_type='daily', schedule_time=timezone.now())
+        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('refused')):
+            backup_functions.perform_backup(backup)
+        self.assertEqual(self.contract(backup), (False, False, False, False))
+        backup.retry_count = self.profile.max_retry + 1
+        backup.save()
+        with mock.patch('routerlib.backup_functions.notify_backup_fail'):
+            backup_functions.perform_backup(backup)
+        self.assertEqual(self.contract(backup), (False, True, False, False))
+
+    def test_the_latest_attempt_is_the_highest_id(self):
+        with temporary_media_root():
+            self.run_backup(RSC)
+        RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
+        failed = RouterBackup.objects.create(router=self.router, schedule_type='daily', schedule_time=timezone.now())
+        with mock.patch(f'{SSH}.connect_to_ssh', side_effect=OSError('refused')):
+            backup_functions.perform_backup(failed)
+        latest = RouterBackup.objects.filter(router=self.router).order_by('-id').first()
+        self.assertEqual(latest, failed)
+        self.assertFalse(latest.success)
+        # Ordering by finish_time would hide the failure behind the success
+        by_finish = RouterBackup.objects.filter(router=self.router, finish_time__isnull=False).order_by('-finish_time').first()
+        self.assertTrue(by_finish.success)

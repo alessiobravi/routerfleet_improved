@@ -85,10 +85,19 @@ case "${1:-}" in
   age)
     # Seconds since the last backup that actually SUCCEEDED.
     #
-    # This is the authoritative health signal. RouterFleet does not deduplicate
-    # or backfill: if a nightly backup fails, no row with a finish_time appears,
-    # so this value simply keeps growing. A rising age IS a failing backup,
-    # whatever the result item says.
+    # This is the authoritative health signal. RouterFleet does not backfill:
+    # if a nightly backup fails, no row with a finish_time appears, so this
+    # value simply keeps growing. A rising age IS a failing backup, whatever
+    # the result item says.
+    #
+    # A profile that keeps only changes drops the stored CONTENT of an
+    # unchanged backup and links the row to the earlier copy through same_as;
+    # the row is still written with success, error and finish_time set, so it
+    # counts here and the signal is unchanged. Deliberately not filtering on
+    # same_as IS NULL: an unchanged configuration captured on schedule is a
+    # successful backup, not a missing one. RouterFleet keeps this as a
+    # contract (docs/backups.md); design note 1 has the check to re-run after
+    # an upgrade.
     valid_uuid "${2:-}" || { echo "$NEVER"; exit 0; }
     val=$(psql_q "SELECT COALESCE(EXTRACT(EPOCH FROM (now() - b.finish_time))::bigint, $NEVER)
                   FROM router_manager_router r

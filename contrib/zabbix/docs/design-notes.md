@@ -7,10 +7,36 @@ can never report a failure.
 
 ## 1. Backup *age* is the authoritative signal, not backup *result*
 
-RouterFleet does not backfill or deduplicate. If a scheduled backup does not
-complete, no row with a `finish_time` is written, and nothing later fills the
-gap. So the time since the last successful backup only stops growing when a
-backup genuinely succeeds.
+RouterFleet does not backfill. If a scheduled backup does not complete, no row
+with a `finish_time` is written, and nothing later fills the gap. So the time
+since the last successful backup only stops growing when a backup genuinely
+succeeds.
+
+**This depends on a property of RouterFleet, so check it after an upgrade.** A
+backup profile can keep only changes: a scheduled backup whose configuration
+matches the one last stored has its *content* dropped and is linked to the
+stored copy through `same_as`. The row itself is still written, with `success`,
+`error` and `finish_time` set exactly as for any backup, so the age query below
+is unaffected. RouterFleet documents this as a contract for integrations
+([Backups](../../../docs/backups.md#a-contract-for-integrations)) and its test
+suite enforces it.
+
+It would not hold if a version skipped writing the row instead of blanking its
+content: every router would begin reporting staleness within the alert window,
+and the result would look precisely like a genuine fleet-wide backup failure. If
+you upgrade RouterFleet and every host starts alarming at once, suspect this
+before you suspect your fleet. The check is cheap:
+
+```sql
+-- an unchanged backup must still look like a success
+SELECT success, error, finish_time IS NOT NULL AS has_finish_time
+FROM backup_data_routerbackup WHERE same_as_id IS NOT NULL
+ORDER BY id DESC LIMIT 5;
+```
+
+All three must be true, false and true. If they are not, the age item needs
+revisiting before it is trusted. (`same_as_id` is not among the columns
+`sql/zbx_monitor.sql` grants: run it as the owning role.)
 
 That makes age a signal that cannot lie:
 
@@ -96,6 +122,9 @@ have, a query that fails - is reported as `-1`, not `0`, and one trigger fires
 on any counter at `-1`. Reporting `0` there would make the failing-sign-in and
 missing-host-key counters most reassuring exactly when they have stopped
 working.
+
+The probe item is the exception: there, `0` genuinely means "could not reach
+the database", which is the thing being measured.
 
 ## 4. The collector monitors itself
 

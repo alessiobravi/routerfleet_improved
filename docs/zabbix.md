@@ -49,6 +49,16 @@ A counter the collector cannot read - a grant that is missing, a table that is
 not there - reports `-1` and raises an alarm of its own. It never reports a
 reassuring `0`.
 
+## Backups that keep only changes
+
+A backup whose configuration did not change is still recorded - succeeded, with
+its finish time - and only its content is not stored again, so the backup age
+and result items count it like any other. This is a [contract for
+integrations](backups.md#a-contract-for-integrations): the test suite enforces
+it, and a release that changes it, or the columns the kit reads, says so in the
+changelog under **Monitoring**. The kit's design notes give a query to confirm
+it after an upgrade.
+
 ## What you need
 
 - RouterFleet Improved with the bundled PostgreSQL (`docker-compose.yml`)
