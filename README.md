@@ -60,10 +60,18 @@ encrypted with.
   account, also on a phone. One-time tickets, host keys checked, closed as soon
   as the page closes or you sign out, every session in the audit log.
   [More](docs/console.md)
+- **Device types as configuration** — how RouterFleet talks to each kind of
+  device (SSH command channel or an interactive CLI shell), recognises it,
+  reads its inventory, backs it up and learns its version, all edited in
+  System settings; a wizard adds new types and tries them on a real device
+  before saving. RouterOS, OpenWrt, airOS, Cisco IOS, Juniper Junos and Huawei
+  VRP ship ready. [More](docs/device-types.md)
 - **Backups** — daily, weekly, monthly and on-demand, per-device retention,
-  text and binary, with a line-by-line diff between any two of them and a flag
-  on every backup that changed the configuration. A profile can **keep only
-  changes**: an unchanged backup is recorded without storing its content again.
+  text taken straight from command output (several named texts where a device
+  type has them, such as Juniper's configuration and its set format) plus
+  binary files where a type makes them, with a line-by-line diff - readable on
+  a phone too - and a flag on every backup that changed the configuration. A
+  profile, or a single device, can **keep only changes**.
 - **Fleet Commander** — commands with a payload per device type, run by hand or
   on a schedule, with **verified results**: a command counts as successful only
   when a verification command proves it, so an update that reboots a device
@@ -73,7 +81,15 @@ encrypted with.
   sends to devices (connection test, inventory, backup steps) is visible and
   editable as protected **system commands**.
 - **Device inventory** — model, serial, OS and firmware version, architecture,
-  CPU, and the version each device could be upgraded to.
+  CPU, and the version each device could run - from the device itself, the
+  vendor's release list or the firmware repository, as its type says.
+- **Firmware repository** — firmware per device type, checksummed, installed
+  one device first and then the rest in small batches, each with a backup
+  before and its new version confirmed after; any failure stops the rollout.
+  [More](docs/firmware.md)
+- **Updates from System settings** — an administrator approves, the scheduler
+  installs: signed releases only, the database backed up first, the previous
+  version put back if the new one does not start. [More](docs/updating.md)
 - **Monitoring** — an independent container pings the fleet and records
   downtime; status changes raise notifications.
 - **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,

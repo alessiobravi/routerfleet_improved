@@ -8,6 +8,7 @@ Every credential RouterFleet stores is encrypted with
 | What | Where |
 |---|---|
 | Device passwords | `Router.password` |
+| Device enable passwords (Cisco) | `Router.enable_password` |
 | SSH private keys | `SSHKey.private_key` |
 | Notification channel tokens | `MessageChannel.token` |
 | Import passwords | `ImportTask.password`, and the passwords inside a stored import CSV |
@@ -279,6 +280,27 @@ anyone can read in the repository.
 
 The two keys in `app_secrets` are **not** rotated, because they must not be.
 
+## Device types and firmware
+
+- **A device type decides what is sent to devices**, so creating, editing and
+  deleting types takes the Administrator level, and each change is in the
+  change log. Commands of an existing type are edited one at a time with a
+  review, as every system command.
+- **Try it** (device type wizard) connects only with the credentials typed for
+  it, stores nothing but the device's host key, and refuses RouterFleet's own
+  addresses and internal networks.
+- **Management links** of a type accept only `scheme://` links; `javascript:`,
+  `data:` and `file:` are refused, and the values filled in are URL-encoded.
+- **The enable password** is encrypted, never shown again, and - like the device
+  password - only sent to the address it was stored for.
+- **Firmware uploads** are accepted on one page only, up to 1 GB (nginx keeps
+  1 MB everywhere else). The SHA-256 is computed on upload and compared with the
+  vendor's when given; the file name is reduced to letters, digits, `.`, `_`
+  and `-` before it reaches a path or a command on a device.
+- **A rollout** checks the uploaded file on the device (SHA-256 or size) before
+  installing, starts with one device alone, stops at the first failure, and
+  takes the Configuration Manager level and a confirmation.
+
 ## The Django admin
 
 The admin URL is commented out of `urls.py` by the entrypoint on every start, so
@@ -314,6 +336,10 @@ How the images stay clean:
 - **They are rebuilt for every release with every available update installed**
   (`apk upgrade` / `apt-get upgrade`), so a release never ships a vulnerability
   whose fix was already published.
+- **Tools RouterFleet builds from source** - `cosign` in the scheduler image,
+  `gosu` in the database image - are built from a pinned release with the
+  current Go and the fixed releases of their libraries, rather than shipping a
+  published binary that bundles vulnerable ones.
 - **The four RouterFleet images are based on Alpine Linux.** On Alpine every
   known vulnerability in the base comes with a fix, so updating reaches zero.
   They carry nothing the application does not use: no editors, no network
@@ -326,7 +352,9 @@ How the images stay clean:
   upgrade in place. The official image's `gosu` is rebuilt from source with the
   current Go, which removes the vulnerabilities its old Go runtime carried.
   Debian publishes fixes on its own schedule, which is why the database image is
-  held to "nothing with a fix" and lists the rest.
+  held to "nothing with a fix" and lists the rest. The GnuPG tools the official
+  image keeps after verifying its packages are removed: PostgreSQL never uses
+  them, and they brought findings of their own.
 - **Browser libraries** are listed with their exact versions in
   `third_party/browser-libraries/` so the scan can check them; a test keeps that
   list equal to the files actually served. Only the files pages load are
@@ -411,7 +439,8 @@ What the installation contacts, and why:
 |---|---|---|
 | Your devices, port 22 | SSH and SCP for backups, inventory and commands | no |
 | MikroTik's update servers | **The device** checks its own channel; RouterFleet only reads the result | Device-side |
-| `downloads.openwrt.org` | OpenWrt release index and per-board image availability | Only by not using OpenWrt devices |
+| Vendor release lists (`downloads.openwrt.org` for the OpenWrt type) | A device type's vendor update check: https only, never an address on RouterFleet's own networks, no redirects followed, cached six hours | Yes: switch the device type's vendor check off |
+| `ghcr.io` and Sigstore | Only with the updater set up: the release images, and their signatures checked before anything is installed | Yes: update by command |
 | Your mail server / ntfy (ntfy.sh or your own) / Telegram | Whichever notification channels you configure | Yes — configure none |
 | `api.github.com` | The update check: the latest release of RouterFleet Improved, about once an hour. The request carries no information about the installation | Yes: `UPDATE_CHECK=off` |
 

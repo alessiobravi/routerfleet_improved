@@ -50,8 +50,9 @@ keys](security.md#device-host-keys).
 
 A device's page opens with its state (online, offline, disabled, not
 monitored), a ring with its availability over the last 7 days, and four tiles:
-the last successful backup, failed backups in 7 days, the OS version state and
-downtime in 7 days. The actions are **Edit** and, for operators,
+the last successful backup, failed backups in 7 days, the OS version it runs
+(with whether it is up to date, or which version is available) and downtime in
+7 days. The actions are **Edit** and, for operators,
 **Execute command**. A timeline brings together its recent backups, commands,
 and the moments it went offline and came back; the full details follow below.
 The page updates itself while a backup, a command or an information read runs.
@@ -61,8 +62,9 @@ The page updates itself while a backup, a command or an information read runs.
 RouterFleet reads each device and stores model, serial number, OS version,
 firmware version, architecture and CPU, plus the raw command output as JSON for
 reference. What it sends is the [system
-command](fleet-commander.md#system-commands) *inventory and versions*; the
-fields are taken from the `key: value` and `key=value` lines of its output.
+command](fleet-commander.md#system-commands) *inventory and versions*; where
+each field is found in its output is set by the [device
+type](device-types.md#inventory-sources) - `key: value` lines or patterns.
 
 ```mermaid
 flowchart TD
@@ -79,8 +81,8 @@ flowchart TD
     more -->|no| stop["Stop, resume next minute"]
 ```
 
-Devices that are disabled, of type `monitoring`, or currently known to be
-offline are skipped entirely.
+Devices that are disabled, of a type that is not reached over SSH (*Monitoring
+only*), or currently known to be offline are skipped entirely.
 
 Each pass works for up to **50 seconds**, so a batch of hand-requested
 refreshes is not spread across one device per minute. A manual request is
@@ -89,6 +91,9 @@ regular refresh cycle is **24 hours**; a failed read retries after 5 minutes,
 up to 3 times, before the device is marked as errored.
 
 ### What each device type reports
+
+The shipped types read these fields; the full definitions, and the Cisco,
+Juniper and Huawei ones, are in [Device types](device-types.md):
 
 | Field | RouterOS | OpenWrt | airOS |
 |---|---|---|---|
@@ -101,21 +106,24 @@ up to 3 times, before the device is marked as errored.
 
 ### Available version
 
+Where the version a device could run comes from is set per device type - see
+[Update checks](device-types.md#update-checks). The shipped types:
+
 - **RouterOS** asks the device to query MikroTik's update server
   (`check-for-updates`, then `print` every 3 seconds, for up to 15, until the
-  device has the answer) and compares `latest-version` against
-  `installed-version` as numbers. The answer depends on the channel the device
-  is set to, and needs the device itself to reach MikroTik's server.
-- **OpenWrt** is compared against the public release index. Only releases newer
+  device has the answer) and compares the offered version with the installed
+  one as numbers. The answer depends on the channel the device is set to, and
+  needs the device itself to reach MikroTik's server.
+- **OpenWrt** is compared against the public release list. Only releases newer
   than the installed one **and that still ship images for the device's board**
-  are offered — there is no point offering an upgrade with no image for the
-  hardware. The release list is cached for 6 hours and per-board availability
-  for the process lifetime, so a large fleet does not hammer the download
-  server. When nothing newer is offered, the installed release is stored as
-  the available one: the device counts as up to date. A snapshot build, or a
-  release list that could not be downloaded, stays unknown.
-- **airOS** has no reliable update check over SSH: its version is shown
-  without a colour, and it is left out of the status page's update counts.
+  are offered. The list is cached for 6 hours, so a large fleet does not hammer
+  the download server. When nothing newer is offered, the installed release is
+  stored as the available one: the device counts as up to date. A snapshot
+  build, or a release list that could not be downloaded, stays unknown.
+- **airOS, Cisco, Juniper and Huawei** have no check configured: their version
+  is shown without a colour, and they are left out of the status page's update
+  counts - until you switch on a check for the type, such as the [firmware
+  repository](firmware.md).
 
 Versions are read when a device is added, every 24 hours after that (online,
 enabled devices), and on request with *Update router information* in the

@@ -35,16 +35,18 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | | Run a command (always confirmed on a page showing the exact commands) | 40 |
 | | Commands, variants, schedules, defaults | 40 |
 | | Edit a system command (with confirmation) | 50 |
-| Notifications | Channel list, message history | 20 |
-| | Channels and settings | 40 |
-| | Channels (System Settings → Notifications) | 40 |
+| Notifications | Message history | 20 |
+| | Channels, grouping and daily reports (System Settings → Notifications) | 40 |
 | | Mail server (SMTP) | 50 |
 | | Own email address and email notifications (My Settings) | signed in |
 | Audit log | Login history, change log | 50 |
 | Users | List, create, edit | 50 |
 | Import tool | All of it | 50 |
 | Tools | Backup clean-up, export of the latest backups | 50 |
-| System settings | HTTPS | 50 |
+| System settings | The System settings page, Display (default rows per table) | 40 |
+| | [Firmware repository](firmware.md): upload, switch off, delete, start and abort rollouts | 40 |
+| | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
+| | HTTPS, [Updates](updating.md) (approve an update, with your password) | 50 |
 
 ## The first account
 

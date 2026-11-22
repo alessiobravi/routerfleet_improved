@@ -5,6 +5,11 @@ confirming with their password. RouterFleet then updates itself: download,
 signature check, database backup, restart, and - if the new version does not
 come up - the way back.
 
+RouterFleet asks for a new release about once an hour (`UPDATE_CHECK`, or your
+own `UPDATE_CHECK_URL`). **Check now** on the Updates page asks at once and
+shows the answer; the page says when the last check ran. It is limited to once
+every 30 seconds, and absent when the check is turned off.
+
 Updating by command keeps working as always:
 
 ```bash

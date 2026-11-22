@@ -421,3 +421,77 @@ class UpdatesPageTests(TestCase):
         for version, user in (('1.2.3\n', 'a'), ('1.2', 'a'), ('١.٢.٣', 'a'), ('1.2.3', 'a b'), ('1.2.3', '')):
             with self.subTest(version=version, user=user), self.assertRaises(ValueError):
                 updates.request(version, user)
+
+
+class CheckForUpdatesTests(TestCase):
+    """System settings, Updates: "Check now" asks the update source at once."""
+
+    def setUp(self):
+        from routerfleet_tools.models import WebadminSettings
+        self.webadmin, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
+        self.client.force_login(make_user(50))
+
+    def check(self):
+        return self.client.post('/system/updates/', {'action': 'check'})
+
+    def newer(self):
+        from django.conf import settings
+        from routerfleet.versioning import to_number
+        return to_number(settings.ROUTERFLEET_RELEASE) + 1000
+
+    def test_a_newer_release_is_found_at_once(self):
+        from unittest import mock
+        with mock.patch('routerfleet_tools.views._ask_github', return_value=(True, self.newer())) as ask:
+            response = self.check()
+        self.assertRedirects(response, '/system/updates/', fetch_redirect_response=False)
+        ask.assert_called_once()
+        self.webadmin.refresh_from_db()
+        self.assertTrue(self.webadmin.update_available)
+        self.assertEqual(self.webadmin.latest_version, self.newer())
+        self.assertIsNotNone(self.webadmin.last_checked)
+        page = self.client.get('/system/updates/')
+        self.assertContains(page, 'Last checked')
+        self.assertContains(page, 'id="check-updates"')
+
+    def test_not_twice_within_the_limit(self):
+        from unittest import mock
+        with mock.patch('routerfleet_tools.views._ask_github', return_value=(False, None)) as ask:
+            self.check()
+            self.check()
+        self.assertEqual(ask.call_count, 1, 'the second click within 30 seconds does not ask again')
+
+    def test_a_source_that_does_not_answer_keeps_the_answer(self):
+        from unittest import mock
+        from django.utils import timezone
+        self.webadmin.update_available, self.webadmin.latest_version = True, self.newer()
+        self.webadmin.last_checked = timezone.now() - timezone.timedelta(hours=2)
+        self.webadmin.save()
+        with mock.patch('routerfleet_tools.views._ask_github', side_effect=OSError('unreachable')):
+            self.check()
+        self.webadmin.refresh_from_db()
+        self.assertTrue(self.webadmin.update_available, 'the previous answer stands')
+        self.assertGreater(self.webadmin.last_checked, timezone.now() - timezone.timedelta(minutes=1))
+
+    def test_switched_off_asks_nothing(self):
+        from unittest import mock
+        with self.settings(UPDATE_CHECK=False, UPDATE_CHECK_URL=''), \
+                mock.patch('routerfleet_tools.views._ask_github') as ask:
+            self.check()
+            self.assertNotContains(self.client.get('/system/updates/'), 'id="check-updates"')
+        ask.assert_not_called()
+
+    def test_a_custom_source_is_asked(self):
+        from unittest import mock
+        with self.settings(UPDATE_CHECK_URL='https://updates.example.com/check'), \
+                mock.patch('routerfleet_tools.views._ask_custom_endpoint', return_value=(False, None)) as ask, \
+                mock.patch('routerfleet_tools.views._ask_github') as github:
+            self.check()
+        ask.assert_called_once_with('https://updates.example.com/check')
+        github.assert_not_called()
+
+    def test_only_administrators(self):
+        from unittest import mock
+        self.client.force_login(make_user(40))
+        with mock.patch('routerfleet_tools.views._ask_github') as ask:
+            self.check()
+        ask.assert_not_called()

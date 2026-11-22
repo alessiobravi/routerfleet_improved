@@ -13,6 +13,33 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.23.0] - 2026-11-23
+
+### Added
+- **Check for updates now** (System settings, Updates): asks the update source
+  at once instead of waiting for the hourly check, and says what it found -
+  update available, up to date, or that the source did not answer (the previous
+  answer then stands). Administrators only; once every 30 seconds at most, so
+  the button can not flood GitHub; follows UPDATE_CHECK and UPDATE_CHECK_URL.
+  The page shows when the last check ran.
+
+### Security
+- **Scheduler image**: cosign is built with the fixed releases of the libraries
+  that carried known vulnerabilities (go-chi, OpenTelemetry, x/crypto, x/net),
+  and without a version stamp a scanner reads as an old cosign release. The
+  four medium and unknown findings of 0.21.3 are gone.
+- **Database image**: the GnuPG tools the official postgres image keeps after
+  verifying its packages are removed - PostgreSQL never uses them - taking
+  their findings (dirmngr, SQLite) with them. The image stays on Debian, so
+  existing databases keep their text ordering; Debian's remaining findings have
+  no published fix yet and are installed with every release as soon as they do.
+
+### Documentation
+- Every guide reflects what the release does: device types and the firmware
+  repository in the README, the permission table, security (device types,
+  firmware uploads and rollouts, outbound connections), the architecture
+  (scheduler entries, data model, volumes), installation and devices.
+
 ## [0.22.0] - 2026-11-23
 
 ### Added

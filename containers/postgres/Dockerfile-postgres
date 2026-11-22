@@ -25,9 +25,20 @@ RUN go get golang.org/x/sys@latest github.com/moby/sys/user@latest \
        go build -trimpath -ldflags="-s -w" -o /out/gosu .
 
 FROM postgres:16
-RUN apt-get update \
-    && apt-get upgrade -y \
-    && rm -rf /var/lib/apt/lists/*
+# Every published update; then the GnuPG tools the official image keeps after
+# verifying its packages - PostgreSQL never uses them, and they carry known
+# vulnerabilities (dirmngr, its SQLite). The build fails if removing them
+# would take anything PostgreSQL needs with it.
+RUN set -eu; \
+    apt-get update; \
+    apt-get upgrade -y; \
+    for package in gnupg dirmngr gpg-agent gpgsm gpg-wks-client; do \
+        if dpkg -s "$package" >/dev/null 2>&1; then apt-get purge -y "$package"; fi; \
+    done; \
+    apt-get autoremove -y; \
+    dpkg -s "postgresql-$PG_MAJOR" >/dev/null; \
+    "/usr/lib/postgresql/$PG_MAJOR/bin/postgres" --version; \
+    rm -rf /var/lib/apt/lists/*
 COPY --from=gosu /out/gosu /usr/local/bin/gosu
 # The same check the official image runs after installing it
 RUN gosu --version && gosu nobody true

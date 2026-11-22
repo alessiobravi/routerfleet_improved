@@ -155,6 +155,21 @@ def view_updates(request):
         last.save(update_fields=['state', 'message', 'updated'])
     busy = bool(last and last.active and timezone.now() - last.updated < timezone.timedelta(minutes=30))
 
+    if request.method == 'POST' and request.POST.get('action') == 'check':
+        from .views import check_now
+        if webadmin is None:
+            webadmin = WebadminSettings.objects.create(name='webadmin_settings')
+        done, message = check_now(webadmin)
+        if not done:
+            messages.warning(request, 'Not checked|' + message.replace('|', '/'))
+        else:
+            from routerfleet.versioning import from_number
+            if webadmin.update_available and webadmin.latest_version > settings.ROUTERFLEET_VERSION:
+                messages.success(request, f'Update available|{from_number(webadmin.latest_version)} can be installed.')
+            else:
+                messages.success(request, f'Up to date|{current} is the newest release.')
+        return redirect('/system/updates/')
+
     if request.method == 'POST' and request.POST.get('action') == 'update':
         error = None
         if not available or request.POST.get('version') != available:
@@ -181,4 +196,5 @@ def view_updates(request):
     return render(request, 'routerfleet_tools/updates.html', {
         'page_title': 'Updates', 'current': current, 'available': available, 'updater': updater,
         'last': last, 'busy': busy, 'runs': UpdateRun.objects.all()[:10],
+        'last_checked': webadmin.last_checked if webadmin else None,
         'check_enabled': check_enabled()})

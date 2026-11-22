@@ -58,7 +58,7 @@ endpoints refuse any request that carries it — see [Security](security.md).
 
 The cron container holds one crontab. Each entry sleeps a fixed number of
 seconds before firing, which spreads the work across the minute instead of
-starting eleven jobs at once.
+starting all its jobs at once.
 
 | Offset | Every | Endpoint | Purpose |
 |---|---|---|---|
@@ -73,6 +73,8 @@ starting eleven jobs at once.
 | +40s | 1 min | `/cron/create_command_jobs/` | Turn due command schedules into jobs |
 | +50s | 1 min | `/cron/check_updates/` | Update check — asks GitHub at most hourly; off with `UPDATE_CHECK=off` |
 | +50s | 1 min | `/cron/perform_command_tasks/` | Run command tasks |
+| +25s | 1 min | `/cron/firmware_rollouts/` | Advance [firmware rollouts](firmware.md): one step per device |
+| +0s | 1 min | `rf-update run` (not an endpoint) | The [updater](updating.md): reads an approved update request, if the compose file gives it Docker access |
 
 Two consequences worth knowing:
 
@@ -124,6 +126,11 @@ erDiagram
     ROUTER }o--o| SSHKEY : "credential"
     ROUTER ||--o{ ROUTERBACKUP : "configuration history"
     ROUTER ||--o{ ROUTERDOWNTIME : "outage records"
+    DEVICETYPE ||--o{ ROUTER : "router_type (slug)"
+    DEVICETYPE ||--o{ COMMANDVARIANT : "router_type (slug)"
+    DEVICETYPE ||--o{ FIRMWAREIMAGE : "firmware"
+    FIRMWAREIMAGE ||--o{ FIRMWAREROLLOUT : "installed by"
+    FIRMWAREROLLOUT ||--o{ ROLLOUTTARGET : "one per device"
 
     COMMAND ||--o{ COMMANDVARIANT : "one payload per device type"
     COMMAND ||--o{ COMMANDSCHEDULE : "when to run"
@@ -152,11 +159,13 @@ Two details in that model are deliberate and worth knowing:
 
 | Path | Contents | Volume |
 |---|---|---|
-| `/var/lib/routerfleet/` | Binary backups (`MEDIA_ROOT`) | `media_root` |
+| `/var/lib/routerfleet/` | Binary backups and firmware images (`MEDIA_ROOT`) | `media_root` |
 | `/app_static_files/` | Collected static files | `static_volume` |
 | `/app_secrets/` | `encryption_key`, `monitoring_key` | `app_secrets` |
 | `/certificate/` | `nginx.pem`, `nginx.key` | `https_cert` |
 | `/var/lib/routerfleet_sqlite/` | SQLite database, when used | `sqlite_volume` |
+| `/update` (application and scheduler) | Update requests and the updater's status | `update_requests` |
+| `/update-private` (scheduler only) | The updater's database backup before an update | `update_private` |
 
 Configuration *text* is stored in the database, not on disk. Only the binary
 backup files land in `MEDIA_ROOT`.
