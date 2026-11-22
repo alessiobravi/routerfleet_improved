@@ -167,8 +167,14 @@ def router_page(router, router_status, router_information, availability, can_exe
     backups = RouterBackup.objects.filter(router=router)
     failed_week = backups.filter(error=True, created__gte=week).count()
     version = os_version_state(router_information) if router_information else {'css_class': ''}
-    version_state = {'text-success': ('Up to date', 'ok'), 'text-danger': ('Update waiting', 'bad'),
-                     'text-warning': ('Unknown', 'wait')}.get(version.get('css_class'), ('—', 'info'))
+    running = (getattr(router_information, 'os_version', '') or '') if router_information else ''
+    offered = (getattr(router_information, 'available_version', '') or '') if router_information else ''
+    # The version itself, and what the device is offered beside it
+    version_state = {
+        'text-success': (running, 'ok', 'OS version, up to date'),
+        'text-danger': (running, 'bad', f'OS version, {offered} available'),
+        'text-warning': (running or 'Unknown', 'wait', 'OS version, update not checked'),
+    }.get(version.get('css_class'), (running or '—', 'info', 'OS version'))
     downtime = sum(d.total_down_time for d in RouterDownTime.objects.filter(router=router, start_time__gte=week))
     newest = backups.filter(success=True).order_by('-created').values_list('finish_time', 'created').first()
     last_backup = max(filter(None, [router_status.last_backup] + list(newest or [])), default=None)
@@ -176,7 +182,7 @@ def router_page(router, router_status, router_information, availability, can_exe
         {'value': _ago(last_backup), 'label': 'Last backup',
          'state': 'ok' if last_backup and last_backup > timezone.now() - timezone.timedelta(days=2) else 'wait'},
         {'value': failed_week, 'label': 'Failed backups, 7 days', 'state': 'bad' if failed_week else 'ok'},
-        {'value': version_state[0], 'label': 'OS version', 'state': version_state[1]},
+        {'value': version_state[0], 'label': version_state[2], 'state': version_state[1]},
         {'value': f'{downtime // 3600}h {downtime % 3600 // 60}m' if downtime else 'none', 'label': 'Downtime, 7 days',
          'state': 'bad' if downtime else 'ok'},
     ]

@@ -123,7 +123,8 @@ class TaskAndBackupPageTests(TestCase):
         ConsoleSession.objects.filter(pk=session.pk).update(connected_at=timezone.now(), ended_at=timezone.now(),
                                                             end_reason='the browser closed the console')
         page = router_page(router, status, info, 95, can_execute=False, can_console=True)
-        self.assertEqual(page['tiles'][2]['value'], 'Update waiting')
+        self.assertEqual(page['tiles'][2]['value'], '7.16')
+        self.assertEqual(page['tiles'][2]['label'], 'OS version, 7.17 available')
         self.assertEqual(page['tiles'][3]['value'], '1h 0m')
         texts = [e['text'] for e in page['timeline']]
         self.assertTrue(any(t.startswith('Console opened by') for t in texts))

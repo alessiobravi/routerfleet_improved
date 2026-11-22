@@ -13,6 +13,18 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.21.2] - 2026-11-22
+
+### Changed
+- **Comparing backups on a phone**: a new *Changes* view - every changed part
+  in one column, long lines wrapped, removed lines red and added green, with
+  old and new line numbers and a count of what changed. Phones open on it;
+  wider screens keep side by side. *Side by side* and *Inline* are readable in
+  dark mode.
+- **The device's OS version card shows the version** it runs, and beside it
+  whether it is up to date or which version is available - instead of only
+  "Update waiting".
+
 ## [0.21.1] - 2026-11-22
 
 ### Changed

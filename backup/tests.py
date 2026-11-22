@@ -68,6 +68,13 @@ class BackupViewTests(TestCase):
         response = self.client.get(f'/backup/compare/?uuid={empty.uuid}&compare_uuid={self.b.uuid}&display=all')
         self.assertEqual(response.status_code, 200)
 
+    def test_compare_offers_the_phone_view_and_keeps_content_as_data(self):
+        RouterBackup.objects.filter(pk=self.b.pk).update(backup_text='line 1\n</script><script>alert(1)</script>')
+        page = self.client.get(f'/backup/compare/?uuid={self.a.uuid}&compare_uuid={self.b.uuid}').content.decode()
+        for mode in ('changes', 'side-by-side', 'inline'):
+            self.assertIn(f'data-mode="{mode}"', page)
+        self.assertNotIn('<script>alert(1)</script>', page, 'configuration text only ever as JSON data')
+
     def test_config_change_popup(self):
         data = self.client.get(f'/backup/config_change/?uuid={self.b.uuid}').json()
         self.assertEqual(data['previous']['uuid'], str(self.a.uuid))

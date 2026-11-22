@@ -12,6 +12,29 @@
         .d2h-file-header {
             display: none;
         }
+        .rf-diff-modes .btn.active { background: var(--primary, #007bff); color: #fff; }
+        /* Changes: one column, wrapped - readable on a phone */
+        .rf-chg-sum { margin: 12px 0 8px; font-size: .9rem; color: var(--rf-muted, #6c757d); }
+        .rf-chg-sum .add { color: #1f9d55; font-weight: 600; } .rf-chg-sum .del { color: #d64545; font-weight: 600; }
+        .rf-chg-hunk { border: 1px solid var(--rf-line, #dee2e6); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+        .rf-chg-head { padding: 6px 10px; font-size: .8rem; font-weight: 600; color: var(--rf-muted, #6c757d);
+                       background: var(--rf-hover, #f6f8fa); border-bottom: 1px solid var(--rf-line, #dee2e6); }
+        .rf-chg-line { display: flex; font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; line-height: 1.45; }
+        .rf-chg-no { flex: 0 0 3.2em; text-align: right; padding: 1px 6px; color: var(--rf-muted, #8a96a3); user-select: none; }
+        .rf-chg-sign { flex: 0 0 1.2em; text-align: center; user-select: none; }
+        .rf-chg-text { flex: 1; min-width: 0; padding: 1px 8px 1px 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .rf-chg-line.del { background: rgba(214, 69, 69, .13); } .rf-chg-line.del .rf-chg-sign { color: #d64545; }
+        .rf-chg-line.add { background: rgba(31, 157, 85, .13); } .rf-chg-line.add .rf-chg-sign { color: #1f9d55; }
+        .rf-chg-line.ctx .rf-chg-text { color: var(--rf-muted, #6c757d); }
+        .rf-chg-empty { padding: 16px; color: var(--rf-muted, #6c757d); }
+        /* diff2html in dark mode */
+        html.rf-dark .d2h-wrapper, html.rf-dark .d2h-file-wrapper, html.rf-dark .d2h-code-line, html.rf-dark .d2h-code-side-line,
+        html.rf-dark .d2h-cntx, html.rf-dark .d2h-code-linenumber, html.rf-dark .d2h-code-side-linenumber,
+        html.rf-dark .d2h-info, html.rf-dark .d2h-diff-table { background-color: #23282d !important; color: var(--rf-text) !important; border-color: var(--rf-line) !important; }
+        html.rf-dark .d2h-del, html.rf-dark .d2h-del .d2h-code-line-ctn { background-color: rgba(214, 69, 69, .22) !important; }
+        html.rf-dark .d2h-ins, html.rf-dark .d2h-ins .d2h-code-line-ctn { background-color: rgba(31, 157, 85, .22) !important; }
+        html.rf-dark .d2h-emptyplaceholder, html.rf-dark .d2h-code-side-emptyplaceholder { background-color: #2b3035 !important; }
+        html.rf-dark del, html.rf-dark ins { background-color: rgba(255, 255, 255, .12) !important; }
     </style>
 
 {% endblock %}
@@ -32,13 +55,17 @@
                 </div>
                 <div class="card-body row">
                     <div class="col-lg-12">
-                        <button class="btn btn-outline-primary" onclick="renderDiff('side-by-side')">Side by Side
-                        </button>
-                        <button class="btn btn-outline-primary" onclick="renderDiff('inline')">Inline</button>
-                        <a class="btn btn-outline-primary"
-                           href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}">Diff only</a>
-                        <a class="btn btn-outline-primary"
-                           href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&display=all">Complete file</a>
+                        <div class="btn-group btn-group-sm rf-diff-modes mb-1" role="group" aria-label="View">
+                            <button type="button" class="btn btn-outline-primary" data-mode="changes">Changes</button>
+                            <button type="button" class="btn btn-outline-primary" data-mode="side-by-side">Side by side</button>
+                            <button type="button" class="btn btn-outline-primary" data-mode="inline">Inline</button>
+                        </div>
+                        <div class="btn-group btn-group-sm mb-1" role="group" aria-label="Extent">
+                            <a class="btn btn-outline-secondary {% if not show_all %}active{% endif %}"
+                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}">Changed parts</a>
+                            <a class="btn btn-outline-secondary {% if show_all %}active{% endif %}"
+                               href="?uuid={{ backup1.uuid }}&compare_uuid={{ backup2.uuid }}&display=all">Complete file</a>
+                        </div>
                         <div id="diff-container"></div>
                     </div>
                 </div>
@@ -55,22 +82,77 @@
         // Read as data, not written into the script: a configuration line can hold
         // anything, a backtick or a closing script tag included
         var diffString = JSON.parse(document.getElementById('diff-data').textContent);
-        function renderDiff(viewType) {
-            var targetElement = document.getElementById('diff-container');
-            var processedDiffString = diffString.split('\n').filter(line => {
-                return !line.startsWith('--- a/') && !line.startsWith('+++ b/');
-            }).join('\n');
-            var configuration = {
-                inputFormat: 'diff',
-                showFiles: false,
-                matching: 'lines',
-                outputFormat: viewType,
-            };
+        var lines = diffString.split('\n').filter(function (line) {
+            return !line.startsWith('--- ') && !line.startsWith('+++ ');
+        });
+        var target = document.getElementById('diff-container');
 
-            var diffHtml = Diff2Html.html(processedDiffString, configuration);
-            targetElement.innerHTML = diffHtml;
+        function el(tag, cls, text) {
+            var node = document.createElement(tag);
+            if (cls) { node.className = cls; }
+            if (text !== undefined) { node.textContent = text; }   // text only, never markup
+            return node;
         }
-        //renderDiff('inline');
-        renderDiff('side-by-side');
+
+        // One column, wrapped: every changed part with its line numbers
+        function renderChanges() {
+            target.textContent = '';
+            var added = 0, removed = 0, hunk = null, body = null, oldNo = 0, newNo = 0;
+            lines.forEach(function (line) {
+                var head = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+                if (head) {
+                    oldNo = +head[1]; newNo = +head[3];
+                    hunk = el('div', 'rf-chg-hunk');
+                    var last = newNo + Math.max((+(head[4] || 1)) - 1, 0);
+                    hunk.appendChild(el('div', 'rf-chg-head', 'Lines ' + newNo + (last > newNo ? '-' + last : '')));
+                    body = el('div');
+                    hunk.appendChild(body);
+                    target.appendChild(hunk);
+                    return;
+                }
+                if (!body || line === '\\ No newline at end of file') { return; }
+                var kind = line[0] === '-' ? 'del' : line[0] === '+' ? 'add' : 'ctx';
+                var row = el('div', 'rf-chg-line ' + kind);
+                row.appendChild(el('span', 'rf-chg-no', kind === 'add' ? '' : String(oldNo)));
+                row.appendChild(el('span', 'rf-chg-no', kind === 'del' ? '' : String(newNo)));
+                row.appendChild(el('span', 'rf-chg-sign', kind === 'del' ? '−' : kind === 'add' ? '+' : ''));
+                row.appendChild(el('span', 'rf-chg-text', line.slice(1) || ' '));
+                body.appendChild(row);
+                if (kind !== 'add') { oldNo++; }
+                if (kind !== 'del') { newNo++; }
+                if (kind === 'add') { added++; } else if (kind === 'del') { removed++; }
+            });
+            var sum = el('div', 'rf-chg-sum');
+            if (!added && !removed) {
+                target.appendChild(el('div', 'rf-chg-empty', 'The two backups have the same configuration.'));
+            }
+            sum.appendChild(el('span', 'add', '+' + added));
+            sum.appendChild(document.createTextNode(' added, '));
+            sum.appendChild(el('span', 'del', '−' + removed));
+            sum.appendChild(document.createTextNode(' removed - lines with − are in backup {{ backup1.id }}, lines with + in backup {{ backup2.id }}'));
+            target.insertBefore(sum, target.firstChild);
+        }
+
+        function renderDiff(viewType) {
+            // diff2html needs the --- / +++ header to see a file at all
+            target.innerHTML = Diff2Html.html(diffString, {
+                inputFormat: 'diff', showFiles: false, matching: 'lines', outputFormat: viewType});
+        }
+
+        function show(mode) {
+            if (mode === 'changes') { renderChanges(); } else { renderDiff(mode); }
+            document.querySelectorAll('.rf-diff-modes .btn').forEach(function (b) {
+                b.classList.toggle('active', b.dataset.mode === mode);
+            });
+            try { sessionStorage.setItem('rf-diff-mode', mode); } catch (e) {}
+        }
+        document.querySelectorAll('.rf-diff-modes .btn').forEach(function (b) {
+            b.addEventListener('click', function () { show(b.dataset.mode); });
+        });
+        // A phone opens on Changes; a wider screen on side by side, unless
+        // another view was chosen in this tab
+        var chosen = null;
+        try { chosen = sessionStorage.getItem('rf-diff-mode'); } catch (e) {}
+        show(chosen || (window.matchMedia('(max-width: 767.98px)').matches ? 'changes' : 'side-by-side'));
     </script>
 {% endblock %}
