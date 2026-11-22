@@ -10,6 +10,15 @@ with it. The release is `ROUTERFLEET_RELEASE` in `routerfleet/settings.py`;
 Only the newest release is published: each release deletes the older ones,
 with their tags and images. Use `:latest`.
 
+## [0.12.2] - 2026-11-22
+
+### Fixed
+- **Server errors are written to the container log.** With debug mode off,
+  Django's default only e-mails a failed request's traceback, so a
+  "Server Error (500)" left no trace anywhere an operator looks.
+  `docker compose logs routerfleet` now shows the error and its traceback
+  (the request line only - never request bodies).
+
 ## [0.12.1] - 2026-11-22
 
 ### Security

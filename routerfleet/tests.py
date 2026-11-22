@@ -445,3 +445,25 @@ class CsrfTests(Fixture):
     def test_import_run_needs_post(self):
         self.assertEqual(self.browser.get(
             f'/router/import_tool/run_import_task/?uuid={self.import_task.uuid}').status_code, 405)
+
+
+class ErrorLoggingTests(TestCase):
+    """A server error leaves its traceback in the container log (stderr), also
+    with DEBUG off - Django's default would only e-mail it."""
+
+    def test_a_server_error_is_logged_with_its_traceback(self):
+        import io
+        import logging
+        from django.test import Client
+        stream = io.StringIO()
+        handler = logging.getLogger('django.request').handlers[0]
+        self.assertIsInstance(handler, logging.StreamHandler)
+        with mock.patch.object(handler, 'stream', stream), \
+                mock.patch('dashboard.views.get_directory_statistics', side_effect=RuntimeError('boom')):
+            client = Client(raise_request_exception=False)
+            client.force_login(make_user(10))
+            self.assertEqual(client.get('/status/').status_code, 500)
+        logged = stream.getvalue()
+        self.assertIn('ERROR django.request: Internal Server Error: /status/', logged)
+        self.assertIn('RuntimeError: boom', logged)
+        self.assertIn('Traceback', logged)

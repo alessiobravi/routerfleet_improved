@@ -127,6 +127,17 @@ Without a verification, a command is judged on its exit code alone. Add
 verification commands and an expected result to the variant — see
 [Fleet Commander](fleet-commander.md#verified-results).
 
+### A page answers "Server Error (500)"
+
+The cause is in the application's log, with its traceback:
+
+```bash
+docker compose logs routerfleet --tail 200
+```
+
+Look for `ERROR django.request: Internal Server Error:` followed by the path.
+Only the request line and the traceback are logged, never what a form sent.
+
 ### The update card stays grey
 
 The status page's update card is grey before the first check (within an hour of

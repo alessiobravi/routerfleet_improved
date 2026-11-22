@@ -164,9 +164,31 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.12.1'
+ROUTERFLEET_RELEASE = '0.12.2'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
+
+# Errors go to the container log. Django's default sends a failed request's
+# traceback only by e-mail when DEBUG is off, so a "Server Error (500)" left no
+# trace anywhere an operator looks; with this, `docker compose logs routerfleet`
+# shows the cause. Only the traceback and the request line are logged - no
+# request bodies, so no passwords.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'plain': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+    },
+    'loggers': {
+        'django.request': {'handlers': ['console'], 'level': 'ERROR', 'propagate': False},
+        'django.security': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'routerlib': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+        'audit_log': {'handlers': ['console'], 'level': 'WARNING', 'propagate': False},
+    },
+}
 
 # Whether this installation looks for a newer release. On by default: about
 # once an hour it asks GitHub for the latest release of the project (the request
