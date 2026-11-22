@@ -280,7 +280,7 @@ def build():
     # and how to reach it. The password is compared and never written down.
     watch(apps.get_model('router_manager', 'Router'),
           fields=['name', 'enabled', 'address', 'port', 'username', 'password', 'ssh_key',
-                  'monitoring', 'backup_profile', 'router_type', 'internal_notes'],
+                  'monitoring', 'backup_profile', 'keep_unchanged', 'router_type', 'internal_notes'],
           create=True, redact=('password',))
     watch(apps.get_model('router_manager', 'RouterGroup'),
           fields=['name', 'default_group', 'internal_notes'],
@@ -329,6 +329,9 @@ def build():
           create=True)
 
     watch(apps.get_model('routerfleet_tools', 'DisplaySettings'), fields=['default_page_size'], create=True)
+    # Who approved which update, and how it ended
+    watch(apps.get_model('routerfleet_tools', 'UpdateRun'),
+          fields=['from_version', 'to_version', 'approved_by_name', 'state', 'message'], create=True, delete=False)
 
     watch(apps.get_model('message_center', 'MessageChannel'),
           fields=['name', 'enabled', 'channel_type', 'destination', 'server_url', 'priority', 'token',

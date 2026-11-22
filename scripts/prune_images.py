@@ -4,6 +4,8 @@
 Kept:
   - the versions tagged `latest` and with the release just published - only
     the newest release is offered;
+  - their cosign signatures (tags sha256-<digest>.sig and the like), which
+    updates from System settings require;
   - every manifest such a version references. A multi-platform image is an
     index whose per-platform manifests are versions of their own, untagged -
     deleting them would break the image they belong to.
@@ -48,6 +50,11 @@ def is_kept_tag(tag, current):
     return bool(RELEASE_TAG.match(tag)) and not _versioning().is_retired(tag, current)
 
 
+# A cosign signature or attestation of a digest, stored beside it by tag
+# (sha256-<hex>, with .sig or .att, or bare for the OCI referrers fallback)
+SIGNATURE_TAG = re.compile(r'^sha256-([0-9a-f]{64})(\.sig|\.att)?$')
+
+
 def plan(versions, children_of, current):
     """Which versions to delete.
 
@@ -61,6 +68,18 @@ def plan(versions, children_of, current):
     for version in kept:
         tag = next(t for t in version['tags'] if is_kept_tag(t, current))
         protected.update(children_of(tag))
+    # The signatures of what is kept are kept too: updates from System
+    # settings refuse an image without one
+    kept_digests = {v['name'] for v in kept} | protected
+    for version in versions:
+        if version in kept:
+            continue
+        for tag in version['tags']:
+            match = SIGNATURE_TAG.match(tag)
+            if match and f'sha256:{match.group(1)}' in kept_digests:
+                kept.append(version)
+                protected.update(children_of(tag))
+                break
     delete = [v for v in versions if v not in kept and v['name'] not in protected]
     return kept, delete
 

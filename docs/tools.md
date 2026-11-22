@@ -16,7 +16,7 @@ they take. It also lists the binary files no backup refers to, the backups
 whose file is missing, and the unchanged backups that lost the link to their
 stored configuration.
 
-**Clean up** - after typing `clean` to confirm, it:
+**Clean up** - after a small sum to confirm, it:
 
 - turns each duplicate into an *unchanged* backup, exactly as
   [keeping only changes](backups.md#unchanged-backups) does for new backups: it

@@ -314,7 +314,7 @@
     <script>
         function openCommandDialog(element) {
             var command = element.getAttribute('data-command');
-            var confirmation = prompt("Please type 'delete{{ backup.id }}' to proceed.");
+            var confirmation = rfConfirm("Delete this backup permanently?", 'delete{{ backup.id }}');
             if (confirmation) {
                 postAction("/backup/delete/?uuid={{ backup.uuid }}", {confirmation: confirmation});;
                 window.location.href = url;

@@ -1,5 +1,7 @@
 """System Settings: the hub, notifications and their channels."""
+from django.conf import settings as django_settings
 from django.contrib import messages
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -31,6 +33,7 @@ def view_system(request):
     return render(request, 'routerfleet_tools/system.html', {
         'page_title': 'System settings', 'is_administrator': user_level >= ADMINISTRATOR,
         'https': HttpsSettings.load(), 'smtp': SmtpSettings.load(), 'display': DisplaySettings.load(),
+        'current': django_settings.ROUTERFLEET_RELEASE, 'update_available': _available(),
         'channels': MessageChannel.objects.filter(user__isnull=True, enabled=True).count()})
 
 
@@ -53,6 +56,16 @@ def view_display(request):
         messages.error(request, 'Choose one of the sizes offered')
     return render(request, 'routerfleet_tools/display.html', {
         'page_title': 'Display', 'display': display, 'sizes': DisplaySettings.PAGE_SIZES})
+
+
+
+def _available():
+    from routerfleet.versioning import from_number
+    from .models import WebadminSettings
+    webadmin = WebadminSettings.objects.filter(name='webadmin_settings').first()
+    if webadmin and webadmin.update_available and webadmin.latest_version > django_settings.ROUTERFLEET_VERSION:
+        return from_number(webadmin.latest_version)
+    return None
 
 
 def summary(channel):
@@ -108,3 +121,61 @@ def view_notification_channel(request):
         'event_states': states,
         'values': data or {}, 'has_token': bool(channel and channel.token), 'smtp_ready': SmtpSettings.load().ready,
         'removed': bool(channel and channel.channel_type == 'callmebot'), 'email': email})
+
+
+@login_required
+def view_updates(request):
+    """Updates: what runs, what is available, and - with the updater set up -
+    approving the update, confirmed with the administrator's password."""
+    if level(request.user) < ADMINISTRATOR:
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    from django.conf import settings
+    from routerfleet.versioning import from_number
+    from . import updates
+    from .models import UpdateRun, WebadminSettings
+    from .views import check_enabled
+    webadmin = WebadminSettings.objects.filter(name='webadmin_settings').first()
+    current = settings.ROUTERFLEET_RELEASE
+    available = None
+    if webadmin and webadmin.update_available and webadmin.latest_version > settings.ROUTERFLEET_VERSION:
+        available = from_number(webadmin.latest_version)
+    updater = updates.updater()
+    progress = updates.status()
+    last = UpdateRun.objects.first()
+    # What the updater reported about the last request
+    if last and progress and progress['id'] == last.request_id and progress['state'] in dict(UpdateRun.STATES) \
+            and (progress['state'], progress['message']) != (last.state, last.message):
+        last.state, last.message = progress['state'], progress['message']
+        last.save(update_fields=['state', 'message', 'updated'])
+    if last and last.state == 'requested' and timezone.now() - last.created > timezone.timedelta(minutes=10):
+        last.state, last.message = 'failed', 'The updater did not pick the request up within 10 minutes.'
+        last.save(update_fields=['state', 'message', 'updated'])
+    busy = bool(last and last.active and timezone.now() - last.updated < timezone.timedelta(minutes=30))
+
+    if request.method == 'POST' and request.POST.get('action') == 'update':
+        error = None
+        if not available or request.POST.get('version') != available:
+            error = 'That release is not the one available any more. Reload the page.'
+        elif not updater['ready']:
+            error = 'The updater is not ready.'
+        elif busy:
+            error = 'An update is already under way.'
+        elif not request.user.check_password(request.POST.get('password', '')):
+            error = 'The password is not correct.'
+        if error:
+            messages.error(request, 'Update not started|' + error)
+            return redirect('/system/updates/')
+        try:
+            request_id = updates.request(available, request.user.username)
+        except (OSError, ValueError):
+            messages.error(request, 'Update not started|The request could not be written for the updater.')
+            return redirect('/system/updates/')
+        UpdateRun.objects.create(request_id=request_id, from_version=current, to_version=available,
+                                 approved_by=request.user, approved_by_name=request.user.username)
+        messages.success(request, f'Update to {available} approved|The updater starts within a minute.')
+        return redirect('/system/updates/')
+
+    return render(request, 'routerfleet_tools/updates.html', {
+        'page_title': 'Updates', 'current': current, 'available': available, 'updater': updater,
+        'last': last, 'busy': busy, 'runs': UpdateRun.objects.all()[:10],
+        'check_enabled': check_enabled()})

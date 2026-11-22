@@ -33,12 +33,13 @@
 
                 {% if report.routers %}
                 <table class="table table-sm table-striped">
-                    <thead><tr><th>Device</th><th>Profile keeps</th><th class="text-right">Stored</th><th class="text-right">Unchanged</th><th class="text-right">Duplicates</th><th class="text-right">Space</th></tr></thead>
+                    <thead><tr><th>Device</th><th>Backup profile</th><th>Keeps</th><th class="text-right">Stored</th><th class="text-right">Unchanged</th><th class="text-right">Duplicates</th><th class="text-right">Space</th></tr></thead>
                     <tbody>
                     {% for entry in report.routers %}
                         <tr{% if not include_every_profile and entry.keeps_every_backup %} class="text-muted"{% endif %}>
                             <td><a href="/router/details/?uuid={{ entry.router.uuid }}">{{ entry.router.name }}</a></td>
-                            <td>{% if entry.keeps_every_backup %}every backup{% else %}only changes{% endif %}</td>
+                            <td>{% if entry.profile %}<a href="/backup/manage_profile/?uuid={{ entry.profile.uuid }}">{{ entry.profile.name }}</a>{% if not entry.router.backup_profile %} <span class="text-muted small">(none set: default)</span>{% endif %}{% else %}-{% endif %}</td>
+                            <td>{% if entry.keeps_every_backup %}every backup{% else %}only changes{% endif %}{% if entry.router.keep_unchanged != 'profile' %} <span class="badge badge-info" title="Decided in the device's settings, not by the profile">device</span>{% endif %}</td>
                             <td class="text-right">{{ entry.stored }}</td>
                             <td class="text-right">{{ entry.unchanged }}</td>
                             <td class="text-right">{{ entry.duplicates|length }}</td>
@@ -54,7 +55,13 @@
                     {{ report.relinkable }} can be linked again to a stored backup with the same configuration.</p>
                 {% endif %}
 
-                {% if report.nothing_to_do %}
+                {% if report.nothing_to_do and report.held_back %}
+                    <div class="alert alert-warning mb-0"><i class="fas fa-info-circle"></i>
+                        <strong>{{ report.held_back }} duplicate{{ report.held_back|pluralize }} ({{ report.held_back_bytes|filesizeformat }}) left alone:</strong>
+                        their devices' backup profile keeps every backup, so the clean-up respects it. To clean them, turn on
+                        <em>Also devices whose profile keeps unchanged backups</em> above - or, to stop storing copies from now on too,
+                        switch off <em>Keep unchanged backups</em> in the <a href="/backup/profile_list/">backup profile</a>.</div>
+                {% elif report.nothing_to_do %}
                     <div class="alert alert-success mb-0"><i class="fas fa-check-circle"></i> Nothing to clean: no duplicates, and the files and the database agree.</div>
                 {% else %}
                     <div class="text-center mt-3">
@@ -76,7 +83,7 @@
 {% block custom_page_scripts %}
 <script>
     function runCleanup() {
-        var confirmation = prompt("This frees {{ report.duplicates }} duplicate backups and removes {{ report.orphan_files|length }} orphan files. Type 'clean' to confirm.");
+        var confirmation = rfConfirm("This frees {{ report.duplicates }} duplicate backups and removes {{ report.orphan_files|length }} orphan files.", 'clean');
         if (confirmation) {
             postAction(window.location.pathname, {action: 'clean', confirmation: confirmation{% if include_every_profile %}, include_every_profile: 'on'{% endif %}});
         }

@@ -26,6 +26,17 @@ class UserManagerTests(TestCase):
         user.refresh_from_db()
         self.assertTrue(user.check_password('Original-pw-1'))
 
+    def test_an_email_added_by_an_administrator_is_stored(self):
+        user = make_user(10, password='Original-pw-1')
+        acl = UserAcl.objects.get(user=user)
+        response = self.client.post(f'/user/manage/?uuid={acl.uuid}', {'username': user.username, 'user_level': 10,
+                                                                       'email': 'ops@example.com'})
+        self.assertRedirects(response, '/user/list/', fetch_redirect_response=False)
+        user.refresh_from_db()
+        self.assertEqual(user.email, 'ops@example.com')
+        self.assertTrue(user.check_password('Original-pw-1'), 'the password is untouched')
+        self.assertContains(self.client.get(f'/user/manage/?uuid={acl.uuid}'), 'ops@example.com')
+
     def test_new_password_signs_the_user_out_everywhere(self):
         user = make_user(10, password='Original-pw-1')
         other = self.client_class()

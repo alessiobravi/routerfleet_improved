@@ -45,6 +45,21 @@ class Router(models.Model):
     # When the device was last enabled or disabled - kept on every save, single
     # or bulk edit alike - so the status page can tell which days it was off
     enabled_changed_at = models.DateTimeField(null=True, blank=True, editable=False)
+    # Whether unchanged scheduled backups are stored in full: as the backup
+    # profile says (what every device had before), or decided for this device
+    KEEP_UNCHANGED_CHOICES = [('profile', 'As the backup profile says'),
+                              ('keep', 'Keep every backup in full'),
+                              ('changes', 'Store only changes')]
+    keep_unchanged = models.CharField(max_length=8, choices=KEEP_UNCHANGED_CHOICES, default='profile',
+                                      verbose_name='Unchanged backups')
+
+    def keeps_unchanged(self, profile):
+        """Whether this device stores unchanged scheduled backups in full."""
+        if self.keep_unchanged == 'keep':
+            return True
+        if self.keep_unchanged == 'changes':
+            return False
+        return bool(profile and profile.keep_unchanged)
     router_type = models.CharField(max_length=100, choices=SUPPORTED_ROUTER_TYPES)
     enabled = models.BooleanField(default=True)
     updated = models.DateTimeField(auto_now=True)

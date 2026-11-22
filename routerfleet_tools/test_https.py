@@ -315,3 +315,109 @@ class DisplaySettingsTests(TestCase):
         self.assertNotIn('<div class="rf-set-title">Security</div>', page, 'HTTPS is for administrators')
         self.client.force_login(make_user(30))
         self.assertContains(self.client.get('/system/display/'), 'Access Denied')
+
+
+class UpdatesPageTests(TestCase):
+    """System settings, Updates: approving an update writes one request for
+    the scheduler's updater - only with the password, only for the release
+    available, only when the updater is ready."""
+
+    def setUp(self):
+        import json, pathlib, tempfile, shutil
+        from django.conf import settings
+        from django.test import override_settings
+        from django.utils import timezone
+        from routerfleet.versioning import to_number
+        from routerfleet_tools.models import WebadminSettings
+        self.json, self.timezone = json, timezone
+        self.dir = pathlib.Path(tempfile.mkdtemp(prefix='rfupd-'))
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        override = override_settings(UPDATE_DIR=str(self.dir))
+        override.enable(); self.addCleanup(override.disable)
+        major, minor, patch = (int(x) for x in settings.ROUTERFLEET_RELEASE.split('.'))
+        self.available = f'{major}.{minor + 1}.0'
+        WebadminSettings.objects.update_or_create(name='webadmin_settings', defaults={
+            'update_available': True, 'latest_version': to_number(self.available)})
+        self.admin = make_user(50)
+        self.admin.set_password('Right-password-2026!'); self.admin.save()
+        self.client.force_login(self.admin)
+
+    def ready(self, ready=True):
+        (self.dir / 'updater.json').write_text(self.json.dumps({
+            'seen': self.timezone.now().strftime('%Y-%m-%dT%H:%M:%SZ'), 'ready': ready, 'reason': 'no socket'}))
+
+    def post(self, password='Right-password-2026!', version=None):
+        return self.client.post('/system/updates/', {'action': 'update', 'password': password,
+                                                     'version': version or self.available})
+
+    def request_file(self):
+        return self.dir / 'request.json'
+
+    def test_only_administrators(self):
+        self.client.force_login(make_user(40))
+        self.assertContains(self.client.get('/system/updates/'), 'Access Denied')
+        self.ready()
+        self.post()
+        self.assertFalse(self.request_file().exists())
+
+    def test_without_the_updater_the_command_is_shown(self):
+        page = self.client.get('/system/updates/')
+        self.assertContains(page, 'docker compose pull')
+        self.assertNotContains(page, f'Update to {self.available}')
+        self.post()
+        self.assertFalse(self.request_file().exists())
+
+    def test_a_stale_heartbeat_is_not_ready(self):
+        (self.dir / 'updater.json').write_text(self.json.dumps({'seen': '2020-01-01T00:00:00Z', 'ready': True}))
+        self.assertContains(self.client.get('/system/updates/'), 'Not answering')
+        self.post()
+        self.assertFalse(self.request_file().exists())
+
+    def test_wrong_password_or_version_writes_nothing(self):
+        from routerfleet_tools.models import UpdateRun
+        self.ready()
+        self.post(password='wrong')
+        self.post(version='9.9.9')
+        self.assertFalse(self.request_file().exists())
+        self.assertFalse(UpdateRun.objects.exists())
+
+    def test_approving_writes_one_request_and_records_who(self):
+        from audit_log.models import ChangeRecord
+        from routerfleet_tools.models import UpdateRun
+        self.ready()
+        self.assertContains(self.client.get('/system/updates/'), f'Update to {self.available}')
+        self.post()
+        body = self.json.loads(self.request_file().read_text())
+        self.assertEqual(sorted(body), ['approved_at', 'approved_by', 'id', 'version'])
+        self.assertEqual((body['version'], body['approved_by']), (self.available, self.admin.username))
+        run = UpdateRun.objects.get()
+        self.assertEqual((run.request_id, run.to_version, run.state), (body['id'], self.available, 'requested'))
+        self.assertTrue(ChangeRecord.objects.filter(model_label='routerfleet_tools.UpdateRun').exists())
+        # One at a time
+        self.request_file().unlink()
+        self.post()
+        self.assertFalse(self.request_file().exists())
+
+    def test_progress_from_the_updater_is_shown_and_recorded(self):
+        from routerfleet_tools.models import UpdateRun
+        self.ready()
+        self.post()
+        run = UpdateRun.objects.get()
+        (self.dir / 'status.json').write_text(self.json.dumps({
+            'id': run.request_id, 'version': self.available, 'state': 'rolled_back',
+            'message': 'did not become ready. RouterFleet is back on the previous version.', 'at': '2026-11-22T21:00:00Z'}))
+        page = self.client.get('/system/updates/')
+        self.assertContains(page, 'Rolled back')
+        run.refresh_from_db()
+        self.assertEqual(run.state, 'rolled_back')
+        # A status for another request does not touch this one
+        (self.dir / 'status.json').write_text(self.json.dumps({'id': 'f' * 32, 'state': 'done', 'message': 'x'}))
+        self.client.get('/system/updates/')
+        run.refresh_from_db()
+        self.assertEqual(run.state, 'rolled_back')
+
+    def test_request_values_are_checked_here_too(self):
+        from routerfleet_tools import updates
+        for version, user in (('1.2.3\n', 'a'), ('1.2', 'a'), ('١.٢.٣', 'a'), ('1.2.3', 'a b'), ('1.2.3', '')):
+            with self.subTest(version=version, user=user), self.assertRaises(ValueError):
+                updates.request(version, user)

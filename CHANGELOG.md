@@ -13,6 +13,45 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.21.0] - 2026-11-22
+
+### Added
+- **Updates from System settings.** An administrator approves the update with
+  their password; the scheduler's updater installs it: only a newer release,
+  only if every image is signed by the RouterFleet Improved release workflow
+  (Sigstore, checked with cosign), after a database backup, and with the
+  previous version and the backup put back if the new one does not start
+  healthy. The web application has no Docker access. Needs the current compose
+  file once; older ones keep updating by command. See docs/updating.md.
+- Release images are signed in CI; their signatures are kept when older images
+  are deleted.
+
+- **Unchanged backups per device**: *Unchanged backups* in a device's settings
+  follows its backup profile (as every device does after upgrading), or keeps
+  every backup in full, or stores only changes - for that device alone. The
+  backup clean-up follows the same decision.
+- **Backup profiles explain themselves**: what daily, weekly and monthly
+  backups are for, and that retention is how many days each is kept.
+  *Retain backups on error* is now *Keep old backups while backups are
+  failing*, with what it does.
+
+- **Confirming with a small sum**: deleting, aborting, cleaning up and
+  removing users ask how much two small numbers add up to, instead of typing a
+  word. The server checks the confirmation as before.
+
+### Fixed
+- **Editing a user saved nothing but the level**: an email added in User
+  Manager - or any change without a new password - was reported as saved but
+  dropped. The password is left untouched.
+- **Backup clean-up said "Nothing to clean" with thousands of duplicates**: it
+  respects profiles that keep every backup, but did not say so. It now shows
+  how many duplicates it left alone and how to clean them, and names each
+  device's backup profile (with a link), so it is clear which profile decides.
+- **Backup profile export options** are named and explained: *Include
+  passwords and keys* (`show-sensitive`) and *One line per item* (`terse`).
+- System settings mentions where unchanged backups are decided (the backup
+  profile).
+
 ## [0.20.0] - 2026-11-22
 
 ### Added

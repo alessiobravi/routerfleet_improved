@@ -27,7 +27,7 @@
     <script>
         function openCommandDialog(element) {
             var command = element.getAttribute('data-command');
-            var confirmation = prompt("{% if delete_confirmation_message %}{{ delete_confirmation_message }}{% else %}Please type 'delete' to proceed.{% endif %}");
+            var confirmation = rfConfirm("{% if delete_confirmation_message %}{{ delete_confirmation_message|escapejs }}{% else %}Delete this backup profile permanently?{% endif %}", 'delete');
             if (confirmation) {
                 postAction("?uuid={{ instance.uuid }}", {action: 'delete', confirmation: confirmation});
             }

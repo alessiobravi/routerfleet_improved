@@ -104,6 +104,7 @@ encrypted with.
 | [Architecture](docs/architecture.md) | The five containers, the scheduler, the data model |
 | [Installation](docs/installation.md) | Full specification: containers, images, every option and variant |
 | [Upgrading](docs/upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
+| [Updating from System settings](docs/updating.md) | One-click updates: signed releases only, database backup, automatic rollback |
 | [Devices](docs/devices.md) | Device types, inventory, version states, the device list |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |

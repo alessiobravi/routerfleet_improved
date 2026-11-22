@@ -89,7 +89,7 @@
 
 <script>
     function resetMfa() {
-        var confirmation = prompt("This removes the authenticator app and every passkey of this user, who then signs in with a password only. Type '{{ user_acl.user.username|escapejs }}' to confirm.");
+        var confirmation = rfConfirm("This removes the authenticator app and every passkey of {{ user_acl.user.username|escapejs }}, who then signs in with a password only.", '{{ user_acl.user.username|escapejs }}');
         if (confirmation) {
             postAction("?uuid={{ user_acl.uuid }}", {action: 'reset_mfa', confirmation: confirmation});
         }
@@ -97,7 +97,7 @@
 
     function openCommandDialog(element) {
         var command = element.getAttribute('data-command');
-        var confirmation = prompt("Please type '{{ user_acl.user.username|escapejs }}' to remove this user.");
+        var confirmation = rfConfirm("Remove the user {{ user_acl.user.username|escapejs }} permanently?", '{{ user_acl.user.username|escapejs }}');
         if (confirmation) {
             postAction("?uuid={{ user_acl.uuid }}", {action: 'delete', confirmation: confirmation});
         }

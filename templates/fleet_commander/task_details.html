@@ -201,7 +201,7 @@
     // A command that is already running on the router is not interrupted, the
     // task stops before the next command or verification
     function abortTask(uuid) {
-        var confirmation = prompt("Please type 'abort' to proceed.");
+        var confirmation = rfConfirm("Abort this task?", 'abort');
         if (confirmation !== null) {
             postAction("/fleet_commander/task/abort/?uuid=" + uuid, {confirmation: confirmation});
         }

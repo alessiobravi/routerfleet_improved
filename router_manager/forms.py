@@ -41,7 +41,7 @@ class RouterForm(forms.ModelForm):
     class Meta:
         model = Router
         fields = ['name', 'port', 'address', 'username', 'password', 'ssh_key', 'monitoring', 'router_type', 'enabled',
-                  'backup_profile', 'console_telnet', 'telnet_port']
+                  'backup_profile', 'keep_unchanged', 'console_telnet', 'telnet_port']
 
     def __init__(self, *args, **kwargs):
         super(RouterForm, self).__init__(*args, **kwargs)
@@ -58,6 +58,9 @@ class RouterForm(forms.ModelForm):
                 self.fields['password'].widget.attrs['placeholder'] = '************'
         else:
             delete_html = ''
+        self.fields['keep_unchanged'].required = False
+        self.fields['keep_unchanged'].help_text = ('Whether a scheduled backup is stored again when the configuration '
+                                                   'did not change. Instant backups are always stored.')
         self.helper.layout = Layout(
             Row(
                 Column('name', css_class='form-group col-md-6 mb-0'),
@@ -75,7 +78,11 @@ class RouterForm(forms.ModelForm):
                 css_class='form-row'
             ),
 
-            'backup_profile',
+            Row(
+                Column('backup_profile', css_class='form-group col-md-6 mb-0'),
+                Column('keep_unchanged', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
             'router_type',
             'monitoring',
             'enabled',
@@ -94,6 +101,10 @@ class RouterForm(forms.ModelForm):
                 css_class='form-row'
             )
         )
+
+    def clean_keep_unchanged(self):
+        # Not sent (an older form, a script): as the backup profile says
+        return self.cleaned_data.get('keep_unchanged') or 'profile'
 
     def clean(self):
         cleaned_data = super().clean()

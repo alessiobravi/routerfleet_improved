@@ -187,7 +187,7 @@ a command lock older than 2 hours.
 ## Stopping a job or a task
 
 The job list, job details and task details pages all offer a stop button,
-confirmed by typing `abort`. Tasks that have not finished are set to
+confirmed by answering a small sum. Tasks that have not finished are set to
 **aborted**.
 
 The executor checks for an abort **before each payload line and before each

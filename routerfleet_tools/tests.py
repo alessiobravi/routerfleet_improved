@@ -204,6 +204,22 @@ class VersioningTests(TestCase):
 class ImagePruneTests(TestCase):
     """scripts/prune_images.py decides what may be deleted from the registry."""
 
+    def test_signatures_of_kept_images_are_kept(self):
+        new_hex, old_hex = 'a' * 64, 'b' * 64
+        versions = [
+            {'id': 1, 'name': f'sha256:{new_hex}', 'tags': ['0.21.0', 'latest']},
+            {'id': 2, 'name': 'sha256:sig-new', 'tags': [f'sha256-{new_hex}.sig']},
+            {'id': 3, 'name': 'sha256:referrers-new', 'tags': [f'sha256-{new_hex}']},
+            {'id': 4, 'name': 'sha256:bundle-part', 'tags': []},
+            {'id': 5, 'name': f'sha256:{old_hex}', 'tags': ['0.20.0']},
+            {'id': 6, 'name': 'sha256:sig-old', 'tags': [f'sha256-{old_hex}.sig']},
+        ]
+        children = {'0.21.0': [], 'latest': [], f'sha256-{new_hex}.sig': [],
+                    f'sha256-{new_hex}': ['sha256:bundle-part'], '0.20.0': []}
+        kept, delete = self.script().plan(versions, lambda tag: children[tag], '0.21.0')
+        self.assertEqual({v['id'] for v in kept}, {1, 2, 3})
+        self.assertEqual({v['id'] for v in delete}, {5, 6}, 'the old release goes with its signature')
+
     def script(self):
         import importlib.util, pathlib
         spec = importlib.util.spec_from_file_location(

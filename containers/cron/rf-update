@@ -1,0 +1,273 @@
+#!/bin/sh
+# RouterFleet Improved updater - runs in the scheduler container, every minute.
+#
+# The application never touches Docker. An administrator approves an update in
+# System settings; the application writes one small file, /update/request.json:
+#     {"id": "<32 hex>", "version": "1.2.3", "approved_by": "<username>",
+#      "approved_at": "<ISO time>"}
+# This script reads it, and only it, and trusts nothing in it beyond its
+# format. It then:
+#   1. refuses anything but a newer release than the one running;
+#   2. pulls every RouterFleet image of exactly that release, and refuses
+#      unless each is signed by this project's release workflow (Sigstore,
+#      checked with cosign) and labelled with that release number;
+#   3. backs up the database (kept in a volume only this container mounts);
+#   4. restarts the containers on the new images and waits for the
+#      application to report healthy;
+#   5. if it does not, puts the database and the previous images back.
+# The scheduler itself is restarted last, by a short-lived copy of the new
+# scheduler image, so this script is never stopped halfway.
+#
+# Progress goes to /update/status.json; /update/updater.json says every minute
+# that the updater is there and whether it can work. Nothing from the
+# application is ever executed, interpolated into a command, or echoed back.
+#
+#     rf-update run       the cron entry
+#     rf-update finish    restarts the scheduler (the short-lived copy)
+set -eu
+umask 022
+PATH=${RF_UPDATE_PATH:-/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin}
+
+UPDATE_DIR=${RF_UPDATE_DIR:-/update}
+PRIVATE_DIR=${RF_UPDATE_PRIVATE_DIR:-/update-private}
+COMPOSE_DIR=${RF_COMPOSE_DIR:-/compose}
+SELF=${RF_SCHEDULER_CONTAINER:-routerfleet-cron}
+APP=routerfleet
+DB=routerfleet-postgres
+REGISTRY=ghcr.io/alessiobravi
+IDENTITY='^https://github[.]com/alessiobravi/routerfleet_improved/[.]github/workflows/build_and_push_images[.]yml@refs/heads/main$'
+ISSUER=https://token.actions.githubusercontent.com
+HEALTHY_WITHIN=${RF_HEALTHY_WITHIN:-900}
+COSIGN=${RF_COSIGN:-cosign}
+
+now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log() { printf '%s %s\n' "$(now)" "$*"; }
+
+# Writes a JSON file atomically from jq arguments
+write_json() {
+    target=$1; shift
+    tmp=$(mktemp "$(dirname "$target")/.tmp-XXXXXX")
+    if jq -n "$@" > "$tmp"; then chmod 0644 "$tmp"; mv -f "$tmp" "$target"; else rm -f "$tmp"; return 1; fi
+}
+
+REQUEST_ID=''
+TARGET=''
+status() {   # state, message
+    write_json "$UPDATE_DIR/status.json" --arg id "$REQUEST_ID" --arg version "$TARGET" \
+        --arg state "$1" --arg message "$2" --arg at "$(now)" \
+        '{id: $id, version: $version, state: $state, message: $message, at: $at}'
+    log "$1: $2"
+}
+
+# 1.2.3 -> 1002003, as routerfleet/versioning.py
+number() { printf '%s' "$1" | awk -F. '{ printf "%d", $1 * 1000000 + $2 * 1000 + $3 }'; }
+
+compose() {
+    docker compose -p "$PROJECT" --project-directory "$HOST_DIR" --env-file "$COMPOSE_DIR/.env" \
+        $COMPOSE_FILES "$@"
+}
+
+# Where the installation is, from the labels Docker Compose put on this
+# container - so the same compose file, .env and project name are used
+discover() {
+    PROJECT=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project" }}' "$SELF")
+    HOST_DIR=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$SELF")
+    files=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$SELF")
+    printf '%s' "$PROJECT" | grep -Eq '^[a-z0-9][a-z0-9_-]{0,62}$' || { REASON='unexpected compose project name'; return 1; }
+    case "$HOST_DIR" in /*) ;; *) REASON='unexpected compose directory'; return 1;; esac
+    COMPOSE_FILES=''
+    old_ifs=$IFS; IFS=','
+    for file in $files; do
+        name=$(basename "$file")
+        printf '%s' "$name" | grep -Eq '^[A-Za-z0-9._-]{1,64}[.]ya?ml$' || { IFS=$old_ifs; REASON='unexpected compose file name'; return 1; }
+        [ -f "$COMPOSE_DIR/$name" ] || { IFS=$old_ifs; REASON="$name is not in the folder mounted at $COMPOSE_DIR"; return 1; }
+        COMPOSE_FILES="$COMPOSE_FILES -f $COMPOSE_DIR/$name"
+    done
+    IFS=$old_ifs
+    [ -n "$COMPOSE_FILES" ] || { REASON='compose file not found'; return 1; }
+    [ -f "$COMPOSE_DIR/.env" ] || { REASON=".env is not in the folder mounted at $COMPOSE_DIR"; return 1; }
+    return 0
+}
+
+heartbeat() {
+    REASON=''
+    ready=false
+    if [ ! -S /var/run/docker.sock ]; then
+        REASON='the Docker socket is not mounted into the scheduler'
+    elif ! docker version >/dev/null 2>&1; then
+        REASON='Docker does not answer'
+    elif [ ! -d "$PRIVATE_DIR" ]; then
+        REASON="the private volume is not mounted at $PRIVATE_DIR"
+    elif discover; then
+        ready=true
+    fi
+    current=$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$APP" 2>/dev/null || true)
+    write_json "$UPDATE_DIR/updater.json" --arg seen "$(now)" --argjson ready "$ready" --arg reason "$REASON" \
+        --arg current "$current" '{seen: $seen, ready: $ready, reason: $reason, running: $current}'
+    [ "$ready" = true ]
+}
+
+# The request, checked strictly; prints nothing from it
+take_request() {
+    file="$UPDATE_DIR/request.json"
+    [ -e "$file" ] || [ -L "$file" ] || return 1
+    mkdir -p "$PRIVATE_DIR/work"
+    work="$PRIVATE_DIR/work/request.json"
+    rm -f "$work"
+    mv -f "$file" "$work"
+    if [ -L "$work" ] || [ ! -f "$work" ] || [ "$(wc -c < "$work")" -gt 1024 ]; then
+        rm -f "$work"; status refused 'The update request was not a valid file.'; return 1
+    fi
+    if ! jq -e '
+        type == "object" and (keys == ["approved_at", "approved_by", "id", "version"]) and
+        (.id | type == "string" and test("^[0-9a-f]{32}$")) and
+        (.version | type == "string" and test("^[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,3}$")) and
+        (.approved_by | type == "string" and test("^[A-Za-z0-9_.@+-]{1,150}$")) and
+        (.approved_at | type == "string" and test("^[0-9T:.+Z-]{10,40}$"))' "$work" >/dev/null 2>&1; then
+        rm -f "$work"; status refused 'The update request was not in the expected form.'; return 1
+    fi
+    REQUEST_ID=$(jq -r .id "$work")
+    TARGET=$(jq -r .version "$work")
+    APPROVER=$(jq -r .approved_by "$work")
+    rm -f "$work"
+    return 0
+}
+
+images_of_project() {
+    # The RouterFleet images this installation runs, nothing else
+    for id in $(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT"); do
+        docker inspect -f '{{ .Config.Image }}' "$id"
+    done | sed -En "s#^$REGISTRY/(routerfleet(-cron|-monitoring|-nginx|-postgres)?):latest\$#\1#p" | sort -u
+}
+
+verify_and_stage() {
+    for image in $IMAGES; do
+        ref="$REGISTRY/$image:$TARGET"
+        docker pull -q "$ref" >/dev/null || { status failed "Could not download $image $TARGET."; return 1; }
+        digest=$(docker image inspect -f '{{ range .RepoDigests }}{{ println . }}{{ end }}' "$ref" | grep "^$REGISTRY/$image@sha256:" | head -1)
+        [ -n "$digest" ] || { status failed "$image $TARGET has no registry digest."; return 1; }
+        if ! "$COSIGN" verify --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER" \
+                "$digest" >/dev/null 2>&1; then
+            status failed "$image $TARGET is not signed by the RouterFleet Improved release workflow. Nothing was changed."
+            return 1
+        fi
+        label=$(docker image inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$ref")
+        [ "$label" = "$TARGET" ] || { status failed "$image says it is $label, not $TARGET. Nothing was changed."; return 1; }
+        # What runs now, kept to go back to
+        previous=$(docker image inspect -f '{{ .Id }}' "$REGISTRY/$image:latest" 2>/dev/null || true)
+        [ -n "$previous" ] && docker tag "$previous" "$REGISTRY/$image:rf-rollback"
+    done
+}
+
+backup_database() {
+    mkdir -p "$PRIVATE_DIR/backup"
+    rm -f "$PRIVATE_DIR/backup/"*.new
+    if docker inspect "$DB" >/dev/null 2>&1; then
+        docker exec "$DB" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' > "$PRIVATE_DIR/backup/database.dump.new" \
+            || { status failed 'The database backup failed. Nothing was changed.'; return 1; }
+        [ -s "$PRIVATE_DIR/backup/database.dump.new" ] || { status failed 'The database backup is empty. Nothing was changed.'; return 1; }
+        mv -f "$PRIVATE_DIR/backup/database.dump.new" "$PRIVATE_DIR/backup/database.dump"
+        rm -f "$PRIVATE_DIR/backup/database.sqlite3"
+    else
+        docker exec "$APP" python -c "import sqlite3; s = sqlite3.connect('/var/lib/routerfleet_sqlite/routerfleet-db.sqlite3'); d = sqlite3.connect('/var/lib/routerfleet_sqlite/pre-update.sqlite3'); s.backup(d); d.close()" \
+            || { status failed 'The database backup failed. Nothing was changed.'; return 1; }
+        : > "$PRIVATE_DIR/backup/database.sqlite3"   # marks which kind was taken
+        rm -f "$PRIVATE_DIR/backup/database.dump"
+    fi
+}
+
+restore_database() {
+    if [ -s "$PRIVATE_DIR/backup/database.dump" ]; then
+        docker exec -i "$DB" sh -c 'pg_restore --clean --if-exists --single-transaction -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+            < "$PRIVATE_DIR/backup/database.dump"
+    elif [ -e "$PRIVATE_DIR/backup/database.sqlite3" ]; then
+        docker run --rm --volumes-from "$APP" --entrypoint cp "$REGISTRY/routerfleet:rf-rollback" \
+            /var/lib/routerfleet_sqlite/pre-update.sqlite3 /var/lib/routerfleet_sqlite/routerfleet-db.sqlite3
+    fi
+}
+
+services_but_scheduler() {
+    compose config --services | grep -vx "$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.service" }}' "$SELF")"
+}
+
+wait_healthy() {
+    waited=0
+    while [ "$waited" -lt "$HEALTHY_WITHIN" ]; do
+        health=$(docker inspect -f '{{ if .State.Health }}{{ .State.Health.Status }}{{ else }}none{{ end }}' "$APP" 2>/dev/null || echo missing)
+        running=$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$APP" 2>/dev/null || true)
+        if [ "$health" = healthy ] && [ "$running" = "$TARGET" ]; then return 0; fi
+        sleep 10; waited=$((waited + 10))
+    done
+    return 1
+}
+
+rollback() {
+    status rolling_back "$1 Putting the previous version back."
+    compose stop "$APP" >/dev/null 2>&1 || true
+    for image in $IMAGES; do
+        docker image inspect "$REGISTRY/$image:rf-rollback" >/dev/null 2>&1 && \
+            docker tag "$REGISTRY/$image:rf-rollback" "$REGISTRY/$image:latest"
+    done
+    if docker inspect "$DB" >/dev/null 2>&1; then
+        compose up -d --no-build --pull never "$DB" >/dev/null 2>&1 || true
+        sleep 15
+    fi
+    if restore_database; then restored='the database as it was before'; else restored='the previous images (the database could not be restored: see the scheduler log)'; fi
+    # shellcheck disable=SC2046
+    compose up -d --no-build --pull never $(services_but_scheduler) >/dev/null 2>&1 || true
+    status rolled_back "$1 RouterFleet is back on $CURRENT, with $restored."
+}
+
+run_update() {
+    CURRENT=$(docker inspect -f '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$APP" 2>/dev/null || true)
+    printf '%s' "$CURRENT" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$' || { status failed 'The running version could not be read.'; return 1; }
+    if [ "$(number "$TARGET")" -le "$(number "$CURRENT")" ]; then
+        status refused "$TARGET is not newer than the running $CURRENT."; return 1
+    fi
+    IMAGES=$(images_of_project)
+    printf '%s\n' "$IMAGES" | grep -qx routerfleet || { status failed 'The RouterFleet containers were not found.'; return 1; }
+    log "update $CURRENT -> $TARGET approved by $APPROVER"
+    status verifying "Downloading $TARGET and checking its signatures."
+    verify_and_stage || return 1
+    status backing_up 'Backing up the database.'
+    backup_database || return 1
+    status restarting "Starting $TARGET."
+    for image in $IMAGES; do docker tag "$REGISTRY/$image:$TARGET" "$REGISTRY/$image:latest"; done
+    # shellcheck disable=SC2046
+    if ! compose up -d --no-build --pull never $(services_but_scheduler) >/dev/null 2>&1; then
+        rollback 'The containers could not be started.'; return 1
+    fi
+    status checking "Waiting for $TARGET to be ready (database migrations can take a few minutes)."
+    if ! wait_healthy; then
+        rollback "$TARGET did not become ready within $((HEALTHY_WITHIN / 60)) minutes."; return 1
+    fi
+    status done "RouterFleet is on $TARGET. The scheduler restarts in a moment."
+    # The scheduler last, from outside itself
+    docker rm -f routerfleet-update-helper >/dev/null 2>&1 || true
+    docker run -d --rm --name routerfleet-update-helper --volumes-from "$SELF" \
+        -e RF_REQUEST_ID="$REQUEST_ID" -e RF_TARGET="$TARGET" \
+        --entrypoint /usr/local/bin/rf-update "$REGISTRY/routerfleet-cron:latest" finish >/dev/null 2>&1 || true
+    for image in $IMAGES; do docker rmi "$REGISTRY/$image:rf-rollback" >/dev/null 2>&1 || true; done
+}
+
+case "${1:-}" in
+    run)
+        [ -d "$UPDATE_DIR" ] || exit 0          # not set up: nothing to do
+        exec 9> "$UPDATE_DIR/.lock"
+        flock -n 9 || exit 0                    # an update is under way
+        heartbeat || { [ -e "$UPDATE_DIR/request.json" ] && take_request && status failed "The updater can not work: $REASON."; exit 0; }
+        take_request || exit 0
+        run_update || true
+        heartbeat || true
+        ;;
+    finish)
+        sleep 3
+        REQUEST_ID=${RF_REQUEST_ID:-}; TARGET=${RF_TARGET:-}
+        discover
+        service=$(docker inspect -f '{{ index .Config.Labels "com.docker.compose.service" }}' "$SELF")
+        compose up -d --no-build --pull never --no-deps "$service" >/dev/null 2>&1 || true
+        ;;
+    *)
+        echo 'usage: rf-update run|finish' >&2; exit 2
+        ;;
+esac

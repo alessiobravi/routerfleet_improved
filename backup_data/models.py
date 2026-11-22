@@ -98,7 +98,7 @@ class RouterBackup(models.Model):
         kept in full. Returns whether the content was dropped."""
         from backup.models import BackupProfile
         profile = self.router.backup_profile or BackupProfile.objects.filter(name='default').first()
-        if self.schedule_type == 'instant' or profile is None or profile.keep_unchanged \
+        if self.schedule_type == 'instant' or self.router.keeps_unchanged(profile) \
                 or not self.backup_text_hash or self.same_as_id:
             return False
         stored = self.last_stored()

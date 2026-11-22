@@ -38,6 +38,23 @@ class Base(TestCase):
 
 
 class CleanupTests(Base):
+    def test_a_device_can_decide_otherwise_than_its_profile(self):
+        # b's profile keeps every backup; b itself says: only changes
+        Router.objects.filter(pk=self.b.pk).update(keep_unchanged='changes')
+        self.b.refresh_from_db()
+        self.backup(self.b, 'X', days_ago=1)
+        self.backup(self.b, 'X')
+        self.assertEqual(backup_tools.audit().duplicates, 1)
+        later = self.backup(self.b, 'X', days_ago=-1)
+        self.assertTrue(later.drop_if_unchanged(), 'new unchanged backups are not stored again')
+        # a's profile keeps only changes; a itself says: keep everything
+        Router.objects.filter(pk=self.a.pk).update(keep_unchanged='keep')
+        self.a.refresh_from_db()
+        self.backup(self.a, 'Y', days_ago=1)
+        again = self.backup(self.a, 'Y')
+        self.assertFalse(again.drop_if_unchanged())
+        self.assertEqual(backup_tools.audit().held_back, 1)
+
     def test_duplicates_are_found_and_freed_as_unchanged_backups(self):
         first = self.backup(self.a, 'A', days_ago=3)
         dup1 = self.backup(self.a, 'A', days_ago=2)
@@ -61,6 +78,15 @@ class CleanupTests(Base):
         self.backup(self.b, 'X', days_ago=1)
         dup = self.backup(self.b, 'X')
         self.assertEqual(backup_tools.audit().duplicates, 0)
+        # ... but not hidden: the page says why nothing is cleaned
+        self.assertEqual(backup_tools.audit().held_back, 1)
+        self.client.force_login(make_user(50))
+        page = self.client.get('/tools/backup_cleanup/')
+        self.assertContains(page, '1 duplicate')
+        self.assertContains(page, 'left alone')
+        self.assertNotContains(page, 'Nothing to clean: no duplicates')
+        # Which profile decides, linked, so a change to the wrong one is visible
+        self.assertContains(page, f'/backup/manage_profile/?uuid={self.every.uuid}')
         self.assertEqual(backup_tools.audit(include_every_profile=True).duplicates, 1)
         backup_tools.clean()
         dup.refresh_from_db()

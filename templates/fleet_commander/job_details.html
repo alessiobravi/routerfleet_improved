@@ -65,7 +65,7 @@
     // Stopping a job cannot interrupt an SSH command that is already running on
     // the router, it takes effect before the next command or verification
     function abortPrompt() {
-        return prompt("Please type 'abort' to proceed.");
+        return rfConfirm("Abort this job? A command already running on a device finishes; nothing after it runs.", 'abort');
     }
 
     function abortJob(uuid) {

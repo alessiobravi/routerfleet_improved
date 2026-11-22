@@ -51,13 +51,41 @@ class BackupProfileForm(forms.ModelForm):
         self.fields['weekly_retention'].label = 'Retention (days)'
         self.fields['monthly_retention'].label = 'Retention (days)'
         self.fields['instant_retention'].label = 'Instant Retention (days)'
-        self.fields['parameter_sensitive'].label = 'sensitive'
-        self.fields['parameter_terse'].label = 'terse'
+        self.fields['parameter_sensitive'].label = 'Include passwords and keys'
+        self.fields['parameter_sensitive'].help_text = (
+            'RouterOS <code>/export show-sensitive</code>: the export also contains passwords, pre-shared keys and '
+            'private keys, so a restore brings them back. Off: they are left out (RouterOS 7 hides them by default), '
+            'and the backup is safer to look at and share.')
+        self.fields['parameter_terse'].label = 'One line per item'
+        self.fields['parameter_terse'].help_text = (
+            'RouterOS <code>/export terse</code>: every item on a single line, without the line breaks RouterOS '
+            'adds to long entries. Easier to compare between backups and to search; the configuration is the same.')
+        self.fields['daily_backup'].help_text = 'Back up on the days and at the hour chosen below; keep each for its retention.'
+        self.fields['weekly_backup'].help_text = 'One backup a week, kept longer: a second line of history.'
+        self.fields['monthly_backup'].help_text = 'One backup a month, kept longest: the long-term archive.'
+        for kind in ('daily', 'weekly', 'monthly'):
+            self.fields[f'{kind}_retention'].help_text = (
+                f'How many days a {kind} backup is kept before it is deleted automatically.')
+        self.fields['instant_retention'].help_text = 'How many days a backup made with Backup now is kept.'
+        self.fields['retain_backups_on_error'].label = 'Keep old backups while backups are failing'
+        self.fields['retain_backups_on_error'].help_text = (
+            'While a device\'s latest backup has failed, none of its backups are deleted for being older than their '
+            'retention - so a device that is offline or unreachable for weeks does not lose its history. Deleting '
+            'resumes after the next successful backup. Off: retention applies regardless (its newest stored '
+            'configuration is kept in any case).')
+        self.fields['keep_unchanged'].help_text = (
+            'Store every scheduled backup in full, also when the configuration did not change. Off: an unchanged '
+            'backup is recorded, but its content is not stored again. A device can decide otherwise in its own '
+            'settings (Unchanged backups).')
         if self.instance.pk and self.instance.name == 'default':
             self.fields['name'].widget.attrs['readonly'] = True
 
         self.helper.layout = Layout(
             Div(Div('name', css_class='col-md-12'), css_class='row'),
+            Div(Div(HTML('<h5 class="mt-2 mb-1">Which backups to make</h5><p class="small text-muted mb-2">Each kind '
+                         'runs on its own schedule and is kept for its own number of days (its retention, set below '
+                         'once switched on). Together they give recent backups for every day and older ones '
+                         'further apart.</p>'), css_class='col-md-12'), css_class='row'),
             Div(
                 Div('daily_backup', css_class='col-md-4'),
                 Div('weekly_backup', css_class='col-md-4'),
@@ -97,7 +125,7 @@ class BackupProfileForm(forms.ModelForm):
             ),
 
             Div(
-                Div(HTML('<hr><h4>Parameters</h4>'), css_class='col-md-12'),
+                Div(HTML('<hr><h4>Export options</h4><p class="small text-muted">How the configuration is exported from RouterOS devices.</p>'), css_class='col-md-12'),
                 Div('parameter_sensitive', css_class='col-md-6'),
                 Div('parameter_terse', css_class='col-md-6'),
                 css_id='misc_settings', css_class='row'

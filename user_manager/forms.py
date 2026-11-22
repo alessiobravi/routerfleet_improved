@@ -37,15 +37,23 @@ class UserAclForm(UserCreationForm):
         return username
 
     def save(self, commit=True):
-        user = super().save(commit=False)
+        # The plain model form, not UserCreationForm.save(): that one sets the
+        # password from password1 even when it is empty, which would leave an
+        # edited user with an unusable password
+        user = forms.ModelForm.save(self, commit=False)
         new_password = self.cleaned_data.get("password1")
-
         if new_password:
             user.set_password(new_password)
-            user.save()
-        else:
-            if not user.id:
-                user.save()
+        # Always saved: an edit that changes only the email (or nothing but the
+        # level) used to be dropped without a word
+        user.save()
+
+        # The user's own email channel follows the address
+        from message_center import email as email_notifications
+        channel = email_notifications.personal_channel(user)
+        if channel is not None:
+            events = {field for field, _, _ in email_notifications.PERSONAL_EVENTS if getattr(channel, field)}
+            email_notifications.save_personal_channel(user, user.email, events)
 
         if commit:
             user_acl, created = UserAcl.objects.update_or_create(

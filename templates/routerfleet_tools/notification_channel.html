@@ -145,7 +145,7 @@
         show();
     })();
     function deleteChannel() {
-        var confirmation = prompt("Type 'delete' to delete this channel.");
+        var confirmation = rfConfirm("Delete this channel permanently? Its message history is kept.", 'delete');
         if (confirmation) { postAction(window.location.pathname + window.location.search, {action: 'delete', confirmation: confirmation}); }
     }
 </script>

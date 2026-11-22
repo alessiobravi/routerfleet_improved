@@ -92,6 +92,9 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # The volume nginx and the application share for certificates (System settings)
 HTTPS_CERT_DIR = '/certificate'
+# Shared with the scheduler's updater (System settings, Updates); see
+# routerfleet_tools/updates.py and containers/cron/rf-update
+UPDATE_DIR = '/update'
 
 ROOT_URLCONF = 'routerfleet.urls'
 # The console's WebSocket is served by uvicorn (port 8002, routerfleet/asgi.py);
@@ -184,7 +187,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.20.0'
+ROUTERFLEET_RELEASE = '0.21.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

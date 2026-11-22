@@ -45,6 +45,7 @@ class RouterReport:
     duplicates: list = field(default_factory=list)   # [(backup, stored backup it repeats)]
     duplicate_bytes: int = 0
     keeps_every_backup: bool = False
+    profile: object = None             # the backup profile the decision came from
 
 
 @dataclass
@@ -76,6 +77,16 @@ class Report:
         return sum(1 for _, target in self.broken_links if target)
 
     @property
+    def held_back(self):
+        """Duplicates left alone because their device's profile keeps every
+        backup - shown, so an empty clean-up is not mistaken for no duplicates."""
+        return sum(len(r.duplicates) for r in self.routers if not self.applies_to(r))
+
+    @property
+    def held_back_bytes(self):
+        return sum(r.duplicate_bytes for r in self.routers if not self.applies_to(r))
+
+    @property
     def nothing_to_do(self):
         return not (self.duplicates or self.orphan_files or self.missing_files or self.relinkable)
 
@@ -97,7 +108,7 @@ def audit(include_every_profile=False):
 
     for router in Router.objects.select_related('backup_profile').order_by('name'):
         profile = _profile_of(router, default)
-        entry = RouterReport(router=router, keeps_every_backup=bool(profile and profile.keep_unchanged))
+        entry = RouterReport(router=router, keeps_every_backup=router.keeps_unchanged(profile), profile=profile)
         last_stored = None
         backups = RouterBackup.objects.filter(router=router, success=True).exclude(backup_text_hash='') \
             .order_by('created', 'id')

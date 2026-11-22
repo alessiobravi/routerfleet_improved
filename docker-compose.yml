@@ -44,6 +44,8 @@ services:
       - app_secrets:/app_secrets/
       # Shared with nginx: HTTPS in System settings writes the mode and certificates here
       - https_cert:/certificate
+      # Update requests to the scheduler's updater (System settings)
+      - update_requests:/update
     command: /bin/bash /app/init.sh
     healthcheck:
       # gunicorn answering a real page - migrations done, workers up
@@ -63,6 +65,16 @@ services:
     image: ghcr.io/alessiobravi/routerfleet-cron:latest
     environment:
       - TZ=${TIMEZONE}
+    # Updates approved in System settings (docs/updating.md). Only the
+    # scheduler's updater has Docker access - the application has none; it
+    # asks through the update_requests volume, and only signed releases of
+    # RouterFleet Improved are installed. Remove these four lines to update by
+    # command only.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/compose:ro
+      - update_requests:/update
+      - update_private:/update-private
     depends_on:
       routerfleet:
         condition: service_healthy
@@ -112,3 +124,5 @@ volumes:
   postgres_data:
   sqlite_volume:
   app_secrets:
+  update_requests:
+  update_private:

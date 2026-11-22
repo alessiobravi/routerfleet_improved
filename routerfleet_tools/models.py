@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 import uuid
 
@@ -86,3 +87,37 @@ class DisplaySettings(models.Model):
     def load(cls):
         settings_row, _ = cls.objects.get_or_create(name='display_settings')
         return settings_row
+
+
+class UpdateRun(models.Model):
+    """An update approved in System settings, and how it went.
+
+    The scheduler's updater does the work (containers/cron/rf-update); this
+    records who approved what, for the change log and the Updates page."""
+    STATES = [('requested', 'Requested'), ('verifying', 'Checking signatures'), ('backing_up', 'Backing up'),
+              ('restarting', 'Restarting'), ('checking', 'Waiting until ready'), ('done', 'Done'),
+              ('failed', 'Failed'), ('refused', 'Refused'), ('rolling_back', 'Rolling back'),
+              ('rolled_back', 'Rolled back')]
+    ACTIVE = ('requested', 'verifying', 'backing_up', 'restarting', 'checking', 'rolling_back')
+
+    request_id = models.CharField(max_length=32, unique=True)
+    from_version = models.CharField(max_length=16)
+    to_version = models.CharField(max_length=16)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    approved_by_name = models.CharField(max_length=150)
+    state = models.CharField(max_length=16, choices=STATES, default='requested')
+    message = models.CharField(max_length=500, blank=True)
+
+    updated = models.DateTimeField(auto_now=True)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    class Meta:
+        ordering = ['-created']
+
+    def __str__(self):
+        return f'{self.from_version} to {self.to_version}'
+
+    @property
+    def active(self):
+        return self.state in self.ACTIVE
