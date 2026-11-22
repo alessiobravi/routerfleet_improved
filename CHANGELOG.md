@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.20.0] - 2026-11-22
+
+### Added
+- **System settings in sections**: Messaging, Display, Backups and jobs,
+  Security - each setting of the installation in one place.
+- **Default rows per table** (Display): 10, 25, 50 or 100 - what every list
+  opens with, for everyone. Upgraded installations keep 10, as before; each
+  list still offers the other sizes.
+
+### Fixed
+- The change log now records a channel's ntfy server, priority and the
+  newer events (backup succeeded, Fleet Commander job with failures) when
+  they change.
+
 ## [0.19.0] - 2026-11-22
 
 ### Added

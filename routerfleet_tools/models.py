@@ -61,3 +61,28 @@ class HttpsSettings(models.Model):
     def load(cls):
         settings_row, _ = cls.objects.get_or_create(name='https_settings')
         return settings_row
+
+
+class DisplaySettings(models.Model):
+    """How pages look for everyone, chosen in System settings, Display.
+
+    The default page size is what every table opens with; each table still
+    offers the others. 10 - what tables always showed - is what an upgraded
+    installation keeps."""
+    PAGE_SIZES = (10, 25, 50, 100)
+
+    name = models.CharField(default='display_settings', max_length=20, unique=True)
+    default_page_size = models.PositiveSmallIntegerField(
+        default=10, choices=[(n, f'{n} rows') for n in PAGE_SIZES], verbose_name='Default rows per table')
+
+    updated = models.DateTimeField(auto_now=True)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def load(cls):
+        settings_row, _ = cls.objects.get_or_create(name='display_settings')
+        return settings_row

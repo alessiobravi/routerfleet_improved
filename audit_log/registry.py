@@ -328,10 +328,12 @@ def build():
                   'custom_not_after'],
           create=True)
 
+    watch(apps.get_model('routerfleet_tools', 'DisplaySettings'), fields=['default_page_size'], create=True)
+
     watch(apps.get_model('message_center', 'MessageChannel'),
-          fields=['name', 'enabled', 'channel_type', 'destination', 'token',
-                  'status_change_offline', 'status_change_online', 'backup_fail',
-                  'daily_status_report', 'daily_backup_report'],
+          fields=['name', 'enabled', 'channel_type', 'destination', 'server_url', 'priority', 'token',
+                  'status_change_offline', 'status_change_online', 'backup_fail', 'backup_success',
+                  'daily_status_report', 'daily_backup_report', 'command_failed'],
           create=True, redact=('token',))
     watch(apps.get_model('message_center', 'MessageSettings'),
           fields=editable(apps.get_model('message_center', 'MessageSettings'),

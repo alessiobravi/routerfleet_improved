@@ -57,6 +57,21 @@ collector:
 The retention sweep writes **one** audit entry naming how many rows it removed,
 and a pass that removes nothing writes nothing.
 
+## System settings
+
+*System settings* (Configuration Manager and above) gathers what belongs to the
+whole installation, in sections:
+
+| Section | What |
+|---|---|
+| Messaging | notification channels, the mail server (administrators), grouping and daily reports |
+| Display | default rows per table: what every list opens with, for everyone (10 until changed) |
+| Backups and jobs | backup profiles, Fleet Commander schedule defaults |
+| Security | HTTPS (administrators) |
+
+What each person chooses for themselves - light or dark mode, their own email
+notifications, sign-in security - is in *My Settings*.
+
 ## Reading the status page
 
 The status page is the home page and the fastest health check. Two charts on

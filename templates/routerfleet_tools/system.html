@@ -2,9 +2,63 @@
 
 {% block content %}
 <div class="rf-settings">
-    <div class="rf-set-title">System</div>
+    <div class="rf-set-title">Messaging</div>
     <div class="rf-set-group">
+        <a class="rf-set-row" href="/system/notifications/">
+            <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Notification channels</span>
+                <span class="rf-set-sub d-block">Email, ntfy and Telegram: where alerts and reports go, and which ones</span></span>
+            <span class="rf-set-value">{{ channels }} on</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
         {% if is_administrator %}
+        <a class="rf-set-row" href="/system/notifications/email/">
+            <span class="rf-set-icon {% if smtp.ready %}teal{% else %}grey{% endif %}"><i class="fas fa-envelope"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Mail server (SMTP)</span>
+                <span class="rf-set-sub d-block">{% if smtp.ready %}{{ smtp.host }}:{{ smtp.port }}{% else %}Not set up: email is not sent{% endif %}</span></span>
+            <span class="rf-set-pill {% if smtp.ready %}on{% endif %}">{% if smtp.ready %}On{% else %}Off{% endif %}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
+        <a class="rf-set-row" href="/message_center/manage_settings/">
+            <span class="rf-set-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Grouping and daily reports</span>
+                <span class="rf-set-sub d-block">How long events are collected into one message; when the daily reports go out</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+
+    <div class="rf-set-title">Display</div>
+    <div class="rf-set-group">
+        <a class="rf-set-row" href="/system/display/">
+            <span class="rf-set-icon blue"><i class="fas fa-table"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Default rows per table</span>
+                <span class="rf-set-sub d-block">How many rows every list opens with, for everyone</span></span>
+            <span class="rf-set-value">{{ display.default_page_size }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+    <div class="rf-set-foot">Light or dark mode is each person's choice, in My Settings.</div>
+
+    <div class="rf-set-title">Backups and jobs</div>
+    <div class="rf-set-group">
+        <a class="rf-set-row" href="/backup/profile_list/">
+            <span class="rf-set-icon teal"><i class="fas fa-archive"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Backup profiles</span>
+                <span class="rf-set-sub d-block">When devices are backed up and how long backups are kept</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="rf-set-row" href="/fleet_commander/schedule/defaults/">
+            <span class="rf-set-icon purple"><i class="fas fa-clock"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Schedule defaults</span>
+                <span class="rf-set-sub d-block">The values a new Fleet Commander schedule starts with</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+    </div>
+
+    {% if is_administrator %}
+    <div class="rf-set-title">Security</div>
+    <div class="rf-set-group">
         <a class="rf-set-row" href="/system/https/">
             <span class="rf-set-icon teal"><i class="fas fa-lock"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">HTTPS</span>
@@ -12,15 +66,9 @@
             <span class="rf-set-value">{{ https.get_mode_display|truncatechars:28 }}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
-        {% endif %}
-        <a class="rf-set-row" href="/system/notifications/">
-            <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Notifications</span>
-                <span class="rf-set-sub d-block">Email, ntfy and Telegram channels; the mail server; grouping and daily reports</span></span>
-            <span class="rf-set-value">{{ channels }} channel{{ channels|pluralize }}</span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
     </div>
-    {% if not is_administrator %}<div class="rf-set-foot">HTTPS and the mail server are for administrators.</div>{% endif %}
+    {% else %}
+    <div class="rf-set-foot">HTTPS and the mail server are for administrators.</div>
+    {% endif %}
 </div>
 {% endblock %}

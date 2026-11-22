@@ -86,6 +86,7 @@ class Fixture(TestCase):
             ('/system/notifications/email/', 50, 'page'),
             ('/system/', 40, 'page'),
             ('/system/notifications/', 40, 'page'),
+            ('/system/display/', 40, 'page'),
             ('/system/notifications/channel/', 40, 'page'),
             ('/tools/', 50, 'page'),
             ('/system/https/', 50, 'page'),

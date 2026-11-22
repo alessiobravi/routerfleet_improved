@@ -497,6 +497,8 @@
         if (!tables.length) { return; }
         dataTable = tables.DataTable({
             "paging": true,
+            "pageLength": {{ rf_page_size|default:10 }},
+            "lengthMenu": [10, 25, 50, 100],
             "lengthChange": true,
             "searching": true,
             "ordering": true,

@@ -27,11 +27,32 @@ def view_system(request):
     user_level = level(request.user)
     if user_level < CONFIGURATION_MANAGER:
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    from .models import HttpsSettings
+    from .models import HttpsSettings, DisplaySettings
     return render(request, 'routerfleet_tools/system.html', {
         'page_title': 'System settings', 'is_administrator': user_level >= ADMINISTRATOR,
-        'https': HttpsSettings.load(), 'smtp': SmtpSettings.load(),
+        'https': HttpsSettings.load(), 'smtp': SmtpSettings.load(), 'display': DisplaySettings.load(),
         'channels': MessageChannel.objects.filter(user__isnull=True, enabled=True).count()})
+
+
+@login_required
+def view_display(request):
+    if level(request.user) < CONFIGURATION_MANAGER:
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    from .models import DisplaySettings
+    display = DisplaySettings.load()
+    if request.method == 'POST':
+        try:
+            size = int(request.POST.get('default_page_size', ''))
+        except ValueError:
+            size = None
+        if size in DisplaySettings.PAGE_SIZES:
+            display.default_page_size = size
+            display.save()
+            messages.success(request, f'Tables now open with {size} rows')
+            return redirect('/system/display/')
+        messages.error(request, 'Choose one of the sizes offered')
+    return render(request, 'routerfleet_tools/display.html', {
+        'page_title': 'Display', 'display': display, 'sizes': DisplaySettings.PAGE_SIZES})
 
 
 def summary(channel):

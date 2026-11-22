@@ -283,3 +283,35 @@ class SystemSettingsTests(TestCase):
         for value in ('email', 'ntfy', 'telegram'):
             self.assertIn(f'name="channel_type" value="{value}"', page)
         self.assertNotIn('value="callmebot"', page)
+
+
+class DisplaySettingsTests(TestCase):
+    """System Settings, Display: the rows every table opens with."""
+
+    def setUp(self):
+        self.client.force_login(make_user(40))
+
+    def test_tables_open_with_ten_rows_until_changed(self):
+        self.assertContains(self.client.get('/system/'), 'Default rows per table')
+        self.assertContains(self.client.get('/router/list/'), '"pageLength": 10,')
+
+    def test_changing_it_reaches_every_table(self):
+        from routerfleet_tools.models import DisplaySettings
+        response = self.client.post('/system/display/', {'default_page_size': '50'})
+        self.assertRedirects(response, '/system/display/', fetch_redirect_response=False)
+        self.assertEqual(DisplaySettings.load().default_page_size, 50)
+        self.assertContains(self.client.get('/router/list/'), '"pageLength": 50,')
+
+    def test_only_offered_sizes(self):
+        from routerfleet_tools.models import DisplaySettings
+        for value in ('7', '1000000', 'abc', '10;alert(1)'):
+            self.client.post('/system/display/', {'default_page_size': value})
+        self.assertEqual(DisplaySettings.load().default_page_size, 10)
+
+    def test_hub_sections(self):
+        page = self.client.get('/system/').content.decode()
+        for section in ('Messaging', 'Display', 'Backups and jobs'):
+            self.assertIn(f'<div class="rf-set-title">{section}</div>', page)
+        self.assertNotIn('<div class="rf-set-title">Security</div>', page, 'HTTPS is for administrators')
+        self.client.force_login(make_user(30))
+        self.assertContains(self.client.get('/system/display/'), 'Access Denied')

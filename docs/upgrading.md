@@ -53,8 +53,8 @@ migrations carry it forward — there is no export or re-import step.
 | Your current installation | Path | What happens |
 |---|---|---|
 | **RouterFleet Improved** (this project) | In place | Only new migrations apply |
-| **RouterFleet Extended** | In place | 20 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), add the ntfy server and priority to channels, switch off CallMeBot channels (no longer supported; kept with their history), record when each device was last enabled or disabled (filled in from the change log), and remove the WireGuard WebAdmin integration |
-| **RouterFleet** (the original project) | In place | 33 additional migrations apply; the ones that touch data are described below |
+| **RouterFleet Extended** | In place | 21 migrations apply: three encrypt the SSH keys and tokens it stored as text; the others add the table of device host keys, the tables of second factors, the setting and link for keeping only changed backups, widen the schedule defaults column, add the system commands (two: the tag, then the commands), add the table of HTTPS settings, add the console's sessions table and the devices' Telnet switch and port, correct the spelling of the Configuration Manager level, add email notifications (the mail server settings and email channels, with two new events off for existing channels), add the ntfy server and priority to channels, switch off CallMeBot channels (no longer supported; kept with their history), record when each device was last enabled or disabled (filled in from the change log), add the display settings (tables keep opening with 10 rows), and remove the WireGuard WebAdmin integration |
+| **RouterFleet** (the original project) | In place | 34 additional migrations apply; the ones that touch data are described below |
 
 This holds because the migration history is a strict superset: all 67 of the
 original project's migrations and all 80 of RouterFleet Extended's are present
@@ -63,7 +63,7 @@ what makes the upgrade a no-drama `migrate`. The test suite holds a fingerprint 
 released migration and fails if one is ever edited, renamed or removed; it also
 checks the counts in this table against the real migration plan.
 
-### What the 33 migrations do when coming from the original
+### What the 34 migrations do when coming from the original
 
 ```mermaid
 flowchart TD

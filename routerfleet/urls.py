@@ -29,7 +29,7 @@ from routerfleet_tools.tool_views import view_tools, view_backup_cleanup, view_b
 from routerfleet_tools.https_views import view_https
 from console.views import view_console
 from message_center.email_views import view_email_settings
-from routerfleet_tools.system_views import view_system, view_notifications, view_notification_channel
+from routerfleet_tools.system_views import view_system, view_notifications, view_notification_channel, view_display
 from django.views.generic import RedirectView
 from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
 
@@ -65,6 +65,7 @@ urlpatterns = [
     path('router/console/', view_console, name='router_console'),
     path('system/', view_system, name='system'),
     path('system/notifications/', view_notifications, name='system_notifications'),
+    path('system/display/', view_display, name='system_display'),
     path('system/notifications/channel/', view_notification_channel, name='system_notification_channel'),
     path('system/notifications/email/', view_email_settings, name='email_settings'),
     # The pages notifications had before System Settings; bookmarks still arrive
