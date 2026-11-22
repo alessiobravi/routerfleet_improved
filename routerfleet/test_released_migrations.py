@@ -1,6 +1,5 @@
-"""The upgrade rule, enforced: databases of the original RouterFleet, of
-RouterFleet Extended and of every RouterFleet Improved release keep upgrading
-in place. That holds only while every released migration stays exactly as it
+"""The upgrade rule, enforced: databases of the earlier projects named in
+docs/upgrading.md, and of every release of this one, keep upgrading in place. That holds only while every released migration stays exactly as it
 was - added to, never edited, renamed, squashed or deleted.
 
 RELEASED pins every migration released up to 0.15.1, the predecessors' among
@@ -142,7 +141,9 @@ class UpgradeGuideTests(SimpleTestCase):
 
     def test_the_counts_in_the_guide(self):
         guide = (ROOT / 'docs' / 'upgrading.md').read_text()
-        extended = int(re.search(r'\*\*RouterFleet Extended\*\* \| In place \| (\d+) migrations apply', guide).group(1))
+        # The later predecessor's row says "N migrations apply", the original's
+        # "N additional migrations apply"
+        extended = int(re.search(r'\| In place \| (\d+) migrations apply', guide).group(1))
         original = int(re.search(r'\| In place \| (\d+) additional migrations apply', guide).group(1))
         self.assertEqual(extended, self.to_apply(test_upgrade.LATER_PREDECESSOR_STATE))
         self.assertEqual(original, self.to_apply(test_upgrade.ORIGINAL_STATE))
