@@ -32,8 +32,22 @@ lines, Cisco's `! Last configuration change` - are dropped before storing, so a
 timestamp does not register as a configuration change.
 
 Two export options are profile settings, for device types that have them:
-*Include passwords and keys* (RouterOS `show-sensitive`) and *One line per
-item* (`terse`).
+*Include passwords and keys* and *One line per item* (`terse`). The device type
+holds the words for them, and can hold other words for older OS versions,
+chosen from the version the device last reported. RouterOS needs that:
+
+| RouterOS | Passwords and keys included | Left out |
+|---|---|---|
+| 7 | `show-sensitive` | nothing (the default) |
+| 6 | nothing (the default) | `hide-sensitive` |
+
+A device whose version has not been read yet gets the RouterOS 7 words; if it
+is a RouterOS 6 device, that first backup fails and is retried once the version
+is known (*Update router information* reads it at once).
+
+A device that refuses a backup command - an unknown word, a syntax error -
+makes the backup fail with the device's message, and it is retried. What the
+device printed is never stored as a configuration.
 
 ## The backup list
 

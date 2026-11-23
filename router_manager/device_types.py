@@ -97,6 +97,8 @@ PRESETS = {
         'text_extension': 'rsc', 'binary_extension': '',
         'text_ignore_pattern': r'^\s*#',
         'option_sensitive': 'show-sensitive', 'option_terse': 'terse',
+        # RouterOS 6 exports passwords unless told hide-sensitive, and has no show-sensitive
+        'legacy_before_version': '7', 'legacy_option_hide_sensitive': 'hide-sensitive',
         'management_links': 'Winbox: winbox://{address}',
         'check_device': True,
         'firmware_upload_path': '/{{ firmware_name }}', 'firmware_verify': 'size',
@@ -191,7 +193,8 @@ FIELD_DEFAULTS = {
     'vendor': '', 'description': '', 'managed': True, 'position': 100, 'session_mode': 'exec', 'prompt_pattern': '',
     'session_setup': '', 'enable_command': '', 'management_links': '', 'test_pattern': '', 'inventory_fields': {}, 'inventory_repeat': '',
     'text_extension': 'txt', 'binary_extension': '', 'text_ignore_pattern': '', 'option_sensitive': '',
-    'option_terse': '', 'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
+    'option_terse': '', 'option_hide_sensitive': '', 'legacy_before_version': '', 'legacy_option_sensitive': '',
+    'legacy_option_hide_sensitive': '', 'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
     'vendor_keys': '', 'vendor_confirm_url': '', 'vendor_target': '', 'vendor_version_field': 'os_version',
     'firmware_upload_path': '', 'firmware_verify': 'none',
 }

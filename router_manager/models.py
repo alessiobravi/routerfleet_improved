@@ -41,6 +41,14 @@ class DeviceType(models.Model):
     text_ignore_pattern = models.CharField(max_length=300, blank=True)
     option_sensitive = models.CharField(max_length=100, blank=True)
     option_terse = models.CharField(max_length=100, blank=True)
+    # The word when passwords and keys are left out (a type that exports them
+    # unless told otherwise, such as RouterOS 6, needs one)
+    option_hide_sensitive = models.CharField(max_length=100, blank=True)
+    # Devices whose OS version is below this one use the legacy words instead
+    # (RouterOS 6: show-sensitive does not exist, hide-sensitive does)
+    legacy_before_version = models.CharField(max_length=20, blank=True)
+    legacy_option_sensitive = models.CharField(max_length=100, blank=True)
+    legacy_option_hide_sensitive = models.CharField(max_length=100, blank=True)
     # Which version the device could run
     check_device = models.BooleanField(default=False)
     check_vendor = models.BooleanField(default=False)

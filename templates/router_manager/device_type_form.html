@@ -104,10 +104,16 @@
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="text_extension">File extensions: text / binary</label>
                     <div class="d-flex"><input type="text" class="form-control me-2" id="text_extension" name="text_extension" maxlength="10" value="{{ device_type.text_extension|default:'txt' }}">
                     <input type="text" class="form-control" id="binary_extension" name="binary_extension" maxlength="10" value="{{ device_type.binary_extension }}" aria-label="Binary extension"></div></div></div>
-                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="option_sensitive">Export options the backup profile can switch on: passwords and keys / one line per item</label>
-                    <div class="d-flex"><input type="text" class="form-control me-2 rf-mono" id="option_sensitive" name="option_sensitive" value="{{ device_type.option_sensitive }}" placeholder="show-sensitive">
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="option_sensitive">Export options the backup profile chooses: passwords and keys included / left out / one line per item</label>
+                    <div class="d-flex"><input type="text" class="form-control me-2 rf-mono" id="option_sensitive" name="option_sensitive" value="{{ device_type.option_sensitive }}" placeholder="show-sensitive" aria-label="Passwords and keys included">
+                    <input type="text" class="form-control me-2 rf-mono" id="option_hide_sensitive" name="option_hide_sensitive" value="{{ device_type.option_hide_sensitive }}" placeholder="(nothing)" aria-label="Passwords and keys left out">
                     <input type="text" class="form-control rf-mono" id="option_terse" name="option_terse" value="{{ device_type.option_terse }}" placeholder="terse" aria-label="One line per item"></div>
-                    <small class="text-muted">Filled into {% templatetag openvariable %} export_parameters {% templatetag closevariable %}. Empty: the type has no such option.</small></div></div>
+                    <small class="text-muted">Filled into {% templatetag openvariable %} export_parameters {% templatetag closevariable %}. Empty: nothing is added.</small></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="legacy_before_version">Older versions: below version / passwords and keys included / left out</label>
+                    <div class="d-flex"><input type="text" class="form-control me-2 rf-mono rf-mw-6" id="legacy_before_version" name="legacy_before_version" value="{{ device_type.legacy_before_version }}" placeholder="7" aria-label="Below version">
+                    <input type="text" class="form-control me-2 rf-mono" id="legacy_option_sensitive" name="legacy_option_sensitive" value="{{ device_type.legacy_option_sensitive }}" placeholder="(nothing)" aria-label="Older versions: passwords and keys included">
+                    <input type="text" class="form-control rf-mono" id="legacy_option_hide_sensitive" name="legacy_option_hide_sensitive" value="{{ device_type.legacy_option_hide_sensitive }}" placeholder="hide-sensitive" aria-label="Older versions: passwords and keys left out"></div>
+                    <small class="text-muted">For a device whose OS version (as last read) is below this one - RouterOS 6 exports passwords unless told <code>hide-sensitive</code>, and has no <code>show-sensitive</code>. Empty version: every device uses the words above.</small></div></div>
             </div>
         </section>
 

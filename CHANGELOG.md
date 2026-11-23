@@ -13,6 +13,30 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.24.2] - 2026-11-23
+
+### Fixed
+- **RouterOS 6 backups failed** with *expected end of command (line 1 column
+  10)*: *Include passwords and keys* added `show-sensitive`, a RouterOS 7
+  word. Device types now hold the export words per OS version: RouterOS 7 is
+  sent `show-sensitive` as before; RouterOS 6 is sent nothing to include
+  passwords and keys, and `hide-sensitive` to leave them out.
+- **Security: RouterOS 6 backups contained passwords and keys** even with
+  *Include passwords and keys* off - RouterOS 6 exports them unless told
+  `hide-sensitive`, which it was not. Backups taken before this release keep
+  what they contain.
+- **A refused command was stored as the backup.** The device's exit code was
+  ignored, so its error message became the "configuration" of a successful
+  backup. A refused command now fails the backup with the device's message, and
+  it is retried. Backups already stored that way become failed ones on upgrade
+  (only texts that are a single RouterOS command error are touched).
+- **Device details say what a device did not report** instead of leaving the
+  row empty: RouterOS on x86 or CHR has no RouterBOARD, so no model version,
+  serial or firmware - the row now reads *not reported by the device*.
+- The label *Architecture* was misspelled on the device page.
+- RouterOS 6.49 (long-term, x86) is covered by the tests with real output:
+  versions are read and the update offered.
+
 ## [0.24.1] - 2026-11-23
 
 ### Fixed

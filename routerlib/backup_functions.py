@@ -1,4 +1,5 @@
 import datetime
+import re
 from django.utils import timezone
 from backup_data.models import RouterBackup
 import os
@@ -150,18 +151,41 @@ def handle_backup_failure(router_backup: RouterBackup, error_message):
     append_task_console_output(router_backup, f"Backup failed: {error_message}")
 
 
+def _version_key(version):
+    """(6, 49, 21) of '6.49.21 (long-term)'; () when there is no number."""
+    match = re.match(r'\s*(\d+(?:\.\d+)*)', version or '')
+    return tuple(int(part) for part in match.group(1).split('.')) if match else ()
+
+
+def export_words(device_type, os_version):
+    """(include passwords, leave them out) - the device type's words, or its
+    legacy ones for a device whose OS version is below legacy_before_version.
+    A device whose version is not known yet gets the current words."""
+    words = (device_type.option_sensitive, device_type.option_hide_sensitive)
+    limit = _version_key(device_type.legacy_before_version)
+    running = _version_key(os_version)
+    if limit and running and running < limit:
+        words = (device_type.legacy_option_sensitive, device_type.legacy_option_hide_sensitive)
+    return words
+
+
 def _backup_values(router_backup):
     """The placeholders the backup system commands may use. The export
-    options are the device type's words for them (RouterOS: show-sensitive,
-    terse), added when the backup profile switches them on."""
-    parameters = ''
-    profile = router_backup.router.backup_profile
-    device_type = router_backup.router.device_type
+    options are the device type's words for them (RouterOS 7: show-sensitive,
+    terse; RouterOS 6: hide-sensitive when passwords are left out), chosen by
+    the backup profile and the OS version the device last reported."""
+    words = []
+    router = router_backup.router
+    profile = router.backup_profile
+    device_type = router.device_type
     if profile and device_type:
-        if profile.parameter_sensitive and device_type.option_sensitive:
-            parameters += ' ' + device_type.option_sensitive
-        if profile.parameter_terse and device_type.option_terse:
-            parameters += ' ' + device_type.option_terse
+        from router_manager.models import RouterInformation
+        information = RouterInformation.objects.filter(router=router).only('os_version').first()
+        include, leave_out = export_words(device_type, information.os_version if information else '')
+        words.append(include if profile.parameter_sensitive else leave_out)
+        if profile.parameter_terse:
+            words.append(device_type.option_terse)
+    parameters = ' '.join(word for word in words if word)
     return {'backup_name': gen_backup_name(router_backup), 'export_parameters': parameters}
 
 
@@ -196,6 +220,12 @@ def execute_backup(router_backup: RouterBackup):
         extras = []
         for number, (name, command) in enumerate(texts):
             exit_code, stdout_text, stderr_text = run_ssh_command(session, command, router_backup, skip_stdout=True)
+            if exit_code:
+                # The device refused the command: what it printed is its
+                # error message, never a configuration to store
+                answer = (stderr_text or stdout_text or '').strip().splitlines()
+                return False, [], (f"Failed to execute backup: the device refused the text backup '{name}' "
+                                   f"(exit code {exit_code}): {answer[0][:200] if answer else 'no message'}")
             text = device_types.clean_text(device_type, stdout_text.replace('\r\n', '\n'))
             if not text.strip():
                 return False, [], f"Failed to execute backup: the text backup '{name}' is empty"
@@ -209,7 +239,11 @@ def execute_backup(router_backup: RouterBackup):
             router_backup.extra_texts = extras
             router_backup.save()
         for command in create:
-            run_ssh_command(session, command, router_backup)
+            exit_code, stdout_text, stderr_text = run_ssh_command(session, command, router_backup)
+            if exit_code:
+                answer = (stderr_text or stdout_text or '').strip().splitlines()
+                return False, [], (f"Failed to execute backup: the device refused \"{command[:80]}\" "
+                                   f"(exit code {exit_code}): {answer[0][:200] if answer else 'no message'}")
         return True, [], error_message
     except Exception as e:
         return False, [], f"Failed to execute backup: {str(e)}"

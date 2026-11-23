@@ -11,7 +11,7 @@ A device type says:
 | **Connection** | one SSH command per channel (RouterOS, OpenWrt, Linux) or an **interactive shell** with a prompt (Cisco, Juniper, Huawei); what is sent once after login (paging off); an optional enable step |
 | **Recognition** | the connection test commands and the pattern their output must match |
 | **Inventory** | the commands, and where each value - model, serial number, OS version, firmware, architecture, CPU, the version offered - is found |
-| **Backups** | named text backups from command output; optional files made on the device and downloaded by SCP; lines to ignore (timestamps); export options |
+| **Backups** | named text backups from command output; optional files made on the device and downloaded by SCP; lines to ignore (timestamps); export options, with other words for OS versions below a given one (RouterOS 6) |
 | **Update checks** | which of the device itself, the vendor's release list and the firmware repository say which version it could run |
 | **Firmware** | where a firmware file is uploaded, how the upload is verified, how it is installed |
 | **Links** | what the address in the device list opens besides SSH (Winbox for RouterOS) |

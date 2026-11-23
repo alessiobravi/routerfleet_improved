@@ -402,3 +402,38 @@ class UpdateMarkTests(TestCase):
         mark = page.index('rf-update-mark"')
         self.assertLess(page.rindex('behind', 0, mark), mark)
         self.assertIn('7.18 is available, the router runs 7.16', page)
+
+
+
+class ExportWordsByVersionTests(TestCase):
+    """RouterOS 6 and 7 name the passwords option the opposite way; the device
+    type holds both sets, the migration fills them in for an existing type."""
+
+    def test_the_migration_gives_an_unedited_routeros_type_its_routeros_6_words(self):
+        import importlib
+        from django.apps import apps
+        from router_manager.models import DeviceType
+        from router_manager import device_types
+        routeros = device_types.get('routeros')
+        DeviceType.objects.filter(pk=routeros.pk).update(legacy_before_version='', legacy_option_hide_sensitive='')
+        edited = DeviceType.objects.create(slug='routeros-edited', name='RouterOS (edited)', option_sensitive='my-word')
+        module = importlib.import_module('router_manager.migrations.0032_device_type_export_words_by_version')
+        module.routeros_6_words(apps, None)
+        routeros.refresh_from_db()
+        self.assertEqual((routeros.legacy_before_version, routeros.legacy_option_hide_sensitive), ('7', 'hide-sensitive'))
+        self.assertEqual(routeros.option_sensitive, 'show-sensitive', 'RouterOS 7 exports as before')
+        edited.refresh_from_db()
+        self.assertEqual(edited.legacy_before_version, '')
+
+    def test_the_form_accepts_words_and_versions_only(self):
+        from router_manager.device_type_views import read_form
+        from router_manager import device_types
+        routeros = device_types.get('routeros')
+        base = {'name': routeros.name, 'session_mode': 'exec', 'text_extension': 'rsc'}
+        problems, _ = read_form({**base, 'option_sensitive': 'show-sensitive', 'legacy_before_version': '7',
+                                 'legacy_option_hide_sensitive': 'hide-sensitive'}, routeros)
+        self.assertEqual(problems, [])
+        problems, _ = read_form({**base, 'legacy_option_hide_sensitive': 'hide-sensitive; /system reset'}, routeros)
+        self.assertTrue(any('Export options' in p for p in problems), problems)
+        problems, _ = read_form({**base, 'legacy_before_version': 'seven'}, routeros)
+        self.assertTrue(any('version number' in p for p in problems), problems)

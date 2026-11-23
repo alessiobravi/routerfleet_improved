@@ -248,6 +248,48 @@ class RouterOSInformationTests(TestCase):
         self.assertEqual(info.available_version, '')
         self.assertFalse(info.update_available)
 
+    # RouterOS 6.49 long-term on x86 (a PC or a VM, not a RouterBOARD): the
+    # output of a real device of that kind, names left out. x86 has no
+    # routerboard menu, so that line answers with an error.
+    ROUTEROS6_X86_RESOURCE = """
+                   uptime: 2w5d13h43m42s
+                  version: 6.49.21 (long-term)
+               build-time: Sep/03/2026 11:45:39
+              free-memory: 223.0MiB
+             total-memory: 256.0MiB
+                      cpu: Common
+                cpu-count: 1
+            cpu-frequency: 2699MHz
+                 cpu-load: 5%
+           free-hdd-space: 31.3GiB
+          total-hdd-space: 31.4GiB
+  write-sect-since-reboot: 28042
+         write-sect-total: 28042
+        architecture-name: x86
+               board-name: x86
+                 platform: MikroTik
+"""
+    ROUTEROS6_UPDATE = """            channel: stable
+  installed-version: 6.49.21
+     latest-version: 6.49.23
+             status: New version is available
+"""
+
+    def test_routeros6_on_x86(self, _sleep):
+        (ok, error), _ = self.run_with({
+            '/system resource print': self.ROUTEROS6_X86_RESOURCE,
+            '/system routerboard print': 'bad command name routerboard (line 1 column 9)\n',
+            '/system package update check-for-updates': self.ROUTEROS6_UPDATE + '\n',
+            '/system package update print': self.ROUTEROS6_UPDATE,
+        })
+        self.assertTrue(ok, error)
+        info = RouterInformation.objects.get(pk=self.info.pk)
+        self.assertEqual(info.os_version, '6.49.21 (long-term)')
+        self.assertEqual(info.model_name, 'x86')
+        self.assertEqual(info.architecture, 'x86')
+        self.assertEqual(info.available_version, '6.49.23')
+        self.assertTrue(info.update_available)
+
     def test_no_output_is_a_failure(self, _sleep):
         (ok, error), _ = self.run_with({})
         self.assertFalse(ok)

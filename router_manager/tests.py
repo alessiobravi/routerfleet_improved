@@ -176,6 +176,18 @@ class ListAndDetailTests(TestCase):
         self.assertEqual(response.context['offline_time_last_week'], 3600)
         self.assertEqual(response.context['last_week_availability'], round((604800 - 3600) / 604800 * 100, 3))
 
+    def test_details_say_what_the_device_did_not_report(self):
+        # RouterOS on x86: no routerboard menu, so no model, serial or firmware
+        router = make_router()
+        RouterInformation.objects.update_or_create(router=router, defaults={
+            'model_name': 'x86', 'os_version': '6.49.21 (long-term)', 'architecture': 'x86', 'cpu': 'Common',
+            'model_version': '', 'serial_number': '', 'firmware_version': ''})
+        page = self.client.get(f'/router/details/?uuid={router.uuid}')
+        self.assertContains(page, '6.49.21 (long-term)')
+        self.assertContains(page, 'not reported by the device', count=3)
+        self.assertContains(page, 'Architecture')
+        self.assertNotContains(page, 'Architeture')
+
     def test_details_never_rounds_a_short_outage_to_100(self):
         router = make_router()
         RouterDownTime.objects.create(router=router, start_time=timezone.now() - datetime.timedelta(seconds=2),

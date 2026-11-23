@@ -208,12 +208,12 @@ class PipelineTests(TestCase):
     def test_routeros_text_only_in_one_step(self):
         backup = self.make_backup('routeros')
         # The text backup is the output of /export, with the profile's options
-        client = FakeSSHClient({'/export  show-sensitive terse': RSC})
+        client = FakeSSHClient({'/export show-sensitive terse': RSC})
         with temporary_media_root():
             backup = self.run_phase(backup, client)
         self.assertTrue(backup.success, backup.error_message)
         self.assertFalse(backup.backup_pending_retrieval)
-        self.assertEqual(client.commands[0], '/export  show-sensitive terse')
+        self.assertEqual(client.commands[0], '/export show-sensitive terse')
         self.assertNotIn('/system backup save', ' '.join(client.commands), 'no binary backup any more')
         self.assertEqual(FakeSCPClient.fetched, [], 'nothing downloaded')
         self.assertFalse(backup.backup_binary)
@@ -227,11 +227,60 @@ class PipelineTests(TestCase):
         self.assertIsNone(status.backup_lock)
         self.assertIsNotNone(status.last_backup)
 
+    def set_os(self, backup, version):
+        from router_manager.models import RouterInformation
+        RouterInformation.objects.update_or_create(router=backup.router, defaults={'os_version': version})
+
+    def test_a_refused_export_fails_and_is_never_stored(self):
+        # RouterOS answers a command it does not understand with exit code 1
+        # and the error on stdout - that line must not become the backup
+        backup = self.make_backup('routeros')
+        self.set_os(backup, '6.49.21 (long-term)')
+        client = FakeSSHClient({'/export terse': (1, 'expected end of command (line 1 column 10)\n', '')})
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+        self.assertFalse(backup.success)
+        self.assertFalse(backup.backup_text)
+        self.assertIn('refused', backup.error_message)
+        self.assertIn('expected end of command', backup.error_message)
+        self.assertIsNotNone(backup.next_retry)
+
+    def test_routeros_6_includes_passwords_without_show_sensitive(self):
+        backup = self.make_backup('routeros')
+        self.set_os(backup, '6.49.21 (long-term)')
+        client = FakeSSHClient({'/export terse': RSC})
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+        self.assertTrue(backup.success, backup.error_message)
+        self.assertEqual(client.commands[0], '/export terse', 'RouterOS 6 exports passwords by default')
+
+    def test_routeros_6_leaves_passwords_out_with_hide_sensitive(self):
+        self.profile.parameter_sensitive = False
+        self.profile.save()
+        backup = self.make_backup('routeros')
+        self.set_os(backup, '6.49.21 (long-term)')
+        client = FakeSSHClient({'/export hide-sensitive terse': RSC})
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+        self.assertTrue(backup.success, backup.error_message)
+        self.assertEqual(client.commands[0], '/export hide-sensitive terse')
+
+    def test_routeros_7_and_unknown_versions_use_the_current_words(self):
+        from routerlib.backup_functions import export_words
+        from router_manager import device_types
+        routeros = device_types.get('routeros')
+        self.assertEqual(export_words(routeros, '7.16.2 (stable)'), ('show-sensitive', ''))
+        self.assertEqual(export_words(routeros, '7.0'), ('show-sensitive', ''))
+        self.assertEqual(export_words(routeros, ''), ('show-sensitive', ''))
+        self.assertEqual(export_words(routeros, None), ('show-sensitive', ''))
+        self.assertEqual(export_words(routeros, '6.49.21 (long-term)'), ('', 'hide-sensitive'))
+        self.assertEqual(export_words(routeros, '6.48beta3'), ('', 'hide-sensitive'))
+
     def test_routeros_with_the_binary_kept(self):
         with_routeros_binary()
         backup = self.make_backup('routeros')
         name = backup_functions.gen_backup_name(backup)
-        client = FakeSSHClient({'/export  show-sensitive terse': RSC})
+        client = FakeSSHClient({'/export show-sensitive terse': RSC})
         with temporary_media_root() as media:
             backup = self.run_phase(backup, client)
             self.assertTrue(backup.backup_pending_retrieval)
@@ -669,3 +718,32 @@ class MonitoringContractTests(KeepOnlyChangesPipelineTests):
         # Ordering by finish_time would hide the failure behind the success
         by_finish = RouterBackup.objects.filter(router=self.router, finish_time__isnull=False).order_by('-finish_time').first()
         self.assertTrue(by_finish.success)
+
+
+class RefusedExportMigrationTests(TestCase):
+    """0016: a backup whose text is a RouterOS refusal becomes a failure;
+    real configurations, even short ones, are left alone."""
+
+    def test_refusals_become_failures_and_configurations_stay(self):
+        import importlib
+        from django.apps import apps
+        router = make_router()
+        refused = RouterBackup.objects.create(router=router, success=True, schedule_type='daily',
+                                              backup_text='expected end of command (line 1 column 10)\n',
+                                              backup_text_hash='x' * 64, config_change_detected=True)
+        repeat = RouterBackup.objects.create(router=router, success=True, schedule_type='daily', same_as=refused)
+        real = RouterBackup.objects.create(router=router, success=True, schedule_type='daily',
+                                           backup_text='/ip address\nadd address=10.0.0.1/24 comment="(line 1 column 2)"\n')
+        module = importlib.import_module('backup_data.migrations.0016_refused_exports_are_failures')
+        module.refused_exports_are_failures(apps, None)
+        refused.refresh_from_db()
+        self.assertFalse(refused.success)
+        self.assertTrue(refused.error)
+        self.assertEqual(refused.backup_text, '')
+        self.assertIn('expected end of command', refused.error_message)
+        repeat.refresh_from_db()
+        self.assertFalse(repeat.success)
+        self.assertIsNone(repeat.same_as_id)
+        real.refresh_from_db()
+        self.assertTrue(real.success)
+        self.assertIn('add address', real.backup_text)

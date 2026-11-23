@@ -22,9 +22,13 @@ LEVEL = 50
 SLUG = re.compile(r'^[a-z0-9][a-z0-9-]{1,48}$')
 EXTENSION = re.compile(r'^[a-z0-9][a-z0-9.]{0,9}$')
 UPLOAD_PATH = re.compile(r'^[A-Za-z0-9_./:{}\- ]{1,200}$')
+# Export words go into a command sent to the device: words, = and dashes only
+EXPORT_WORDS = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_=.\- ]{0,99}$')
+VERSION = re.compile(r'^\d{1,4}(\.\d{1,4}){0,3}$')
 TEXT_FIELDS = ('name', 'vendor', 'description', 'prompt_pattern', 'session_setup', 'enable_command', 'management_links',
                'test_pattern', 'inventory_repeat', 'text_extension', 'binary_extension', 'text_ignore_pattern',
-               'option_sensitive', 'option_terse', 'vendor_url', 'vendor_keys', 'vendor_confirm_url', 'vendor_target',
+               'option_sensitive', 'option_terse', 'option_hide_sensitive', 'legacy_before_version',
+               'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'vendor_url', 'vendor_keys', 'vendor_confirm_url', 'vendor_target',
                'vendor_version_field', 'firmware_upload_path')
 BOOL_FIELDS = ('enabled', 'check_device', 'check_vendor', 'check_repository')
 PATTERN_FIELDS = (('prompt_pattern', 'Prompt'), ('test_pattern', 'Recognition pattern'),
@@ -122,6 +126,14 @@ def read_form(post, device_type, new=False):
             problems.append(f'{label}: letters, digits and dots, e.g. "rsc" or "tar.gz".')
     if not device_type.text_extension:
         device_type.text_extension = 'txt'
+    for field in ('option_sensitive', 'option_terse', 'option_hide_sensitive', 'legacy_option_sensitive',
+                  'legacy_option_hide_sensitive'):
+        value = getattr(device_type, field)
+        if value and not EXPORT_WORDS.match(value):
+            problems.append('Export options: words, "=" and dashes only, e.g. "show-sensitive".')
+            break
+    if device_type.legacy_before_version and not VERSION.match(device_type.legacy_before_version):
+        problems.append('Older versions: a version number such as 7 or 7.1.')
     inventory = {}
     for field, _label in device_types.INVENTORY_FIELDS:
         sources = [line.strip() for line in (post.get(f'inventory_{field}') or '').splitlines() if line.strip()]

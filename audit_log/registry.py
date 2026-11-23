@@ -333,7 +333,8 @@ def build():
     watch(apps.get_model('router_manager', 'DeviceType'),
           fields=['name', 'enabled', 'session_mode', 'prompt_pattern', 'session_setup', 'enable_command',
                   'management_links', 'test_pattern', 'inventory_fields', 'inventory_repeat', 'text_extension',
-                  'binary_extension', 'text_ignore_pattern', 'option_sensitive', 'option_terse', 'check_device',
+                  'binary_extension', 'text_ignore_pattern', 'option_sensitive', 'option_terse', 'option_hide_sensitive',
+                  'legacy_before_version', 'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'check_device',
                   'check_vendor', 'check_repository', 'vendor_url', 'vendor_keys', 'vendor_confirm_url',
                   'vendor_target', 'vendor_version_field', 'firmware_upload_path', 'firmware_verify'],
           create=True)

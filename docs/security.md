@@ -56,9 +56,12 @@ on every upgrade for the ordinary reason.
 
 ### What encryption does not cover
 
-- **Configuration backups** are stored as-is. A RouterOS export taken with
-  `show-sensitive` contains the device's own secrets in cleartext in the
-  database. Think about whether you need that option on.
+- **Configuration backups** are stored as-is. An export with *Include passwords
+  and keys* on contains the device's own secrets in cleartext in the database.
+  Think about whether you need that option on. With it off, RouterOS 6 is told
+  `hide-sensitive` (it exports secrets unless told otherwise); before 0.24.2
+  it was not, so RouterOS 6 backups from then contain secrets whatever the
+  profile said.
 
 In the audit log, by contrast, secrets are never stored at all — they are
 compared on their real value and recorded as `(set)` or `(empty)`.

@@ -159,35 +159,35 @@
                                         <li class="list-group-item">
                                             <b>Model Name</b>
                                             <span class="float-end">
-                                                {{ router_information.model_name|default_if_none:"" }}
+                                                {% if router_information.model_name %}{{ router_information.model_name }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Version</b>
                                             <span class="float-end">
-                                                {{ router_information.model_version|default_if_none:"" }}
+                                                {% if router_information.model_version %}{{ router_information.model_version }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Serial</b>
                                             <span class="float-end">
-                                                {{ router_information.serial_number|default_if_none:"" }}
+                                                {% if router_information.serial_number %}{{ router_information.serial_number }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>OS Version</b>
                                             <span class="float-end">
-                                                {{ router_information.os_version|default_if_none:"" }}
+                                                {% if router_information.os_version %}{{ router_information.os_version }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Firmware Version</b>
                                             <span class="float-end">
-                                                {{ router_information.firmware_version|default_if_none:"" }}
+                                                {% if router_information.firmware_version %}{{ router_information.firmware_version }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
@@ -204,16 +204,16 @@
                                         </li>
 
                                         <li class="list-group-item">
-                                            <b>Architeture</b>
+                                            <b>Architecture</b>
                                             <span class="float-end">
-                                                {{ router_information.architecture|default_if_none:"" }}
+                                                {% if router_information.architecture %}{{ router_information.architecture }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>CPU</b>
                                             <span class="float-end">
-                                                {{ router_information.cpu|default_if_none:"" }}
+                                                {% if router_information.cpu %}{{ router_information.cpu }}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
 
