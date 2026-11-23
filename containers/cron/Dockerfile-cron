@@ -1,51 +1,14 @@
-# The updater (rf-update) checks that every image of a release is signed by
-# this project's release workflow, with cosign. Built here from a pinned
-# commit of its source - the published binary bundles a golang.org/x/net with
-# known vulnerabilities - with those libraries raised to their fixed releases.
-# Go verifies every module against its checksum database; cross-compiled, so
-# arm64 does not build under emulation.
-FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS cosign
-ARG TARGETOS
-ARG TARGETARCH
-# sigstore/cosign v3.1.4
-ARG COSIGN_COMMIT=0e48502cf5ef34e2e60bbd3617aa19945712f705
-ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOFLAGS=-trimpath
-RUN apk add --no-cache git
-WORKDIR /src
-RUN git init -q && git remote add origin https://github.com/sigstore/cosign.git \
-    && git fetch -q --depth 1 origin "$COSIGN_COMMIT" && git checkout -q FETCH_HEAD \
-    && test "$(git rev-parse HEAD)" = "$COSIGN_COMMIT"
-# The libraries with published fixes for known vulnerabilities, raised to them;
-# only those cosign actually uses (go list -m), so nothing new is pulled in
-RUN set -eu; \
-    for module in github.com/go-chi/chi/v5@v5.5.0 \
-                  go.opentelemetry.io/otel@v1.47.0 go.opentelemetry.io/otel/trace@v1.47.0 \
-                  go.opentelemetry.io/otel/metric@v1.47.0 go.opentelemetry.io/otel/sdk@v1.47.0 \
-                  golang.org/x/crypto@v0.59.0 golang.org/x/net@v0.63.0; do \
-        if go list -m "${module%@*}" >/dev/null 2>&1; then go get "$module"; fi; \
-    done
-# -buildvcs=false: the binary does not claim a version from a shallow, modified
-# checkout (scanners read such a stamp as an old cosign release)
-RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -buildvcs=false -ldflags "-s -w" -o /out/cosign ./cmd/cosign
-
 # Pinned, not :latest - two builds of the same commit must not ship different
 # userlands. The scheduler is the piece that has to keep working untouched for
 # months at a time.
 FROM alpine:3.24
 
-# cron + curl call the application's /cron/ endpoints on a schedule; their
-# replies only go to the log. The updater below is the only other thing here. cronie, not BusyBox's crond,
-# because it reads /etc/cron.d with the user column the schedule is written in.
+# cron + curl are all this container needs: it calls the application's /cron/
+# endpoints on a schedule and does nothing else. It has no Docker access and
+# no tools beyond these. cronie, not BusyBox's crond, because it reads
+# /etc/cron.d with the user column the schedule is written in.
 RUN apk upgrade --no-cache \
-    && apk add --no-cache cronie curl tzdata jq docker-cli docker-cli-compose
-
-# cosign is added from the build stage above
-COPY --from=cosign /out/cosign /usr/local/bin/cosign
-
-# Updates approved in System settings; does nothing unless the compose file
-# gives it the Docker socket and the update volumes (docs/updating.md)
-COPY rf-update /usr/local/bin/rf-update
-RUN sed -i 's/\r$//' /usr/local/bin/rf-update && chmod 0755 /usr/local/bin/rf-update
+    && apk add --no-cache cronie curl tzdata
 
 # The schedule itself
 COPY cron_tasks /etc/cron.d/cron_tasks

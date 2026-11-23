@@ -183,6 +183,9 @@ names `postgres:16` keeps working too.
   **About**, at the bottom of the menu.
 - **Second factors are available** - an authenticator app and passkeys, in
   *My Settings*. Nobody is asked for one until they turn it on.
+- **The in-app updater is removed** (0.23.1): no container holds the Docker
+  socket. If your compose file mounts it into `routerfleet-cron`, take the
+  current compose file or remove those lines ([Updating](updating.md)).
 - **RouterOS backups become text only** (0.23.0): where the RouterOS backup
   commands are as shipped, the binary `.backup` is no longer taken; the text
   still comes from `/export`. Edited commands are kept. Stored `.backup` files

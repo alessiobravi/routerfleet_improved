@@ -87,9 +87,9 @@ encrypted with.
   one device first and then the rest in small batches, each with a backup
   before and its new version confirmed after; any failure stops the rollout.
   [More](docs/firmware.md)
-- **Updates from System settings** — an administrator approves, the scheduler
-  installs: signed releases only, the database backed up first, the previous
-  version put back if the new one does not start. [More](docs/updating.md)
+- **Update check** — the newest release and what it changes, checked hourly
+  or on demand; signed release images. RouterFleet never updates itself: no
+  container is given Docker access. [More](docs/updating.md)
 - **Monitoring** — an independent container pings the fleet and records
   downtime; status changes raise notifications.
 - **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,
@@ -122,7 +122,7 @@ encrypted with.
 | [Architecture](docs/architecture.md) | The five containers, the scheduler, the data model |
 | [Installation](docs/installation.md) | Full specification: containers, images, every option and variant |
 | [Upgrading](docs/upgrading.md) | Backups before upgrading, upgrade paths, rolling back |
-| [Updating from System settings](docs/updating.md) | One-click updates: signed releases only, database backup, automatic rollback |
+| [Updating](docs/updating.md) | The update check, updating on the host, verifying release images |
 | [Devices](docs/devices.md) | Credentials, inventory, version states, the device list |
 | [Device types](docs/device-types.md) | Types as configuration: connection, recognition, inventory, backups, update checks; the wizard |
 | [Firmware repository](docs/firmware.md) | Firmware per device type; updates one device first, then the rest |

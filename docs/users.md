@@ -46,7 +46,7 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | System settings | The System settings page, Display (default rows per table) | 40 |
 | | [Firmware repository](firmware.md): upload, switch off, delete, start and abort rollouts | 40 |
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
-| | HTTPS, [Updates](updating.md) (approve an update, with your password) | 50 |
+| | HTTPS, [Updates](updating.md) (the update check) | 50 |
 
 ## User details
 

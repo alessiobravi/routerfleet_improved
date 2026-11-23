@@ -287,8 +287,6 @@ You can put another proxy in front of nginx. Two rules:
 | `media_root` | Binary backup files and firmware images | **yes** |
 | `https_cert` | TLS certificate and key | if you supplied your own |
 | `static_volume` | Collected static files | no, regenerated on start |
-| `update_requests` | Update requests and status ([Updating from System settings](updating.md)) | no |
-| `update_private` | The updater's pre-update database backup | no - it is recreated by every update |
 
 Backup commands are in [Upgrading](upgrading.md#before-you-start).
 

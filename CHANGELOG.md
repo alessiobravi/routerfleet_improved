@@ -13,6 +13,22 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.23.1] - 2026-11-23
+
+### Security
+- **No container has Docker access any more.** The in-app updater ran in the
+  scheduler container with the Docker socket - root on the host: anyone running
+  code in that container would own the machine. It is removed: the compose
+  files mount the socket nowhere, and the scheduler image is back to cron and
+  curl (no Docker client, no cosign, no updater script).
+
+### Removed
+- **Updates from System settings.** The Updates page keeps the running and the
+  newest release, *Check now*, and the command to update on the host. Release
+  images stay signed, and docs/updating.md shows how to verify one. An
+  installation with the updater set up should drop its socket and update
+  volumes from the compose file (docs/updating.md).
+
 ## [0.23.0] - 2026-11-23
 
 ### Added

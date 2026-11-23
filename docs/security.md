@@ -280,6 +280,13 @@ anyone can read in the repository.
 
 The two keys in `app_secrets` are **not** rotated, because they must not be.
 
+## No container has Docker access
+
+No RouterFleet container mounts the Docker socket, which is root on the host:
+updating is done on the host with `docker compose` ([Updating](updating.md)).
+The in-app updater of 0.21 to 0.23.0, which held it in the scheduler, was
+removed in 0.23.1.
+
 ## Device types and firmware
 
 - **A device type decides what is sent to devices**, so creating, editing and
@@ -336,9 +343,8 @@ How the images stay clean:
 - **They are rebuilt for every release with every available update installed**
   (`apk upgrade` / `apt-get upgrade`), so a release never ships a vulnerability
   whose fix was already published.
-- **Tools RouterFleet builds from source** - `cosign` in the scheduler image,
-  `gosu` in the database image - are built from a pinned release with the
-  current Go and the fixed releases of their libraries, rather than shipping a
+- **`gosu` in the database image is built from source** - a pinned release
+  with the current Go and current libraries - rather than shipping the
   published binary that bundles vulnerable ones.
 - **The four RouterFleet images are based on Alpine Linux.** On Alpine every
   known vulnerability in the base comes with a fix, so updating reaches zero.
@@ -440,7 +446,6 @@ What the installation contacts, and why:
 | Your devices, port 22 | SSH and SCP for backups, inventory and commands | no |
 | MikroTik's update servers | **The device** checks its own channel; RouterFleet only reads the result | Device-side |
 | Vendor release lists (`downloads.openwrt.org` for the OpenWrt type) | A device type's vendor update check: https only, never an address on RouterFleet's own networks, no redirects followed, cached six hours | Yes: switch the device type's vendor check off |
-| `ghcr.io` and Sigstore | Only with the updater set up: the release images, and their signatures checked before anything is installed | Yes: update by command |
 | Your mail server / ntfy (ntfy.sh or your own) / Telegram | Whichever notification channels you configure | Yes — configure none |
 | `api.github.com` | The update check: the latest release of RouterFleet Improved, about once an hour. The request carries no information about the installation | Yes: `UPDATE_CHECK=off` |
 

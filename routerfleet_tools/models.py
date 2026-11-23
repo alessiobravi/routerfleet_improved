@@ -92,8 +92,9 @@ class DisplaySettings(models.Model):
 class UpdateRun(models.Model):
     """An update approved in System settings, and how it went.
 
-    The scheduler's updater does the work (containers/cron/rf-update); this
-    records who approved what, for the change log and the Updates page."""
+    Kept for the history of updates approved with the in-app updater of 0.21
+    to 0.23.0, which was removed in 0.23.1 - no container holds Docker access
+    any more. Nothing creates rows now."""
     STATES = [('requested', 'Requested'), ('verifying', 'Checking signatures'), ('backing_up', 'Backing up'),
               ('restarting', 'Restarting'), ('checking', 'Waiting until ready'), ('done', 'Done'),
               ('failed', 'Failed'), ('refused', 'Refused'), ('rolling_back', 'Rolling back'),

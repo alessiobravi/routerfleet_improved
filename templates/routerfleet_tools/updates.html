@@ -2,7 +2,7 @@
 {% load custom_tags %}
 
 {% block content %}
-<div class="rf-settings" {% if busy %}data-rf-live="active" data-rf-live-reason="update under way"{% endif %}>
+<div class="rf-settings">
     <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
 
     <div class="rf-set-title">Version</div>
@@ -22,63 +22,13 @@
                 <button type="submit" class="btn btn-outline-primary btn-sm" id="check-updates"><i class="fas fa-sync-alt mr-1"></i>Check now</button></form>
             {% endif %}
         </div>
-        <div class="rf-set-row">
-            <span class="rf-set-icon {% if updater.ready %}teal{% else %}grey{% endif %}"><i class="fas fa-robot"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Updater</span>
-                <span class="rf-set-sub d-block">{% if updater.ready %}Ready: updates can be installed from here{% elif not updater.shared %}Not set up: this installation updates by command (below){% elif not updater.fresh %}Not answering: the scheduler has not reported in the last minutes{% else %}Not ready: {{ updater.reason }}{% endif %}</span></span>
-            <span class="rf-set-pill {% if updater.ready %}on{% endif %}">{% if updater.ready %}Ready{% else %}Off{% endif %}</span>
-        </div>
     </div>
 
-    {% if last %}
-    <div class="rf-set-title">Last update</div>
-    <div class="rf-set-group">
-        <div class="rf-set-row">
-            <span class="rf-set-icon {% if last.state == 'done' %}teal{% elif last.active %}blue{% else %}red{% endif %}">
-                <i class="fas {% if last.state == 'done' %}fa-check{% elif last.active %}fa-sync-alt fa-spin{% else %}fa-exclamation{% endif %}"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ last.from_version }} to {{ last.to_version }} · {{ last.get_state_display }}</span>
-                <span class="rf-set-sub d-block">{{ last.message|default:"Waiting for the updater" }}</span>
-                <span class="rf-set-sub d-block">Approved by {{ last.approved_by_name }}, {{ last.created|date:"Y-m-d H:i" }}</span></span>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if available and updater.ready and not busy %}
-    <form method="post" autocomplete="off">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update">
-        <input type="hidden" name="version" value="{{ available }}">
-        <div class="rf-set-title">Install {{ available }}</div>
-        <div class="rf-set-group">
-            <div class="rf-set-row">
-                <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
-                <div class="rf-set-text"><label class="small mb-0" for="password">Your password, to approve</label>
-                    <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required></div>
-            </div>
-        </div>
-        <div class="rf-set-foot">The updater downloads {{ available }}, installs it only if every image is signed by the RouterFleet
-            Improved release workflow, backs up the database, and restarts RouterFleet - a few minutes without the web
-            interface. If {{ available }} does not start properly, the previous version and the database backup are put
-            back.</div>
-        <div class="text-center mt-3"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-cloud-download-alt mr-1"></i>Update to {{ available }}</button></div>
-    </form>
-    {% elif available and not updater.ready %}
-    <div class="rf-set-title">Update by command</div>
+    <div class="rf-set-title">{% if available %}Update to {{ available }}{% else %}Updating{% endif %}</div>
     <div class="rf-set-group"><div class="rf-set-row"><div class="rf-set-text">
-        <div class="small mb-1">In the folder of the compose file, on the host:</div>
+        <div class="small mb-1">On the host, in the folder of the compose file:</div>
         <pre class="mb-0">docker compose pull && docker compose up -d</pre>
-        <div class="small text-muted mt-2">To update from here instead, take the current docker-compose.yml once: it gives the scheduler's updater what it needs (docs/updating.md).</div>
+        <div class="small text-muted mt-2">Back up the database first (docs/upgrading.md). RouterFleet never updates itself: no container is given access to Docker, which would be root on the host.</div>
     </div></div></div>
-    {% endif %}
-
-    {% if runs|length > 1 %}
-    <div class="rf-set-title">Earlier updates</div>
-    <div class="rf-set-group">
-        {% for run in runs|slice:"1:" %}
-        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">{{ run.from_version }} to {{ run.to_version }} · {{ run.get_state_display }}</span>
-            <span class="rf-set-sub d-block">{{ run.approved_by_name }}, {{ run.created|date:"Y-m-d H:i" }}{% if run.message %} - {{ run.message }}{% endif %}</span></span></div>
-        {% endfor %}
-    </div>
-    {% endif %}
 </div>
 {% endblock %}

@@ -74,7 +74,6 @@ starting all its jobs at once.
 | +50s | 1 min | `/cron/check_updates/` | Update check — asks GitHub at most hourly; off with `UPDATE_CHECK=off` |
 | +50s | 1 min | `/cron/perform_command_tasks/` | Run command tasks |
 | +25s | 1 min | `/cron/firmware_rollouts/` | Advance [firmware rollouts](firmware.md): one step per device |
-| +0s | 1 min | `rf-update run` (not an endpoint) | The [updater](updating.md): reads an approved update request, if the compose file gives it Docker access |
 
 Two consequences worth knowing:
 
@@ -164,8 +163,6 @@ Two details in that model are deliberate and worth knowing:
 | `/app_secrets/` | `encryption_key`, `monitoring_key` | `app_secrets` |
 | `/certificate/` | `nginx.pem`, `nginx.key` | `https_cert` |
 | `/var/lib/routerfleet_sqlite/` | SQLite database, when used | `sqlite_volume` |
-| `/update` (application and scheduler) | Update requests and the updater's status | `update_requests` |
-| `/update-private` (scheduler only) | The updater's database backup before an update | `update_private` |
 
 Configuration *text* is stored in the database, not on disk. Only the binary
 backup files land in `MEDIA_ROOT`.
