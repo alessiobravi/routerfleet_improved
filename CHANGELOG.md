@@ -28,6 +28,10 @@ the Zabbix kit reads, says so under **Monitoring**.
   FULL to give the space back to the disk. Also `manage.py optimize_database`.
   Statistics are refreshed after every backup clean-up.
 
+- **An update mark in the device list**: an amber arrow beside the name of
+  every device with a newer version available - by the same rule as the
+  version colours and the status page's counts - whichever columns are shown;
+  hovering it names both versions.
 - **Delete binary backups** (Tools, Backup clean-up): the stored binary
   files of chosen device types - RouterOS `.backup` by default - with their
   count and size shown first; every text backup stays. Confirmed with a sum,

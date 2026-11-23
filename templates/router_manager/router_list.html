@@ -153,7 +153,7 @@
                                     <tr {% if not router.enabled %}style="text-decoration: line-through;"{% endif %}>
                                         <td><input type="checkbox" class="router-checkbox" data-uuid="{{ router.uuid }}"></td>
                                         {% if "name" in visible_columns %}
-                                        <td data-column="name">{% if router.monitoring %}<span class="d-md-none mr-1">{% if router.routerstatus.status_online %}<i class="far fa-check-circle text-success" title="Online"></i>{% else %}<i class="far fa-times-circle text-danger" title="Unavailable"></i>{% endif %}</span>{% endif %}<a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a></td>
+                                        <td data-column="name">{% if router.monitoring %}<span class="d-md-none mr-1">{% if router.routerstatus.status_online %}<i class="far fa-check-circle text-success" title="Online"></i>{% else %}<i class="far fa-times-circle text-danger" title="Unavailable"></i>{% endif %}</span>{% endif %}<a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a>{% with version=router.routerinformation|os_version_state %}{% if version.css_class == 'text-danger' %} <a href="/router/details/?uuid={{ router.uuid }}" class="rf-update-mark" title="{{ version.title }}" aria-label="{{ version.title }}"><i class="fas fa-arrow-alt-circle-up"></i></a>{% endif %}{% endwith %}</td>
                                         {% endif %}
                                         {% if "type" in visible_columns %}
                                         <td data-column="type">{{ router.get_router_type_display }}</td>

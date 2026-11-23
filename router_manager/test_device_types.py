@@ -385,3 +385,20 @@ class TryFailureTests(TestCase):
                 result = self.try_with(error)
                 self.assertIn(expected, result['message'])
                 self.assertNotIn('secret detail', result['message'])
+
+
+class UpdateMarkTests(TestCase):
+    def test_devices_with_an_update_waiting_are_marked(self):
+        from router_manager.models import RouterInformation
+        self.client.force_login(make_user(10))
+        behind = make_router(router_type='routeros', name='behind')
+        current = make_router(router_type='routeros', name='current')
+        unknown = make_router(router_type='cisco-ios', name='no-check')
+        RouterInformation.objects.create(router=behind, os_version='7.16', available_version='7.18')
+        RouterInformation.objects.create(router=current, os_version='7.18', available_version='7.18')
+        RouterInformation.objects.create(router=unknown, os_version='17.9', available_version='')
+        page = self.client.get('/router/list/').content.decode()
+        self.assertEqual(page.count('class="rf-update-mark"'), 1)
+        mark = page.index('class="rf-update-mark"')
+        self.assertLess(page.rindex('behind', 0, mark), mark)
+        self.assertIn('7.18 is available, the router runs 7.16', page)
