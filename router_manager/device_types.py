@@ -41,6 +41,10 @@ PRESET_COMMANDS = {
         'backup_cleanup': 'file remove [find where name~"routerfleet-backup-"]',
         'firmware_verify': ':put [/file get [find name="{{ firmware_name }}"] size]',
         'firmware_install': '/system reboot',
+        # The device downloads and installs the newest release of the chosen channel itself
+        'firmware_online_update': '/system package update set channel={{ channel }}\n'
+                                  '/system package update check-for-updates once\n'
+                                  '/system package update install',
     },
     'openwrt': {
         'connection_test': 'ubus call system board',
@@ -99,6 +103,9 @@ PRESETS = {
         'option_sensitive': 'show-sensitive', 'option_terse': 'terse',
         # RouterOS 6 exports passwords unless told hide-sensitive, and has no show-sensitive
         'legacy_before_version': '7', 'legacy_option_hide_sensitive': 'hide-sensitive',
+        # The newest release of each channel, as RouterOS itself asks for it. RouterOS 7
+        # asks NEWESTa7.*; RouterOS 6 NEWEST6.* (its "testing" answers 7.x: left out)
+        'update_channels': '7 long-term: https://upgrade.mikrotik.com/routeros/NEWESTa7.long-term\n7 stable: https://upgrade.mikrotik.com/routeros/NEWESTa7.stable\n7 testing: https://upgrade.mikrotik.com/routeros/NEWESTa7.testing\n7 development: https://upgrade.mikrotik.com/routeros/NEWESTa7.development\n6 long-term: https://upgrade.mikrotik.com/routeros/NEWEST6.long-term\n6 stable: https://upgrade.mikrotik.com/routeros/NEWEST6.stable',
         'management_links': 'Winbox: winbox://{address}',
         'check_device': True,
         'firmware_upload_path': '/{{ firmware_name }}', 'firmware_verify': 'size',
@@ -194,7 +201,7 @@ FIELD_DEFAULTS = {
     'session_setup': '', 'enable_command': '', 'management_links': '', 'test_pattern': '', 'inventory_fields': {}, 'inventory_repeat': '',
     'text_extension': 'txt', 'binary_extension': '', 'text_ignore_pattern': '', 'option_sensitive': '',
     'option_terse': '', 'option_hide_sensitive': '', 'legacy_before_version': '', 'legacy_option_sensitive': '',
-    'legacy_option_hide_sensitive': '', 'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
+    'legacy_option_hide_sensitive': '', 'update_channels': '', 'update_channel_pattern': '', 'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
     'vendor_keys': '', 'vendor_confirm_url': '', 'vendor_target': '', 'vendor_version_field': 'os_version',
     'firmware_upload_path': '', 'firmware_verify': 'none',
 }

@@ -28,10 +28,12 @@ VERSION = re.compile(r'^\d{1,4}(\.\d{1,4}){0,3}$')
 TEXT_FIELDS = ('name', 'vendor', 'description', 'prompt_pattern', 'session_setup', 'enable_command', 'management_links',
                'test_pattern', 'inventory_repeat', 'text_extension', 'binary_extension', 'text_ignore_pattern',
                'option_sensitive', 'option_terse', 'option_hide_sensitive', 'legacy_before_version',
-               'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'vendor_url', 'vendor_keys', 'vendor_confirm_url', 'vendor_target',
+               'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'update_channels', 'update_channel_pattern',
+               'vendor_url', 'vendor_keys', 'vendor_confirm_url', 'vendor_target',
                'vendor_version_field', 'firmware_upload_path')
 BOOL_FIELDS = ('enabled', 'check_device', 'check_vendor', 'check_repository')
 PATTERN_FIELDS = (('prompt_pattern', 'Prompt'), ('test_pattern', 'Recognition pattern'),
+                  ('update_channel_pattern', 'Version in the channel answer'),
                   ('inventory_repeat', 'Line to repeat'), ('text_ignore_pattern', 'Lines to ignore'))
 
 
@@ -94,7 +96,8 @@ def read_form(post, device_type, new=False):
     commands is {key: payload} for a new type (the wizard), else None."""
     problems = []
     for field in TEXT_FIELDS:
-        value = (post.get(field) or '').strip() if field not in ('session_setup', 'management_links', 'description') \
+        value = (post.get(field) or '').strip() if field not in ('session_setup', 'management_links', 'description',
+                                                                 'update_channels') \
             else (post.get(field) or '').strip('\n')
         setattr(device_type, field, value)
     for field in BOOL_FIELDS:
@@ -142,6 +145,8 @@ def read_form(post, device_type, new=False):
     problems += device_types.validate_inventory_fields(inventory)
     device_type.inventory_fields = inventory
     problems += device_types.validate_links(device_type.management_links)
+    from firmware.options import channel_problems
+    problems += channel_problems(device_type.update_channels)
     problems += [p for p in (_url_problem('Release list', device_type.vendor_url),
                              _url_problem('Confirmation address', device_type.vendor_confirm_url,
                                           ('version', 'target'))) if p]

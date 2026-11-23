@@ -131,6 +131,7 @@ def view_router_list(request):
         'can_open_console': UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists(),
         'can_backup': UserAcl.objects.filter(user=request.user, user_level__gte=20).exists(),
         'can_edit': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
+        'can_update_firmware': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'router_manager/router_list.html', context=context)
 
@@ -241,7 +242,8 @@ def view_router_details(request):
         'can_edit_routers': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
         'page': router_page(router, router_status, router_information, last_week_availability,
                             UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
-                            can_console=UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists()),
+                            can_console=UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists(),
+                            can_update_firmware=UserAcl.objects.filter(user=request.user, user_level__gte=40).exists()),
     }
 
 

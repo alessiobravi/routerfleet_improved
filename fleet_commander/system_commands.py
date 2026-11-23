@@ -97,6 +97,15 @@ DEFAULTS = {
         'placeholders': ('firmware_name', 'firmware_path', 'firmware_version'),
         'required': False,
     },
+    'firmware_online_update': {
+        'name': 'System: firmware - online update',
+        'description': 'The device downloads and installs a release itself, from its vendor - usually ending in '
+                       'a reboot. {{ channel }} is the release channel chosen, {{ firmware_version }} the version '
+                       'it offers. RouterFleet then waits for the device to come back reporting that version. '
+                       'Empty: the device type has no online updates.',
+        'placeholders': ('channel', 'firmware_version'),
+        'required': False,
+    },
 }
 
 

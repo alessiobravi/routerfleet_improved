@@ -3,7 +3,7 @@
 {% block content %}
 <div class="rf-settings" {% if rollout.active %}data-rf-live="active" data-rf-live-reason="firmware rollout running"{% endif %}>
     <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
-    <div class="rf-set-title">{{ rollout.image }} · {{ rollout.get_state_display }}</div>
+    <div class="rf-set-title">{{ rollout.label }} · {{ rollout.get_state_display }}</div>
     <div class="rf-set-group">
         <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">{{ counts.done }} updated, {{ counts.failed }} failed, {{ counts.waiting }} waiting{% if counts.skipped %}, {{ counts.skipped }} not started{% endif %}</span>
             <span class="rf-set-sub d-block">Started by {{ rollout.created_by_name }}, {{ rollout.created|date:"Y-m-d H:i" }}; {{ rollout.batch_size }} at a time after the first{% if rollout.message %}. {{ rollout.message }}{% endif %}</span></span></div>

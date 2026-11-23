@@ -79,6 +79,7 @@ urlpatterns = [
     path('system/firmware/image/', firmware_views.view_image, name='firmware_image'),
     path('system/firmware/rollout/start/', firmware_views.view_start_rollout, name='firmware_rollout_start'),
     path('system/firmware/rollout/', firmware_views.view_rollout, name='firmware_rollout'),
+    path('system/firmware/update/', firmware_views.view_update_devices, name='firmware_update_devices'),
     path('cron/firmware_rollouts/', firmware_views.view_cron_rollouts, name='cron_firmware_rollouts'),
     path('system/notifications/channel/', view_notification_channel, name='system_notification_channel'),
     path('system/notifications/email/', view_email_settings, name='email_settings'),

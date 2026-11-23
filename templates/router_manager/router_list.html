@@ -325,7 +325,7 @@
                                             {% if can_backup %}{% if router.is_managed and router.enabled %}<a href="#" class="rf-slot" title="Back up now" aria-label="Back up {{ router.name }} now" data-rf-post="/router/create_instant_backup/?uuid={{ router.uuid }}" data-rf-field-next="{{ request.get_full_path }}"><i class="fas fa-box-open"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
                                             {% if can_open_console %}{% if router.is_managed %}<a href="/router/console/?uuid={{ router.uuid }}" class="rf-slot" title="Console" aria-label="Console of {{ router.name }}"><i class="fas fa-keyboard"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
                                             {% if can_execute_commands %}{% if router.is_managed %}<a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="rf-slot" title="Execute command" aria-label="Execute command on {{ router.name }}"><i class="fas fa-terminal"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
-                                            {% with version=router.routerinformation|os_version_state %}{% if version.css_class == 'text-danger' %}<a href="/router/details/?uuid={{ router.uuid }}" class="rf-slot rf-update-mark" title="{{ version.title }}" aria-label="{{ version.title }}"><i class="fas fa-arrow-alt-circle-up"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endwith %}
+                                            {% with version=router.routerinformation|os_version_state %}{% if version.css_class == 'text-danger' %}<a href="{% if can_update_firmware and router.enabled %}/system/firmware/update/?uuid={{ router.uuid }}{% else %}/router/details/?uuid={{ router.uuid }}{% endif %}" class="rf-slot rf-update-mark" title="{{ version.title }}{% if can_update_firmware and router.enabled %} - click to update{% endif %}" aria-label="{{ version.title }}"><i class="fas fa-arrow-alt-circle-up"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endwith %}
                                             </span>
                                         </td>
                                     </tr>
@@ -345,6 +345,7 @@
                                 <button id="run-command" class="btn btn-info d-none">Run Command</button>
                                 <button id="manage-groups" class="btn btn-primary d-none">Groups</button>
                                 <button id="edit-multiple" class="btn btn-primary d-none">Edit</button>
+                                {% if can_update_firmware %}<button id="update-firmware" class="btn btn-outline-warning d-none" title="Update the firmware of the selected hosts: the options each one has">Update firmware</button>{% endif %}
                                 {% if can_edit %}<button id="enable-multiple" class="btn btn-outline-success d-none" title="Enable the selected hosts: backed up and monitored again">Enable</button>
                                 <button id="disable-multiple" class="btn btn-outline-danger d-none" title="Disable the selected hosts: no backups, no monitoring">Disable</button>{% endif %}
                             </div>

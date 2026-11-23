@@ -13,6 +13,23 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.26.0] - 2026-11-23
+
+### Added
+- **Update devices that have an update.** The amber arrow in the router list,
+  *Update* on the device page and *Update firmware* for selected hosts open the
+  options each device can take, in order: a file of the firmware repository made
+  for it (type, model, architecture), newest first; then the device's own online
+  update, with the newest version of **every release channel** - for RouterOS
+  long-term, stable, testing and development. Only newer versions of the same
+  major version are offered. The update runs as a rollout: a backup first, the
+  update, the device back on exactly the version offered; one device first,
+  then the rest.
+- **Online updates are configuration**: each device type lists its release
+  channels and where each publishes its newest version, and the system command
+  *firmware - online update* says how the device installs it. RouterOS ships
+  with both; other types can be given them.
+
 ## [0.25.2] - 2026-11-23
 
 ### Fixed

@@ -22,7 +22,53 @@ offered) or deleted when no rollout refers to it.
 With the device type's **firmware repository** update check on, a device is
 *behind* when the repository holds a newer enabled image for it.
 
-## Updating devices
+## Updating a device that has an update
+
+A device with an update available carries the amber arrow in the router list.
+For the Configuration Manager the arrow opens **Update** - so does *Update* on
+the device page, and **Update firmware** for the devices selected in the list.
+The page offers every update the device can take, **in this order**:
+
+1. **A file of the repository made for it** - its device type, and the model
+   and architecture the image is for - newest first. The newest is suggested.
+2. **The device's own online update**, one option per **release channel** its
+   device type lists, each with the newest version the vendor publishes on that
+   channel - for RouterOS: long-term, stable, testing, development. The device
+   downloads and installs the release itself; it must reach the vendor. Without
+   a repository file, the channel the device is on is suggested.
+
+Only versions **newer** than the running one are offered, and only of the
+**same major version**: a jump such as RouterOS 6 to 7 needs a procedure of its
+own and is not offered. For several devices, each option says how many of them
+it is for; a device already in a running update is left out.
+
+The update then runs like every rollout (below): a backup first, the update,
+and the device must come back on **exactly** the version it was offered - a
+beta is not another beta, nor its final release. Several devices: one first,
+alone; the rest a few at a time; any failure stops the others.
+
+How each step is done is configuration of the device type, nothing is built
+in: the channels and the addresses publishing their newest version (*Online
+update: release channels*), and the system command **firmware - online
+update**, which gets `{{ channel }}` and `{{ firmware_version }}`. For RouterOS:
+
+```
+/system package update set channel={{ channel }}
+/system package update check-for-updates once
+/system package update install
+```
+
+| RouterOS | Channel addresses (as RouterOS itself asks) |
+|---|---|
+| 7 | `https://upgrade.mikrotik.com/routeros/NEWESTa7.<channel>` - long-term, stable, testing, development |
+| 6 | `https://upgrade.mikrotik.com/routeros/NEWEST6.<channel>` - long-term, stable (6 *testing* answers 7.x: left out) |
+
+The addresses are read by the server - https only, never on RouterFleet's own
+networks - and kept for an hour. A device type without channels or without the
+online update command offers no online update; other device types can be given
+both.
+
+## Updating devices from an image
 
 *Update devices* on an image lists the enabled devices of its type and model,
 those running an older version selected. One device is marked **first**.

@@ -1,6 +1,9 @@
 """Running a firmware rollout, one step per device per scheduler call.
 
+    a file of the repository:
     waiting -> backing_up -> uploading -> verifying -> installing -> rebooting -> done
+    an online update (the device downloads the release itself):
+    waiting -> backing_up -> installing -> rebooting -> done
 
 - backing_up: a fresh backup through the normal backup pipeline; the rollout
   waits for it to succeed.
@@ -42,12 +45,27 @@ class StepFailed(Exception):
     pass
 
 
+def online(target):
+    return target.rollout.source == 'online'
+
+
+def expected_version(target):
+    """The version the device must come back with."""
+    return target.to_version if online(target) else target.rollout.image.version
+
+
 def firmware_values(target):
+    if online(target):
+        return {'channel': target.rollout.channel, 'firmware_version': target.to_version}
     image = target.rollout.image
     device_type = target.router.device_type
     name = image.filename
     path = (device_type.firmware_upload_path or '/{{ firmware_name }}').replace('{{ firmware_name }}', name)
     return {'firmware_name': name, 'firmware_path': path, 'firmware_version': image.version}
+
+
+def install_key(target):
+    return 'firmware_online_update' if online(target) else 'firmware_install'
 
 
 def _session(router):
@@ -80,16 +98,22 @@ def _move(target, state, message='', deadline=None):
 
 
 def check_target(target):
-    """Why this device can not take this image, or ''."""
+    """Why this device can not take this update, or ''."""
     router, image = target.router, target.rollout.image
     device_type = router.device_type
     if device_type is None or not device_type.managed:
         return 'the device is not reached over SSH'
+    from fleet_commander import system_commands
+    if online(target):
+        if not target.to_version:
+            return 'no version to update to'
+        if not system_commands.lines('firmware_online_update', router.router_type, **firmware_values(target)):
+            return f'{device_type.name} has no online update procedure'
+        return ''
     if router.router_type != image.device_type.slug:
         return f'the image is for {image.device_type.name}, the device is {device_type.name}'
     if not image.matches_router(router):
         return 'the image is not for this model or architecture'
-    from fleet_commander import system_commands
     if not system_commands.lines('firmware_install', router.router_type, **firmware_values(target)):
         return f'{device_type.name} has no firmware install procedure'
     return ''
@@ -118,7 +142,9 @@ def step_backing_up(target):
     if backup is None:
         raise StepFailed('the pre-update backup disappeared')
     backup.refresh_from_db()
-    if backup.success:
+    if backup.success and online(target):
+        _move(target, 'installing', f'Backup taken. Starting the online update to {target.to_version}.')
+    elif backup.success:
         _move(target, 'uploading', 'Backup taken. Uploading the firmware.', timezone.now() + UPLOAD_WAIT)
     elif backup.error:
         raise StepFailed('the pre-update backup failed: ' + (backup.error_message or 'see the backup'))
@@ -166,7 +192,7 @@ def step_verifying(target):
 
 def step_installing(target):
     from fleet_commander import system_commands
-    commands = system_commands.lines('firmware_install', target.router.router_type, **firmware_values(target))
+    commands = system_commands.lines(install_key(target), target.router.router_type, **firmware_values(target))
     session = _session(target.router)
     try:
         for command in commands:
@@ -188,7 +214,8 @@ def step_rebooting(target):
     from router_manager.models import RouterInformation
     from router_manager.templatetags.router_tags import compare_versions
     from routerlib.router_functions import get_router_information
-    image = target.rollout.image
+    from .options import same_version
+    expected = expected_version(target)
     if timezone.now() - target.updated < REBOOT_GRACE and target.message.startswith('Installing'):
         return
     info, _ = RouterInformation.objects.get_or_create(router=target.router)
@@ -197,7 +224,9 @@ def step_rebooting(target):
         info.refresh_from_db()
         field = target.router.device_type.vendor_version_field or 'os_version'
         running = getattr(info, field, '') or info.os_version or ''
-        if compare_versions(running, image.version) == 0:
+        # A file of the repository: the same version number; an online update:
+        # exactly the version offered (a beta is not its final release)
+        if same_version(running, expected) if online(target) else compare_versions(running, expected) == 0:
             target.state, target.finished_at = 'done', timezone.now()
             target.message = f'Updated: now running {running}.'
             target.save(update_fields=['state', 'finished_at', 'message', 'updated'])
@@ -206,8 +235,8 @@ def step_rebooting(target):
     else:
         last = error or 'not reachable yet'
     if target.deadline and timezone.now() > target.deadline:
-        raise StepFailed(f'did not come back with {image.version} within 20 minutes ({last})')
-    target.message = f'Waiting for {image.version}: {last}.'
+        raise StepFailed(f'did not come back with {expected} within 20 minutes ({last})')
+    target.message = f'Waiting for {expected}: {last}.'
     target.save(update_fields=['message', 'updated'])
 
 

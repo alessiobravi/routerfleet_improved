@@ -76,7 +76,11 @@ class FirmwareImage(models.Model):
 class FirmwareRollout(models.Model):
     STATES = [('running', 'Running'), ('done', 'Done'), ('failed', 'Stopped by a failure'), ('aborted', 'Aborted')]
 
-    image = models.ForeignKey(FirmwareImage, on_delete=models.PROTECT, related_name='rollouts')
+    SOURCES = [('image', 'A file of the repository'), ('online', 'Online update by the device')]
+    # A file of the repository, or the device's own online update of a channel
+    image = models.ForeignKey(FirmwareImage, on_delete=models.PROTECT, related_name='rollouts', null=True, blank=True)
+    source = models.CharField(max_length=10, choices=SOURCES, default='image')
+    channel = models.CharField(max_length=40, blank=True)
     batch_size = models.PositiveSmallIntegerField(default=3)
     state = models.CharField(max_length=10, choices=STATES, default='running')
     message = models.CharField(max_length=500, blank=True)
@@ -92,7 +96,14 @@ class FirmwareRollout(models.Model):
         ordering = ['-created']
 
     def __str__(self):
-        return f'{self.image} on {self.targets.count()} devices'
+        return f'{self.label} on {self.targets.count()} devices'
+
+    @property
+    def label(self):
+        if self.source == 'online':
+            versions = sorted(set(self.targets.exclude(to_version='').values_list('to_version', flat=True)))
+            return f'Online update, {self.channel} channel' + (f' ({", ".join(versions)})' if versions else '')
+        return str(self.image)
 
     @property
     def active(self):
@@ -109,6 +120,8 @@ class RolloutTarget(models.Model):
     rollout = models.ForeignKey(FirmwareRollout, on_delete=models.CASCADE, related_name='targets')
     router = models.ForeignKey(Router, on_delete=models.CASCADE)
     position = models.PositiveIntegerField(default=0)
+    # The version the device must come back with (an online update: the channel's newest)
+    to_version = models.CharField(max_length=64, blank=True)
     state = models.CharField(max_length=12, choices=STATES, default='waiting')
     message = models.TextField(blank=True)
     from_version = models.CharField(max_length=100, blank=True)

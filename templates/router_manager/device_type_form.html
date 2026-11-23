@@ -149,10 +149,16 @@
                     <input type="text" class="form-control rf-mono" id="firmware_upload_path" name="firmware_upload_path" spellcheck="false" value="{{ device_type.firmware_upload_path }}" placeholder="/tmp/{% templatetag openvariable %} firmware_name {% templatetag closevariable %}"></div></div>
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="firmware_verify">Proof that the upload arrived whole</label>
                     <select class="form-select" id="firmware_verify" name="firmware_verify">{% for value, label in device_type.FIRMWARE_VERIFY %}<option value="{{ value }}" {% if device_type.firmware_verify == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div></div>
-                {% if new %}{% for key, definition, payload in commands %}{% if key == 'firmware_verify' or key == 'firmware_install' %}
+                {% if new %}{% for key, definition, payload in commands %}{% if key == 'firmware_verify' or key == 'firmware_install' or key == 'firmware_online_update' %}
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">{{ definition.name|cut:"System: firmware - "|capfirst }}</label>
                     <textarea class="form-control rf-mono" id="command_{{ key }}" name="command_{{ key }}" rows="2" spellcheck="false">{{ payload }}</textarea>
                     <small class="text-muted">{{ definition.description }}</small></div></div>{% endif %}{% endfor %}{% endif %}
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="update_channels">Online update: release channels - one per line, "&lt;major version&gt; &lt;channel&gt;: address of its newest version"</label>
+                    <textarea class="form-control rf-mono" id="update_channels" name="update_channels" rows="4" spellcheck="false" placeholder="7 stable: https://vendor.example/newest/7.stable">{{ device_type.update_channels }}</textarea>
+                    <small class="text-muted">Each line is an option on the update page for devices on that major version, with the version the address publishes. The device installs it with the system command "firmware - online update". Empty: no online update options.</small></div></div>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="update_channel_pattern">Version in the channel's answer (a regular expression, the version in its first group)</label>
+                    <input type="text" class="form-control rf-mono" id="update_channel_pattern" name="update_channel_pattern" spellcheck="false" value="{{ device_type.update_channel_pattern }}" placeholder="^\s*([0-9][0-9A-Za-z.\-]*)">
+                    <small class="text-muted">Empty: the answer's first word.</small></div></div>
             </div>
         </section>
         {% endif %}

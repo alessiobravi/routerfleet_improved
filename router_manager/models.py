@@ -49,6 +49,12 @@ class DeviceType(models.Model):
     legacy_before_version = models.CharField(max_length=20, blank=True)
     legacy_option_sensitive = models.CharField(max_length=100, blank=True)
     legacy_option_hide_sensitive = models.CharField(max_length=100, blank=True)
+    # Online updates: where each release channel's newest version is published,
+    # one line per channel: "<major version> <channel>: https://..." (a line
+    # applies to devices on that major version). update_channel_pattern reads
+    # the version out of the answer; empty: the first word.
+    update_channels = models.TextField(blank=True)
+    update_channel_pattern = models.CharField(max_length=200, blank=True)
     # Which version the device could run
     check_device = models.BooleanField(default=False)
     check_vendor = models.BooleanField(default=False)
