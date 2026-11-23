@@ -21,6 +21,9 @@ class UserAcl(models.Model):
         ('both', "Show a menu (SSH and the device type's tools)"),
     ), help_text='What a click on the address of a router in the router list does.')
 
+    # A number to reach the person on (shown to administrators only)
+    phone = models.CharField(max_length=30, blank=True, default='')
+
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)

@@ -11,7 +11,7 @@
         <a class="rf-set-row" href="/user/manage/?uuid={{ user_acl.uuid }}">
             <span class="rf-set-icon {% if user_acl.user_level >= 50 %}red{% elif user_acl.user_level >= 40 %}purple{% elif user_acl.user_level >= 30 %}blue{% elif user_acl.user_level >= 20 %}teal{% else %}grey{% endif %}">{{ user_acl.user.username|slice:":1"|upper }}</span>
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ user_acl.user.username }}{% if not user_acl.user.is_active %} <span class="badge badge-secondary">inactive</span>{% endif %}</span>
-                <span class="rf-set-sub d-block">{{ user_acl.get_user_level_display }} · {{ user_acl.user.email|default:"no email" }}</span></span>
+                <span class="rf-set-sub d-block">{% if user_acl.user.get_full_name %}{{ user_acl.user.get_full_name }} · {% endif %}{{ user_acl.get_user_level_display }} · {{ user_acl.user.email|default:"no email" }}{% if user_acl.phone %} · {{ user_acl.phone }}{% endif %}</span></span>
             <span class="rf-set-value small">{% if user_acl.app %}<i class="fas fa-mobile-alt" title="Authenticator app"></i>{% endif %}{% if user_acl.passkeys %} <i class="fas fa-key" title="{{ user_acl.passkeys }} passkey{{ user_acl.passkeys|pluralize }}"></i>{% endif %}{% if not user_acl.app and not user_acl.passkeys %}password only{% endif %}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>

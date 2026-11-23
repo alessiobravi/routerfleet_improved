@@ -80,3 +80,34 @@ class SelfServiceSettingsTests(TestCase):
         UserAcl.objects.filter(user=user).update(address_link='ssh')
         self.client.force_login(user)
         self.assertEqual(self.client.get('/router/list/').context['address_link'], 'ssh')
+
+
+class UserDetailsTests(TestCase):
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def test_name_surname_and_phone_are_stored_and_shown(self):
+        response = self.client.post('/user/manage/', {'username': 'erin', 'password1': 'Xk2!rT9#pq', 'password2': 'Xk2!rT9#pq',
+                                                      'user_level': 20, 'first_name': 'Erin', 'last_name': 'Rossi',
+                                                      'phone': '+39 055 123 4567', 'email': 'erin@example.com'})
+        self.assertRedirects(response, '/user/list/', fetch_redirect_response=False)
+        acl = UserAcl.objects.get(user__username='erin')
+        self.assertEqual((acl.user.first_name, acl.user.last_name, acl.phone), ('Erin', 'Rossi', '+39 055 123 4567'))
+        page = self.client.get('/user/list/')
+        self.assertContains(page, 'Erin Rossi')
+        self.assertContains(page, '+39 055 123 4567')
+        edit = self.client.get(f'/user/manage/?uuid={acl.uuid}')
+        self.assertContains(edit, 'value="+39 055 123 4567"')
+        # Editing keeps the password and changes the phone
+        self.client.post(f'/user/manage/?uuid={acl.uuid}', {'username': 'erin', 'user_level': 20, 'first_name': 'Erin',
+                                                            'last_name': 'Rossi', 'phone': '055 999'})
+        acl.refresh_from_db()
+        self.assertEqual(acl.phone, '055 999')
+        self.assertTrue(acl.user.check_password('Xk2!rT9#pq'))
+
+    def test_a_phone_that_is_not_one_is_refused(self):
+        for phone in ('call me', '12', '+39<script>'):
+            with self.subTest(phone=phone):
+                self.client.post('/user/manage/', {'username': f'u{len(phone)}', 'password1': 'Xk2!rT9#pq',
+                                                   'password2': 'Xk2!rT9#pq', 'user_level': 10, 'phone': phone})
+                self.assertFalse(UserAcl.objects.filter(user__username=f'u{len(phone)}').exists())

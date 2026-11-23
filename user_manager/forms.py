@@ -1,3 +1,4 @@
+import re
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
@@ -13,12 +14,16 @@ class UserAddressLinkForm(forms.ModelForm):
         fields = ('address_link',)
 
 
+PHONE = re.compile(r'^\+?[0-9][0-9 ()./-]{3,28}$')
+
+
 class UserAclForm(UserCreationForm):
     user_level = forms.ChoiceField(choices=UserAcl.user_level.field.choices, required=True, label="User Level")
+    phone = forms.CharField(required=False, max_length=30, label='Phone')
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = UserCreationForm.Meta.fields + ('email', 'user_level',)
+        fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email', 'user_level',)
 
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id', None)
@@ -28,7 +33,17 @@ class UserAclForm(UserCreationForm):
             self.fields['password2'].required = False
             self.fields['username'].widget.attrs['readonly'] = True
         self.fields['email'].required = False
+        self.fields['first_name'].label, self.fields['last_name'].label = 'Name', 'Surname'
+        if self.instance and self.instance.pk:
+            acl = UserAcl.objects.filter(user=self.instance).first()
+            self.fields['phone'].initial = acl.phone if acl else ''
         self.fields['email'].help_text = 'For email notifications; each user chooses them in My Settings.'
+
+    def clean_phone(self):
+        phone = (self.cleaned_data.get('phone') or '').strip()
+        if phone and not PHONE.match(phone):
+            raise ValidationError('Enter a phone number such as +39 055 123 4567.')
+        return phone
 
     def clean_username(self):
         username = self.cleaned_data.get('username')
@@ -58,6 +73,7 @@ class UserAclForm(UserCreationForm):
         if commit:
             user_acl, created = UserAcl.objects.update_or_create(
                 user=user,
-                defaults={'user_level': self.cleaned_data.get('user_level')}
+                defaults={'user_level': self.cleaned_data.get('user_level'),
+                          'phone': self.cleaned_data.get('phone', '')}
             )
         return user

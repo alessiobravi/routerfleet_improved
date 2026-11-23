@@ -1,86 +1,61 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-3">
-    <div class="card card-primary card-outline">
-        <div class="card-header">
-            <h3 class="card-title">{{ form.instance.pk|yesno:"Edit User,Create New User" }}</h3>
-        </div>
-        <div class="card-body">
-<div class="row">
-    <div class="col-md-4">
-        <form method="post">
+<div class="rf-settings">
+    <a href="/user/list/" class="small"><i class="fas fa-chevron-left"></i> Users</a>
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
+    <form method="post" autocomplete="off">
         {% csrf_token %}
+        <div class="rf-set-title">{{ form.instance.pk|yesno:"Edit user,New user" }}</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><span class="rf-set-icon"><i class="fas fa-user"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="{{ form.username.id_for_label }}">Username</label>
+                    <input type="text" class="form-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" required value="{{ form.username.value|default_if_none:'' }}" {% if form.instance.pk %}readonly{% endif %}></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><div class="d-flex flex-wrap">
+                <div class="flex-fill mr-2" style="min-width: 10rem"><label class="small mb-0" for="{{ form.first_name.id_for_label }}">Name</label>
+                    <input type="text" class="form-control" id="{{ form.first_name.id_for_label }}" name="{{ form.first_name.html_name }}" maxlength="150" autocomplete="off" value="{{ form.first_name.value|default_if_none:'' }}"></div>
+                <div class="flex-fill" style="min-width: 10rem"><label class="small mb-0" for="{{ form.last_name.id_for_label }}">Surname</label>
+                    <input type="text" class="form-control" id="{{ form.last_name.id_for_label }}" name="{{ form.last_name.html_name }}" maxlength="150" autocomplete="off" value="{{ form.last_name.value|default_if_none:'' }}"></div>
+            </div></div></div>
+            <div class="rf-set-row"><span class="rf-set-icon purple"><i class="fas fa-envelope"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="{{ form.email.id_for_label }}">Email</label>
+                    <input type="email" class="form-control" id="{{ form.email.id_for_label }}" name="{{ form.email.html_name }}" placeholder="name@example.com" value="{{ form.email.value|default_if_none:'' }}">
+                    <small class="text-muted">{{ form.email.help_text }}</small></div></div>
+            <div class="rf-set-row"><span class="rf-set-icon teal"><i class="fas fa-phone"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="{{ form.phone.id_for_label }}">Phone</label>
+                    <input type="tel" class="form-control" id="{{ form.phone.id_for_label }}" name="{{ form.phone.html_name }}" maxlength="30" placeholder="+39 055 123 4567" value="{{ form.phone.value|default_if_none:'' }}">
+                    <small class="text-muted">Optional: to reach the person; shown to administrators only.</small></div></div>
+        </div>
 
-            <!-- Username -->
-            <div class="form-group">
-                <label for="{{ form.username.id_for_label }}">Username</label>
-                <input type="text" class="form-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" placeholder="Enter Username" value="{{ form.username.value|default_if_none:'' }}" {% if form.instance.pk %}readonly{% endif %}>
-            </div>
-            <!-- Email, for notifications -->
-            <div class="form-group">
-                <label for="{{ form.email.id_for_label }}">Email</label>
-                <input type="email" class="form-control" id="{{ form.email.id_for_label }}" name="{{ form.email.html_name }}" placeholder="name@example.com" value="{{ form.email.value|default_if_none:'' }}">
-                <small class="form-text text-muted">{{ form.email.help_text }}</small>
-            </div>
-            <!-- Password -->
-            <div class="form-group">
-                <label for="{{ form.password1.id_for_label }}">Password</label>
-                <input type="password" class="form-control" id="{{ form.password1.id_for_label }}" name="{{ form.password1.html_name }}" placeholder="Password">
-            </div>
-            
-            <!-- Retype Password -->
-            <div class="form-group">
-                <label for="{{ form.password2.id_for_label }}">Retype Password</label>
-                <input type="password" class="form-control" id="{{ form.password2.id_for_label }}" name="{{ form.password2.html_name }}" placeholder="Retype Password">
-            </div>           
-            <!-- User Level -->
-            <div class="form-group">
-                <label for="{{ form.user_level.id_for_label }}">{{ form.user_level.label }}</label>
-                <select class="form-control" id="{{ form.user_level.id_for_label }}" name="{{ form.user_level.html_name }}">
-                    {% for value, display in form.user_level.field.choices %}
-                        <option value="{{ value }}" {% if form.user_level.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ display }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <button type="submit" class="btn btn-primary">Submit</button>
-                <a href="/user/list/" class="btn btn-outline-secondary">Back</a>
-                {% if user_acl %}<a href='javascript:void(0)' class='btn btn-outline-danger' data-command='delete' onclick='openCommandDialog(this)'>Delete User</a>{% endif %}
-            </div>
+        <div class="rf-set-title">Access</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><span class="rf-set-icon red"><i class="fas fa-user-shield"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="{{ form.user_level.id_for_label }}">Level</label>
+                    <select class="form-control" id="{{ form.user_level.id_for_label }}" name="{{ form.user_level.html_name }}">
+                        {% for value, display in form.user_level.field.choices %}<option value="{{ value }}" {% if form.user_level.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ display }}</option>{% endfor %}
+                    </select>
+                    <small class="text-muted">Viewer: queues and the backup list. Backup Operator: also backups and instant backups. Host Manager: also devices, the console, deleting backups. Configuration Manager: also profiles, groups, SSH keys, commands, firmware. Administrator: everything.</small></div></div>
+            <div class="rf-set-row"><span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="{{ form.password1.id_for_label }}">{% if form.instance.pk %}New password (empty keeps the current one){% else %}Password{% endif %}</label>
+                    <input type="password" class="form-control mb-1" id="{{ form.password1.id_for_label }}" name="{{ form.password1.html_name }}" autocomplete="new-password" {% if not form.instance.pk %}required{% endif %}>
+                    <input type="password" class="form-control" id="{{ form.password2.id_for_label }}" name="{{ form.password2.html_name }}" autocomplete="new-password" placeholder="Again" aria-label="Retype password" {% if not form.instance.pk %}required{% endif %}>
+                    {% if form.instance.pk %}<small class="text-muted">A new password signs the user out everywhere.</small>{% endif %}</div></div>
             {% if mfa_state %}
-            <div class="mt-3">
-                <strong>Second factors:</strong>
-                {% if mfa_state.totp %}<span class="badge badge-success">authenticator app</span>{% endif %}
-                {% if mfa_state.passkeys %}<span class="badge badge-info">{{ mfa_state.passkeys }} passkey{{ mfa_state.passkeys|pluralize }}</span>{% endif %}
-                {% if mfa_state.totp or mfa_state.passkeys %}
-                    <a href='javascript:void(0)' class='btn btn-outline-warning btn-sm ml-2' onclick='resetMfa()'>Reset</a>
-                {% else %}
-                    <span class="text-muted">none</span>
-                {% endif %}
+            <div class="rf-set-row"><span class="rf-set-icon grey"><i class="fas fa-mobile-alt"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Second factors</span>
+                    <span class="rf-set-sub d-block">{% if mfa_state.totp %}authenticator app{% endif %}{% if mfa_state.totp and mfa_state.passkeys %} · {% endif %}{% if mfa_state.passkeys %}{{ mfa_state.passkeys }} passkey{{ mfa_state.passkeys|pluralize }}{% endif %}{% if not mfa_state.totp and not mfa_state.passkeys %}none - password only{% endif %}</span></span>
+                {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" onclick="resetMfa()">Reset</button>{% endif %}
             </div>
             {% endif %}
-        </form>
-    </div>
-        
-    
-    <div class="col-md-8">
-        <h5>Viewer</h5>
-        <p>This level has view-only access. Users can see queue information and the backup list, but they cannot access backup data or any sensitive information.</p>
-        <h5>Backup Operator</h5>
-        <p>In addition to the permissions of the Viewer level, users at this level can view host backups and start instant backups.</p>
-        <h5>Host Manager</h5>
-        <p>Users at this level can configure, add, and remove hosts, and delete backups. They also have all the permissions of the Backup Operator level.</p>
-        <h5>Configuration Manager</h5>
-        <p>In addition to the permissions of the Host Manager level, users at this level can configure backup profiles, SSH keys, and router groups.</p>
-        <h5>Administrator</h5>
-        <p>Users at this level have full administrative rights, including all the permissions of the previous levels.</p>
-    </div>
-</div>
-        
-    </div>
-    </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <a href="/user/list/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+            {% if user_acl %}<a href="javascript:void(0)" class="btn btn-outline-danger btn-lg ml-2" data-command="delete" onclick="openCommandDialog(this)">Delete user</a>{% endif %}
+        </div>
+    </form>
 </div>
 {% endblock %}
 

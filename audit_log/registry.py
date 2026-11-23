@@ -365,7 +365,7 @@ def build():
                   'is_superuser', 'password'],
           create=True, redact=('password',))
     watch(apps.get_model('user_manager', 'UserAcl'),
-          fields=['user', 'user_level'],
+          fields=['user', 'user_level', 'phone'],
           create=True)
 
     # Second factors: that one was turned on, off or reset, never the secret

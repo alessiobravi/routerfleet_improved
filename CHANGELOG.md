@@ -28,11 +28,14 @@ the Zabbix kit reads, says so under **Monitoring**.
   FULL to give the space back to the disk. Also `manage.py optimize_database`.
   Statistics are refreshed after every backup clean-up.
 
+- **Name, surname and phone** in a user's details (User Manager), shown in the
+  user list; the phone is optional, checked, and in the change log.
+
 ### Changed
 - **Tools, User Manager, Message Center and Fleet Commander** use the layout of
   System settings. The message history can be filtered; grouping and daily
-  reports explain each setting beside it; the user list shows each user's level
-  and second factors.
+  reports explain each setting beside it; the user list and editor show each
+  user's level and second factors.
 
 ### Fixed
 - **The backup list was slow**: every row fetched its device with a query of

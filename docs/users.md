@@ -48,6 +48,12 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
 | | HTTPS, [Updates](updating.md) (approve an update, with your password) | 50 |
 
+## User details
+
+A user has a username, a name and surname, an email address (for
+notifications) and an optional phone number - edited in User Manager by an
+administrator; the list shows them with the user's level and second factors.
+
 ## The first account
 
 The first visit to a fresh installation offers to create the first user, which
