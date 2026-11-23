@@ -149,7 +149,9 @@ class Router(models.Model):
             # An outage still open would count as downtime for ever
             from django.utils import timezone
             from monitoring.models import RouterDownTime
-            RouterDownTime.objects.filter(router=self, end_time=None).update(end_time=timezone.now())
+            for outage in RouterDownTime.objects.filter(router=self, end_time=None):
+                outage.end_time = max(timezone.now(), outage.start_time or timezone.now())
+                outage.save()   # computes total_down_time - an update() would leave it 0
 
     def __str__(self):
         return self.name

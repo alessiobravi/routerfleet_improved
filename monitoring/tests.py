@@ -172,3 +172,49 @@ class FpingArgumentTests(TestCase):
         with mock.patch.object(module, 'Popen', return_value=process) as popen, mock.patch('builtins.print'):
             module.check_host_status('u')
         self.assertEqual(popen.call_args.args[0], ['fping', '192.0.2.1'])
+
+
+class UnwatchedOutageMigrationTests(TestCase):
+    """0003: outages left open for hosts that are disabled or unmonitored end
+    when the host stopped being watched - or where they began, if unknown."""
+
+    def test_open_outages_of_unwatched_hosts_end(self):
+        import datetime
+        import importlib
+        from django.apps import apps
+        from django.utils import timezone
+        from monitoring.models import RouterDownTime
+        from router_manager.models import Router
+        from routerfleet.testing import make_router
+        now = timezone.now()
+        disabled_later = make_router(name='off-after')
+        Router.objects.filter(pk=disabled_later.pk).update(enabled=False, enabled_changed_at=now - datetime.timedelta(hours=2))
+        a = RouterDownTime.objects.create(router=disabled_later, start_time=now - datetime.timedelta(hours=5))
+        disabled_before = make_router(name='off-before')
+        Router.objects.filter(pk=disabled_before.pk).update(enabled=False, enabled_changed_at=now - datetime.timedelta(days=500))
+        b = RouterDownTime.objects.create(router=disabled_before, start_time=now - datetime.timedelta(days=340))
+        unmonitored = make_router(name='quiet')
+        Router.objects.filter(pk=unmonitored.pk).update(monitoring=False)
+        c = RouterDownTime.objects.create(router=unmonitored, start_time=now - datetime.timedelta(days=3))
+        watched = make_router(name='watched')
+        d = RouterDownTime.objects.create(router=watched, start_time=now - datetime.timedelta(minutes=10))
+        importlib.import_module('monitoring.migrations.0003_close_outages_of_unwatched_hosts').close_outages(apps, None)
+        for outage in (a, b, c, d):
+            outage.refresh_from_db()
+        self.assertEqual(a.total_down_time, 3 * 3600, 'ends when the host was disabled')
+        self.assertEqual((b.end_time, b.total_down_time), (b.start_time, 0), 'opened after the disable: no downtime')
+        self.assertEqual((c.end_time, c.total_down_time), (c.start_time, 0), 'when monitoring stopped is unknown')
+        self.assertIsNone(d.end_time, 'a watched host keeps its outage open')
+
+    def test_disabling_closes_the_outage_with_its_length(self):
+        import datetime
+        from django.utils import timezone
+        from monitoring.models import RouterDownTime
+        from routerfleet.testing import make_router
+        router = make_router(name='to-disable')
+        outage = RouterDownTime.objects.create(router=router, start_time=timezone.now() - datetime.timedelta(minutes=30))
+        router.enabled = False
+        router.save()
+        outage.refresh_from_db()
+        self.assertIsNotNone(outage.end_time)
+        self.assertGreaterEqual(outage.total_down_time, 30 * 60 - 5, 'the length is counted, not left at 0')

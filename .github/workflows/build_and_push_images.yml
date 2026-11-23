@@ -549,6 +549,9 @@ jobs:
           # The Zabbix kit's read-only role: roles live outside the database dump
           sed "s/CHANGE_ME/${RF_TEST_ZBX_PW}/" contrib/zabbix/sql/zbx_monitor.sql \
             | docker exec -i old-db psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+          # A membership lives outside the database too: some operators give the
+          # role pg_monitor for Zabbix's PostgreSQL templates - it must come along
+          docker exec old-db psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "GRANT pg_monitor TO zbx_monitor"
           docker rm -f old-db
           docker network rm rf-old
 
@@ -592,6 +595,10 @@ jobs:
             -Atc "SELECT count(name) FROM router_manager_router" | grep -qx 1
           ! docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
             -Atc "SELECT password FROM router_manager_router" 2>/dev/null
+          docker exec routerfleet-postgres psql -U "$(docker exec routerfleet-postgres printenv POSTGRES_USER)" -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
+            -Atc "SELECT pg_has_role('zbx_monitor', 'pg_monitor', 'member')" | grep -qx t
+          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
+            -Atc "SELECT count(*) >= 0 FROM pg_ls_waldir()" | grep -qx t
           echo "monitoring role verified"
 
       - name: Logs

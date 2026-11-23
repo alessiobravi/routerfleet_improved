@@ -383,6 +383,21 @@ class ZabbixKitTests(TestCase):
         self.assertTrue(commands)
         self.assertLessEqual(commands, handled, f'not handled by the collector: {commands - handled}')
 
+    def test_every_granted_column_exists(self):
+        # A database change that renames or drops a column the kit reads would
+        # make the role's SQL fail on a new installation: caught here instead
+        import re
+        from django.apps import apps
+        columns = {model._meta.db_table: {f.column for f in model._meta.concrete_fields}
+                   for model in apps.get_models()}
+        grants = re.findall(r'GRANT SELECT \(([^)]*)\)\s+ON (\w+)', self.read('sql/zbx_monitor.sql'))
+        self.assertGreater(len(grants), 3)
+        for column_list, table in grants:
+            with self.subTest(table=table):
+                self.assertIn(table, columns, f'{table} no longer exists')
+                for column in (c.strip() for c in column_list.split(',')):
+                    self.assertIn(column, columns[table], f'{table}.{column} no longer exists')
+
     def test_the_role_gets_columns_not_tables(self):
         sql = self.read('sql/zbx_monitor.sql')
         self.assertNotRegex(sql, r'(?m)^GRANT SELECT ON ')

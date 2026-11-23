@@ -13,6 +13,36 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.25.2] - 2026-11-23
+
+### Fixed
+- **A refused backup could still count as successful.** 0.24.2 recognised a
+  stored refusal by RouterOS's error text; field reports show one whose stored
+  text was not that line, while its console recorded the device's exit code 1.
+  On upgrade, a successful backup whose console shows a non-zero exit code for
+  a command of its first phase becomes a failed one, with the reason (backups
+  made from 0.24.2 on are failed at once).
+- **Outages left open for disabled or unmonitored hosts end on upgrade.** 0.25.0
+  ended them only for hosts disabled from then on. Each ends when its host was
+  disabled, or where it began when that is not known - counting it to the
+  upgrade would invent downtime.
+- **An outage ended by disabling a host counted as no downtime at all**: its
+  length was left at 0 (0.25.0). It is now counted.
+
+### Documentation
+- **Zabbix kit**: how to fetch it onto the Docker host (it is in the
+  repository, not in the images); that the move to PostgreSQL 18 carries its
+  role from 0.25.1 on, and a move made before needs the role's SQL again; and
+  not to link Zabbix's generic PostgreSQL templates to the kit's role (they need
+  `pg_monitor` and fill the database log with permission errors without it).
+
+### Maintenance
+- The CI migration test also checks that a role's `pg_monitor` membership comes
+  along (`pg_ls_waldir()` readable after the move).
+- A test checks that every column the kit's role is granted exists in the
+  database, so a change that would break the kit's SQL is caught before a
+  release.
+
 ## [0.25.1] - 2026-11-23
 
 ### Fixed

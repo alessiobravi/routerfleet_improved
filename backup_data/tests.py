@@ -275,6 +275,11 @@ class PipelineTests(TestCase):
         self.assertEqual(export_words(routeros, None), ('show-sensitive', ''))
         self.assertEqual(export_words(routeros, '6.49.21 (long-term)'), ('', 'hide-sensitive'))
         self.assertEqual(export_words(routeros, '6.48beta3'), ('', 'hide-sensitive'))
+        # With any release channel, as field reports show them
+        for version in ('6.49.23 (stable)', '6.49.21 (long-term)', '6.49.18 (testing)', '6.49'):
+            self.assertEqual(export_words(routeros, version), ('', 'hide-sensitive'), version)
+        for version in ('7.25.1 (stable)', '7.24.5 (long-term)', '7.26beta1 (testing)'):
+            self.assertEqual(export_words(routeros, version), ('show-sensitive', ''), version)
 
     def test_routeros_with_the_binary_kept(self):
         with_routeros_binary()
@@ -747,3 +752,43 @@ class RefusedExportMigrationTests(TestCase):
         real.refresh_from_db()
         self.assertTrue(real.success)
         self.assertIn('add address', real.backup_text)
+
+
+class RefusedByExitCodeMigrationTests(TestCase):
+    """0017: the exit code the console recorded decides - a refused command of
+    the first phase makes the backup a failure, whatever text was stored."""
+
+    def console(self, *lines):
+        return ''.join(f'[2026-11-23 03:07:41] {line}\n' for line in lines)
+
+    def test_refused_first_phase_fails_clean_and_cleanup_only_stay(self):
+        import importlib
+        from django.apps import apps
+        router = make_router()
+        refused = RouterBackup.objects.create(router=router, success=True, schedule_type='daily',
+                                              backup_text='something that is not the error line', backup_text_hash='y' * 64,
+                                              task_console_output=self.console('$ /export  show-sensitive terse',
+                                                                               '[stdout suppressed]', '[exit_code=1]'))
+        repeat = RouterBackup.objects.create(router=router, success=True, schedule_type='daily', same_as=refused)
+        clean = RouterBackup.objects.create(router=router, success=True, schedule_type='daily', backup_text='/ip address',
+                                            task_console_output=self.console('$ /export terse', '[stdout suppressed]',
+                                                                             '[exit_code=0]'))
+        cleanup_only = RouterBackup.objects.create(router=router, success=True, schedule_type='daily', backup_text='/ip x',
+                                                   task_console_output=self.console(
+                                                       '$ /export terse', '[exit_code=0]', '=== Retrieving backup files ===',
+                                                       '$ file remove [find where name~"routerfleet-backup-"]', '[exit_code=1]'))
+        old_format = RouterBackup.objects.create(router=router, success=True, schedule_type='daily', backup_text='/ip y',
+                                                 task_console_output='Backup taken\n')
+        module = importlib.import_module('backup_data.migrations.0017_refused_by_exit_code')
+        module.refused_by_exit_code(apps, None)
+        refused.refresh_from_db()
+        self.assertFalse(refused.success)
+        self.assertTrue(refused.error)
+        self.assertEqual(refused.backup_text, '')
+        self.assertIn('exit code 1', refused.error_message)
+        self.assertIn('/export  show-sensitive terse', refused.error_message)
+        repeat.refresh_from_db()
+        self.assertFalse(repeat.success)
+        for kept in (clean, cleanup_only, old_format):
+            kept.refresh_from_db()
+            self.assertTrue(kept.success, kept.task_console_output)

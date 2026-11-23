@@ -74,6 +74,21 @@ port and no network exposure for monitoring to work.
 
 ## Installation
 
+### 0. Get the kit onto the Docker host
+
+The kit is part of the repository, not of the Docker images. On the Docker
+host, fetch the current version of the repository and use its `contrib/zabbix`
+folder:
+
+```bash
+wget -O routerfleet-main.tar.gz https://github.com/alessiobravi/routerfleet_improved/archive/refs/heads/main.tar.gz
+tar xzf routerfleet-main.tar.gz routerfleet_improved-main/contrib/zabbix
+cd routerfleet_improved-main/contrib/zabbix
+```
+
+(or `git clone https://github.com/alessiobravi/routerfleet_improved.git`).
+The commands below run from that folder.
+
 ### 1. Create the read-only database role
 
 Edit `sql/zbx_monitor.sql` and replace the placeholder password, then:
@@ -87,6 +102,19 @@ The role is granted `SELECT` on the columns the collector reads and nothing
 else - not the device passwords, not the backed-up configurations, not user
 names, addresses or session keys. See
 [design note 5](docs/design-notes.md) for why that matters.
+
+Use this role for the kit's template only. **Do not link Zabbix's generic
+"PostgreSQL" templates to it**: they need the `pg_monitor` role, and without it
+the database log fills with `permission denied for function pg_ls_waldir` and
+`unrecognized configuration parameter "zbx_tmp..."`. If you want PostgreSQL's
+own health in Zabbix, give those templates a separate role with `pg_monitor` -
+knowing that `pg_monitor` can read the text of every running query, which may
+carry data.
+
+**Moving to PostgreSQL 18** ([Upgrading](../../docs/upgrading.md#moving-to-postgresql-18)):
+from 0.25.1 the migration script carries this role along, with its password and
+grants - nothing to do. A database moved with an earlier version lost the role:
+run the SQL above again.
 
 ### 2. Install the collector
 

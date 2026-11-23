@@ -59,6 +59,10 @@ it, and a release that changes it, or the columns the kit reads, says so in the
 changelog under **Monitoring**. The kit's design notes give a query to confirm
 it after an upgrade.
 
+The kit's role survives the move to PostgreSQL 18: from 0.25.1 the [migration
+script](upgrading.md#moving-to-postgresql-18) carries it along. A move made
+with an earlier version needs the role's SQL run again.
+
 ## What you need
 
 - RouterFleet Improved with the bundled PostgreSQL (`docker-compose.yml`)
@@ -68,9 +72,10 @@ it after an upgrade.
 
 ## Setting it up
 
-Four steps, each detailed in the kit's
+Five steps, each detailed in the kit's
 [installation guide](../contrib/zabbix/README.md#installation):
 
+0. fetch the kit onto the Docker host (it is in the repository, not in the images);
 1. create the read-only role from `sql/zbx_monitor.sql`, with a password of your own;
 2. install the collector script on the Docker host;
 3. add the agent configuration fragment and restart the agent;
