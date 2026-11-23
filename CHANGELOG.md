@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.27.1] - 2026-11-24
+
+### Changed
+- **"Update not checked" says why.** When a device's update check gives no
+  version, what the device said is kept and shown - for RouterOS the status of
+  its own check, such as `ERROR: could not resolve dns name` - in the version's
+  tooltip and on the device page (inventory field *Update check status*).
+- **Such a device is checked again after an hour** instead of a day.
+
 ## [0.27.0] - 2026-11-23
 
 ### Added

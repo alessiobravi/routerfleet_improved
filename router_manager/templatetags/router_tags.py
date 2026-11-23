@@ -83,8 +83,11 @@ def os_version_state(router_information):
         # Not missing information: the device type has no way to tell
         return {'css_class': '', 'title': f'{device_type.name} has no update check configured'}
     if not available_version:
+        status = (getattr(router_information, 'update_status', '') or '').strip()
+        said = f' The device said: "{status}".' if status else ''
         return {'css_class': 'text-warning',
-                'title': 'No version known the router could update to. Update the router information.'}
+                'title': f'No version known the router could update to.{said} Checked again within the hour, '
+                         f'or now with Update router information.'}
 
     comparison = compare_versions(os_version, available_version)
     if comparison is None:

@@ -5,7 +5,7 @@ from urllib.parse import unquote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import OuterRef, Subquery, Sum
+from django.db.models import OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -700,6 +700,9 @@ def view_manage_router_groups_multiple(request):
     return render(request, 'router_manager/manage_router_groups.html', context)
 
 
+UNCHECKED_RETRY = timezone.timedelta(hours=1)
+
+
 def _router_due_for_information_update(router_list, refresh_interval):
     """Next router that needs an information update, requested ones first."""
     router = router_list.filter(routerinformation__update_requested=True).first()
@@ -711,6 +714,13 @@ def _router_due_for_information_update(router_list, refresh_interval):
         router = router_list.filter(routerinformation__last_retrieval__isnull=True).first()
     if not router:
         router = router_list.filter(routerinformation__last_retrieval__lt=timezone.now() - timezone.timedelta(hours=refresh_interval)).first()
+    if not router:
+        # An update check that gave no version (the device could not reach its
+        # vendor, or answered too slowly) is tried again after an hour, not a day
+        from router_manager.models import DeviceType
+        checked = [t.slug for t in DeviceType.objects.all() if t.checks]
+        router = router_list.filter(router_type__in=checked, routerinformation__last_retrieval__lt=timezone.now() - UNCHECKED_RETRY) \
+            .filter(Q(routerinformation__available_version__isnull=True) | Q(routerinformation__available_version='')).first()
     return router
 
 

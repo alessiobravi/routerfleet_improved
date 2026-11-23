@@ -27,6 +27,7 @@ INVENTORY_FIELDS = (
     ('cpu', 'CPU'),
     ('available_version', 'Version offered by the device'),
     ('firmware_available', 'Firmware the device can install (bootloader)'),
+    ('update_status', 'Update check status (why no version is known)'),
 )
 # At least one of these must be found, or reading the inventory failed
 INVENTORY_IDENTITY = ('model_name', 'model_version', 'os_version')
@@ -106,6 +107,7 @@ PRESETS = {
             'architecture': ['key:architecture-name'], 'cpu': ['key:cpu'], 'model_version': ['key:model'],
             'serial_number': ['key:serial-number'], 'firmware_version': ['key:current-firmware'],
             'available_version': ['key:latest-version'], 'firmware_available': ['key:upgrade-firmware'],
+            'update_status': ['key:status'],
         },
         'inventory_repeat': r'package update print',
         'text_extension': 'rsc', 'binary_extension': '',

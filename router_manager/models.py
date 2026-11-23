@@ -239,6 +239,8 @@ class RouterInformation(models.Model):
     os_version = models.CharField(max_length=100, null=True, blank=True)
     # The bootloader firmware the device could install (RouterOS: upgrade-firmware)
     firmware_available = models.CharField(max_length=100, null=True, blank=True)
+    # What the device said about its own update check (RouterOS: status)
+    update_status = models.CharField(max_length=200, null=True, blank=True)
     firmware_version = models.CharField(max_length=100, null=True, blank=True)
     # Version the router could be upgraded to, and whether it differs from the
     # installed one. Empty when the router type has no automatic update check.

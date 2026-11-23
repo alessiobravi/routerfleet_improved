@@ -100,8 +100,32 @@ class InformationQueueTests(TestCase):
         self.assertEqual(self.due(), requested)
 
     def test_nothing_due(self):
-        make_information(make_router(), last_retrieval=self.now)
+        make_information(make_router(), last_retrieval=self.now, available_version='7.25.2')
         self.assertIsNone(self.due())
+
+    def test_an_update_check_without_a_version_is_tried_again_after_an_hour(self):
+        unchecked = make_router(router_type='routeros')
+        make_information(unchecked, last_retrieval=self.now - datetime.timedelta(minutes=30), available_version='',
+                         update_status='ERROR: could not resolve dns name')
+        self.assertIsNone(self.due(), 'not before the hour is up')
+        RouterInformation.objects.filter(router=unchecked).update(last_retrieval=self.now - datetime.timedelta(minutes=61))
+        self.assertEqual(self.due(), unchecked)
+        # A type that checks nothing has nothing to try again
+        RouterInformation.objects.filter(router=unchecked).update(available_version='7.25.2')
+        quiet = make_router(router_type='ubiquiti-airos')
+        make_information(quiet, last_retrieval=self.now - datetime.timedelta(hours=2), available_version='')
+        self.assertIsNone(self.due())
+
+    def test_the_reason_is_shown(self):
+        router = make_router(router_type='routeros')
+        make_information(router, last_retrieval=self.now, os_version='7.25', available_version='',
+                         update_status='ERROR: could not resolve dns name')
+        state = os_version_state(RouterInformation.objects.get(router=router))
+        self.assertIn('ERROR: could not resolve dns name', state['title'])
+        self.assertIn('within the hour', state['title'])
+        self.client.force_login(make_user(10))
+        self.assertContains(self.client.get(f'/router/details/?uuid={router.uuid}'),
+                            'not known - the device said: ERROR: could not resolve dns name')
 
     def test_cron_skips_offline_disabled_and_monitoring_devices(self):
         make_router(status_online=False)

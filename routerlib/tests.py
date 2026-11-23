@@ -289,6 +289,7 @@ class RouterOSInformationTests(TestCase):
         self.assertEqual(info.architecture, 'x86')
         self.assertEqual(info.available_version, '6.49.23')
         self.assertTrue(info.update_available)
+        self.assertEqual(info.update_status, 'New version is available')
 
     def test_no_output_is_a_failure(self, _sleep):
         (ok, error), _ = self.run_with({})

@@ -135,6 +135,7 @@ RELEASED = {
     'router_manager/migrations/0032_device_type_export_words_by_version.py': '4bde9b5689bb870f1543603b54eba045667f5f368c0ae6a81dec94abe4653df8',
     'router_manager/migrations/0033_device_type_update_channels.py': 'af3286b42b86249987e59531df729fa2fab0bddd9c3e1ae2006244ff6d3eb61e',
     'router_manager/migrations/0034_routerinformation_firmware_available.py': 'd64b9d85797f25248f60241491a9c3d564442f14a7f8fe10214a874a16b53e85',
+    'router_manager/migrations/0035_routerinformation_update_status.py': '8de826f95b70e4b3452168138b0c439163d54f14bd7e129760282d6e21b04f4a',
     'routerfleet_tools/migrations/0001_initial.py': '489d86f5f2fd075b4e838bcbdfc384b05cc96e1a09774868204fb493c526a24f',
     'routerfleet_tools/migrations/0002_webadminsettings_cron_last_run.py': 'd5ea9f1aacfa393f3041d72b78520f13f647defcf92a59a3f33d96e8e5315634',
     'routerfleet_tools/migrations/0003_webadminsettings_monitoring_last_run_and_more.py': '56a53e01f52b9daf0696d9a090ae63a9bb4d911ef12f5a7d3c7353eeb93a57d5',

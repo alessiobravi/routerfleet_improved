@@ -132,7 +132,12 @@ enabled devices), and on request with *Update router information* in the
 device list.
 
 A failed update check never fails the inventory read — the device facts are
-stored and the version is simply left unknown.
+stored and the version is left unknown: *update not checked*. What the device
+said is kept and shown - for RouterOS the status of its own check, such as
+`ERROR: could not resolve dns name` or `finding out latest version...` (no
+answer within 15 seconds) - in the version's tooltip and on the device page.
+Such a device is read again **after an hour**, not a day; *Update router
+information* reads it at once.
 
 ## Version colours
 

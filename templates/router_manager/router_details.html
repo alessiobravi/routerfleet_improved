@@ -198,8 +198,10 @@
                                                 {% if router_information.update_available %}
                                                     <span class="text-warning">{{ router_information.available_version }}
                                                         <i class="fas fa-arrow-up" title="Upgrade available"></i></span>
-                                                {% else %}
-                                                    {{ router_information.available_version|default_if_none:"" }}
+                                                {% elif router_information.available_version %}
+                                                    {{ router_information.available_version }}
+                                                {% elif router_information.os_version %}
+                                                    <span class="text-body-secondary" title="Checked again within the hour, or now with the refresh icon above">not known{% if router_information.update_status %} - the device said: {{ router_information.update_status }}{% endif %}</span>
                                                 {% endif %}
                                             </span>
                                         </li>
