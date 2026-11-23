@@ -28,13 +28,37 @@ docker save $(docker compose config --images) | gzip > routerfleet-images-$(date
 
 ## The upgrade
 
+Choose one of the two ways; both keep your data.
+
+**Keep your compose file** - nothing changes but the images. Works for every
+compose file of RouterFleet Improved and of RouterFleet Extended, whose
+database stays on PostgreSQL 16:
+
 ```bash
 cd path/to/routerfleet
-docker compose down
-wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
 docker compose pull
 docker compose up -d
 ```
+
+**Take the current compose file** - new settings and PostgreSQL 18. An
+installation still on PostgreSQL 16 (every one from before 0.24) moves its
+database with the migration script as part of it, as described in
+[Moving to PostgreSQL 18](#moving-to-postgresql-18):
+
+```bash
+cd path/to/routerfleet
+cp docker-compose.yml docker-compose.yml.before   # the way back
+wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
+mkdir -p scripts && wget -O scripts/migrate-database.sh \
+  https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/scripts/migrate-database.sh
+chmod +x scripts/migrate-database.sh
+docker compose pull
+./scripts/migrate-database.sh     # PostgreSQL 16 only; skip on a new 0.24 installation
+```
+
+Taking the current compose file without the script on a PostgreSQL 16
+installation does no harm: the database refuses to start beside the old data
+and its log says to run the script.
 
 Migrations run automatically on start. Watch them:
 

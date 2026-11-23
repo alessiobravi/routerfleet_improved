@@ -13,6 +13,16 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.24.1] - 2026-11-23
+
+### Fixed
+- **The upgrade guide gives the two ways explicitly**: keep your compose file
+  (only the images change; the database stays on PostgreSQL 16), or take the
+  current one and move the database with the migration script. Before, the
+  general steps took the new compose file without saying that a PostgreSQL 16
+  installation then needs the script - the database refused to start until it
+  ran (no data was ever at risk).
+
 ## [0.24.0] - 2026-11-23
 
 ### Changed

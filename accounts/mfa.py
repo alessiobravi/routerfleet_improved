@@ -102,9 +102,9 @@ def relying_party(request):
     """(rp_id, origin) for this request.
 
     The relying party is the host name the browser used. The origin is taken
-    from the browser's Origin header when it is https and names that same host
-    - nginx passes the host on without its port, and an installation published
-    on a port other than 443 is still the same relying party."""
+    from the browser's Origin header when it is https and names that same host.
+    The port is not part of the relying party: an installation published on a
+    port other than 443 (HTTPS_PORT) is the same relying party."""
     host, _ = split_domain_port(request.get_host())
     try:
         ipaddress.ip_address(host.strip('[]'))
