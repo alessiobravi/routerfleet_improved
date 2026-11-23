@@ -19,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 RELEASED = {
     'audit_log/migrations/0001_initial.py': '798b0442ee6f268a979a354775c4b1271048884bf24dfacd58af0ea130c1ca4e',
+    'audit_log/migrations/0002_changerecord_change_object_and_more.py': '08355a68e881e297561d6a3e044379918b9df9357c1a26f2e5ff383242e13430',
     'backup/migrations/0001_initial.py': 'd903a0c9aca0cf1cf0ba5213e95a7f9f44226d1a9f9cf726f03644fd5e3e1588',
     'backup/migrations/0002_alter_backupprofile_weekly_day.py': 'ef7379a66fd82fca695a101ae50ad73862f8f9578d1e5928d75e9a1e44249690',
     'backup/migrations/0003_alter_backupprofile_retry_interval.py': '9b1c495382ca9eef11ce155dd0e282ec37147f8d13eeb9d10cf7aedd60ff79f9',
@@ -42,6 +43,12 @@ RELEASED = {
     'backup_data/migrations/0011_routerbackup_task_lock.py': '1ef35c1d8bc734c1616b0f927d905797b33d009de169e455baa0f10d050fbbad',
     'backup_data/migrations/0012_backfill_config_change_detected.py': '61a1a51a71253fbfad1f41bca3648e948091c4d8ac27682fa8dd428c3a5d02c9',
     'backup_data/migrations/0013_routerbackup_same_as.py': 'c2f9d4cf95888bc791fb20e676f5753f9afb54941cf645eb1a7f6139669ae864',
+    'backup_data/migrations/0014_named_texts.py': 'a60f0201c35f3d1fac2346ce23bc71996263ecda10cab9eadb8c99f6a8a3f1a6',
+    'backup_data/migrations/0015_backup_list_indexes.py': 'd3db8b069a5de66750049eec29ac95f5fdf50506cadf253220022e63bffce2e5',
+    'backup_data/migrations/0016_refused_exports_are_failures.py': '640084bd85bae3949572a2c7783eaf95c20bdd3d679336735cacd10f406661dc',
+    'console/migrations/0001_initial.py': 'a9481ca5641a070039f7d790f0706d98a236af975da445de1d37083b3cf20e03',
+    'console/migrations/0002_consolesession_console_user_open.py': '889d09b1ac07329c5f69d17734c5f5e412f1feee115fd19796dfa4f32b54aad4',
+    'firmware/migrations/0001_initial.py': '566023450501610e7b040457278b20bc9a9c8725a30a066e3b0ba4014ba1e681',
     'fleet_commander/migrations/0001_initial.py': '55eed96cda04dc6e0fde8bc3cf1da80af83c7d924c362796e84c1d196e833055',
     'fleet_commander/migrations/0002_commandjob_completed.py': '8e1f6a34bf2232c6038dd4ae196e1df90c18eee692ce670394aee0cb33584c96',
     'fleet_commander/migrations/0003_commandjob_error_count_commandjob_success_count_and_more.py': '0de2b0828ada388c0202ad2e78fa9f8c76f2723b1e8eee1f1867dd20fce4f75c',
@@ -56,6 +63,10 @@ RELEASED = {
     'fleet_commander/migrations/0012_scheduledefaults_name_fits.py': 'a354c3c84a660576fdc6bcab2ff704982c838ae816342adeb56911b2669bac36',
     'fleet_commander/migrations/0013_command_system_key.py': '30fab95ae330bfb93b8c24faaec56af4fb437364950ee8988ae89e5a122edce4',
     'fleet_commander/migrations/0014_system_commands.py': 'f8584ff26a95e979613caa4a319c441d4cb379e63e08ee542c71368698f54185',
+    'fleet_commander/migrations/0015_variant_device_type.py': '7317a7f0b5b1d4cfc5cda1e4ce0024def6e2b638ad100369d446bb1f7b119d56',
+    'fleet_commander/migrations/0016_device_type_commands.py': 'f849800e7300cd3e95e65f788a7d029c91a569ee8c2bd54a38fdce971b71f2a9',
+    'fleet_commander/migrations/0017_firmware_commands.py': 'f305b013b200142bf4b6740d433f450e3f5614b75ae53adf461ddc7da6b534d5',
+    'fleet_commander/migrations/0018_routeros_text_only.py': 'd19b95e59b8c9a3571855116590712c473f0f610d0d1b1b2c9c56b7b3e098ec4',
     'import_tool/migrations/0001_initial.py': '132a6a583f3366f0e093a1bccdb08d7e5ef6314867c4b0b9dcdea6dbece200db',
     'import_tool/migrations/0002_rename_created_at_csvdata_created_and_more.py': '6a95e115daaa75a092ca33465c961ec8965bad4a7cc76ac694fa0b0cb16d0810',
     'import_tool/migrations/0003_importtask_router_group_name_importtask_ssh_key_name.py': '48dad1e0ba7c9f993bcc8ca28fa3f74a45c2200dffa501fda1aea93d6c5e7a15',
@@ -64,6 +75,7 @@ RELEASED = {
     'import_tool/migrations/0006_alter_importtask_router_type.py': 'b186c43d475279a0a633068ff4b01375024ba4cf25e56b017c01e3c57a130e5c',
     'import_tool/migrations/0007_alter_importtask_router_type.py': 'dfd9409521844fa515f0536f39e770b8ca2a1116c9b5c6839b3ce03ae831f7a8',
     'import_tool/migrations/0008_encrypt_import_passwords.py': '565c0129c085356a46f0a4d82dcec1b47a8fe52760f086814df8252e78e6eed7',
+    'import_tool/migrations/0009_import_device_type.py': '076f2e2fa46054ab14ccc6be24c0ad5518a0148880d9e37de49f6ba11a602555',
     'integration_manager/migrations/0001_initial.py': 'aba0fd82febcf00a7cacbec65b34dc3d890c5ba1c736ddd86a741233e81f7c25',
     'integration_manager/migrations/0002_alter_externalintegration_wireguard_webadmin_default_user_level.py': '0f8663e28f8bf2acb36e2448b2a4ff1de675b5f5f08fd8d69e8a26ff0abd403d',
     'integration_manager/migrations/0003_secret_encrypted.py': '9a238e31f46b9e9e4b6199038cc5e5ace34cd6a251e244b075aa5a0797fcb3e5',
@@ -76,7 +88,12 @@ RELEASED = {
     'message_center/migrations/0006_alter_messagechannel_channel_type.py': 'd5e164c4e75206669789c2aa9f6b388bea61f64329272e8cf503ddda55084eee',
     'message_center/migrations/0007_alter_notification_notification_type.py': '2d20162de3f585612e6aa6c57cebade930cff33b96bbea8e73d755b1de0cf629',
     'message_center/migrations/0008_secret_encrypted.py': '11962a372e85158e2062d34c7042bfa0b04ca44faf28aed0030f24b0303ab941',
+    'message_center/migrations/0009_email_notifications.py': 'b99218da1f33a88e19ee3c7308ffff287e9129549141b855bfcfc8b943dfd4e3',
+    'message_center/migrations/0010_ntfy_server_and_priority.py': '9721255ba95522798b877704f155b031c1661cc066c1fe916f6c8c79d59c56ee',
+    'message_center/migrations/0011_callmebot_removed.py': '47f2a7dbf5288371c5412b857b7712a1d69077b172011d4d54312901f3745e46',
+    'message_center/migrations/0012_message_message_queue_message_message_history_and_more.py': 'bdf6157e2774775f9644fe0e7f7d235db075e2172cbfb9f2ee10e3e50d88a7e4',
     'monitoring/migrations/0001_initial.py': 'fc2f64d7cc8601fd2296462360ce10b90195c5e42479aeaccc4db94fe07f770b',
+    'monitoring/migrations/0002_routerdowntime_downtime_router_start_and_more.py': '6b96bfe065586a19404763e9372181db723a61e69df9f2e49353d16cadd2cef8',
     'router_manager/migrations/0001_initial.py': 'e7ca29cc6b4bf0e80ac98fc32bef67449dcd7c4a2e1d215816c881f6a00bb3f2',
     'router_manager/migrations/0002_alter_router_password.py': 'a9c37935291d0e391e7c6c31db30cdbf3c864759872f4d1d9e2f945e99add63d',
     'router_manager/migrations/0003_routerstatus.py': '5b34e3dfd70983c25cdcacbfadf05d1958acebcf08d9471750c42644ef0b80e9',
@@ -102,17 +119,38 @@ RELEASED = {
     'router_manager/migrations/0023_routerinformation_available_version_and_more.py': 'af4f1cc36f0476471177dcdb53d1d099584f005da781ae9eb5f21e748317052f',
     'router_manager/migrations/0024_secret_encrypted.py': '25968f5bded053e9e72f00d19b493237491787aaac1e05f4c0f47286a56e2767',
     'router_manager/migrations/0025_sshhostkey.py': '7ed81c6d7772c384d551b1ae1bd4698f0aadc87361e60d1e1f575be7736b0b44',
+    'router_manager/migrations/0026_router_console_telnet_router_telnet_port.py': 'f8698a7dfa44cc32877fbc50b965343ffcb142be905a6006b062e76daa3c2720',
+    'router_manager/migrations/0027_router_enabled_changed_at.py': '632d6d34f59c4d9b750b0a4d00e0e75b65f08c35e056ba5f7a18503be6170d57',
+    'router_manager/migrations/0028_fill_enabled_changed_at.py': '57666e0591091c0e345bc3f83a768eb54cdc032c52de2c1d9969805c5bac5975',
+    'router_manager/migrations/0029_router_keep_unchanged.py': '2d765589108cc25f7665807a8f8374ab2cdeb111894dd01fed4a8403abc93fd4',
+    'router_manager/migrations/0030_device_type.py': '98cd32f4f202b5f0646cc94c4210845f02d59d896d8cfa3d5de2a2d392fa4c83',
+    'router_manager/migrations/0031_device_type_presets.py': '9d1295a1ffc31aeaf00419ccac4834ed01ad6835b7ec341e9826ae4a99515f57',
+    'router_manager/migrations/0032_device_type_export_words_by_version.py': '4bde9b5689bb870f1543603b54eba045667f5f368c0ae6a81dec94abe4653df8',
     'routerfleet_tools/migrations/0001_initial.py': '489d86f5f2fd075b4e838bcbdfc384b05cc96e1a09774868204fb493c526a24f',
     'routerfleet_tools/migrations/0002_webadminsettings_cron_last_run.py': 'd5ea9f1aacfa393f3041d72b78520f13f647defcf92a59a3f33d96e8e5315634',
     'routerfleet_tools/migrations/0003_webadminsettings_monitoring_last_run_and_more.py': '56a53e01f52b9daf0696d9a090ae63a9bb4d911ef12f5a7d3c7353eeb93a57d5',
+    'routerfleet_tools/migrations/0004_https_settings.py': '99816768fe127c64ea8afeca72572c1b98e400cc6ca7b2e4b0845767bff04a92',
+    'routerfleet_tools/migrations/0005_display_settings.py': 'd078ae7becaf745b2e2d094818fc881d4d3bd7f64706e6902517681bcd9f96c3',
+    'routerfleet_tools/migrations/0006_update_run.py': '4eaf10784a56bbbce730b0b2f8f8f08e1c6b20045a7162c9074c3a059d5cfbb0',
     'user_manager/migrations/0001_initial.py': 'e9ad460c42c6fa79d3d14e1cad8b7f6ffd2c29808637985a567f7a9f93af5947',
     'user_manager/migrations/0002_alter_useracl_user_level.py': 'cde66a426048ff5b5994c6ea63e77df0060053b75cbf8dfb347aa50fcc164aea',
     'user_manager/migrations/0003_useracl_address_link.py': '78d80aecdcddf7a2dcf5f883766178c298ce1521f5ac2c4df2f841a8c844d821',
     'user_manager/migrations/0004_mfa.py': 'e205d0d15eb14a88a3f7215abed6e016d91494b80f2e8a7caceae4939a68b885',
+    'user_manager/migrations/0005_level_label_capitalised.py': '1171873e92fa28879ad0e8e801136552ddc57a044fad78962083af4dd8886b73',
+    'user_manager/migrations/0006_address_link_labels.py': '448f1e544274fd034411ac3bd8a12fc7020a67976c9ef87a6f75108fdc832bb7',
+    'user_manager/migrations/0007_user_phone.py': '775b63c061a44fc040fc5c23bb9edf46fdeef79e76dcedb950335d857def2905',
 }
 
 
 class ReleasedMigrationsTests(SimpleTestCase):
+    def test_every_migration_is_pinned(self):
+        # Pinned when written: a migration that reaches a release unpinned could
+        # be edited afterwards without any test noticing (30 were, by 0.24.2)
+        for file in sorted(ROOT.glob('*/migrations/[0-9][0-9][0-9][0-9]_*.py')):
+            path = file.relative_to(ROOT).as_posix()
+            with self.subTest(migration=path):
+                self.assertIn(path, RELEASED, f'{path} has no fingerprint in RELEASED: add it')
+
     def test_no_released_migration_was_changed_renamed_or_deleted(self):
         for path, digest in RELEASED.items():
             with self.subTest(migration=path):

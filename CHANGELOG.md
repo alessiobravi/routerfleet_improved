@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.24.3] - 2026-11-23
+
+### Maintenance
+- **Every released migration is fingerprinted.** The test that keeps released
+  migrations from being edited - what keeps databases of every earlier release
+  upgradable - covered 91 of 121: the 30 added from 0.16 to 0.24.2 were not
+  pinned. All are now, and a test fails if any migration lacks its
+  fingerprint. Nothing changes for installations.
+
 ## [0.24.2] - 2026-11-23
 
 ### Fixed
