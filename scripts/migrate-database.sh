@@ -12,9 +12,10 @@
 #      and the new one (postgres18_data) is still empty;
 #   2. stops RouterFleet;
 #   3. starts the old database on its own, counts the rows of every table and
-#      exports it (pg_dump) to a file next to the compose file;
+#      exports it (pg_dump) and its other roles (pg_dumpall --roles-only) to
+#      files next to the compose file;
 #   4. creates the new database - PostgreSQL 18, built-in C.UTF-8 ordering -
-#      on the new volume and imports the export into it;
+#      on the new volume, creates the roles and imports the export into it;
 #   5. counts the rows of every table again and compares;
 #   6. starts RouterFleet on the new database.
 #
@@ -94,12 +95,25 @@ OLD_COUNTS="$(counts "$OLD_NAME")"
 DUMP="routerfleet-pg16-$(date +%Y%m%d-%H%M%S).dump"
 ( umask 077; docker exec "$OLD_NAME" pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc > "$DUMP" )
 [ -s "$DUMP" ] || fail "the export is empty"
+# Roles live beside the database, not in it: a monitoring role (the Zabbix
+# kit's zbx_monitor, for example) and its memberships, with their password
+# hashes. The main role exists in the new database already and is left out.
+ROLES="${DUMP%.dump}.roles.sql"
+( umask 077; docker exec "$OLD_NAME" pg_dumpall -U "$DB_USER" --roles-only \
+    | grep -v -E "^(CREATE|ALTER) ROLE \"?${DB_USER}\"?( |;)" > "$ROLES" ) || fail "the roles could not be exported"
+ROLE_SQL="SELECT rolname FROM pg_roles WHERE rolname !~ '^pg_' AND rolname <> '$DB_USER' ORDER BY rolname"
+OLD_ROLES="$(docker exec "$OLD_NAME" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -Atc "$ROLE_SQL")"
 docker rm -f "$OLD_NAME" >/dev/null
 echo "$(printf '%s\n' "$OLD_COUNTS" | wc -l | tr -d ' ') tables exported to $DUMP ($(du -h "$DUMP" | cut -f1))."
+echo "Other roles: ${OLD_ROLES:-none}" | tr '\n' ' '; echo
 
 say "4. Creating the new database and importing"
 "${COMPOSE[@]}" run -d --no-deps --name "$NEW_NAME" -e RF_MIGRATION=1 routerfleet-postgres >/dev/null
 wait_ready "$NEW_NAME"
+docker exec -i "$NEW_NAME" psql -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" < "$ROLES" >/dev/null \
+    || fail "the roles could not be created; the new volume $NEW_VOLUME should be removed before trying again"
+NEW_ROLES="$(docker exec "$NEW_NAME" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -Atc "$ROLE_SQL")"
+[ "$OLD_ROLES" = "$NEW_ROLES" ] || fail "the roles differ: old '$OLD_ROLES', new '$NEW_ROLES'"
 docker exec -i "$NEW_NAME" pg_restore -U "$DB_USER" -d "$DB_NAME" --no-owner --exit-on-error < "$DUMP" \
     || fail "the import failed; the new volume $NEW_VOLUME holds a partial copy - remove it before trying again"
 PROVIDER="$(docker exec "$NEW_NAME" psql -h 127.0.0.1 -U "$DB_USER" -d "$DB_NAME" -Atc "SELECT datlocprovider FROM pg_database WHERE datname = current_database()")"
@@ -120,7 +134,8 @@ cat <<EOT
 
 Done. RouterFleet runs on PostgreSQL 18.
 
-Kept, untouched: the old database (volume $OLD_VOLUME) and the export $DUMP.
+Kept, untouched: the old database (volume $OLD_VOLUME), the export $DUMP and
+the roles $ROLES (password hashes of other roles - delete it with the export).
 The way back: the previous compose file, then docker compose up -d.
 
 When the new database has served you well:

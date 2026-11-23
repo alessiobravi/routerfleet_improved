@@ -520,6 +520,14 @@ jobs:
         run: |
           set -eu
           set -a; . ./.env; set +a
+          # Test passwords: random for every run, masked in the log - none is
+          # written in this public file
+          for NAME in RF_TEST_DEVICE_PW RF_TEST_USER_PW RF_TEST_ZBX_PW; do
+            VALUE="$(openssl rand -hex 16)"
+            echo "::add-mask::$VALUE"
+            echo "$NAME=$VALUE" >> "$GITHUB_ENV"
+            export "$NAME=$VALUE"
+          done
           PROJECT="$(docker compose -f docker-compose-dev.yml config --format json | jq -r .name)"
           docker network create rf-old
           docker run -d --name old-db --network rf-old -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
@@ -528,14 +536,19 @@ jobs:
           docker run --rm --network rf-old -e SERVER_ADDRESS=localhost -e DEBUG_MODE=False -e DATABASE_ENGINE=postgres \
             -e POSTGRES_HOST=old-db -e POSTGRES_PORT=5432 -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
             -e COMPOSE_VERSION=08a -e COMPOSE_TYPE=no-postgres -v "${PROJECT}_app_secrets:/app_secrets" \
+            -e RF_TEST_DEVICE_PW -e RF_TEST_USER_PW \
             routerfleet-dev/routerfleet:local bash -c 'python manage.py migrate --noinput && python manage.py shell -c "
+          import os
           from router_manager.models import Router
           from backup_data.models import RouterBackup
           from django.contrib.auth.models import User
-          router = Router.objects.create(name=\"migration-check\", address=\"192.0.2.77\", router_type=\"routeros\", password=\"Secret-77\")
+          router = Router.objects.create(name=\"migration-check\", address=\"192.0.2.77\", router_type=\"routeros\", password=os.environ[\"RF_TEST_DEVICE_PW\"])
           RouterBackup.objects.create(router=router, schedule_type=\"instant\", success=True, backup_text=\"/system identity\\nset name=città-ü-ß\\n\")
-          User.objects.create_user(\"migration-user\", password=\"Not-used-in-ci-77\")
+          User.objects.create_user(\"migration-user\", password=os.environ[\"RF_TEST_USER_PW\"])
           print(\"seeded\")"'
+          # The Zabbix kit's read-only role: roles live outside the database dump
+          sed "s/CHANGE_ME/${RF_TEST_ZBX_PW}/" contrib/zabbix/sql/zbx_monitor.sql \
+            | docker exec -i old-db psql -v ON_ERROR_STOP=1 -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"
           docker rm -f old-db
           docker network rm rf-old
 
@@ -558,12 +571,13 @@ jobs:
         run: |
           set -eu
           docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300
-          docker exec routerfleet python manage.py shell -c "
+          docker exec -e RF_TEST_DEVICE_PW routerfleet python manage.py shell -c "
+          import os
           from django.db import connection
           from router_manager.models import Router
           from backup_data.models import RouterBackup
           router = Router.objects.get(name='migration-check')
-          assert router.password == 'Secret-77', 'the encrypted password reads back'
+          assert router.password == os.environ['RF_TEST_DEVICE_PW'], 'the encrypted password reads back'
           assert 'città-ü-ß' in RouterBackup.objects.get(router=router).backup_text, 'text with accents intact'
           with connection.cursor() as cursor:
               cursor.execute('SHOW server_version_num')
@@ -571,7 +585,14 @@ jobs:
               cursor.execute('SELECT datlocprovider FROM pg_database WHERE datname = current_database()')
               assert cursor.fetchone()[0] == 'b', 'built-in ordering'
           print('migrated database verified')"
-          ls routerfleet-pg16-*.dump
+          ls routerfleet-pg16-*.dump routerfleet-pg16-*.roles.sql
+          # The monitoring role came along: it signs in with its password, reads
+          # what it was granted, and is still refused the rest
+          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
+            -Atc "SELECT count(name) FROM router_manager_router" | grep -qx 1
+          ! docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
+            -Atc "SELECT password FROM router_manager_router" 2>/dev/null
+          echo "monitoring role verified"
 
       - name: Logs
         if: always()

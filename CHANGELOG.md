@@ -13,6 +13,19 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.25.1] - 2026-11-23
+
+### Fixed
+- **The move to PostgreSQL 18 carries other database roles along**: a role
+  such as the Zabbix kit's `zbx_monitor` lives beside the database, not in its
+  export, so the import stopped at its grants. The script now exports the roles
+  (`pg_dumpall --roles-only`, password hashes included), creates them in the
+  new database before the import, and compares them afterwards. CI migrates a
+  database with the kit's role and checks it signs in and reads only what it
+  was granted.
+- The CI migration test uses random passwords for every run instead of fixed
+  ones written in the workflow.
+
 ## [0.25.0] - 2026-11-23
 
 ### Added

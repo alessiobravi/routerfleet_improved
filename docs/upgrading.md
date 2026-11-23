@@ -177,13 +177,16 @@ docker compose pull
 
 The script stops RouterFleet, starts the old database on its own, counts the
 rows of every table, exports it to `routerfleet-pg16-<date>.dump` next to the
-compose file, creates the new database on the new volume `postgres18_data`,
-imports, counts again and compares every table, checks the new database uses
-the built-in ordering, and starts RouterFleet. It stops at the first problem and
-**never changes the old volume** (`postgres_data`). It takes a minute or two
-for a typical installation and needs free disk space about the size of the
-database. A database edited by hand (extra roles, extensions) may need the
-import adapted; the script says where it stopped.
+compose file - and its other roles, such as the [Zabbix kit's](zabbix.md)
+monitoring role, to `routerfleet-pg16-<date>.roles.sql` - creates the new
+database on the new volume `postgres18_data`, creates the roles (with their
+password hashes - PostgreSQL never stores a password itself), imports, counts again and compares every table and the roles,
+checks the new database uses the built-in ordering, and starts RouterFleet. It
+stops at the first problem and **never changes the old volume**
+(`postgres_data`). It takes a minute or two for a typical installation and
+needs free disk space about the size of the database. A database edited by
+hand (extensions, for example) may need the import adapted; the script says
+where it stopped.
 
 If you take the new compose file without running the script, the database
 refuses to start - it does not create an empty one beside your data - and its
@@ -195,8 +198,9 @@ log says what to run (`docker compose logs routerfleet-postgres`).
 **Afterwards**, once the new database has served you well: remove the line
 `- postgres_data:/var/lib/postgresql-legacy:ro` and the `postgres_data:` volume
 from the compose file, run `docker compose up -d`, then
-`docker volume rm <project>_postgres_data` and delete the export (it holds the
-whole database; passwords stay encrypted in it).
+`docker volume rm <project>_postgres_data` and delete the export and the roles
+file (the export holds the whole database, passwords encrypted; the roles file
+holds the password hashes of other roles).
 
 SQLite and external PostgreSQL installations (`docker-compose-no-postgres.yml`)
 are not affected.
