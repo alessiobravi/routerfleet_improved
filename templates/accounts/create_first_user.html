@@ -4,30 +4,25 @@
 <p class="rf-auth-message">Create the first administrator</p>
 <form action="/accounts/create_first_user/" method="post">
     {% csrf_token %}
-    <label for="first-username" class="sr-only">Username</label>
+    <label for="first-username" class="visually-hidden">Username</label>
     <div class="input-group">
         <input type="text" class="form-control" id="first-username" placeholder="Username" name="username"
                autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
-        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-user"></span></div></div>
+        <div class="input-group-text"><span class="fas fa-user"></span></div>
     </div>
-    <label for="first-password" class="sr-only">Password</label>
+    <label for="first-password" class="visually-hidden">Password</label>
     <div class="input-group">
         <input type="password" class="form-control" id="first-password" placeholder="Password" name="password"
                autocomplete="new-password">
-        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-lock"></span></div></div>
+        <div class="input-group-text"><span class="fas fa-lock"></span></div>
     </div>
-    <label for="first-password2" class="sr-only">Retype password</label>
+    <label for="first-password2" class="visually-hidden">Retype password</label>
     <div class="input-group">
         <input type="password" class="form-control" id="first-password2" placeholder="Retype password" name="password2"
                autocomplete="new-password">
-        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-lock"></span></div></div>
+        <div class="input-group-text"><span class="fas fa-lock"></span></div>
     </div>
-    <button type="submit" class="btn btn-primary btn-block mt-2">Create administrator</button>
+    <button type="submit" class="btn btn-primary w-100 mt-2">Create administrator</button>
 </form>
 
-<script>
-  document.querySelector('input[name="username"]').addEventListener('input', function() {
-    this.value = this.value.toLowerCase().replace(/\s/g, '');
-  });
-</script>
 {% endblock %}

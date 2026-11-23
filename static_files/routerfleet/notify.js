@@ -4,39 +4,18 @@
 
    rfNotify('success' | 'info' | 'warning' | 'danger' | 'error', title, body) */
 (function () {
-  var SECONDS = 5;
+  // The colours are in app.css (.rf-kind-...): no style is written here, so
+  // the Content-Security-Policy needs no inline style
   var KINDS = {
-    success: {icon: 'fa-check-circle', color: '#14a89a'},
-    info: {icon: 'fa-info-circle', color: '#2f6fd1'},
-    warning: {icon: 'fa-exclamation-triangle', color: '#e8a317'},
-    danger: {icon: 'fa-times-circle', color: '#d64545'}
+    success: {icon: 'fa-check-circle'},
+    info: {icon: 'fa-info-circle'},
+    warning: {icon: 'fa-exclamation-triangle'},
+    danger: {icon: 'fa-times-circle'}
   };
-  var style = document.createElement('style');
-  style.textContent = [
-    '#rf-notify{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:2000;',
-    'display:flex;flex-direction:column;align-items:center;gap:10px;width:calc(100% - 32px);max-width:520px;pointer-events:none}',
-    '.rf-balloon{pointer-events:auto;cursor:pointer;width:100%;display:flex;gap:12px;align-items:flex-start;position:relative;overflow:hidden;',
-    'background:var(--rf-surface,#fff);color:var(--rf-text,#1d2733);border-radius:14px;padding:12px 16px 14px;border-left:5px solid var(--rf-kind);',
-    'box-shadow:0 12px 32px rgba(15,34,56,.22),0 2px 6px rgba(15,34,56,.12);animation:rf-balloon-in .25s ease-out both}',
-    '.rf-balloon.rf-out{animation:rf-balloon-out .2s ease-in both}',
-    '.rf-balloon .rf-icon{color:var(--rf-kind);font-size:1.25rem;line-height:1.4}',
-    '.rf-balloon .rf-text{flex:1;min-width:0;overflow-wrap:anywhere}',
-    '.rf-balloon .rf-title{font-weight:700;margin-bottom:1px}',
-    '.rf-balloon .rf-body{font-size:.92rem;white-space:pre-line;color:var(--rf-body,#3b4652)}',
-    '.rf-balloon .rf-close{color:#8a96a3;font-size:1rem;line-height:1.4}',
-    '.rf-balloon .rf-timer{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--rf-kind);opacity:.55;',
-    'transform-origin:left;animation:rf-timer ' + SECONDS + 's linear forwards}',
-    '.rf-balloon:hover .rf-timer{animation-play-state:paused}',
-    '@keyframes rf-balloon-in{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:none}}',
-    '@keyframes rf-balloon-out{to{opacity:0;transform:translateY(-8px)}}',
-    '@keyframes rf-timer{from{transform:scaleX(1)}to{transform:scaleX(0)}}',
-    '@media (prefers-reduced-motion:reduce){.rf-balloon,.rf-balloon.rf-out{animation:none}}'
-  ].join('');
 
   function stack() {
     var element = document.getElementById('rf-notify');
     if (!element) {
-      document.head.appendChild(style);
       element = document.createElement('div');
       element.id = 'rf-notify';
       document.body.appendChild(element);
@@ -47,8 +26,7 @@
   window.rfNotify = function (kind, title, body) {
     kind = kind === 'error' ? 'danger' : (KINDS[kind] ? kind : 'info');
     var balloon = document.createElement('div');
-    balloon.className = 'rf-balloon';
-    balloon.style.setProperty('--rf-kind', KINDS[kind].color);
+    balloon.className = 'rf-balloon rf-kind-' + kind;
     balloon.setAttribute('role', kind === 'danger' || kind === 'warning' ? 'alert' : 'status');
     balloon.title = 'Click to close';
 
@@ -97,3 +75,13 @@
     return rfNotify(kind, '', message);
   };
 })();
+
+// The messages the server queued for this page, and the errors of a form that
+// was not saved, come as JSON data (template_messages.html) - not as scripts
+document.addEventListener('DOMContentLoaded', function () {
+  var data = document.getElementById('rf-page-messages');
+  if (!data) { return; }
+  var queued = JSON.parse(data.textContent);
+  (queued.messages || []).forEach(function (m) { window.rfNotifyMessage(m[0] || 'info', m[1]); });
+  (queued.errors || []).forEach(function (error) { window.rfNotify('danger', 'Not saved', error); });
+});

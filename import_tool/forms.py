@@ -29,11 +29,11 @@ class CsvDataForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.helper.layout = Layout(
             Row(
-                Column('raw_csv_data', css_class='form-group col-md-12 mb-0'),
+                Column('raw_csv_data', css_class='col-md-12 mb-0'),
                 css_class='form-row'
             ),
             Row(
-                Column('create_missing_groups', css_class='form-group col-md-12 mb-0'),
+                Column('create_missing_groups', css_class='col-md-12 mb-0'),
                 css_class='form-row'
             ),
             Row(

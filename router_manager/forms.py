@@ -10,28 +10,11 @@ import re
 # a device can be added before its name exists in DNS
 HOSTNAME = re.compile(r'^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*\.?$')
 
+# The test itself is in app.js (no inline script: Content-Security-Policy)
 TEST_CONNECTION_HTML = '''
- <button type="button" class="btn btn-outline-primary" id="test-connection"
+ <button type="button" class="btn btn-outline-primary" id="test-connection"{% if instance.uuid %} data-uuid="{{ instance.uuid }}"{% endif %}
          title="Connects with the values in this form, saves nothing"><i class="fas fa-plug"></i> Test connection</button>
  <span id="test-connection-result" class="d-block mt-2 small" role="status" aria-live="polite"></span>
-<script>
-document.getElementById('test-connection').addEventListener('click', function () {
-    var button = this, result = document.getElementById('test-connection-result');
-    var data = new FormData(button.form);
-    {% if instance.uuid %}data.append('uuid', '{{ instance.uuid }}');{% endif %}
-    button.disabled = true;
-    result.className = 'd-block mt-2 small text-muted';
-    result.textContent = 'Connecting...';
-    fetch('/router/test_connection/', {method: 'POST', body: data, credentials: 'same-origin'})
-        .then(function (r) { return r.json(); })
-        .then(function (answer) {
-            result.className = 'd-block mt-2 small ' + (answer.success ? 'text-success' : 'text-danger');
-            result.textContent = answer.message;
-        })
-        .catch(function () { result.className = 'd-block mt-2 small text-danger'; result.textContent = 'The test could not be run.'; })
-        .finally(function () { button.disabled = false; });
-});
-</script>
 '''
 
 
@@ -64,7 +47,7 @@ class RouterForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:
-            delete_html = "<a href='javascript:void(0)' class='btn btn-outline-danger' data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+            delete_html = "<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
             if self.instance.password:
                 self.fields['password'].widget.attrs['placeholder'] = '************'
         else:
@@ -74,24 +57,24 @@ class RouterForm(forms.ModelForm):
                                                    'did not change. Instant backups are always stored.')
         self.helper.layout = Layout(
             Row(
-                Column('name', css_class='form-group col-md-6 mb-0'),
-                Column('ssh_key', css_class='form-group col-md-6 mb-0'),
+                Column('name', css_class='col-md-6 mb-0'),
+                Column('ssh_key', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             Row(
-                Column('username', css_class='form-group col-md-6 mb-0'),
-                Column('password', css_class='form-group col-md-6 mb-0'),
+                Column('username', css_class='col-md-6 mb-0'),
+                Column('password', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             Row(
-                Column('address', css_class='form-group col-md-6 mb-0'),
-                Column('port', css_class='form-group col-md-6 mb-0'),
+                Column('address', css_class='col-md-6 mb-0'),
+                Column('port', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
 
             Row(
-                Column('backup_profile', css_class='form-group col-md-6 mb-0'),
-                Column('keep_unchanged', css_class='form-group col-md-6 mb-0'),
+                Column('backup_profile', css_class='col-md-6 mb-0'),
+                Column('keep_unchanged', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             'router_type',
@@ -99,8 +82,8 @@ class RouterForm(forms.ModelForm):
             'monitoring',
             'enabled',
             Row(
-                Column('console_telnet', css_class='form-group col-md-8 mb-0'),
-                Column('telnet_port', css_class='form-group col-md-4 mb-0'),
+                Column('console_telnet', css_class='col-md-8 mb-0'),
+                Column('telnet_port', css_class='col-md-4 mb-0'),
                 css_class='form-row'
             ),
             Row(
@@ -208,18 +191,18 @@ class RouterBulkEditForm(forms.Form):
         self.helper.form_tag = False
         self.helper.layout = Layout(
             Row(
-                Column('username', css_class='form-group col-md-6 mb-0'),
-                Column('port', css_class='form-group col-md-6 mb-0'),
+                Column('username', css_class='col-md-6 mb-0'),
+                Column('port', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             Row(
-                Column('password', css_class='form-group col-md-6 mb-0'),
-                Column('ssh_key', css_class='form-group col-md-6 mb-0'),
+                Column('password', css_class='col-md-6 mb-0'),
+                Column('ssh_key', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             Row(
-                Column('monitoring', css_class='form-group col-md-6 mb-0'),
-                Column('enabled', css_class='form-group col-md-6 mb-0'),
+                Column('monitoring', css_class='col-md-6 mb-0'),
+                Column('enabled', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             'backup_profile',
@@ -265,7 +248,7 @@ class RouterGroupForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:
-            delete_html = "<a href='javascript:void(0)' class='btn btn-outline-danger' data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+            delete_html = "<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
         else:
             delete_html = ''
         self.helper.layout = Layout(
@@ -327,18 +310,18 @@ class SSHKeyForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:
-            delete_html = "<a href='javascript:void(0)' class='btn btn-outline-danger' data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+            delete_html = "<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
         else:
             delete_html = ''
         self.helper.layout = Layout(
             Row(
-                Column('name', css_class='form-group col-md-12 mb-0'),
+                Column('name', css_class='col-md-12 mb-0'),
             ),
             Row(
-                Column('public_key', css_class='form-group col-md-12 mb-0'),
+                Column('public_key', css_class='col-md-12 mb-0'),
             ),
             Row(
-                Column('private_key', css_class='form-group col-md-12 mb-0'),
+                Column('private_key', css_class='col-md-12 mb-0'),
             ),
             Row(
                 Column(

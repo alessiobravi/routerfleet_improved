@@ -78,11 +78,11 @@
                                     <td class="min-width">
                                         {% if backup.backup_text_hash %}
                                         <a href="#" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":12" }}...</a>
-                                        {% if backup.same_as_id %}<span class="badge badge-light" title="Unchanged: the content is the stored backup it is the same as">unchanged</span>{% endif %}
+                                        {% if backup.same_as_id %}<span class="badge text-bg-light" title="Unchanged: the content is the stored backup it is the same as">unchanged</span>{% endif %}
                                         {% endif %}
                                     </td>
                                     
-                                    <td class="min-width" style="text-align: center;">
+                                    <td class="min-width text-center">
                                         {% if backup.success %}
                                             <i class="far fa-check-circle text-success"></i>
                                         {% elif backup.error %}

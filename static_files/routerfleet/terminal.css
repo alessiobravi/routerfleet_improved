@@ -1,0 +1,20 @@
+.rf-console { display: flex; flex-direction: column; gap: 10px; }
+.rf-console-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+    background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 12px; padding: 10px 14px; }
+.rf-console-who { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.rf-console-state { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.rf-console-dot { width: 10px; height: 10px; border-radius: 50%; background: #8a96a3; }
+.rf-console-dot.on { background: #1f9d55; } .rf-console-dot.wait { background: #e8a317; } .rf-console-dot.off { background: #d64545; }
+.rf-console-login { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--rf-surface); border: 1px solid var(--rf-line);
+    border-radius: 12px; padding: 10px 14px; }
+.rf-console-login input { max-width: 260px; }
+.rf-console-stage { position: relative; }
+.rf-console-ended { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 14, 22, .72); border-radius: 12px; backdrop-filter: blur(2px); }
+.rf-console-ended[hidden] { display: none; }
+.rf-console-ended-card { text-align: center; color: #e8eef5; padding: 24px 28px; max-width: 92%; }
+.rf-console-screen { background: #0f1a28; border-radius: 12px; padding: 10px; height: calc(100vh - 290px); min-height: 320px; }
+.rf-console-keys { display: none; gap: 6px; flex-wrap: wrap; }
+.rf-console-keys button { flex: 1; min-width: 56px; border: 1px solid var(--rf-line); background: var(--rf-surface); color: var(--rf-text); border-radius: 8px; padding: 8px 0; font-weight: 600; }
+.rf-console-foot { font-size: 12.5px; color: var(--rf-muted); }
+@media (max-width: 767.98px) { .rf-console-keys { display: flex; } .rf-console-screen { height: 55vh; } }

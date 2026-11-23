@@ -1,6 +1,6 @@
 /* Light and dark mode. The choice is the browser's own (localStorage
    'rf-theme': auto, light or dark); "auto" follows the device. The page is
-   given its theme before it is drawn (an inline script in base.html); this
+   given its theme before it is drawn (theme-boot.js, in <head>); this
    file switches it: the moon/sun in the top bar, and the Appearance choice in
    My Settings. */
 (function () {
@@ -9,9 +9,9 @@
 
   function apply(choice) {
     var dark = choice === 'dark' || (choice === 'auto' && systemDark());
+    document.documentElement.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
     document.documentElement.classList.toggle('rf-dark', dark);
     document.documentElement.dataset.theme = choice;
-    if (document.body) { document.body.classList.toggle('dark-mode', dark); }
     var toggle = document.getElementById('theme-toggle');
     if (toggle) {
       toggle.querySelector('i').className = 'fas ' + (dark ? 'fa-sun' : 'fa-moon');

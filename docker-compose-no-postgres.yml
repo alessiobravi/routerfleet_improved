@@ -9,8 +9,8 @@ services:
       - HTTPS_REDIRECT_POLICY=${HTTPS_REDIRECT_POLICY}
       - UPDATE_CHECK=${UPDATE_CHECK}
       - DATABASE_ENGINE=${DATABASE_ENGINE}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST:-}
+      - POSTGRES_PORT=${POSTGRES_PORT:-}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -63,12 +63,19 @@ services:
     environment:
       - HTTPS_REDIRECT_POLICY=${HTTPS_REDIRECT_POLICY}
       - TZ=${TIMEZONE}
+      # The HTTPS port on the host, for the HTTP redirect (see ports below)
+      - HTTPS_PORT=${HTTPS_PORT:-443}
+      # Emergency override of System settings -> HTTPS (env or selfsigned)
+      - HTTPS_MODE_OVERRIDE=${HTTPS_MODE_OVERRIDE:-}
+      # 1: Let's Encrypt's test service
+      - LETSENCRYPT_STAGING=${LETSENCRYPT_STAGING:-}
     volumes:
       - static_volume:/static
       - https_cert:/certificate
     ports:
-      - "80:80"
-      - "443:443"
+      # The ports on the host: HTTP_PORT and HTTPS_PORT in .env
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     healthcheck:
       # Listening on 443 - which on a first start is only after the
       # self-signed certificate has been generated. Read from the kernel's

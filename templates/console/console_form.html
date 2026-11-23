@@ -35,7 +35,7 @@
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="transport" value="telnet" {% if posted.transport == 'telnet' %}checked{% endif %}>
                 <span class="rf-set-icon red"><i class="fas fa-lock-open"></i></span>
-                <span class="rf-set-text"><span class="rf-set-label d-block">Telnet <span class="badge badge-danger">unencrypted</span></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Telnet <span class="badge text-bg-danger">unencrypted</span></span>
                     <span class="rf-set-sub d-block">Port {{ router.telnet_port }}. Everything, your password included, crosses the network in clear. You log in at the device's prompt: RouterFleet sends no stored credential over Telnet.</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
@@ -43,8 +43,8 @@
         </div>
         {% if not router.console_telnet %}<div class="rf-set-foot">Telnet is off for this device; it can be allowed in its settings.</div>{% endif %}
 
-        <div class="rf-set-title rf-console-ssh">Account</div>
-        <div class="rf-set-group rf-console-ssh">
+        <div class="rf-set-title" data-rf-show-when="transport" data-for="ssh">Account</div>
+        <div class="rf-set-group" data-rf-show-when="transport" data-for="ssh">
             {% if has_backup_account %}
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="account" value="backup" {% if posted.account != 'other' %}checked{% endif %}>
@@ -61,41 +61,26 @@
                     <span class="rf-set-sub d-block">You enter its password on the next page; it goes straight to the device and is not stored.</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
-            <div class="rf-set-row rf-console-other">
+            <div class="rf-set-row" data-rf-show-when="account" data-for="other">
                 <span class="rf-set-icon grey"><i class="fas fa-user"></i></span>
                 <div class="rf-set-text"><input type="text" class="form-control" name="username" maxlength="100"
                         placeholder="Username" value="{{ posted.username }}" autocapitalize="none" spellcheck="false" aria-label="Username"></div>
             </div>
         </div>
 
-        <div class="rf-console-telnet" style="display: none;">
-            <div class="custom-control custom-checkbox rf-checkbox mt-3 ml-3">
-                <input type="checkbox" class="custom-control-input" id="telnet_understood" name="telnet_understood">
-                <label class="custom-control-label" for="telnet_understood">I understand that Telnet sends everything unencrypted</label>
+        <div data-rf-show-when="transport" data-for="telnet"{% if posted.transport != 'telnet' %} hidden{% endif %}>
+            <div class="form-check rf-checkbox mt-3 ms-3">
+                <input type="checkbox" class="form-check-input" id="telnet_understood" name="telnet_understood">
+                <label class="form-check-label" for="telnet_understood">I understand that Telnet sends everything unencrypted</label>
             </div>
         </div>
 
         <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-keyboard mr-1"></i> Open the console</button>
-            <a href="{{ back }}" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-keyboard me-1"></i> Open the console</button>
+            <a href="{{ back }}" class="btn btn-secondary btn-lg ms-2">Cancel</a>
         </div>
         <div class="rf-set-foot text-center mt-2">The session is recorded in the change log: who, the device, the account and when - not what is typed.</div>
     </form>
 </div>
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    (function () {
-        function show() {
-            var telnet = (document.querySelector('input[name=transport]:checked') || {}).value === 'telnet';
-            var other = (document.querySelector('input[name=account]:checked') || {}).value === 'other';
-            document.querySelectorAll('.rf-console-ssh').forEach(function (e) { e.style.display = telnet ? 'none' : ''; });
-            document.querySelectorAll('.rf-console-telnet').forEach(function (e) { e.style.display = telnet ? '' : 'none'; });
-            document.querySelectorAll('.rf-console-other').forEach(function (e) { e.style.display = other ? '' : 'none'; });
-        }
-        document.querySelectorAll('input[name=transport], input[name=account]').forEach(function (r) { r.addEventListener('change', show); });
-        show();
-    })();
-</script>
-{% endblock %}

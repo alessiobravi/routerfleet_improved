@@ -21,10 +21,10 @@
                 </div>
 
                 <form method="get" class="mb-3">
-                    <div class="custom-control custom-switch">
-                        <input type="checkbox" class="custom-control-input" id="include_every_profile" name="include_every_profile"
-                               {% if include_every_profile %}checked{% endif %} onchange="this.form.submit()">
-                        <label class="custom-control-label" for="include_every_profile">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" id="include_every_profile" name="include_every_profile"
+                               {% if include_every_profile %}checked{% endif %} data-rf-autosubmit>
+                        <label class="form-check-label" for="include_every_profile">
                             Also devices whose profile keeps unchanged backups
                         </label>
                     </div>
@@ -33,17 +33,17 @@
 
                 {% if report.routers %}
                 <table class="table table-sm table-striped">
-                    <thead><tr><th>Device</th><th>Backup profile</th><th>Keeps</th><th class="text-right">Stored</th><th class="text-right">Unchanged</th><th class="text-right">Duplicates</th><th class="text-right">Space</th></tr></thead>
+                    <thead><tr><th>Device</th><th>Backup profile</th><th>Keeps</th><th class="text-end">Stored</th><th class="text-end">Unchanged</th><th class="text-end">Duplicates</th><th class="text-end">Space</th></tr></thead>
                     <tbody>
                     {% for entry in report.routers %}
                         <tr{% if not include_every_profile and entry.keeps_every_backup %} class="text-muted"{% endif %}>
                             <td><a href="/router/details/?uuid={{ entry.router.uuid }}">{{ entry.router.name }}</a></td>
                             <td>{% if entry.profile %}<a href="/backup/manage_profile/?uuid={{ entry.profile.uuid }}">{{ entry.profile.name }}</a>{% if not entry.router.backup_profile %} <span class="text-muted small">(none set: default)</span>{% endif %}{% else %}-{% endif %}</td>
-                            <td>{% if entry.keeps_every_backup %}every backup{% else %}only changes{% endif %}{% if entry.router.keep_unchanged != 'profile' %} <span class="badge badge-info" title="Decided in the device's settings, not by the profile">device</span>{% endif %}</td>
-                            <td class="text-right">{{ entry.stored }}</td>
-                            <td class="text-right">{{ entry.unchanged }}</td>
-                            <td class="text-right">{{ entry.duplicates|length }}</td>
-                            <td class="text-right">{{ entry.duplicate_bytes|filesizeformat }}</td>
+                            <td>{% if entry.keeps_every_backup %}every backup{% else %}only changes{% endif %}{% if entry.router.keep_unchanged != 'profile' %} <span class="badge text-bg-info" title="Decided in the device's settings, not by the profile">device</span>{% endif %}</td>
+                            <td class="text-end">{{ entry.stored }}</td>
+                            <td class="text-end">{{ entry.unchanged }}</td>
+                            <td class="text-end">{{ entry.duplicates|length }}</td>
+                            <td class="text-end">{{ entry.duplicate_bytes|filesizeformat }}</td>
                         </tr>
                     {% endfor %}
                     </tbody>
@@ -65,7 +65,7 @@
                     <div class="alert alert-success mb-0"><i class="fas fa-check-circle"></i> Nothing to clean: no duplicates, and the files and the database agree.</div>
                 {% else %}
                     <div class="text-center mt-3">
-                        <button type="button" class="btn btn-danger" onclick="runCleanup()">
+                        <button type="button" class="btn btn-danger" data-rf-post="" data-rf-field-action="clean"{% if include_every_profile %} data-rf-field-include-every-profile="on"{% endif %} data-rf-confirm-word="clean" data-rf-confirm-sum="This frees {{ report.duplicates }} duplicate backups and removes {{ report.orphan_files|length }} orphan files.">
                             <i class="fas fa-broom"></i> Clean up - free {{ report.reclaimable_bytes|filesizeformat }}
                         </button>
                     </div>
@@ -87,33 +87,17 @@
         <input type="hidden" name="confirmation" id="binaries-confirmation">
         <div class="rf-set-group">
             {% for row in binaries %}
-            <label class="rf-set-row mb-0" style="cursor: pointer">
-                <span class="custom-control custom-checkbox mr-2"><input type="checkbox" class="custom-control-input" id="bin-{{ row.slug }}" name="types" value="{{ row.slug }}" {% if row.slug == 'routeros' %}checked{% endif %}><span class="custom-control-label" for="bin-{{ row.slug }}"></span></span>
+            <label class="rf-set-row mb-0 rf-pointer">
+                <span class="form-check me-2"><input type="checkbox" class="form-check-input" id="bin-{{ row.slug }}" name="types" value="{{ row.slug }}" {% if row.slug == 'routeros' %}checked{% endif %}><span class="form-check-label" for="bin-{{ row.slug }}"></span></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.name }}</span>
                     <span class="rf-set-sub d-block">{{ row.count }} file{{ row.count|pluralize }} · {{ row.bytes|filesizeformat }}</span></span>
             </label>
             {% endfor %}
         </div>
         <div class="rf-set-foot">Deletes the binary files (RouterOS <code>.backup</code>, OpenWrt archives) of the chosen device types, and their references. Every text backup stays, with its history and comparisons. A binary backup can restore what an export leaves out - passwords of local users, private keys - so keep them for devices where that matters.</div>
-        <div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" id="binaries-button"><i class="fas fa-trash-alt mr-1"></i>Delete the chosen binary backups</button></div>
+        <div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" id="binaries-button" data-rf-submit="binaries-form" data-rf-confirm-word="delete_binaries" data-rf-confirm-sum="Delete the binary backups of the chosen device types? The text backups are kept. This can not be undone."><i class="fas fa-trash-alt me-1"></i>Delete the chosen binary backups</button></div>
     </form>
 </div>
-<script>
-    document.getElementById('binaries-button').addEventListener('click', function () {
-        var c = rfConfirm('Delete the binary backups of the chosen device types? The text backups are kept. This can not be undone.', 'delete_binaries');
-        if (c) { document.getElementById('binaries-confirmation').value = c; document.getElementById('binaries-form').submit(); }
-    });
-</script>
 {% endif %}
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    function runCleanup() {
-        var confirmation = rfConfirm("This frees {{ report.duplicates }} duplicate backups and removes {{ report.orphan_files|length }} orphan files.", 'clean');
-        if (confirmation) {
-            postAction(window.location.pathname, {action: 'clean', confirmation: confirmation{% if include_every_profile %}, include_every_profile: 'on'{% endif %}});
-        }
-    }
-</script>
-{% endblock %}

@@ -33,7 +33,7 @@ class BackupProfileForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk and self.instance.name != 'default':
-            delete_html = "<a href='javascript:void(0)' class='btn btn-outline-danger' data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+            delete_html = "<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
         else:
             delete_html = ''
 
@@ -103,7 +103,7 @@ class BackupProfileForm(forms.ModelForm):
                 Div('daily_day_friday', css_class='col-md-4'),
                 Div('daily_day_saturday', css_class='col-md-4'),
                 Div('daily_day_sunday', css_class='col-md-4'),
-                css_id='daily_settings', css_class='row'
+                css_id='daily_settings', css_class='row', data_rf_show_when='#id_daily_backup'
             ),
 
             Div(
@@ -112,7 +112,7 @@ class BackupProfileForm(forms.ModelForm):
                 Div('weekly_day', css_class='col-md-6'),
                 Div('weekly_retention', css_class='col-md-6'),
 
-                css_id='weekly_settings', css_class='row'
+                css_id='weekly_settings', css_class='row', data_rf_show_when='#id_weekly_backup'
             ),
 
             Div(
@@ -121,7 +121,7 @@ class BackupProfileForm(forms.ModelForm):
                 Div('monthly_day', css_class='col-md-6'),
                 Div('monthly_retention', css_class='col-md-6'),
 
-                css_id='monthly_settings', css_class='row'
+                css_id='monthly_settings', css_class='row', data_rf_show_when='#id_monthly_backup'
             ),
 
             Div(

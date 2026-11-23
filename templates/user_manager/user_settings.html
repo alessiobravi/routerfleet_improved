@@ -29,7 +29,7 @@
         {% csrf_token %}
         {% for value, display in form.address_link.field.choices %}
         <label class="rf-set-row rf-set-choice">
-            <input type="radio" name="{{ form.address_link.html_name }}" value="{{ value }}"
+            <input type="radio" data-rf-autosubmit name="{{ form.address_link.html_name }}" value="{{ value }}"
                    {% if form.address_link.value|stringformat:"s" == value|stringformat:"s" %}checked{% endif %}>
             <span class="rf-set-icon {% cycle 'grey' 'teal' 'blue' 'purple' %}"><i class="fas {% cycle 'fa-font' 'fa-terminal' 'fa-window-maximize' 'fa-list' %}"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ display }}</span>
@@ -53,9 +53,9 @@
         {% for field, label, sub, on in email_events %}
         <div class="rf-set-row">
             <div class="rf-set-text"><div class="rf-set-label">{{ label }}</div><div class="rf-set-sub">{{ sub }}</div></div>
-            <div class="custom-control custom-switch">
-                <input type="checkbox" class="custom-control-input" id="email-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
-                <label class="custom-control-label" for="email-{{ field }}"><span class="sr-only">{{ label }}</span></label>
+            <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="email-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
+                <label class="form-check-label" for="email-{{ field }}"><span class="visually-hidden">{{ label }}</span></label>
             </div>
         </div>
         {% endfor %}
@@ -89,7 +89,7 @@
             <div class="rf-set-text"><div class="rf-set-label">{{ passkey.name }}</div>
                 <div class="rf-set-sub">Passkey · added {{ passkey.created|date:"Y-m-d" }} · last used {{ passkey.last_used|date:"Y-m-d H:i"|default:"never" }}</div></div>
             <a href="#" class="btn btn-link text-danger" title="Remove" aria-label="Remove the passkey {{ passkey.name }}"
-               onclick="if (confirm('Remove the passkey &quot;{{ passkey.name|escapejs }}&quot;?')) { postAction('/user/settings/passkeys/delete/', {uuid: '{{ passkey.uuid }}'}); } return false;"><i class="fas fa-trash"></i></a>
+               data-rf-post="/user/settings/passkeys/delete/" data-rf-field-uuid="{{ passkey.uuid }}" data-rf-confirm="Remove the passkey &quot;{{ passkey.name }}&quot;?"><i class="fas fa-trash"></i></a>
         </div>
         {% endfor %}
         <div class="rf-set-row d-none" id="passkey-add">
@@ -97,7 +97,7 @@
             <div class="rf-set-text">
                 <div class="input-group input-group-sm">
                     <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey">
-                    <div class="input-group-append"><button type="button" id="passkey-add-button" class="btn btn-primary">Add a passkey</button></div>
+                    <button type="button" id="passkey-add-button" class="btn btn-primary">Add a passkey</button>
                 </div>
                 <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
             </div>
@@ -107,35 +107,9 @@
         available when this installation is opened by its name (not an IP address) over HTTPS with a certificate your
         browser trusts.</div>
 </div>
-<script>
-    // A choice is saved as soon as it is made
-    document.querySelectorAll('#address-link-form input[type=radio]').forEach(function (radio) {
-        radio.addEventListener('change', function () { document.getElementById('address-link-form').submit(); });
-    });
-</script>
 {% endblock %}
 
 {% block custom_page_scripts %}
 <script src="/static/routerfleet/passkeys.js"></script>
-<script>
-    (function () {
-        var onIp = /^[0-9.]+$|^\[/.test(window.location.hostname);
-        if (!window.RouterFleetPasskeys || !RouterFleetPasskeys.supported() || onIp) {
-            return;
-        }
-        document.getElementById('passkey-add').classList.remove('d-none');
-        document.getElementById('passkey-unsupported').classList.add('d-none');
-        document.getElementById('passkey-add-button').addEventListener('click', function () {
-            var error = document.getElementById('passkey-error');
-            error.textContent = '';
-            RouterFleetPasskeys.register(document.getElementById('passkey-name').value).then(function (result) {
-                window.location = result.redirect || '/user/settings/';
-            }).catch(function (reason) {
-                if (reason && reason.name !== 'NotAllowedError') {
-                    error.textContent = reason.message || 'The passkey could not be added.';
-                }
-            });
-        });
-    })();
-</script>
+<script src="/static/routerfleet/user-settings.js"></script>
 {% endblock %}

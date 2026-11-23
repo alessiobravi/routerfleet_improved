@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_cleanup.apps.CleanupConfig',
     'crispy_forms',
-    'crispy_bootstrap4',
+    'crispy_bootstrap5',
     'user_manager',
     'router_manager',
     'monitoring',
@@ -73,6 +73,8 @@ MIDDLEWARE = [
     # Outermost: decides whether the cookies the others set are Secure
     'routerfleet.middleware.HttpsCookieMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Content-Security-Policy: only this installation's own files run or style a page
+    'django.middleware.csp.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -84,8 +86,28 @@ MIDDLEWARE = [
     'routerfleet.middleware.MalformedIdentifierMiddleware',
 ]
 
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
-CRISPY_TEMPLATE_PACK = "bootstrap4"
+from django.utils.csp import CSP
+
+# The pages load scripts, styles, fonts and data from this installation only,
+# and carry no inline script, inline style or inline handler: an injected
+# <script> or onerror="..." does not run, even if one ever got through the
+# escaping. data: images are Bootstrap's own (the arrow of a select, the knob of
+# a switch, drawn in its stylesheet). Same origin covers the console's WebSocket.
+SECURE_CSP = {
+    'default-src': [CSP.SELF],
+    'script-src': [CSP.SELF],
+    'style-src': [CSP.SELF],
+    'img-src': [CSP.SELF, 'data:'],
+    'font-src': [CSP.SELF],
+    'connect-src': [CSP.SELF],
+    'object-src': [CSP.NONE],
+    'base-uri': [CSP.SELF],
+    'form-action': [CSP.SELF],
+    'frame-ancestors': [CSP.NONE],
+}
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # nginx sets X-Forwarded-Proto on every request, overwriting what a client
 # sent (behind a reverse proxy: only from the proxies listed in System
@@ -187,7 +209,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.23.1'
+ROUTERFLEET_RELEASE = '0.24.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

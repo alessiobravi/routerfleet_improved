@@ -78,8 +78,8 @@
                                         <td class="min-width">{{ job.created }}</td>
                                         <td class="min-width">
                                             {% if not job.completed %}
-                                                <a href="javascript:void(0)"
-                                                   onclick="abortJob('{{ job.uuid }}')"
+                                                <a href="#"
+                                                   data-rf-post="/fleet_commander/job/abort/?uuid={{ job.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this job? A command already running on a device finishes; nothing after it runs."
                                                    title="Stop this job">
                                                     <i class="fas fa-hand-paper text-danger"></i>
                                                 </a>
@@ -103,13 +103,3 @@
 </div>
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    function abortJob(uuid) {
-        var confirmation = rfConfirm("Abort this job? A command already running on a device finishes; nothing after it runs.", 'abort');
-        if (confirmation !== null) {
-            postAction("/fleet_commander/job/abort/?uuid=" + uuid, {confirmation: confirmation});
-        }
-    }
-</script>
-{% endblock %}

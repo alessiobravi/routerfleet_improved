@@ -123,59 +123,79 @@ Existing data is adopted rather than reset, so after the upgrade:
   so version columns show as "no information" until the inventory cycle comes
   round. Use **Update Information** on the device list to force it.
 
-## Moving the bundled PostgreSQL to a newer major version
+## Moving to PostgreSQL 18
 
-The default compose file runs `routerfleet-postgres`, which is the official
-`postgres:16` with every available update installed, and it stays on 16: the files a
-PostgreSQL major version writes cannot be opened by the next one, so changing
-the image of an existing installation would leave it unable to start. Patch
-releases of 16 arrive with `docker compose pull`. To move to a newer major
-version, carry the data across with a dump:
+From 0.24 the default compose file runs `routerfleet-postgres18`: the official
+`postgres:18` on Alpine with every available update installed - near-zero
+known vulnerabilities, where the Debian-based PostgreSQL 16 image carried
+hundreds without a fix. New databases use PostgreSQL's **built-in `C.UTF-8`
+ordering**, so how text sorts no longer depends on the operating system's C
+library: a later change of base image can never leave indexes ordered the old
+way.
+
+**Nothing happens until you choose it.** A compose file from before 0.24 keeps
+running the PostgreSQL 16 image (`routerfleet-postgres`), which is still
+published and updated; `docker compose pull` updates everything else.
+
+The data moves by **export and re-import**, never by reusing the old files -
+the only safe way across a major version and a different C library:
 
 ```bash
-# 1. Dump everything from the running 16
-docker exec -e PGPASSWORD=your_password routerfleet-postgres \
-  pg_dump -U routerfleet -d routerfleet --format=custom > routerfleet.dump
-
-# 2. Stop the stack and set the old data aside (rename, do not delete, until
-#    the new one is confirmed to work)
-docker compose down
-docker volume create routerfleet_postgres_data_16_old
-docker run --rm -v routerfleet_postgres_data:/from -v routerfleet_postgres_data_16_old:/to alpine \
-  sh -c 'cp -a /from/. /to/'
-docker volume rm routerfleet_postgres_data
-
-# 3. Change the database "image:" line in docker-compose.yml to the new major
-#    version (for example postgres:17), then
-#    start only the database and restore into it
-docker compose up -d routerfleet-postgres
-docker exec -i -e PGPASSWORD=your_password routerfleet-postgres \
-  pg_restore -U routerfleet -d routerfleet --no-owner < routerfleet.dump
-
-# 4. Start the rest
-docker compose up -d
+# In the folder of the compose file
+cp docker-compose.yml docker-compose.yml.pg16        # the way back
+wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
+mkdir -p scripts && wget -O scripts/migrate-database.sh \
+  https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/scripts/migrate-database.sh
+chmod +x scripts/migrate-database.sh
+docker compose pull
+./scripts/migrate-database.sh
 ```
 
-From PostgreSQL 18 on, the official image keeps its data under
-`/var/lib/postgresql` rather than `/var/lib/postgresql/data`: change the volume
-line of the database service accordingly, or the new server writes into a
-directory that is not on the volume. Read the image's notes for the version you
-move to.
+The script stops RouterFleet, starts the old database on its own, counts the
+rows of every table, exports it to `routerfleet-pg16-<date>.dump` next to the
+compose file, creates the new database on the new volume `postgres18_data`,
+imports, counts again and compares every table, checks the new database uses
+the built-in ordering, and starts RouterFleet. It stops at the first problem and
+**never changes the old volume** (`postgres_data`). It takes a minute or two
+for a typical installation and needs free disk space about the size of the
+database. A database edited by hand (extra roles, extensions) may need the
+import adapted; the script says where it stopped.
 
-Once the installation has run on the new version for a while, remove
-`routerfleet_postgres_data_16_old`. Substitute your project name for
-`routerfleet` in the volume names — `docker volume ls` lists them.
+If you take the new compose file without running the script, the database
+refuses to start - it does not create an empty one beside your data - and its
+log says what to run (`docker compose logs routerfleet-postgres`).
 
-## The database image
+**The way back**: `docker compose down`, put `docker-compose.yml.pg16` back,
+`docker compose up -d`. The old database is exactly as it was.
 
-The compose file runs `ghcr.io/alessiobravi/routerfleet-postgres` instead of
-the official `postgres:16` the earlier projects use. It is the same PostgreSQL 16 on the same
-Debian base with every available update installed, so an existing database is
-used as it is: nothing to dump, nothing to restore. A compose file that still
-names `postgres:16` keeps working too.
+**Afterwards**, once the new database has served you well: remove the line
+`- postgres_data:/var/lib/postgresql-legacy:ro` and the `postgres_data:` volume
+from the compose file, run `docker compose up -d`, then
+`docker volume rm <project>_postgres_data` and delete the export (it holds the
+whole database; passwords stay encrypted in it).
+
+SQLite and external PostgreSQL installations (`docker-compose-no-postgres.yml`)
+are not affected.
+
+**Coming from RouterFleet or RouterFleet Extended**, whose compose file runs the
+official `postgres:16`: that keeps working as it is. The PostgreSQL 16 image of
+RouterFleet Improved (`routerfleet-postgres`) is the same PostgreSQL 16 on the
+same Debian base, so it opens the existing database directly - nothing to dump.
+The move to PostgreSQL 18 above works from either.
 
 ## What you may notice after upgrading
 
+- **0.24.0: the interface runs on AdminLTE 4 and Bootstrap 5.3**, without
+  jQuery, and every page carries a strict Content-Security-Policy. Pages look
+  and work as before. A browser extension that injects scripts into pages may
+  be blocked by the policy; that is the policy doing its job.
+- **0.24.0: the database moves only when you run the script**
+  ([Moving to PostgreSQL 18](#moving-to-postgresql-18)). Until then the
+  PostgreSQL 16 image keeps running and keeps getting updates.
+- **0.24.0: the ports can be set in `.env`** (`HTTP_PORT`, `HTTPS_PORT`). If you
+  edited the `ports:` of your compose file, it keeps working; set `HTTPS_PORT`
+  to your HTTPS port so the HTTP redirect goes to it ([Ports](installation.md#ports)).
+- **0.24.0: Export as CSV** in the router list works (it never did before).
 - **The WireGuard WebAdmin integration is gone.** Its menu entry and pages are
   removed, and an upgrade drops its table together with the token stored in it.
   Nothing else depended on it.

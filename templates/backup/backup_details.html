@@ -17,7 +17,7 @@
 
                     </h3>
                     {% comment %}
-                    <span class="float-right">
+                    <span class="float-end">
                         <a href="/router/manage/?uuid={{ backup.router.uuid }}" >
                             <i class="fas fa-edit"></i>
                         </a>
@@ -32,12 +32,12 @@
                             {% comment %}
                             <li class="list-group-item">
                                 <b></b>
-                                <span class="float-right">{{ backup }}</span>
+                                <span class="float-end">{{ backup }}</span>
                             </li>
                             {% endcomment %}
                             <li class="list-group-item">
                                 <b>Backup ID</b>
-                                <span class="float-right">
+                                <span class="float-end">
                                     {{ backup.id }}
                                 </span>
                             </li>
@@ -46,7 +46,7 @@
                             {% if not backup.success and not backup.error %}
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Backup Status</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                     {% if backup.success %}
                                         <i class="far fa-check-circle text-success"></i>
                                     {% elif backup.error %}
@@ -63,7 +63,7 @@
 
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Host Monitoring</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                     {% if backup.router.monitoring %}
                                         {% if backup.router.routerstatus.status_online %}
                                             <i class="far fa-check-circle text-success"></i>
@@ -77,7 +77,7 @@
                                 </li>
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Retry Count</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                         <span {% if backup.retry_count > 0 %}class="text-danger"{% endif %}>
                                             {{ backup.retry_count }}
                                         </span>
@@ -86,22 +86,22 @@
 
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Next Retry</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                     {% if backup.next_retry %}
                                         {% if backup.next_retry > now %}
-                                            <a href="#" onclick="postAction('/backup/backup_details/?uuid={{ backup.uuid }}&show_console={{ show_console|yesno:"true,false" }}', {action: 'anticipate'}); return false;">
+                                            <a href="#" data-rf-post="/backup/backup_details/?uuid={{ backup.uuid }}&show_console={{ show_console|yesno:"true,false" }}" data-rf-field-action="anticipate">
                                             (anticipate)
                                             </a>
-                                            <span class="text-success" style="text-decoration: underline" title="This backup is scheduled to execute after {{ backup.next_retry }}">
+                                            <span class="text-success text-decoration-underline" title="This backup is scheduled to execute after {{ backup.next_retry }}">
                                                  {{ backup.next_retry }} <i class="far fa-clock"></i>
                                             </span>
                                         {% else %}
-                                            <span class="text-info" style="text-decoration: underline" title="This backup is queued to be executed as soon as possible.">
+                                            <span class="text-info text-decoration-underline" title="This backup is queued to be executed as soon as possible.">
                                                 {{ backup.next_retry }} <i class="far fa-clock"></i>
                                             </span>
                                         {% endif %}
                                     {% else %}
-                                        <span class="text-info" style="text-decoration: underline" title="This backup is queued to be executed as soon as possible.">
+                                        <span class="text-info text-decoration-underline" title="This backup is queued to be executed as soon as possible.">
                                                 queued <i class="far fa-clock"></i>
                                         </span>
                                     {% endif %}
@@ -112,10 +112,10 @@
 
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Cron last run</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                     {% if webadmin_settings.cron_last_run %}
                                         {% if webadmin_settings.cron_last_run < 5_minutes_ago %}
-                                            <span class="text-danger" style="text-decoration: underline" title="Your cron tasks are not being executed properly.">
+                                            <span class="text-danger text-decoration-underline" title="Your cron tasks are not being executed properly.">
                                             {{ webadmin_settings.cron_last_run }}
                                             </span>
                                         {% else %}
@@ -128,12 +128,12 @@
 
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Task Lock</b>
-                                    <span class="float-right">{{ backup.task_lock|default_if_none:"" }}</span>
+                                    <span class="float-end">{{ backup.task_lock|default_if_none:"" }}</span>
                                 </li>
 
                                 <li class="list-group-item">
                                     <b><i class="far fa-question-circle" title="This debug information is only displayed while the backup is not finished."></i> Error message</b>
-                                    <span class="float-right">
+                                    <span class="float-end">
                                     {{ backup.error_message|default_if_none:"" }}
                                 </span>
                                 </li>
@@ -143,38 +143,38 @@
 
                             <li class="list-group-item">
                                 <b>Schedule Type</b>
-                                <span class="float-right">
+                                <span class="float-end">
                                     {{ backup.get_schedule_type_display }}
                                 </span>
                             </li>
                             <li class="list-group-item">
                                 <b>Task Created</b>
-                                <span class="float-right">{{ backup.created }}</span>
+                                <span class="float-end">{{ backup.created }}</span>
                             </li>
                             <li class="list-group-item">
                                 <b>Schedule Time</b>
-                                <span class="float-right">{{ backup.schedule_time|default_if_none:"" }}</span>
+                                <span class="float-end">{{ backup.schedule_time|default_if_none:"" }}</span>
                             </li>
 
                             <li class="list-group-item">
                                 <b>Finish Time</b>
-                                <span class="float-right">{{ backup.finish_time|default_if_none:"" }}</span>
+                                <span class="float-end">{{ backup.finish_time|default_if_none:"" }}</span>
                             </li>
 
                             <li class="list-group-item">
                                 <b>Queue length</b>
-                                <span class="float-right">{{ backup.queue_length }}s</span>
+                                <span class="float-end">{{ backup.queue_length }}s</span>
                             </li>
 
                             <li class="list-group-item">
                                 <b>Backup hash</b>
-                                <span class="float-right" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":16" }}...</span>
+                                <span class="float-end" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":16" }}...</span>
                             </li>
 
                             {% if backup.same_as_id %}
                             <li class="list-group-item">
                                 <b>Content</b>
-                                <span class="float-right">
+                                <span class="float-end">
                                     Unchanged &mdash; same as
                                     <a href="/backup/backup_details/?uuid={{ backup.same_as.uuid }}">the backup of {{ backup.same_as.created|date:"Y-m-d H:i" }}</a>,
                                     not stored again
@@ -183,7 +183,7 @@
                             {% endif %}
                             <li class="list-group-item">
                                 <b>Download</b>
-                                <span class="float-right">
+                                <span class="float-end">
                                 {% if backup.content.backup_text %}
                                     {% for name, text in backup.named_texts %}<a href="/backup/download/?uuid={{ backup.uuid }}&type=text&name={{ name|urlencode }}" download>{% if backup.named_texts|length > 1 %}{{ name }}{% else %}Text{% endif %}</a>{% if not forloop.last %} - {% endif %}{% endfor %}
                                     {% if backup.content.backup_binary %} - {% endif %}
@@ -198,7 +198,7 @@
 
                             <li class="list-group-item">
                                 <b>Show Console</b>
-                                <span class="float-right">
+                                <span class="float-end">
                                     <a href='/backup/backup_details/?uuid={{ backup.uuid }}&show_console={% if show_console %}false{% else %}true{% endif %}'>
                                         {% if show_console %}hide{% else %}show{% endif %}
                                     </a>
@@ -207,9 +207,9 @@
 
                             <li class="list-group-item">
                                 <b>Delete backup</b>
-                                <span class="float-right">
+                                <span class="float-end">
 
-                                <a href='javascript:void(0)' class='text-danger' data-command='delete' onclick='openCommandDialog(this)'>
+                                <a href='#' class='text-danger' data-rf-call='openCommandDialog'>
                                     <i class="far fa-trash-alt"></i>
                                 </a>
 
@@ -311,16 +311,8 @@
 
 {% block custom_page_scripts %}
 
-    <script>
-        function openCommandDialog(element) {
-            var command = element.getAttribute('data-command');
-            var confirmation = rfConfirm("Delete this backup permanently?", 'delete{{ backup.id }}');
-            if (confirmation) {
-                postAction("/backup/delete/?uuid={{ backup.uuid }}", {confirmation: confirmation});;
-                window.location.href = url;
-            }
-        }
-    </script>
+    <button type="button" id="rf-delete-action" class="d-none" data-rf-post="/backup/delete/?uuid={{ backup.uuid }}"
+            data-rf-confirm-word="delete{{ backup.id }}" data-rf-confirm-sum="Delete this backup permanently?"></button>
 
 
 {% endblock %}

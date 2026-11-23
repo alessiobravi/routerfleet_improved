@@ -2,7 +2,7 @@
 <div class="rf-object">
     <div class="rf-o-card rf-o-hero">
         {% if page.hero.ring is not None %}
-        <div class="rf-o-ring" style="--rf-pct: {{ page.hero.ring }};" role="img" aria-label="{{ page.hero.ring }}%{% if page.hero.ring_caption %} {{ page.hero.ring_caption }}{% endif %}">
+        <div class="rf-o-ring rf-pct-{{ page.hero.ring|floatformat:0 }}" role="img" aria-label="{{ page.hero.ring }}%{% if page.hero.ring_caption %} {{ page.hero.ring_caption }}{% endif %}">
             <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="rf-o-track" cx="50" cy="50" r="42"/><circle class="rf-o-val rf-o-{{ page.hero.chip.0 }}" cx="50" cy="50" r="42"/></svg>
             <span>{{ page.hero.ring }}%</span>
             {% if page.hero.ring_caption %}<small>{{ page.hero.ring_caption }}</small>{% endif %}
@@ -17,8 +17,8 @@
         </div>
         <div class="rf-o-actions">
             {% for action in page.hero.actions %}
-                {% if action.href %}<a href="{{ action.href }}" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} mr-1"></i>{{ action.label }}</a>
-                {% else %}<button type="button" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" onclick="{{ action.onclick }}"><i class="fas {{ action.icon }} mr-1"></i>{{ action.label }}</button>{% endif %}
+                {% if action.href %}<a href="{{ action.href }}" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</a>
+                {% else %}<button type="button" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-rf-post="{{ action.post }}" data-rf-confirm-word="{{ action.word }}" data-rf-confirm-sum="{{ action.confirm }}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</button>{% endif %}
             {% endfor %}
         </div>
     </div>

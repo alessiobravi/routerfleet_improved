@@ -13,10 +13,10 @@
                 <span class="rf-set-icon {% if smtp.ready %}teal{% else %}grey{% endif %}"><i class="fas fa-envelope"></i></span>
                 <div class="rf-set-text"><div class="rf-set-label">Send notifications by email</div>
                     <div class="rf-set-sub">Each user chooses what to receive in My Settings; shared mailboxes are channels.</div></div>
-                <div class="custom-control custom-switch">
-                    <input type="checkbox" class="custom-control-input" id="enabled" name="enabled"
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" id="enabled" name="enabled"
                            {% if posted %}{% if posted.enabled %}checked{% endif %}{% elif smtp.enabled %}checked{% endif %}>
-                    <label class="custom-control-label" for="enabled"><span class="sr-only">Send notifications by email</span></label>
+                    <label class="form-check-label" for="enabled"><span class="visually-hidden">Send notifications by email</span></label>
                 </div>
             </div>
         </div>
@@ -26,7 +26,7 @@
             <div class="rf-set-row">
                 <span class="rf-set-icon"><i class="fas fa-server"></i></span>
                 <div class="rf-set-text">
-                    <div class="form-row">
+                    <div class="row g-2">
                         <div class="col-8"><label class="small mb-0" for="host">SMTP server</label>
                             <input type="text" class="form-control" id="host" name="host" placeholder="smtp.example.com" spellcheck="false"
                                    value="{% if posted %}{{ posted.host }}{% else %}{{ smtp.host }}{% endif %}"></div>
@@ -48,7 +48,7 @@
             {% endfor %}
         </div>
 
-        <div class="rf-set-title">Login <span class="text-lowercase font-weight-normal">(optional)</span></div>
+        <div class="rf-set-title">Login <span class="text-lowercase fw-normal">(optional)</span></div>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon blue"><i class="fas fa-user"></i></span>
@@ -62,9 +62,9 @@
                     <input type="password" class="form-control" id="password" name="password" autocomplete="new-password"
                            placeholder="{% if has_password %}stored - leave empty to keep it{% else %}none{% endif %}">
                     {% if has_password %}
-                    <div class="custom-control custom-checkbox rf-checkbox mt-1">
-                        <input type="checkbox" class="custom-control-input" id="remove_password" name="remove_password">
-                        <label class="custom-control-label small" for="remove_password">Remove the stored password</label>
+                    <div class="form-check rf-checkbox mt-1">
+                        <input type="checkbox" class="form-check-input" id="remove_password" name="remove_password">
+                        <label class="form-check-label small" for="remove_password">Remove the stored password</label>
                     </div>
                     {% endif %}
                 </div>
@@ -95,7 +95,7 @@
     <form method="post" class="text-center mt-2">
         {% csrf_token %}
         <input type="hidden" name="action" value="test">
-        <button type="submit" class="btn btn-link" {% if not smtp.ready %}disabled{% endif %}><i class="fas fa-paper-plane mr-1"></i>Send a test email to {{ request.user.email|default:"me" }}</button>
+        <button type="submit" class="btn btn-link" {% if not smtp.ready %}disabled{% endif %}><i class="fas fa-paper-plane me-1"></i>Send a test email to {{ request.user.email|default:"me" }}</button>
         {% if not request.user.email %}<div class="rf-set-foot">Add your own address in My Settings to receive the test.</div>{% endif %}
     </form>
 </div>

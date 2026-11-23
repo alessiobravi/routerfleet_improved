@@ -32,8 +32,8 @@ class CommandForm(forms.ModelForm):
         if self.instance.pk:
             back_url = f'/fleet_commander/command/details/?uuid={self.instance.uuid}'
             delete_html = (
-                "<a href='javascript:void(0)' class='btn btn-outline-danger' "
-                "data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+                "<a href='#' class='btn btn-outline-danger' "
+                "data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
             )
         else:
             back_url = '/fleet_commander/'
@@ -162,8 +162,8 @@ class CommandVariantForm(forms.ModelForm):
         if self.instance.pk:
             back_uuid = self.instance.command.uuid
             delete_html = (
-                "<a href='javascript:void(0)' class='btn btn-outline-danger' "
-                "data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+                "<a href='#' class='btn btn-outline-danger' "
+                "data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
             )
         else:
             back_uuid = command.uuid if command else ''
@@ -269,8 +269,8 @@ class CommandScheduleForm(forms.ModelForm):
         if self.instance.pk:
             back_uuid = self.instance.command.uuid
             delete_html = (
-                "<a href='javascript:void(0)' class='btn btn-outline-danger' "
-                "data-command='delete' onclick='openCommandDialog(this)'>Delete</a>"
+                "<a href='#' class='btn btn-outline-danger' "
+                "data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
             )
         else:
             back_uuid = command.uuid if command else ''

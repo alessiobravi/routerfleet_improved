@@ -13,9 +13,9 @@
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.username.id_for_label }}">Username</label>
                     <input type="text" class="form-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" required value="{{ form.username.value|default_if_none:'' }}" {% if form.instance.pk %}readonly{% endif %}></div></div>
             <div class="rf-set-row"><div class="rf-set-text"><div class="d-flex flex-wrap">
-                <div class="flex-fill mr-2" style="min-width: 10rem"><label class="small mb-0" for="{{ form.first_name.id_for_label }}">Name</label>
+                <div class="flex-fill me-2 rf-minw-10"><label class="small mb-0" for="{{ form.first_name.id_for_label }}">Name</label>
                     <input type="text" class="form-control" id="{{ form.first_name.id_for_label }}" name="{{ form.first_name.html_name }}" maxlength="150" autocomplete="off" value="{{ form.first_name.value|default_if_none:'' }}"></div>
-                <div class="flex-fill" style="min-width: 10rem"><label class="small mb-0" for="{{ form.last_name.id_for_label }}">Surname</label>
+                <div class="flex-fill rf-minw-10"><label class="small mb-0" for="{{ form.last_name.id_for_label }}">Surname</label>
                     <input type="text" class="form-control" id="{{ form.last_name.id_for_label }}" name="{{ form.last_name.html_name }}" maxlength="150" autocomplete="off" value="{{ form.last_name.value|default_if_none:'' }}"></div>
             </div></div></div>
             <div class="rf-set-row"><span class="rf-set-icon purple"><i class="fas fa-envelope"></i></span>
@@ -32,7 +32,7 @@
         <div class="rf-set-group">
             <div class="rf-set-row"><span class="rf-set-icon red"><i class="fas fa-user-shield"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.user_level.id_for_label }}">Level</label>
-                    <select class="form-control" id="{{ form.user_level.id_for_label }}" name="{{ form.user_level.html_name }}">
+                    <select class="form-select" id="{{ form.user_level.id_for_label }}" name="{{ form.user_level.html_name }}">
                         {% for value, display in form.user_level.field.choices %}<option value="{{ value }}" {% if form.user_level.value|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>{{ display }}</option>{% endfor %}
                     </select>
                     <small class="text-muted">Viewer: queues and the backup list. Backup Operator: also backups and instant backups. Host Manager: also devices, the console, deleting backups. Configuration Manager: also profiles, groups, SSH keys, commands, firmware. Administrator: everything.</small></div></div>
@@ -45,15 +45,15 @@
             <div class="rf-set-row"><span class="rf-set-icon grey"><i class="fas fa-mobile-alt"></i></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">Second factors</span>
                     <span class="rf-set-sub d-block">{% if mfa_state.totp %}authenticator app{% endif %}{% if mfa_state.totp and mfa_state.passkeys %} · {% endif %}{% if mfa_state.passkeys %}{{ mfa_state.passkeys }} passkey{{ mfa_state.passkeys|pluralize }}{% endif %}{% if not mfa_state.totp and not mfa_state.passkeys %}none - password only{% endif %}</span></span>
-                {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" onclick="resetMfa()">Reset</button>{% endif %}
+                {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="reset_mfa" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="This removes the authenticator app and every passkey of {{ user_acl.user.username }}, who then signs in with a password only.">Reset</button>{% endif %}
             </div>
             {% endif %}
         </div>
 
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary btn-lg">Save</button>
-            <a href="/user/list/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
-            {% if user_acl %}<a href="javascript:void(0)" class="btn btn-outline-danger btn-lg ml-2" data-command="delete" onclick="openCommandDialog(this)">Delete user</a>{% endif %}
+            <a href="/user/list/" class="btn btn-secondary btn-lg ms-2">Cancel</a>
+            {% if user_acl %}<a href="#" class="btn btn-outline-danger btn-lg ms-2" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="delete" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="Remove the user {{ user_acl.user.username }} permanently?">Delete user</a>{% endif %}
         </div>
     </form>
 </div>
@@ -62,21 +62,5 @@
 
 {% block custom_page_scripts %}
 
-<script>
-    function resetMfa() {
-        var confirmation = rfConfirm("This removes the authenticator app and every passkey of {{ user_acl.user.username|escapejs }}, who then signs in with a password only.", '{{ user_acl.user.username|escapejs }}');
-        if (confirmation) {
-            postAction("?uuid={{ user_acl.uuid }}", {action: 'reset_mfa', confirmation: confirmation});
-        }
-    }
-
-    function openCommandDialog(element) {
-        var command = element.getAttribute('data-command');
-        var confirmation = rfConfirm("Remove the user {{ user_acl.user.username|escapejs }} permanently?", '{{ user_acl.user.username|escapejs }}');
-        if (confirmation) {
-            postAction("?uuid={{ user_acl.uuid }}", {action: 'delete', confirmation: confirmation});
-        }
-    }
-</script>
 
 {% endblock %}

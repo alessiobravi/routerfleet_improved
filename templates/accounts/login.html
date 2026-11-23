@@ -3,49 +3,29 @@
 {% block content %}
 <form action="/accounts/login/" method="post">
     {% csrf_token %}
-    <label for="login-username" class="sr-only">Username</label>
+    <label for="login-username" class="visually-hidden">Username</label>
     <div class="input-group">
         <input type="text" class="form-control" id="login-username" placeholder="Username" name="username"
                autocomplete="username" autocapitalize="none" spellcheck="false" autofocus>
-        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-user"></span></div></div>
+        <div class="input-group-text"><span class="fas fa-user"></span></div>
     </div>
-    <label for="login-password" class="sr-only">Password</label>
+    <label for="login-password" class="visually-hidden">Password</label>
     <div class="input-group">
         <input type="password" class="form-control" id="login-password" placeholder="Password" name="password"
                autocomplete="current-password">
-        <div class="input-group-append"><div class="input-group-text"><span class="fas fa-lock"></span></div></div>
+        <div class="input-group-text"><span class="fas fa-lock"></span></div>
     </div>
-    <button type="submit" class="btn btn-primary btn-block mt-2"><i class="fas fa-sign-in-alt mr-1"></i> Sign in</button>
+    <button type="submit" class="btn btn-primary w-100 mt-2"><i class="fas fa-sign-in-alt me-1"></i> Sign in</button>
 </form>
 
 <!-- Shown only where the browser can use a passkey here -->
 <div id="passkey-area" class="d-none">
     <div class="rf-auth-divider">or</div>
-    <button type="button" id="passkey-button" class="btn btn-outline-primary btn-block">
-        <i class="fas fa-key mr-1"></i> Sign in with a passkey
+    <button type="button" id="passkey-button" class="btn btn-outline-primary w-100">
+        <i class="fas fa-key me-1"></i> Sign in with a passkey
     </button>
     <div id="passkey-error" class="text-danger small mt-2" role="alert"></div>
 </div>
 
 <script src="/static/routerfleet/passkeys.js"></script>
-<script>
-  document.querySelector('input[name="username"]').addEventListener('input', function() {
-    this.value = this.value.toLowerCase().replace(/\s/g, '');
-  });
-  if (window.RouterFleetPasskeys && RouterFleetPasskeys.supported()) {
-    document.getElementById('passkey-area').classList.remove('d-none');
-    document.getElementById('passkey-button').addEventListener('click', function () {
-      var error = document.getElementById('passkey-error');
-      error.textContent = '';
-      RouterFleetPasskeys.signIn().then(function (result) {
-        window.location = result.redirect || '/';
-      }).catch(function (reason) {
-        // Cancelling the browser's dialog is not an error worth showing
-        if (reason && reason.name !== 'NotAllowedError') {
-          error.textContent = reason.message || 'The passkey could not be used.';
-        }
-      });
-    });
-  }
-</script>
 {% endblock %}

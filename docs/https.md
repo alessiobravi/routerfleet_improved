@@ -52,6 +52,8 @@ the working one stays, and the page shows why.
 - Uses the **HTTP-01** challenge: Let's Encrypt connects to
   `http://<your domain>/.well-known/acme-challenge/` on **port 80**, so the
   server must be reachable from the internet under that name.
+  With `HTTP_PORT` changed, forward port 80 from the internet to it
+  ([Ports](installation.md#ports)).
 - Until the certificate is issued, the current certificate keeps HTTPS up.
 - A failed request is retried at most once an hour (Let's Encrypt limits
   failures); the reason is shown on the page.
@@ -67,6 +69,10 @@ List the proxy's addresses. Only requests from them may say, through
 history rely on. nginx sets `X-Forwarded-Proto` itself in every mode and
 overwrites what any other client sends. Make sure only the proxy can reach
 RouterFleet's port 80.
+
+The proxy must pass on the browser's `Host` header unchanged and let WebSockets
+through for the console - what each common proxy needs is in
+[Installation](installation.md#behind-your-own-reverse-proxy).
 
 ## The private key
 

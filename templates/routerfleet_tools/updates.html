@@ -18,8 +18,8 @@
                 <span class="rf-set-sub d-block">{% if available %}{{ available }} - <a href="{% tag_project_repository_url %}/blob/main/CHANGELOG.md" target="_blank" rel="noopener">what changes</a>{% elif check_enabled %}Up to date{% else %}The update check is turned off (UPDATE_CHECK in .env){% endif %}</span>
                 {% if check_enabled %}<span class="rf-set-sub d-block">{% if last_checked %}Last checked {{ last_checked|timesince }} ago{% else %}Not checked yet{% endif %}; checked every hour.</span>{% endif %}</span>
             {% if check_enabled %}
-            <form method="post" class="ml-2">{% csrf_token %}<input type="hidden" name="action" value="check">
-                <button type="submit" class="btn btn-outline-primary btn-sm" id="check-updates"><i class="fas fa-sync-alt mr-1"></i>Check now</button></form>
+            <form method="post" class="ms-2">{% csrf_token %}<input type="hidden" name="action" value="check">
+                <button type="submit" class="btn btn-outline-primary btn-sm" id="check-updates"><i class="fas fa-sync-alt me-1"></i>Check now</button></form>
             {% endif %}
         </div>
     </div>

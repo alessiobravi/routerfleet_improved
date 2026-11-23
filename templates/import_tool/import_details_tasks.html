@@ -2,7 +2,7 @@
     <thead>
     <tr>
         <th>ID</th>
-        <th style="display: none;">UUID</th>
+        <th class="d-none">UUID</th>
         <th>Name</th>
         <th>Address</th>
         <th>Status</th>
@@ -14,7 +14,7 @@
     {% for task in import_task_list %}
         <tr>
         <td>{{ task.import_id }}</td>
-        <td style="display: none;">{{ task.uuid }}</td>
+        <td class="d-none">{{ task.uuid }}</td>
         <td>
             {% if task.router %}
             <a href="/router/details/?uuid={{ task.router.uuid }}" title="Task name: {{ task.name }}">{{ task.router.name }}</a>
@@ -25,14 +25,14 @@
         <td>{{ task.address }}</td>
         <td id="status-{{ task.uuid }}">
             {% if task.import_success %}
-            <span class="badge badge-success">Success</span>
+            <span class="badge text-bg-success">Success</span>
             {% elif task.import_error %}
-            <span class="badge badge-danger">Error</span>
+            <span class="badge text-bg-danger">Error</span>
             {% else %}
-            <span class="badge badge-warning">Pending</span>
+            <span class="badge text-bg-warning">Pending</span>
             {% endif %}
             {% comment %}
-            <span class="badge badge-info">Working...</span>
+            <span class="badge text-bg-info">Working...</span>
             {% endcomment %}
         </td>
         <td id="errormessage-{{ task.uuid }}">{{ task.import_error_message|default_if_none:'' }}</td>

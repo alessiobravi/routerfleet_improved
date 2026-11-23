@@ -37,14 +37,7 @@
 
 {% block custom_page_scripts %}
     
-<script>
-    function openCommandDialog(element) {
-        var command = element.getAttribute('data-command');
-        var confirmation = rfConfirm("{% if delete_confirmation_message %}{{ delete_confirmation_message|escapejs }}{% else %}Delete this permanently?{% endif %}", 'delete');
-        if (confirmation) {
-            postAction("?uuid={{ instance.uuid }}", {action: 'delete', confirmation: confirmation});
-        }
-    }
-</script>
+<button type="button" id="rf-delete-action" class="d-none" data-rf-post="?uuid={{ instance.uuid }}" data-rf-field-action="delete"
+        data-rf-confirm-word="delete" data-rf-confirm-sum="{% if delete_confirmation_message %}{{ delete_confirmation_message }}{% else %}Delete this permanently?{% endif %}"></button>
     
 {% endblock %}

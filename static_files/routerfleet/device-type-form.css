@@ -1,0 +1,8 @@
+.rf-mono { font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; }
+.rf-steps { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; list-style: none; counter-reset: s; }
+.rf-steps li { counter-increment: s; font-size: .78rem; padding: 3px 9px; border-radius: 12px; background: var(--rf-hover); color: var(--rf-muted); cursor: pointer; }
+.rf-steps li::before { content: counter(s) ". "; }
+.rf-steps li.active { background: #2f6fd1; color: #fff; }
+.rf-wizard section { display: none; } .rf-wizard section.active { display: block; }
+.rf-try-step { border: 1px solid var(--rf-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.rf-try-step pre { max-height: 220px; overflow: auto; font-size: .75rem; margin: 6px 0 0; white-space: pre-wrap; }

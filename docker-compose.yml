@@ -2,22 +2,28 @@ services:
   routerfleet-postgres:
     container_name: routerfleet-postgres
     restart: unless-stopped
-    # postgres:16 with every available update installed; see containers/postgres
-    image: ghcr.io/alessiobravi/routerfleet-postgres:latest
+    # postgres:18 on Alpine with every available update; see containers/postgres18
+    image: ghcr.io/alessiobravi/routerfleet-postgres18:latest
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18 keeps its cluster under 18/docker in this volume
+      - postgres18_data:/var/lib/postgresql
+      # The PostgreSQL 16 database of earlier releases, read-only: the image
+      # refuses to start empty beside it until scripts/migrate-database.sh
+      # has moved it. Remove this line (and the volume) once migrated.
+      - postgres_data:/var/lib/postgresql-legacy:ro
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - TZ=${TIMEZONE}
     healthcheck:
-      # Ready to accept connections, not merely started
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # Ready to accept connections over TCP - not the temporary server that
+      # only listens on its socket while a new database is initialised
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   routerfleet:
     container_name: routerfleet
@@ -29,13 +35,13 @@ services:
       - HTTPS_REDIRECT_POLICY=${HTTPS_REDIRECT_POLICY}
       - UPDATE_CHECK=${UPDATE_CHECK}
       - DATABASE_ENGINE=${DATABASE_ENGINE}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST:-}
+      - POSTGRES_PORT=${POSTGRES_PORT:-}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - TZ=${TIMEZONE}
-      - COMPOSE_VERSION=08a
+      - COMPOSE_VERSION=09a
       - COMPOSE_TYPE=with-postgres
     volumes:
       - sqlite_volume:/var/lib/routerfleet_sqlite/
@@ -86,12 +92,19 @@ services:
     environment:
       - HTTPS_REDIRECT_POLICY=${HTTPS_REDIRECT_POLICY}
       - TZ=${TIMEZONE}
+      # The HTTPS port on the host, for the HTTP redirect (see ports below)
+      - HTTPS_PORT=${HTTPS_PORT:-443}
+      # Emergency override of System settings -> HTTPS (env or selfsigned)
+      - HTTPS_MODE_OVERRIDE=${HTTPS_MODE_OVERRIDE:-}
+      # 1: Let's Encrypt's test service
+      - LETSENCRYPT_STAGING=${LETSENCRYPT_STAGING:-}
     volumes:
       - static_volume:/static
       - https_cert:/certificate
     ports:
-      - "80:80"
-      - "443:443"
+      # The ports on the host: HTTP_PORT and HTTPS_PORT in .env
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
     healthcheck:
       # Listening on 443 - which on a first start is only after the
       # self-signed certificate has been generated. Read from the kernel's
@@ -110,5 +123,6 @@ volumes:
   https_cert:
   media_root:
   postgres_data:
+  postgres18_data:
   sqlite_volume:
   app_secrets:

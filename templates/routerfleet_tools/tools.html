@@ -34,21 +34,13 @@
             <div class="rf-set-row">
                 <div class="rf-set-text"><div class="rf-set-label">Give the space back to the disk</div>
                     <div class="rf-set-sub">VACUUM FULL: rewrites each table and locks it while it does - pages wait for a few seconds to minutes. Off: the space of deleted data becomes reusable, without locking.</div></div>
-                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="full" name="full"><label class="custom-control-label" for="full"><span class="sr-only">VACUUM FULL</span></label></div>
+                <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="full" name="full"><label class="form-check-label" for="full"><span class="visually-hidden">VACUUM FULL</span></label></div>
             </div>
             {% endif %}
         </div>
         <div class="rf-set-foot">{% if database_vendor == 'postgresql' %}PostgreSQL makes the space of deleted data reusable on its own over time; optimizing does it now and refreshes the statistics queries rely on.{% else %}SQLite keeps its file at its largest size until it is optimized; optimizing rewrites it - the database is locked meanwhile, and needs free disk space as large as itself.{% endif %} Best after a backup clean-up.</div>
-        <div class="text-center mt-3"><button type="button" class="btn btn-outline-primary btn-lg" id="optimize-button"><i class="fas fa-compress-arrows-alt mr-1"></i>Optimize the database</button></div>
+        <div class="text-center mt-3"><button type="button" class="btn btn-outline-primary btn-lg" id="optimize-button" data-rf-submit="optimize-form" data-rf-confirm-word="optimize" data-rf-confirm-sum="Optimize the database now? It may be busy for a while."><i class="fas fa-compress-arrows-alt me-1"></i>Optimize the database</button></div>
     </form>
 </div>
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    document.getElementById('optimize-button').addEventListener('click', function () {
-        var c = rfConfirm('Optimize the database now? It may be busy for a while.', 'optimize');
-        if (c) { document.getElementById('optimize-confirmation').value = c; document.getElementById('optimize-form').submit(); }
-    });
-</script>
-{% endblock %}

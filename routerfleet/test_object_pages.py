@@ -36,7 +36,7 @@ class JobPageTests(TestCase):
         self.client.force_login(make_user(20))
         page = self.client.get(f'/fleet_commander/job/details/?uuid={self.job.uuid}')
         self.assertContains(page, 'rf-o-hero')
-        self.assertContains(page, '--rf-pct: 50;')
+        self.assertContains(page, 'rf-pct-50')
         self.assertContains(page, 'Timeline')
 
 
@@ -130,3 +130,91 @@ class TaskAndBackupPageTests(TestCase):
         self.assertTrue(any(t.startswith('Console opened by') for t in texts))
         self.assertIn('Went offline', texts)
         self.assertIn('Console', [a['label'] for a in page['hero']['actions']])
+
+
+class DeclaredAbortTests(TestCase):
+    """The Abort buttons carry what they do as attributes (no inline script):
+    a POST to the abort URL after a small sum, whose word the server checks."""
+
+    def setUp(self):
+        command = Command.objects.create(name='Show Version')
+        CommandVariant.objects.create(command=command, router_type='routeros', payload='/x')
+        self.job = create_manual_job(command, routers=Router.objects.filter(pk=make_router(name='edge-9').pk))
+        self.task = self.job.tasks.get()
+        self.client.force_login(make_user(20))
+
+    def test_the_job_page_declares_its_abort(self):
+        page = self.client.get(f'/fleet_commander/job/details/?uuid={self.job.uuid}')
+        self.assertContains(page, f'data-rf-post="/fleet_commander/job/abort/?uuid={self.job.uuid}"')
+        self.assertContains(page, 'data-rf-confirm-word="abort"')
+        self.assertNotContains(page, 'onclick')
+
+    def test_the_task_page_declares_its_abort(self):
+        page = self.client.get(f'/fleet_commander/task/details/?uuid={self.task.uuid}')
+        self.assertContains(page, f'data-rf-post="/fleet_commander/task/abort/?uuid={self.task.uuid}"')
+        self.assertContains(page, 'data-rf-confirm-sum="Abort this task?"')
+
+    def test_what_the_button_sends_aborts_and_a_wrong_word_does_not(self):
+        url = f'/fleet_commander/job/abort/?uuid={self.job.uuid}'
+        self.client.post(url, {'confirmation': 'wrong'})
+        self.job.refresh_from_db()
+        self.assertFalse(self.job.completed)
+        self.client.post(url, {'confirmation': 'abort'})
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, 'aborted')
+
+    def test_a_finished_job_offers_no_abort(self):
+        from routerfleet.object_pages import job_page
+        CommandTask.objects.filter(pk=self.task.pk).update(status='success', finished_at=timezone.now())
+        self.job.update_counters()
+        self.job.refresh_from_db()
+        self.assertFalse([a for a in job_page(self.job, list(self.job.tasks.all()))['hero']['actions'] if a['label'] == 'Abort'])
+
+
+class AgoTests(TestCase):
+    def test_how_long_ago_reads(self):
+        from datetime import timedelta
+        from routerfleet.object_pages import _ago
+        now = timezone.now()
+        self.assertEqual(_ago(None), 'never')
+        self.assertEqual(_ago(now - timedelta(seconds=30)), 'just now')
+        self.assertEqual(_ago(now - timedelta(minutes=1, seconds=40)), '1 minute ago')
+        self.assertEqual(_ago(now - timedelta(minutes=5)), '5 minutes ago')
+        self.assertEqual(_ago(now - timedelta(hours=2)), '2 hours ago')
+        self.assertEqual(_ago(now - timedelta(days=3)), '3 days ago')
+
+
+class DevicePageStatesTests(TestCase):
+    def _page(self, router):
+        status = RouterStatus.objects.get_or_create(router=router)[0]
+        return router_page(router, status, None, 99.5, can_execute=False)
+
+    def test_disabled_and_unmonitored_devices(self):
+        disabled = make_router(name='off-1')
+        disabled.enabled = False
+        disabled.save()
+        self.assertEqual(self._page(disabled)['hero']['chip'], ('purple', 'Disabled'))
+        quiet = make_router(name='quiet-1')
+        quiet.monitoring = False
+        quiet.save()
+        self.assertEqual(self._page(quiet)['hero']['chip'], ('info', 'Not monitored'))
+
+    def test_timeline_failed_and_running_backups_closed_console_recovered_downtime(self):
+        from datetime import timedelta
+        from console.models import ConsoleSession
+        from monitoring.models import RouterDownTime
+        router = make_router(name='timeline-1')
+        now = timezone.now()
+        RouterBackup.objects.create(router=router, schedule_type='daily', error=True)
+        RouterBackup.objects.create(router=router, schedule_type='daily')
+        ConsoleSession.objects.create(user_name='ops', router=router, router_name=router.name, transport='ssh',
+                                      account='backup', ticket_hash='a' * 64, ticket_expires=now,
+                                      connected_at=now - timedelta(minutes=9), ended_at=now - timedelta(minutes=2),
+                                      end_reason='closed by the user')
+        RouterDownTime.objects.create(router=router, start_time=now - timedelta(hours=3), end_time=now - timedelta(hours=2))
+        texts = [e['text'] for e in self._page(router)['timeline']]
+        self.assertTrue(any(t.endswith('backup failed') for t in texts), texts)
+        self.assertTrue(any(t.endswith('backup in progress') for t in texts), texts)
+        self.assertIn('Console closed: closed by the user', texts)
+        self.assertIn('Went offline', texts)
+        self.assertIn('Back online', texts)

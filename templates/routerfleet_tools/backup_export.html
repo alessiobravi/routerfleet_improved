@@ -14,21 +14,21 @@
                     Each export is recorded in the change log.</div>
                 <form method="post">
                     {% csrf_token %}
-                    <div class="form-row align-items-end">
-                        <div class="form-group col-md-5">
+                    <div class="row g-2 align-items-end">
+                        <div class="mb-3 col-md-5">
                             <label for="group">Devices</label>
-                            <select class="form-control" id="group" name="group">
+                            <select class="form-select" id="group" name="group">
                                 <option value="">All devices</option>
                                 {% for group in groups %}<option value="{{ group.uuid }}">Group: {{ group.name }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="form-group col-md-4">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="include_binary" name="include_binary" checked>
-                                <label class="custom-control-label" for="include_binary">Include binary backups</label>
+                        <div class="mb-3 col-md-4">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" class="form-check-input" id="include_binary" name="include_binary" checked>
+                                <label class="form-check-label" for="include_binary">Include binary backups</label>
                             </div>
                         </div>
-                        <div class="form-group col-md-3 text-md-right">
+                        <div class="mb-3 col-md-3 text-md-end">
                             <button type="submit" class="btn btn-primary"><i class="fas fa-download"></i> Download zip</button>
                         </div>
                     </div>

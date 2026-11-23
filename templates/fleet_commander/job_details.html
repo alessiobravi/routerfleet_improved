@@ -29,7 +29,7 @@
                         <div class="rf-o-name">
                             {% if task.router %}<a href="/router/details/?uuid={{ task.router.uuid }}">{{ task.router.name }}</a>{% else %}{{ task.router_name|default_if_none:task.router_uuid }}{% endif %}
                             {% if task.router.routerstatus.command_lock or task.router.routerstatus.backup_lock %}
-                                <span class="badge badge-light border" title="Backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'-' }} / Command lock: {{ task.router.routerstatus.command_lock|default_if_none:'-' }}">locked</span>
+                                <span class="badge text-bg-light border" title="Backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'-' }} / Command lock: {{ task.router.routerstatus.command_lock|default_if_none:'-' }}">locked</span>
                             {% endif %}
                         </div>
                         <div class="rf-o-sub">{% if task.router %}{{ task.router.address }} · {{ task.router.get_router_type_display }}{% endif %}{% if task.retry_count > 1 %} · run {{ task.retry_count }} times{% endif %}</div>
@@ -39,7 +39,7 @@
                     <span class="text-nowrap">
                         <a href="/fleet_commander/task/details/?uuid={{ task.uuid }}" title="Task details"><i class="fas fa-search"></i></a>
                         {% if task.status == 'pending' %}
-                        <a href="javascript:void(0)" class="ml-1" onclick="abortTask('{{ task.uuid }}')"
+                        <a href="#" class="ms-1" data-rf-post="/fleet_commander/task/abort/?uuid={{ task.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this job? A command already running on a device finishes; nothing after it runs."
                            title="Stop this task. A command already running on the device is not interrupted; the task stops before its next command."><i class="fas fa-hand-paper text-danger"></i></a>
                         {% endif %}
                     </span>
@@ -60,26 +60,3 @@
 </div>
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    // Stopping a job cannot interrupt an SSH command that is already running on
-    // the router, it takes effect before the next command or verification
-    function abortPrompt() {
-        return rfConfirm("Abort this job? A command already running on a device finishes; nothing after it runs.", 'abort');
-    }
-
-    function abortJob(uuid) {
-        var confirmation = abortPrompt();
-        if (confirmation !== null) {
-            postAction("/fleet_commander/job/abort/?uuid=" + uuid, {confirmation: confirmation});
-        }
-    }
-
-    function abortTask(uuid) {
-        var confirmation = abortPrompt();
-        if (confirmation !== null) {
-            postAction("/fleet_commander/task/abort/?uuid=" + uuid, {confirmation: confirmation});
-        }
-    }
-</script>
-{% endblock %}

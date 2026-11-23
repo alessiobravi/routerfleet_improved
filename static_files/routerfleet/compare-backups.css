@@ -1,0 +1,31 @@
+.d2h-file-list-wrapper {
+    display: none;
+}
+
+.d2h-file-header {
+    display: none;
+}
+.rf-diff-modes .btn.active { background: var(--primary, #007bff); color: #fff; }
+/* Changes: one column, wrapped - readable on a phone */
+.rf-chg-sum { margin: 12px 0 8px; font-size: .9rem; color: var(--rf-muted, #6c757d); }
+.rf-chg-sum .add { color: #1f9d55; font-weight: 600; } .rf-chg-sum .del { color: #d64545; font-weight: 600; }
+.rf-chg-hunk { border: 1px solid var(--rf-line, #dee2e6); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+.rf-chg-head { padding: 6px 10px; font-size: .8rem; font-weight: 600; color: var(--rf-muted, #6c757d);
+               background: var(--rf-hover, #f6f8fa); border-bottom: 1px solid var(--rf-line, #dee2e6); }
+.rf-chg-line { display: flex; font-family: SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; line-height: 1.45; }
+.rf-chg-no { flex: 0 0 3.2em; text-align: right; padding: 1px 6px; color: var(--rf-muted, #8a96a3); user-select: none; }
+.rf-chg-sign { flex: 0 0 1.2em; text-align: center; user-select: none; }
+.rf-chg-text { flex: 1; min-width: 0; padding: 1px 8px 1px 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rf-chg-line.del { background: rgba(214, 69, 69, .13); } .rf-chg-line.del .rf-chg-sign { color: #d64545; }
+.rf-chg-line.add { background: rgba(31, 157, 85, .13); } .rf-chg-line.add .rf-chg-sign { color: #1f9d55; }
+.rf-chg-line.ctx .rf-chg-text { color: var(--rf-muted, #6c757d); }
+.rf-chg-empty { padding: 16px; color: var(--rf-muted, #6c757d); }
+/* diff2html in dark mode */
+html.rf-dark .d2h-wrapper, html.rf-dark .d2h-file-wrapper, html.rf-dark .d2h-code-line, html.rf-dark .d2h-code-side-line,
+html.rf-dark .d2h-cntx, html.rf-dark .d2h-code-linenumber, html.rf-dark .d2h-code-side-linenumber,
+html.rf-dark .d2h-info, html.rf-dark .d2h-diff-table { background-color: #23282d !important; color: var(--rf-text) !important; border-color: var(--rf-line) !important; }
+html.rf-dark .d2h-del, html.rf-dark .d2h-del .d2h-code-line-ctn { background-color: rgba(214, 69, 69, .22) !important; }
+html.rf-dark .d2h-ins, html.rf-dark .d2h-ins .d2h-code-line-ctn { background-color: rgba(31, 157, 85, .22) !important; }
+html.rf-dark .d2h-emptyplaceholder, html.rf-dark .d2h-code-side-emptyplaceholder { background-color: #2b3035 !important; }
+html.rf-dark del, html.rf-dark ins { background-color: rgba(255, 255, 255, .12) !important; }
+

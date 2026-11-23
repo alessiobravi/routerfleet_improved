@@ -339,19 +339,40 @@ class BrowserLibraryManifestTests(TestCase):
 
     HEADERS = {
         # npm name: (file, pattern that reads the version from its header)
-        'jquery': ('AdminLTE-3.2.0/plugins/jquery/jquery.min.js', r'jQuery v([0-9.]+)'),
-        'bootstrap': ('AdminLTE-3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js', r'Bootstrap v([0-9.]+)'),
-        'admin-lte': ('AdminLTE-3.2.0/dist/js/adminlte.js', r'AdminLTE v([0-9.]+)'),
-        'datatables.net': ('AdminLTE-3.2.0/plugins/datatables/jquery.dataTables.min.js', r'\.version="([0-9.]+)"'),
-        'datatables.net-responsive': ('AdminLTE-3.2.0/plugins/datatables-responsive/js/dataTables.responsive.min.js',
-                                      r'version="([0-9.]+)"'),
-        'overlayscrollbars': ('AdminLTE-3.2.0/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js',
-                              r'Version: ([0-9.]+)'),
-        '@fortawesome/fontawesome-free': ('AdminLTE-3.2.0/plugins/fontawesome-free/css/all.min.css',
-                                          r'Font Awesome Free ([0-9.]+)'),
-        'chosen-js': ('plugins/chosen/chosen.jquery.min.js', r'v([0-9.]+)'),
+        'admin-lte': ('vendor/adminlte-4.10.2/adminlte.min.js', r'AdminLTE v([0-9.]+)'),
+        'bootstrap': ('vendor/bootstrap-5.3.9/bootstrap.bundle.min.js', r'Bootstrap v([0-9.]+)'),
+        'datatables.net': ('vendor/datatables-3.1.5/dataTables.min.js', r'DataTables ([0-9.]+)'),
+        'datatables.net-responsive': ('vendor/datatables-3.1.5/dataTables.responsive.min.js', r'Responsive ([0-9.]+) for'),
+        'datatables.net-responsive-bs5': ('vendor/datatables-3.1.5/responsive.bootstrap5.min.js', r'styling ([0-9.]+) for'),
+        'tom-select': ('vendor/tom-select-2.7.0/tom-select.complete.min.js', r'Tom Select v([0-9.]+)'),
+        'overlayscrollbars': ('vendor/overlayscrollbars-2.17.1/overlayscrollbars.browser.es6.min.js', r'Version: ([0-9.]+)'),
+        '@fortawesome/fontawesome-free': ('vendor/fontawesome-7.3.1/css/all.min.css', r'Font Awesome Free ([0-9.]+)'),
         'chart.js': ('vendor/chart.js-4.6.1/chart.umd.min.js', r'Chart\.js v([0-9.]+)'),
     }
+    # Files without a version header: the files of the listed release, by digest
+    DIGESTS = {
+        'datatables.net-bs5': [('vendor/datatables-3.1.5/dataTables.bootstrap5.min.js', 'f21ebd37ba224864'), ('vendor/datatables-3.1.5/dataTables.bootstrap5.min.css', '5ff84d5553f3a60b')],
+        'tom-select': [('vendor/tom-select-2.7.0/tom-select.bootstrap5.min.css', '4b819a8a46757f55')],
+    }
+
+    def test_files_without_a_header_are_the_listed_release(self):
+        import hashlib
+        for name, files in self.DIGESTS.items():
+            for path, digest in files:
+                with self.subTest(file=path):
+                    self.assertIn(name, self.locked)
+                    self.assertEqual(hashlib.sha256((self.root / 'static_files' / path).read_bytes()).hexdigest()[:16], digest)
+
+    def test_the_pages_load_no_jquery_and_no_library_of_before(self):
+        static = self.root / 'static_files'
+        self.assertFalse((static / 'AdminLTE-3.2.0').exists())
+        self.assertFalse((static / 'plugins/chosen').exists())
+        for template in (self.root / 'templates').rglob('*.html'):
+            text = template.read_text()
+            with self.subTest(template=template.name):
+                self.assertNotIn('jquery', text.lower())
+                self.assertNotIn('AdminLTE-3', text)
+
     # diff2html's bundle has no version header; it is identified by its digest
     DIFF2HTML_SHA256 = {'3.4.56': 'a2110a09cee157bd'}
 
@@ -528,3 +549,217 @@ class FieldFitTests(TestCase):
     def test_schedule_defaults_can_be_stored(self):
         from fleet_commander.models import ScheduleDefaults
         self.assertEqual(ScheduleDefaults.load().name, 'schedule_defaults')
+
+
+class ComposeVariableTests(TestCase):
+    """docker compose warns about every variable it finds unset. A variable a
+    compose file reads is either given a value by .env.example or carries a
+    default in the compose file - so a first installation starts without
+    warnings."""
+
+    def test_every_variable_has_a_value_or_a_default(self):
+        import pathlib
+        import re
+        root = pathlib.Path(__file__).resolve().parent.parent
+        example = (root / '.env.example').read_text()
+        set_in_example = set(re.findall(r'^([A-Z_]+)=', example, re.MULTILINE))
+        for compose in sorted(root.glob('docker-compose*.yml')):
+            for name in set(re.findall(r'\$\{([A-Z_]+)\}', compose.read_text())):
+                with self.subTest(file=compose.name, variable=name):
+                    self.assertIn(name, set_in_example, f'${{{name}}} has no default and .env.example does not set it')
+
+
+class ContentSecurityPolicyTests(TestCase):
+    """Only this installation's own files run or style a page: the policy is
+    sent, and nothing in the pages needs more than it allows."""
+
+    def test_every_page_sends_the_policy(self):
+        from routerfleet.testing import make_user
+        policy_parts = ["default-src 'self'", "script-src 'self';", "style-src 'self';", "object-src 'none'",
+                        "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'"]
+        for url in ('/accounts/login/',):
+            policy = self.client.get(url)['Content-Security-Policy']
+            for part in policy_parts:
+                self.assertIn(part, policy, url)
+        self.client.force_login(make_user(50))
+        for url in ('/status/', '/router/list/', '/system/', '/user/settings/'):
+            policy = self.client.get(url)['Content-Security-Policy']
+            with self.subTest(url=url):
+                self.assertNotIn('unsafe', policy)
+                for part in policy_parts:
+                    self.assertIn(part, policy)
+
+    def test_no_inline_script_handler_or_style_in_the_markup(self):
+        import pathlib
+        import re
+        root = pathlib.Path(__file__).resolve().parent.parent
+        sources = list((root / 'templates').rglob('*.html'))
+        # Markup also comes from Python: crispy HTML() snippets and the like
+        sources += [p for p in root.glob('*/*.py') if 'test' not in p.name and '/migrations/' not in str(p)]
+        patterns = {
+            'inline script': re.compile(r'<script(?![^>]*\bsrc=)[^>]*>', re.IGNORECASE),
+            'inline handler': re.compile(r'<[^>]+\son[a-z]+\s*=\s*["\']', re.IGNORECASE),
+            'style attribute': re.compile(r'<[^>]+\sstyle\s*=\s*["\']', re.IGNORECASE),
+            'style element': re.compile(r'<style\b', re.IGNORECASE),
+            'javascript: link': re.compile(r'href\s*=\s*["\']javascript:', re.IGNORECASE),
+        }
+        for source in sources:
+            text = source.read_text()
+            if source.suffix == '.py':
+                # Comments may name what is forbidden; code may not
+                text = '\n'.join(line for line in text.split('\n') if not line.lstrip().startswith('#'))
+            for name, pattern in patterns.items():
+                with self.subTest(file=str(source.relative_to(root)), kind=name):
+                    self.assertIsNone(pattern.search(text))
+
+
+class ProxiedHostTests(TestCase):
+    """nginx hands the Host header on as the browser sent it, port included.
+    With $host the port is dropped: behind a published port other than 443
+    (8443:443) Django then sees 10.0.0.5 while the browser's origin is
+    https://10.0.0.5:8443, and every form fails the CSRF origin check - and the
+    console's same-origin check with it."""
+
+    def test_nginx_keeps_the_port_of_the_host(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        script = (root / 'containers/nginx/rf_https.sh').read_text()
+        self.assertNotIn('proxy_set_header Host \\$host;', script)
+        self.assertIn('proxy_set_header Host \\$http_host;', script)
+        for conf in sorted((root / 'containers/nginx').glob('*.conf')):
+            text = conf.read_text()
+            with self.subTest(file=conf.name):
+                self.assertNotIn('proxy_set_header Host $host;', text)
+                if 'proxy_pass' in text:
+                    self.assertIn('proxy_set_header Host $http_host;', text)
+
+    @override_settings(ALLOWED_HOSTS=['10.0.0.5'], SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'))
+    def test_a_form_posted_through_a_published_port_passes_the_origin_check(self):
+        from django.test import Client
+        from routerfleet.testing import make_user
+        make_user(50)   # with no user at all, sign-in sends to creating the first one
+        client = Client(enforce_csrf_checks=True)
+        headers = {'HTTP_HOST': '10.0.0.5:8443', 'HTTP_X_FORWARDED_PROTO': 'https'}
+        page = client.get('/accounts/login/', **headers)
+        token = page.cookies['csrftoken'].value
+        response = client.post('/accounts/login/', {'csrfmiddlewaretoken': token, 'username': 'x', 'password': 'y'},
+                               HTTP_ORIGIN='https://10.0.0.5:8443', **headers)
+        self.assertNotEqual(response.status_code, 403)
+        # And the port dropped, as $host did: refused
+        response = client.post('/accounts/login/', {'csrfmiddlewaretoken': token, 'username': 'x', 'password': 'y'},
+                               HTTP_ORIGIN='https://10.0.0.5:8443', HTTP_HOST='10.0.0.5', HTTP_X_FORWARDED_PROTO='https')
+        self.assertEqual(response.status_code, 403)
+
+
+
+class PublishedPortTests(TestCase):
+    """HTTP_PORT / HTTPS_PORT: the ports on the host are settings, and an HTTP
+    request is redirected to the HTTPS port actually published - rendered by
+    the real rf_https.sh, in the default mode and in a certificate mode."""
+
+    def render(self, mode=None, **env):
+        import json
+        import os
+        import pathlib
+        import shutil
+        import subprocess
+        import tempfile
+        root = pathlib.Path(__file__).resolve().parent.parent
+        work = pathlib.Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, work)
+        for name in ('virtualhost.conf', 'virtualhost_noredirect.conf'):
+            shutil.copy(root / 'containers/nginx' / name, work / f'{name}.disabled')
+        certs = work / 'certificate'
+        (certs / 'custom').mkdir(parents=True)
+        (certs / 'custom/fullchain.pem').write_text('x')
+        (certs / 'custom/privkey.pem').write_text('x')
+        if mode:
+            (certs / 'routerfleet-https.json').write_text(json.dumps({'mode': mode, 'trusted_proxies': ['192.0.2.10']}))
+        environment = {'PATH': os.environ['PATH'], 'RF_TEMPLATES': str(work), 'RF_CERT_DIR': str(certs), **env}
+        result = subprocess.run(['sh', str(root / 'containers/nginx/rf_https.sh'), 'render'],
+                                capture_output=True, text=True, env=environment, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def test_the_default_ports_redirect_as_before(self):
+        self.assertIn('return 301 https://$host$request_uri;', self.render())
+        self.assertIn('return 301 https://$host$request_uri;', self.render(HTTPS_PORT='443'))
+
+    def test_another_https_port_is_where_http_redirects(self):
+        self.assertIn('return 301 https://$host:8443$request_uri;', self.render(HTTPS_PORT='8443'))
+        self.assertIn('return 301 https://$host:8443$request_uri;', self.render('custom', HTTPS_PORT='8443'))
+
+    def test_a_value_that_is_not_a_port_redirects_to_443(self):
+        for value in ('84;43', '0', '70000', 'abc'):
+            with self.subTest(value=value):
+                self.assertIn('return 301 https://$host$request_uri;', self.render('custom', HTTPS_PORT=value))
+
+    def test_every_mode_passes_the_host_with_its_port(self):
+        for page in (self.render(), self.render('custom')):
+            self.assertIn('proxy_set_header Host $http_host;', page)
+            self.assertNotIn('proxy_set_header Host $host;', page)
+
+    def test_behind_a_proxy_plain_http_with_the_host_and_trusted_proxies_only(self):
+        page = self.render('proxy', HTTPS_PORT='8443')
+        self.assertIn('proxy_set_header Host $http_host;', page)
+        self.assertIn('set_real_ip_from 192.0.2.10;', page)
+        self.assertNotIn('return 301', page)       # the proxy does TLS; no redirect here
+        self.assertNotIn('listen 443', page)
+
+
+class EnvFileTests(TestCase):
+    """.env.example, the .env table of docs/installation.md and the compose files
+    agree: every documented variable is in .env.example, explained, and reaches
+    a container in every compose file that runs one - parsed, not searched, so a
+    line that lands in the wrong place fails."""
+
+    def setUp(self):
+        import pathlib
+        import re
+        import yaml
+        self.root = pathlib.Path(__file__).resolve().parent.parent
+        guide = (self.root / 'docs/installation.md').read_text()
+        table = guide[guide.index('### `.env` variables'):guide.index('### Set by the compose file')]
+        self.documented = set(re.findall(r'^\| `([A-Z_]+)` \|', table, re.M))
+        self.example = (self.root / '.env.example').read_text()
+        self.compose = {name: yaml.safe_load((self.root / name).read_text())
+                        for name in ('docker-compose.yml', 'docker-compose-no-postgres.yml', 'docker-compose-dev.yml')}
+
+    def test_every_documented_variable_is_in_env_example_with_an_explanation(self):
+        import re
+        self.assertGreater(len(self.documented), 12)
+        for name in sorted(self.documented):
+            with self.subTest(variable=name):
+                line = re.search(rf'^#?{name}=.*$', self.example, re.M)
+                self.assertIsNotNone(line, f'{name} is not in .env.example')
+                before = self.example[:line.start()].rstrip().split('\n')[-1]
+                self.assertTrue(before.startswith('#'), f'{name} has no comment above it')
+
+    def test_every_variable_in_env_example_is_documented(self):
+        import re
+        for name in set(re.findall(r'^#?([A-Z][A-Z_]+)=', self.example, re.M)):
+            with self.subTest(variable=name):
+                self.assertIn(name, self.documented)
+
+    def test_every_documented_variable_reaches_a_container(self):
+        import re
+        for file, compose in self.compose.items():
+            passed = set()
+            for service in compose['services'].values():
+                for entry in service.get('environment', []) + service.get('ports', []):
+                    passed.update(re.findall(r'\$\{([A-Z_]+)', str(entry)))
+            for name in sorted(self.documented):
+                if name.startswith('POSTGRES_') and name not in ('POSTGRES_DB', 'POSTGRES_USER', 'POSTGRES_PASSWORD',
+                                                                 'POSTGRES_HOST', 'POSTGRES_PORT'):
+                    continue
+                with self.subTest(file=file, variable=name):
+                    self.assertIn(name, passed)
+
+    def test_nginx_gets_its_settings_and_publishes_the_chosen_ports(self):
+        for file, compose in self.compose.items():
+            nginx = compose['services']['routerfleet-nginx']
+            names = {entry.split('=', 1)[0] for entry in nginx['environment']}
+            with self.subTest(file=file):
+                self.assertTrue({'HTTPS_REDIRECT_POLICY', 'HTTPS_PORT', 'HTTPS_MODE_OVERRIDE', 'LETSENCRYPT_STAGING'} <= names)
+                self.assertEqual(nginx['ports'], ['${HTTP_PORT:-80}:80', '${HTTPS_PORT:-443}:443'])
+                self.assertTrue(all(value is None for value in compose['volumes'].values()), 'a stray line in volumes')

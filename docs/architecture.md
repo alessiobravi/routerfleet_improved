@@ -6,14 +6,14 @@ talks over the internal Compose network.
 ```mermaid
 flowchart TB
     browser["Browser"]
-    devices["Network devices<br/>RouterOS · OpenWrt · airOS"]
+    devices["Network devices<br/>RouterOS · OpenWrt · airOS<br/>Cisco IOS · Junos · VRP"]
 
     subgraph stack["Docker Compose stack"]
-        nginx["routerfleet-nginx<br/>nginx:alpine<br/>ports 80, 443"]
+        nginx["routerfleet-nginx<br/>nginx:alpine<br/>HTTP_PORT, HTTPS_PORT<br/>(80, 443 by default)"]
         app["routerfleet<br/>gunicorn, 5 sync workers<br/>port 8001"]
         cron["routerfleet-cron<br/>cron + curl"]
         mon["routerfleet-monitoring<br/>python + fping"]
-        db[("routerfleet-postgres<br/>PostgreSQL 16")]
+        db[("routerfleet-postgres<br/>PostgreSQL 18")]
     end
 
     browser -->|HTTPS| nginx

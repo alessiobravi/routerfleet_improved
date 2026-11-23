@@ -293,14 +293,14 @@ class DisplaySettingsTests(TestCase):
 
     def test_tables_open_with_ten_rows_until_changed(self):
         self.assertContains(self.client.get('/system/'), 'Default rows per table')
-        self.assertContains(self.client.get('/router/list/'), '"pageLength": 10,')
+        self.assertContains(self.client.get('/router/list/'), 'data-page-size="10"')
 
     def test_changing_it_reaches_every_table(self):
         from routerfleet_tools.models import DisplaySettings
         response = self.client.post('/system/display/', {'default_page_size': '50'})
         self.assertRedirects(response, '/system/display/', fetch_redirect_response=False)
         self.assertEqual(DisplaySettings.load().default_page_size, 50)
-        self.assertContains(self.client.get('/router/list/'), '"pageLength": 50,')
+        self.assertContains(self.client.get('/router/list/'), 'data-page-size="50"')
 
     def test_only_offered_sizes(self):
         from routerfleet_tools.models import DisplaySettings

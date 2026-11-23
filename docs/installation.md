@@ -33,7 +33,7 @@ and every variant. For the three-command version, see the
 |---|---|
 | Docker Engine with the Compose v2 plugin | `docker compose` (with a space). The legacy `docker-compose` binary is not supported |
 | CPU architecture | **x86-64 (amd64) or 64-bit ARM (arm64)** — Raspberry Pi 4/5 with a 64-bit OS, ARM servers and cloud instances. Every image is published for both; Docker picks the right one. 32-bit ARM is not supported |
-| Free ports | 80 and 443 on the host, or others you choose — see [Ports](#ports) |
+| Free ports | 80 and 443 on the host, or others you choose in `.env` — see [Ports](#ports) |
 | Outbound from the host | TCP to your devices' SSH ports; ICMP to devices you monitor; HTTPS to `downloads.openwrt.org` for OpenWrt update checks; HTTPS to your notification services; HTTPS to `api.github.com` for the update check (unless `UPDATE_CHECK=off`) |
 | A name or address | The address users will type in the browser — it becomes `SERVER_ADDRESS`. Use a name, with a certificate browsers trust, if users are to sign in with passkeys: browsers do not allow passkeys on an IP address or with a certificate warning |
 
@@ -49,7 +49,7 @@ container).
 | `routerfleet-cron` | `ghcr.io/alessiobravi/routerfleet-cron` | Calls the application's scheduler endpoints every minute | none |
 | `routerfleet-monitoring` | `ghcr.io/alessiobravi/routerfleet-monitoring` | Pings the fleet and reports status changes | none |
 | `routerfleet-nginx` | `ghcr.io/alessiobravi/routerfleet-nginx` | TLS, static files, the only published service | 80, 443 |
-| `routerfleet-postgres` | `ghcr.io/alessiobravi/routerfleet-postgres` | The database: the official `postgres:16` with every available update installed — default compose file only | none |
+| `routerfleet-postgres` | `ghcr.io/alessiobravi/routerfleet-postgres18` | The database: the official `postgres:18` on Alpine with every available update installed, built-in `C.UTF-8` ordering — default compose file only | none |
 
 Also created: one Compose network (internal; containers reach each other by
 name) and six named volumes — see [Volumes](#volumes-and-what-to-back-up).
@@ -124,7 +124,8 @@ wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/router
 wget -O .env https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/.env.example
 ```
 
-Edit `.env`. The minimum is:
+Edit `.env` - every setting in it is explained, and the optional ones are
+commented out with their defaults. The minimum is:
 
 ```env
 SERVER_ADDRESS=routerfleet.example.com
@@ -140,7 +141,8 @@ docker compose up -d
 
 On first start the application migrates the database, generates its secrets
 in the `app_secrets` volume, and nginx generates a self-signed certificate.
-Open `https://<SERVER_ADDRESS>`, accept the certificate warning, and create the
+Open `https://<SERVER_ADDRESS>` (with `:<HTTPS_PORT>` if you chose another
+port - see [Ports](#ports)), accept the certificate warning, and create the
 first account — it becomes an administrator (level 50).
 
 The directory name (`routerfleet` above) becomes the Compose project name and
@@ -187,7 +189,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 
 | Variable | Required | Default | Accepted | Effect |
 |---|---|---|---|---|
-| `SERVER_ADDRESS` | **yes** | — | hostname or IP, optionally `:port` | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. Include the port if you changed the published HTTPS port. A wrong value gives `400 Bad Request` or CSRF errors |
+| `SERVER_ADDRESS` | **yes** | — | hostname or IP | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. No port here, also with another `HTTPS_PORT`. A wrong value gives `400 Bad Request` or CSRF errors |
 | `TIMEZONE` | no | `Etc/UTC` | an [IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | Backup times, schedule times, daily report time, displayed timestamps. Passed to every container as `TZ` |
 | `UPDATE_CHECK` | no | `on` | `on`, `off` | Look for new RouterFleet Improved releases about once an hour (GitHub's latest release; the request carries nothing about the installation) and show them as the top bar's update icon. `off`: no request is made |
 | `DEBUG_MODE` | no | `False` | `True` / `False` | Django debug mode. **Never `True` in production** — it exposes internals on errors. Also enables `/debug/run_backups/` and `/debug/test_messages/`, for administrators (level 50) only |
@@ -197,7 +199,9 @@ start. The `routerfleet` container must be able to reach the host and port.
 | `POSTGRES_PASSWORD` | with postgres | — | string | Database password. With the bundled database it is also what the database is created with on first start; changing it later requires changing it inside PostgreSQL too |
 | `POSTGRES_HOST` | external only | empty | hostname | Set only for an external server; empty means the bundled container |
 | `POSTGRES_PORT` | no | `5432` | port | External server's port |
-| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects port 80 to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext. Applies while [System settings → HTTPS](https.md) is *As configured in .env*, the default |
+| `HTTP_PORT` | no | `80` | port | The host port for HTTP, which redirects to HTTPS - see [Ports](#ports) |
+| `HTTPS_PORT` | no | `443` | port | The host port for HTTPS; HTTP requests are redirected to it - see [Ports](#ports) |
+| `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects HTTP to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext. Applies while [System settings → HTTPS](https.md) is *As configured in .env*, the default |
 | `HTTPS_MODE_OVERRIDE` | no | empty | `env`, `selfsigned` | Emergency override for nginx: wins over [System settings → HTTPS](https.md) until removed |
 | `LETSENCRYPT_STAGING` | no | empty | `1` | Let's Encrypt's test service, for trying a setup |
 
@@ -236,18 +240,23 @@ permanent override needs an image of your own.
 
 ## Ports
 
-Only nginx publishes ports. To use others, change the left-hand side of the
-mapping in `docker-compose.yml` and put the HTTPS port in `SERVER_ADDRESS`:
-
-```yaml
-    ports:
-      - "8080:80"
-      - "8443:443"
-```
+Only nginx publishes ports: 80 and 443 by default. When they are taken - by
+another web server on the same host, for example - choose others in `.env`;
+the compose file stays as it is:
 
 ```env
-SERVER_ADDRESS=routerfleet.example.com:8443
+HTTP_PORT=8080
+HTTPS_PORT=8443
 ```
+
+then `docker compose up -d`. Users open `https://<SERVER_ADDRESS>:8443`, and
+`http://<SERVER_ADDRESS>:8080` redirects there. `SERVER_ADDRESS` needs no port.
+For [Let's Encrypt](https.md#lets-encrypt), port 80 must still reach
+RouterFleet from the internet: forward it to `HTTP_PORT` on your router or
+firewall.
+
+A compose file you edited by hand (`"8443:443"` in `ports:`) keeps working;
+set `HTTPS_PORT` to the same port so the HTTP redirect goes to it.
 
 Never publish the application container's port 8001: see
 [Behind your own reverse proxy](#behind-your-own-reverse-proxy).
@@ -268,20 +277,40 @@ commented-out settings for Cloudflare authenticated origin pulls.
 
 ## Behind your own reverse proxy
 
-You can put another proxy in front of nginx. Two rules:
+You can put another proxy in front of nginx - on any port, public or not.
+Choose **Behind a reverse proxy** in [System settings → HTTPS](https.md#behind-a-reverse-proxy)
+and list the proxy's addresses; nginx then serves plain HTTP on `HTTP_PORT` for
+the proxy, and the proxy does TLS. `HTTPS_PORT` is not used in that mode. The
+rules:
 
 1. **Keep `/cron/` to yourself.** Those endpoints carry no authentication and
    drive the installation. The shipped nginx answers `404` for them, and the
    application refuses requests that carry `X-Real-IP`. Do not publish port
    8001 or proxy straight to the application container. Details in
    [Security](security.md#the-scheduler-endpoints).
-2. **Set `SERVER_ADDRESS` to the public name** the browser sees.
+2. **Set `SERVER_ADDRESS` to the public name** the browser sees (no port
+   needed).
+3. **Pass the browser's `Host` header on unchanged**, port included. RouterFleet
+   checks it against `SERVER_ADDRESS`, and forms and the console only accept a
+   request whose origin matches it. A proxy that replaces it with its upstream's
+   address gives `400 Bad Request` or *CSRF verification failed*.
+4. **Send `X-Forwarded-Proto` and `X-Forwarded-For`**, so RouterFleet knows the
+   browser used HTTPS and who it is (sign-in lockouts, login history).
+5. **Let WebSockets through** for `/console/ws/` - the device console.
+
+| Proxy | What it needs |
+|---|---|
+| Caddy | nothing: `reverse_proxy <host>:<HTTP_PORT>` keeps the host, forwards the headers and WebSockets |
+| Traefik | nothing: the defaults keep the host and forward the headers and WebSockets |
+| nginx | `proxy_set_header Host $http_host;` `proxy_set_header X-Forwarded-Proto $scheme;` `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;` and, for the console, `proxy_http_version 1.1;` `proxy_set_header Upgrade $http_upgrade;` `proxy_set_header Connection "upgrade";` |
+| Apache | `ProxyPreserveHost On`, `RequestHeader set X-Forwarded-Proto https`, and `mod_proxy_wstunnel` for `/console/ws/` |
 
 ## Volumes and what to back up
 
 | Volume | Contents | Back up |
 |---|---|---|
-| `postgres_data` | The database (bundled PostgreSQL) | **yes** |
+| `postgres18_data` | The database (bundled PostgreSQL 18) | **yes** |
+| `postgres_data` | The PostgreSQL 16 database of releases before 0.24, until migrated ([Upgrading](upgrading.md#moving-to-postgresql-18)) | until removed |
 | `sqlite_volume` | The database (SQLite) | **yes**, when using SQLite |
 | `app_secrets` | Encryption and monitoring keys | **yes — without it the stored passwords are unrecoverable** |
 | `media_root` | Binary backup files and firmware images | **yes** |
@@ -314,7 +343,8 @@ cp .env.example .env    # edit it
 docker compose -f docker-compose-dev.yml up -d --build
 ```
 
-`build_and_push.sh` builds the five images and pushes them to a registry
+`build_and_push.sh` builds the six images (PostgreSQL 18, and 16 for compose
+files from before 0.24) and pushes them to a registry
 tagged with the current version and `latest`. It is the manual alternative to
 CI, which does this on every push to `main`.
 

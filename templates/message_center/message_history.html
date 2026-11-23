@@ -20,7 +20,7 @@
 
     <div class="d-flex justify-content-between align-items-end">
         <div class="rf-set-title">Messages, last 30 days</div>
-        <input type="search" class="form-control form-control-sm mb-2" style="max-width: 14rem" id="message-filter" placeholder="Filter" aria-label="Filter messages">
+        <input type="search" class="form-control form-control-sm mb-2" id="message-filter" data-rf-filter=".rf-message" placeholder="Filter" aria-label="Filter messages">
     </div>
     <div class="rf-set-group" id="message-list">
         {% for message in message_list %}
@@ -40,13 +40,3 @@
 </div>
 {% endblock %}
 
-{% block custom_page_scripts %}
-<script>
-    document.getElementById('message-filter').addEventListener('input', function () {
-        var words = this.value.toLowerCase();
-        document.querySelectorAll('.rf-message').forEach(function (row) {
-            row.style.display = row.textContent.toLowerCase().indexOf(words) > -1 ? '' : 'none';
-        });
-    });
-</script>
-{% endblock %}

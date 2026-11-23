@@ -10,7 +10,7 @@
             {% for size in sizes %}
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="default_page_size" value="{{ size }}" {% if size == display.default_page_size %}checked{% endif %}
-                       onchange="this.form.submit()">
+                       data-rf-autosubmit>
                 <span class="rf-set-text"><span class="rf-set-label d-block">{{ size }} rows</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>

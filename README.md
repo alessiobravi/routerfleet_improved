@@ -23,7 +23,7 @@ to be pinged.
 
 ## Quick install
 
-Needs Docker with the Compose plugin on an x86-64 or 64-bit ARM host, and ports 80/443 free.
+Needs Docker with the Compose plugin on an x86-64 or 64-bit ARM host, and two free ports: 80 and 443, or others set in `.env`.
 
 ```bash
 mkdir routerfleet && cd routerfleet
@@ -44,7 +44,8 @@ docker compose up -d
 ```
 
 Open `https://<SERVER_ADDRESS>` and create the first account, which becomes an
-administrator. This starts **five containers** — the application, its
+administrator. Ports 80 and 443 taken? Set `HTTP_PORT` and `HTTPS_PORT` in
+`.env` and open `https://<SERVER_ADDRESS>:<HTTPS_PORT>`. This starts **five containers** — the application, its
 scheduler, the monitoring loop, nginx and PostgreSQL — from public images on
 `ghcr.io/alessiobravi`.
 

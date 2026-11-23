@@ -1,912 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
-<script>
-    // Light or dark, before anything is drawn: the browser's own choice
-    // (Automatic follows the device), so no white flash at night
-    (function () {
-        var choice = 'auto';
-        try { choice = localStorage.getItem('rf-theme') || 'auto'; } catch (e) {}
-        var dark = choice === 'dark' || (choice === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('rf-dark', dark);
-        document.documentElement.dataset.theme = choice;
-    })();
-</script>
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% if page_title %}{{ page_title }} | {% endif %}RouterFleet Improved</title>
     <link rel="icon" href="/static/routerfleet/logo.svg" type="image/svg+xml">
-
-    <!-- Font: Source Sans Pro, served from this installation -->
+    <!-- Light or dark before anything is drawn -->
+    <script src="/static/routerfleet/theme-boot.js"></script>
+    <!-- Source Sans Pro, served from this installation -->
     <link rel="stylesheet" href="/static/fonts/source-sans-pro/source-sans-pro.css">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/fontawesome-free/css/all.min.css">
-    <!-- DataTables -->
-    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
-    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
-    <!-- Theme style -->
-    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/dist/css/adminlte.min.css">
-    <!-- overlayScrollbars -->
-    <link rel="stylesheet" href="/static/AdminLTE-3.2.0/plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
-    <!-- chosen -->
-    <link rel="stylesheet" href="/static/plugins/chosen/bootstrap-chosen.css">
-
-    <style>
-        .dataTables_filter, .dataTables_length{
-            padding-top: 10px;
-        }
-        .datatables-with-export, .datatables-no-export{
-            display: none;
-        }
-        .min-width {
-            width: 1%;
-            white-space: nowrap;
-        }
-        .preloader{
-            display: none;
-        }
-    </style>
-
-    {% block page_custom_head %}{% endblock%}
-    <style>
-        /* Light and dark: the colours of RouterFleet's own components */
-        :root { --rf-surface: #fff; --rf-text: #1d2733; --rf-muted: #6b7785; --rf-line: #e1e6ec; --rf-line-soft: #eef1f4;
-                --rf-hover: #f8fafc; --rf-heading: #1f3a5f; --rf-track: #e9edf2; --rf-body: #3b4652; }
-        html.rf-dark { --rf-surface: #2b3035; --rf-text: #e6e9ed; --rf-muted: #a3adb8; --rf-line: #424a52; --rf-line-soft: #383f45;
-                       --rf-hover: #343a40; --rf-heading: #cfe0f5; --rf-track: #3a4148; --rf-body: #c9d1d9; color-scheme: dark; }
-        .dark-mode .main-header.navbar-white { background-color: #343a40; border-color: #4b545c; }
-        .dark-mode .main-header.navbar-light .nav-link { color: rgba(255, 255, 255, .78); }
-        .dark-mode .main-header.navbar-light .nav-link:hover { color: #fff; }
-        .dark-mode .content-wrapper { background-color: #1f2327; }
-        html.rf-dark .custom-switch .custom-control-label::before,
-        html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-label::before { background-color: #4a5158; box-shadow: none; }
-        html.rf-dark .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
-        html.rf-dark .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; }
-        html.rf-dark .rf-set-group, html.rf-dark .rf-o-card { box-shadow: none; }
-        /* A device with a newer version available, in the device list */
-        .rf-update-mark, .rf-update-mark:hover { color: #e8a317 !important; }
-        /* A row's operations: fixed slots, the same place on every row */
-        .rf-actions { display: inline-flex; align-items: center; gap: 6px; }
-        .rf-actions .rf-slot { display: inline-flex; justify-content: center; width: 1.6rem; padding: 2px 0 !important; }
-        /* Quick actions of a list row side by side, never wrapped under each other */
-        table.dataTable td:last-child { white-space: nowrap; }
-        table.dataTable td:last-child a, table.dataTable td:last-child button { display: inline-block; padding: 2px 4px; }
-        /* Command payloads and output, code, and blocks written for a light page */
-        html.rf-dark pre { color: var(--rf-text); }
-        html.rf-dark code { color: #f39bc0; }
-        html.rf-dark pre code { color: inherit; }
-        html.rf-dark .bg-light, html.rf-dark .bg-white, html.rf-dark pre[style*="background"] { background-color: #23282d !important; color: var(--rf-text) !important; }
-        html.rf-dark .border { border-color: var(--rf-line) !important; }
-        html.rf-dark .text-dark { color: var(--rf-text) !important; }
-        html.rf-dark .text-muted { color: var(--rf-muted) !important; }
-
-        /* Object pages, "Hero & timeline" (routerfleet/object_pages.py) */
-        .rf-object { --rf-ok: #1f9d55; --rf-run: #2f6fd1; --rf-wait: #e8a317; --rf-bad: #d64545; --rf-info: #8a96a3; --rf-purple: #7e57c2; }
-        .rf-o-card { background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, .05); }
-        .rf-o-hero { display: grid; grid-template-columns: auto 1fr auto; gap: 20px; align-items: center; padding: 18px 22px; margin-bottom: 14px; }
-        .rf-o-ring { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
-        .rf-o-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-        .rf-o-ring circle { fill: none; stroke-width: 9; }
-        .rf-o-track { stroke: var(--rf-track); }
-        .rf-o-val { stroke: var(--rf-ok); stroke-linecap: round; stroke-dasharray: 263.9; stroke-dashoffset: calc(263.9 - 263.9 * var(--rf-pct) / 100); transition: stroke-dashoffset .6s; }
-        .rf-o-val.rf-o-run { stroke: var(--rf-run); } .rf-o-val.rf-o-bad { stroke: var(--rf-bad); } .rf-o-val.rf-o-wait { stroke: var(--rf-wait); } .rf-o-val.rf-o-purple { stroke: var(--rf-purple); }
-        .rf-o-ring span { font-size: 21px; font-weight: 700; color: var(--rf-heading); line-height: 1; }
-        .rf-o-ring small { position: absolute; bottom: -18px; white-space: nowrap; font-size: 11px; color: var(--rf-muted); }
-        .rf-o-icon { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; color: #fff; background: var(--rf-info); }
-        .rf-o-icon.rf-o-ok { background: var(--rf-ok); } .rf-o-icon.rf-o-bad { background: var(--rf-bad); } .rf-o-icon.rf-o-run { background: var(--rf-run); }
-        .rf-o-icon.rf-o-wait { background: var(--rf-wait); } .rf-o-icon.rf-o-purple { background: var(--rf-purple); }
-        .rf-o-title h2 { margin: 0 0 6px; font-size: 22px; color: var(--rf-heading); font-weight: 700; overflow-wrap: anywhere; }
-        .rf-o-title h2 span { font-weight: 400; color: var(--rf-muted); }
-        .rf-o-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
-        .rf-o-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-        .rf-o-chip.rf-o-ok { background: rgba(31, 157, 85, .12); color: #17804a; } .rf-o-chip.rf-o-run { background: rgba(47, 111, 209, .12); color: var(--rf-run); }
-        .rf-o-chip.rf-o-wait { background: rgba(232, 163, 23, .16); color: #9a6a0f; } .rf-o-chip.rf-o-bad { background: rgba(214, 69, 69, .12); color: var(--rf-bad); }
-        .rf-o-chip.rf-o-info { background: var(--rf-line-soft); color: var(--rf-muted); } .rf-o-chip.rf-o-purple { background: rgba(126, 87, 194, .14); color: var(--rf-purple); }
-        .rf-o-chip.rf-o-run .rf-o-dot { animation: rf-o-pulse 1.2s infinite; }
-        @keyframes rf-o-pulse { 50% { opacity: .3; } }
-        .rf-o-meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--rf-muted); margin-top: 8px; }
-        .rf-o-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-        .rf-o-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
-        .rf-o-tile { padding: 12px 14px; border-left: 4px solid var(--rf-info); color: inherit; }
-        a.rf-o-tile:hover { text-decoration: none; color: inherit; box-shadow: 0 6px 16px rgba(16, 24, 40, .1); }
-        .rf-o-tile.rf-o-ok { border-left-color: var(--rf-ok); } .rf-o-tile.rf-o-run { border-left-color: var(--rf-run); } .rf-o-tile.rf-o-wait { border-left-color: var(--rf-wait); }
-        .rf-o-tile.rf-o-bad { border-left-color: var(--rf-bad); } .rf-o-tile.rf-o-purple { border-left-color: var(--rf-purple); }
-        .rf-o-n { font-size: 24px; font-weight: 700; color: var(--rf-text); line-height: 1.2; overflow-wrap: anywhere; }
-        .rf-o-l { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--rf-muted); font-weight: 700; }
-        .rf-o-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
-        .rf-o-card h3 { margin: 0; padding: 12px 16px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--rf-line); display: flex; justify-content: space-between; align-items: center; }
-        .rf-o-rows .rf-o-r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 12px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--rf-line); }
-        .rf-o-rows .rf-o-r:first-child { border-top: 0; }
-        .rf-o-rows .rf-o-name { font-weight: 600; } .rf-o-rows .rf-o-sub { font-size: 12px; color: var(--rf-muted); }
-        .rf-o-rows .rf-o-time { font-size: 12.5px; color: var(--rf-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-        .rf-o-timeline { padding: 8px 16px 14px; }
-        .rf-o-t { position: relative; padding: 7px 0 7px 22px; margin-left: 6px; border-left: 2px solid var(--rf-line); font-size: 13.5px; }
-        .rf-o-t::before { content: ''; position: absolute; left: -7px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--rf-surface); border: 3px solid var(--rf-info); }
-        .rf-o-t.rf-o-ok::before { border-color: var(--rf-ok); } .rf-o-t.rf-o-bad::before { border-color: var(--rf-bad); } .rf-o-t.rf-o-run::before { border-color: var(--rf-run); }
-        .rf-o-t small { color: var(--rf-muted); }
-        /* Details on the left, the timeline - one column - on the right, in view while scrolling */
-        .rf-o-split { align-items: start; }
-        .rf-o-split > .rf-o-timeline-card { position: sticky; top: 70px; }
-        .rf-o-split .rf-o-timeline { max-height: calc(100vh - 150px); overflow-y: auto; }
-        .rf-o-details > .row > [class*="col-"], .rf-o-details .row > [class*="col-"] { flex: 0 0 100%; max-width: 100%; }
-        .rf-o-details .card { margin-bottom: 12px; }
-        /* Detail panels start collapsed; a click on the header opens them */
-        .rf-panel-head { cursor: pointer; user-select: none; }
-        .rf-panel-head:hover { background: var(--rf-hover); }
-        .rf-panel-head .rf-chevron { margin-left: 10px; color: #8a96a3; transition: transform .2s; }
-        .rf-collapsed .rf-panel-head .rf-chevron { transform: rotate(-90deg); }
-        .rf-collapsed > .card-body, .rf-collapsed > .card-footer, .rf-collapsed > .table-responsive { display: none; }
-        @media (max-width: 991.98px) {
-            .rf-o-hero { grid-template-columns: auto 1fr; } .rf-o-actions { grid-column: 1 / -1; justify-content: flex-start; }
-            .rf-o-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rf-o-grid { grid-template-columns: 1fr; }
-            .rf-o-split > .rf-o-timeline-card { position: static; order: -1; }
-            .rf-o-split .rf-o-timeline { max-height: 320px; }
-        }
-        @media (max-width: 575.98px) {
-            .rf-o-hero { grid-template-columns: 1fr; justify-items: start; } .rf-o-rows .rf-o-r { grid-template-columns: minmax(0, 1fr) auto; }
-            .rf-o-rows .rf-o-time { display: none; }
-        }
-        @media (prefers-reduced-motion: reduce) { .rf-o-val { transition: none; } .rf-o-chip.rf-o-run .rf-o-dot { animation: none; } }
-
-        /* Settings pages, in the style of a phone's settings: grouped rows */
-        .rf-settings { max-width: 760px; margin: 0 auto; }
-        .rf-set-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--rf-muted); margin: 22px 16px 7px; }
-        .rf-set-title:first-child { margin-top: 4px; }
-        .rf-set-group { background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
-        .rf-set-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; min-height: 58px; border-top: 1px solid var(--rf-line-soft); color: inherit; margin: 0; font-weight: 400; }
-        .rf-set-row:first-child { border-top: 0; }
-        /* AdminLTE makes every label bold, with a selector more specific than a class */
-        .rf-settings label.rf-set-row:not(.rf-none) { font-weight: 400; }
-        a.rf-set-row:hover, label.rf-set-row:hover { background: var(--rf-hover); text-decoration: none; color: inherit; cursor: pointer; }
-        .rf-set-icon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: #1f3a5f; font-size: 15px; }
-        .rf-set-icon.teal { background: #14a89a; } .rf-set-icon.amber { background: #e8a317; } .rf-set-icon.red { background: #d64545; }
-        .rf-set-icon.blue { background: #2f6fd1; } .rf-set-icon.grey { background: #8a96a3; } .rf-set-icon.purple { background: #7e57c2; }
-        .rf-set-text { flex: 1; min-width: 0; }
-        .rf-set-label { font-weight: 600; color: var(--rf-text); overflow-wrap: anywhere; }
-        .rf-set-sub { font-size: 13px; color: var(--rf-muted); line-height: 1.35; overflow-wrap: anywhere; }
-        .rf-set-sub code { font-size: 12px; }
-        .rf-set-value { color: var(--rf-muted); font-size: 14px; white-space: nowrap; }
-        .rf-set-chevron { color: #b9c1cb; }
-        .rf-set-check { color: #14a89a; font-size: 18px; visibility: hidden; }
-        .rf-set-choice input { position: absolute; opacity: 0; pointer-events: none; }
-        .rf-set-choice input:checked ~ .rf-set-check { visibility: visible; }
-        .rf-set-choice input:focus-visible ~ .rf-set-text .rf-set-label { text-decoration: underline; }
-        .rf-set-foot { font-size: 12.5px; color: var(--rf-muted); margin: 7px 16px 0; line-height: 1.4; }
-        .rf-set-pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--rf-line-soft); color: var(--rf-muted); }
-        .rf-set-pill.on { background: rgba(31, 157, 85, .12); color: #17804a; }
-        .rf-set-row .btn-link { padding: 4px 6px; }
-        @media (max-width: 575.98px) { .rf-set-row { padding: 12px 14px; gap: 12px; } }
-
-        /* On/off settings are iPhone-style switches: Bootstrap's switch and
-           checkbox controls alike. A real checkbox - a consent, an agreement -
-           opts out with the class rf-checkbox. */
-        .custom-switch, .custom-checkbox:not(.rf-checkbox) { padding-left: 3.75rem; min-height: 1.9rem; }
-        .custom-switch .custom-control-label, .custom-checkbox:not(.rf-checkbox) .custom-control-label { line-height: 1.9rem; }
-        .custom-switch .custom-control-label::before, .custom-checkbox:not(.rf-checkbox) .custom-control-label::before {
-            left: -3.75rem; top: 0; width: 3.15rem; height: 1.9rem; border-radius: 1rem; border: 0;
-            background-color: #e3e7ec; box-shadow: inset 0 0 0 1px rgba(16, 24, 40, .08); transition: background-color .2s ease;
-        }
-        .custom-switch .custom-control-label::after, .custom-checkbox:not(.rf-checkbox) .custom-control-label::after {
-            left: calc(-3.75rem + 2px); top: 2px; width: calc(1.9rem - 4px); height: calc(1.9rem - 4px); border-radius: 50%;
-            background: var(--rf-surface); background-image: none; box-shadow: 0 2px 4px rgba(16, 24, 40, .28); transition: transform .2s ease;
-        }
-        .custom-switch .custom-control-input:checked ~ .custom-control-label::before,
-        .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::before { background-color: #14a89a; box-shadow: none; }
-        .custom-switch .custom-control-input:checked ~ .custom-control-label::after,
-        .custom-checkbox:not(.rf-checkbox) .custom-control-input:checked ~ .custom-control-label::after {
-            background-color: #fff; background-image: none; transform: translateX(1.25rem);
-        }
-        .custom-switch .custom-control-input:focus-visible ~ .custom-control-label::before,
-        .custom-checkbox:not(.rf-checkbox) .custom-control-input:focus-visible ~ .custom-control-label::before { box-shadow: 0 0 0 3px rgba(20, 168, 154, .3); }
-        .custom-switch .custom-control-input:focus:not(:focus-visible) ~ .custom-control-label::before,
-        .custom-checkbox:not(.rf-checkbox) .custom-control-input:focus:not(:focus-visible) ~ .custom-control-label::before { box-shadow: none; }
-        .custom-switch .custom-control-input:disabled ~ .custom-control-label::before,
-        .custom-checkbox:not(.rf-checkbox) .custom-control-input:disabled ~ .custom-control-label::before { opacity: .5; }
-        @media (prefers-reduced-motion: reduce) {
-            .custom-switch .custom-control-label::before, .custom-switch .custom-control-label::after,
-            .custom-checkbox .custom-control-label::before, .custom-checkbox .custom-control-label::after { transition: none; }
-        }
-
-        /* Phones: a table the responsive DataTable does not handle scrolls
-           sideways inside its card instead of widening the page */
-        @media (max-width: 767.98px) {
-            .content-wrapper .table:not(.dataTable):not(.datatables-no-export) {
-                display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
-            }
-            .content-wrapper .card-header .card-title { float: none; }
-        }
-    </style>
+    <link rel="stylesheet" href="/static/vendor/fontawesome-7.3.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/vendor/overlayscrollbars-2.17.1/overlayscrollbars.min.css">
+    <link rel="stylesheet" href="/static/vendor/adminlte-4.10.2/adminlte.min.css">
+    <link rel="stylesheet" href="/static/vendor/datatables-3.1.5/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="/static/vendor/datatables-3.1.5/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="/static/vendor/tom-select-2.7.0/tom-select.bootstrap5.min.css">
+    <link rel="stylesheet" href="/static/routerfleet/app.css">
+    {% block page_custom_head %}{% endblock %}
 </head>
 {% load custom_tags %}
 {% tag_webadmin_version as webadmin_version %}
+<body class="layout-fixed sidebar-expand-lg sidebar-mini bg-body-tertiary{% if request.COOKIES.sidebarState == 'collapsed' %} sidebar-collapse{% endif %}"
+      data-page-size="{{ rf_page_size|default:10 }}">
+<div class="app-wrapper">
 
-<body class="hold-transition sidebar-mini layout-fixed {% if request.COOKIES.sidebarState == 'collapsed' %}sidebar-collapse{% endif %}">
-<script>if (document.documentElement.classList.contains('rf-dark')) { document.body.classList.add('dark-mode'); }</script>
-<div class="wrapper">
-
-    <!-- Preloader -->
-    <div class="preloader flex-column justify-content-center align-items-center">
-    </div>
-
-    <!-- Navbar -->
-    <nav class="main-header navbar navbar-expand navbar-white navbar-light">
-        <!-- Left navbar links -->
-        <ul class="navbar-nav">
-            <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
-            </li>
-            <li class="nav-item d-none d-sm-inline-block">
-                <a href="/status/" class="nav-link">Status</a>
-            </li>
-        </ul>
-
-        <!-- Right navbar links -->
-        <ul class="navbar-nav ml-auto">
-            <li class="nav-item">
-                <a href="#" class="nav-link" id="theme-toggle" title="Dark mode" aria-label="Switch between light and dark mode">
-                    <i class="fas fa-moon"></i>
-                </a>
-            </li>
-            {% tag_update_state as rf_update_indicator %}
-            <li class="nav-item">
-                <a href="{{ rf_update_indicator.href }}" class="nav-link" id="update-indicator" title="{{ rf_update_indicator.title }}"
-                   aria-label="{{ rf_update_indicator.title }}"{% if rf_update_indicator.external %} target="_blank" rel="noopener"{% endif %}>
-                    <i class="fas fa-cloud-download-alt {{ rf_update_indicator.color }}"></i>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="/user/settings/" class="nav-link" title="My Settings">
-                    <i class="fas fa-user-cog"></i>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a href="#" class="nav-link" title="Sign out" aria-label="Sign out" onclick="postAction('/accounts/logout/'); return false;">
-                    <i class="fas fa-sign-out-alt"></i>
-                </a>
-            </li>
-        </ul>
+    <nav class="app-header navbar navbar-expand bg-body">
+        <div class="container-fluid">
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button" aria-label="Menu"><i class="fas fa-bars"></i></a>
+                </li>
+                <li class="nav-item d-none d-sm-inline-block">
+                    <a href="/status/" class="nav-link">Status</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a href="#" class="nav-link" id="theme-toggle" title="Dark mode" aria-label="Switch between light and dark mode">
+                        <i class="fas fa-moon"></i>
+                    </a>
+                </li>
+                {% tag_update_state as rf_update_indicator %}
+                <li class="nav-item">
+                    <a href="{{ rf_update_indicator.href }}" class="nav-link" id="update-indicator" title="{{ rf_update_indicator.title }}"
+                       aria-label="{{ rf_update_indicator.title }}"{% if rf_update_indicator.external %} target="_blank" rel="noopener"{% endif %}>
+                        <i class="fas fa-cloud-download-alt {{ rf_update_indicator.color }}"></i>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/user/settings/" class="nav-link" title="My Settings" aria-label="My Settings">
+                        <i class="fas fa-user-cog"></i>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link" title="Sign out" aria-label="Sign out" data-rf-post="/accounts/logout/">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </li>
+            </ul>
+        </div>
     </nav>
-    <!-- /.navbar -->
 
-    <!-- Main Sidebar Container -->
-    <aside class="main-sidebar sidebar-dark-primary elevation-4">
-        <!-- Brand Logo -->
-        <a href="/status/" class="brand-link">
-            <img src="/static/routerfleet/logo.svg" alt="" class="brand-image" width="33" height="33">
-            <span class="brand-text font-weight-light">RouterFleet Improved</span>
-        </a>
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- Sidebar Menu -->
+    <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+        <div class="sidebar-brand">
+            <a href="/status/" class="brand-link">
+                <img src="/static/routerfleet/logo.svg" alt="" class="brand-image" width="33" height="33">
+                <span class="brand-text fw-light">RouterFleet Improved</span>
+            </a>
+        </div>
+        <div class="sidebar-wrapper">
             <nav class="mt-2">
-                <!-- A column as tall as the sidebar, so About can sit at its bottom -->
-                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false"
-                    style="min-height: calc(100vh - 4.5rem);">
+                <!-- A column as tall as the sidebar, so My Settings and About sit at its bottom -->
+                <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation">
                     <li class="nav-item">
-                        <a href="/status/" class="nav-link {% if request.path|startswith:'/status/' %}active{% endif %}">
-                            <i class="fas fa-tachometer-alt nav-icon"></i>
-                            <p>
-                                Status
-                            </p>
-                        </a>
+                    <a href="/status/" class="nav-link {% if request.path|startswith:'/status/' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt nav-icon"></i>
+                    <p>
+                    Status
+                    </p>
+                    </a>
                     </li>
-
-
                     <li class="nav-item">
-                        <a href="/router/list/" class="nav-link {% if request.path|startswith:'/router/' %}active{% endif %}">
-                            <i class="fas fa-network-wired nav-icon"></i>
-                            <p>
-                                Router Manager
-                            </p>
-                        </a>
+                    <a href="/router/list/" class="nav-link {% if request.path|startswith:'/router/' %}active{% endif %}">
+                    <i class="fas fa-network-wired nav-icon"></i>
+                    <p>
+                    Router Manager
+                    </p>
+                    </a>
                     </li>
-
-
                     <li class="nav-item">
-                        <a href="/backup/profile_list/" class="nav-link {% if request.path|startswith:'/backup/' %}active{% endif %}">
-                            <i class="fas fa-box-open nav-icon"></i>
-                            <p>
-                                Backup
-                            </p>
-                        </a>
+                    <a href="/backup/profile_list/" class="nav-link {% if request.path|startswith:'/backup/' %}active{% endif %}">
+                    <i class="fas fa-box-open nav-icon"></i>
+                    <p>
+                    Backup
+                    </p>
+                    </a>
                     </li>
-
                     <li class="nav-item">
-                        <a href="/fleet_commander/"
-                            class="nav-link {% if request.path|startswith:'/fleet_commander/' %}active{% endif %}">
-                            <i class="fas fa-terminal nav-icon"></i>
-                            <p>
-                                Fleet Commander
-                            </p>
-                        </a>
+                    <a href="/fleet_commander/"
+                    class="nav-link {% if request.path|startswith:'/fleet_commander/' %}active{% endif %}">
+                    <i class="fas fa-terminal nav-icon"></i>
+                    <p>
+                    Fleet Commander
+                    </p>
+                    </a>
                     </li>
-
                     <li class="nav-item">
-                        <a href="/user/list/" class="nav-link {% if request.path|startswith:'/user/list/' or request.path|startswith:'/user/manage/' %}active{% endif %}">
-                            <i class="fas fa-users nav-icon"></i>
-                            <p>
-                                User Manager
-                            </p>
-                        </a>
+                    <a href="/user/list/" class="nav-link {% if request.path|startswith:'/user/list/' or request.path|startswith:'/user/manage/' %}active{% endif %}">
+                    <i class="fas fa-users nav-icon"></i>
+                    <p>
+                    User Manager
+                    </p>
+                    </a>
                     </li>
-
                     <li class="nav-item">
-                        <a href="/message_center/message_history/" class="nav-link {% if request.path|startswith:'/message_center/' %}active{% endif %}">
-                            <i class="far fa-envelope nav-icon"></i>
-                            <p>
-                                Message Center
-                            </p>
-                        </a>
+                    <a href="/message_center/message_history/" class="nav-link {% if request.path|startswith:'/message_center/' %}active{% endif %}">
+                    <i class="far fa-envelope nav-icon"></i>
+                    <p>
+                    Message Center
+                    </p>
+                    </a>
                     </li>
-
-
                     <li class="nav-item">
-                        <a href="/tools/" class="nav-link {% if request.path|startswith:'/tools/' %}active{% endif %}">
-                            <i class="fas fa-toolbox nav-icon"></i>
-                            <p>
-                                Tools
-                            </p>
-                        </a>
+                    <a href="/tools/" class="nav-link {% if request.path|startswith:'/tools/' %}active{% endif %}">
+                    <i class="fas fa-toolbox nav-icon"></i>
+                    <p>
+                    Tools
+                    </p>
+                    </a>
                     </li>
-
                     <li class="nav-item">
-                        <a href="/system/" class="nav-link {% if request.path|startswith:'/system/' %}active{% endif %}">
-                            <i class="fas fa-shield-alt nav-icon"></i>
-                            <p>
-                                System settings
-                            </p>
-                        </a>
+                    <a href="/system/" class="nav-link {% if request.path|startswith:'/system/' %}active{% endif %}">
+                    <i class="fas fa-shield-alt nav-icon"></i>
+                    <p>
+                    System settings
+                    </p>
+                    </a>
                     </li>
-
                     <li class="nav-item">
-                        <a href="/audit_log/login_history/" class="nav-link {% if request.path|startswith:'/audit_log/' %}active{% endif %}">
-                            <i class="fas fa-clipboard-list nav-icon"></i>
-                            <p>
-                                Audit Log
-                            </p>
-                        </a>
+                    <a href="/audit_log/login_history/" class="nav-link {% if request.path|startswith:'/audit_log/' %}active{% endif %}">
+                    <i class="fas fa-clipboard-list nav-icon"></i>
+                    <p>
+                    Audit Log
+                    </p>
+                    </a>
                     </li>
-
-
-
                     <!-- Personal, not administration: at the bottom with About -->
                     <li class="nav-item mt-auto">
-                        <a href="/user/settings/" class="nav-link {% if request.path|startswith:'/user/settings/' %}active{% endif %}">
-                            <i class="fas fa-user-cog nav-icon"></i>
-                            <p>
-                                My Settings
-                            </p>
-                        </a>
+                    <a href="/user/settings/" class="nav-link {% if request.path|startswith:'/user/settings/' %}active{% endif %}">
+                    <i class="fas fa-user-cog nav-icon"></i>
+                    <p>
+                    My Settings
+                    </p>
+                    </a>
                     </li>
                     <li class="nav-item">
-                        <a href="/about/" class="nav-link {% if request.path|startswith:'/about/' %}active{% endif %}">
-                            <i class="fas fa-info-circle nav-icon"></i>
-                            <p>
-                                About
-                            </p>
-                        </a>
+                    <a href="/about/" class="nav-link {% if request.path|startswith:'/about/' %}active{% endif %}">
+                    <i class="fas fa-info-circle nav-icon"></i>
+                    <p>
+                    About
+                    </p>
+                    </a>
                     </li>
+
                 </ul>
             </nav>
-            <!-- /.sidebar-menu -->
         </div>
-        <!-- /.sidebar -->
     </aside>
 
-    <!-- Content Wrapper. Contains page content -->
-    <div class="content-wrapper">
-        <!-- Content Header (Page header) -->
-        <div class="content-header">
+    <main class="app-main">
+        <div class="app-content pt-3">
             <div class="container-fluid">
-
-            </div><!-- /.container-fluid -->
+                {% block content %}{% endblock %}
+            </div>
         </div>
-        <!-- /.content-header -->
+    </main>
 
-        <!-- Generic Modal Structure -->
-        <div class="modal fade" id="genericModal" tabindex="-1" aria-labelledby="genericModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="genericModalLabel">Modal Title</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body" id="genericModalBody">
-                        <!-- Content will be loaded here -->
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="genericModalCloseButton">Close</button>
-                        <a href="#" class="btn btn-primary" id="genericModalActionButton">Action</a>
-                    </div>
+    <!-- The generic popup: configuration changes, change-log entries, release notes -->
+    <div class="modal fade" id="genericModal" tabindex="-1" aria-labelledby="genericModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="genericModalLabel">&nbsp;</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="genericModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="genericModalCloseButton">Close</button>
+                    <a href="#" class="btn btn-primary d-none" id="genericModalActionButton">&nbsp;</a>
                 </div>
             </div>
         </div>
-
-        <!-- End modal -->
-
-        <!-- Main content -->
-
-
-
-
-        <section class="content">
-            <div class="container-fluid">
-                {% block content %}{% endblock %}
-            </div><!-- /.container-fluid -->
-        </section>
-        <!-- /.content -->
     </div>
-    <!-- /.content-wrapper -->
-    <footer class="main-footer">
-        {% if webadmin_version.update_available %}<a class='btn btn-sm btn-warning' id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener">Update available: {{ webadmin_version.latest_version }}</a>{% else %}RouterFleet Improved by Alessio Bravi{% endif %}
-        <div class="float-right d-none d-sm-inline-block">
-            <b>Version</b> {{ webadmin_version.current_version }}
-        </div>
+
+    <footer class="app-footer">
+        <div class="float-end d-none d-sm-inline"><b>Version</b> {{ webadmin_version.current_version }}</div>
+        {% if webadmin_version.update_available %}<a class="btn btn-sm btn-warning" id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener"
+           data-changelog-url="{{ webadmin_version.changelog_url }}" data-version="{{ webadmin_version.current_version }}"
+           data-instructions="{% tag_project_repository_url %}">Update available: {{ webadmin_version.latest_version }}</a>{% else %}RouterFleet Improved by Alessio Bravi{% endif %}
     </footer>
-
-    <!-- Control Sidebar -->
-    <aside class="control-sidebar control-sidebar-dark">
-        <!-- Control sidebar content goes here -->
-    </aside>
-    <!-- /.control-sidebar -->
 </div>
-<!-- ./wrapper -->
 
-<script>
-    // Every action that changes something is sent as a POST with the CSRF
-    // token, so only a page of this installation can trigger it - a link or an
-    // image on a foreign page cannot.
-    function postAction(url, fields) {
-        var form = document.createElement('form');
-        form.method = 'post';
-        form.action = url;
-        var values = Object.assign({csrfmiddlewaretoken: '{{ csrf_token }}'}, fields || {});
-        Object.keys(values).forEach(function (name) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = name;
-            input.value = values[name];
-            form.appendChild(input);
-        });
-        document.body.appendChild(form);
-        form.submit();
-    }
-</script>
-<!-- jQuery -->
-<script src="/static/AdminLTE-3.2.0/plugins/jquery/jquery.min.js"></script>
-<!-- Bootstrap 4 -->
-<script src="/static/AdminLTE-3.2.0/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
-<!-- overlayScrollbars -->
-<script src="/static/AdminLTE-3.2.0/plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js"></script>
-<!-- DataTables  & Plugins -->
-<script src="/static/AdminLTE-3.2.0/plugins/datatables/jquery.dataTables.min.js"></script>
-<script src="/static/AdminLTE-3.2.0/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
-<script src="/static/AdminLTE-3.2.0/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
-<script src="/static/AdminLTE-3.2.0/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
-<!-- AdminLTE App -->
-<script src="/static/AdminLTE-3.2.0/dist/js/adminlte.js"></script>
-<!-- chosen -->
-<script src="/static/plugins/chosen/chosen.jquery.min.js"></script>
-<script>
-    $('.selectmultiple').chosen();
-    $('.select').chosen();
-</script>
-<script>
-    var dataTable;
-    // Also called for a part of the page that live updates replaced
-    window.rfInitTables = function (root) {
-        var tables = $(root).find('.datatables-no-export').addBack('.datatables-no-export').filter(function () {
-            return !$.fn.dataTable.isDataTable(this);
-        });
-        if (!tables.length) { return; }
-        dataTable = tables.DataTable({
-            "paging": true,
-            "pageLength": {{ rf_page_size|default:10 }},
-            "lengthMenu": [10, 25, 50, 100],
-            "lengthChange": true,
-            "searching": true,
-            "ordering": true,
-            "order": [],
-            "info": true,
-            "autoWidth": false,
-            // On a narrow screen the columns that do not fit are left out
-            // instead of folding behind a "+": the name (which opens the
-            // details), the selection and the quick actions always stay on the
-            // row; a header with data-priority says what to keep next
-            "responsive": { "details": false },
-            "columnDefs": [
-                { "orderable": false, "targets": [ 0, -1 ] },
-                { "className": "all", "targets": [ 0, -1 ] },
-                { "responsivePriority": 1, "targets": 1 }
-            ]
-        });
-        tables.show();
-        // Measured while hidden, the columns do not fold on a phone: measure again
-        $.fn.dataTable.tables({visible: true, api: true}).columns.adjust().responsive.recalc();
-    };
-    $(function () { window.rfInitTables(document); });
-
-    // Detail panels of object pages start collapsed. What the user opens is
-    // remembered per page for the session, so a live update - which brings
-    // the panels back from the server - does not close them again.
-    window.rfInitPanels = function (root) {
-        var store = {get: function (k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-                     set: function (k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }};
-        (root || document).querySelectorAll('.rf-o-details .card').forEach(function (card) {
-            var head = card.querySelector(':scope > .card-header');
-            if (!head || card.dataset.rfPanel) { return; }
-            card.dataset.rfPanel = '1';
-            var title = (head.querySelector('.card-title') || head).textContent.trim().slice(0, 60);
-            var key = 'rf-panel:' + window.location.pathname + ':' + title;
-            head.classList.add('rf-panel-head');
-            head.setAttribute('role', 'button');
-            head.setAttribute('tabindex', '0');
-            var chevron = document.createElement('i');
-            chevron.className = 'fas fa-chevron-down rf-chevron';
-            chevron.setAttribute('aria-hidden', 'true');
-            (head.querySelector('.card-title') || head).appendChild(chevron);
-            function apply(open) {
-                card.classList.toggle('rf-collapsed', !open);
-                head.setAttribute('aria-expanded', open ? 'true' : 'false');
-                if (open && $.fn.dataTable) {
-                    $.fn.dataTable.tables({visible: true, api: true}).columns.adjust().responsive.recalc();
-                }
-            }
-            apply(store.get(key) === 'open');
-            function toggle(event) {
-                if (event.target.closest('a, button, input, select, textarea, label')) { return; }
-                var open = card.classList.contains('rf-collapsed');
-                store.set(key, open ? 'open' : 'closed');
-                apply(open);
-            }
-            head.addEventListener('click', toggle);
-            head.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(event); }
-            });
-        });
-    };
-    $(function () { window.rfInitPanels(document); });
-</script>
-<script>
-    $(document).ready(function() {
-        const webadminVersion = '{{ webadmin_version.current_version }}';
-        const changelogUrl = '{{ webadmin_version.changelog_url|escapejs }}';
-        $('#btn_update_changelog').on('click', function(event) {
-            if (!changelogUrl) {
-                // No changelog endpoint of the operator's own: the link opens
-                // the release on GitHub, which carries the notes
-                return;
-            }
-            event.preventDefault();
-            $.ajax({
-                url: `${changelogUrl}${changelogUrl.includes('?') ? '&' : '?'}app=routerfleet&version=${webadminVersion}`,
-                type: 'GET',
-                success: function(response) {
-                    const updates = response.updates.sort((a, b) => new Date(b.release_date) - new Date(a.release_date));
-                    let updatesHtml = '';
-                    updates.forEach(update => {
-                        updatesHtml += `<div class="update">
-                                        <h5>Version ${update.version}</h5>
-                                        <p>${update.release_notes.replace(/\r\n/g, "<br>")}</p>
-                                    </div>`;
-                    });
-
-                    // Update modal content
-                    $('#genericModalLabel').text('routerfleet Updates');
-                    $('#genericModalBody').html(updatesHtml);
-                    $('#genericModalCloseButton').text('Close');
-                    $('#genericModalActionButton').text('Update Instructions').attr('href', '{% tag_project_repository_url %}').attr('target', '_blank');
-
-                    // Show modal
-                    $('#genericModal').modal('show');
-                },
-                error: function(xhr, status, error) {
-                    // Update modal for error display
-                    $('#genericModalLabel').text('Error');
-                    $('#genericModalBody').html('<p>An error occurred while fetching the update information. Please try again later.</p>');
-                    $('#genericModalCloseButton').text('Close');
-                    $('#genericModalActionButton').hide(); // Hide the action button in case of error
-
-                    // Show modal
-                    $('#genericModal').modal('show');
-                    console.error("An error occurred while fetching updates: ", error);
-                }
-            });
-        });
-    });
-
-
-</script>
-
-<script>
-    function setCookie(name, value, days) {
-        var expires = "";
-        if (days) {
-            var date = new Date();
-            date.setTime(date.getTime() + (days*24*60*60*1000));
-            expires = "; expires=" + date.toUTCString();
-        }
-        document.cookie = name + "=" + (value || "")  + expires + "; path=/";
-    }
-</script>
-
-
-
-<script>
-    function getCookie(name) {
-        var nameEQ = name + "=";
-        var ca = document.cookie.split(';');
-        for(var i=0;i < ca.length;i++) {
-            var c = ca[i];
-            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
-        }
-        return null;
-    }
-</script>
-
-<script>
-    // On a touch screen the menu must not expand on hover: iOS spends the first
-    // tap on a hover that shows the labels, so a link needed two taps
-    if (window.matchMedia && window.matchMedia('(hover: none)').matches) {
-        document.querySelectorAll('.main-sidebar').forEach(function (s) { s.classList.add('sidebar-no-expand'); });
-    }
-    $(document).ready(function() {
-        var sidebarState = getCookie('sidebarState');
-        if (sidebarState === 'collapsed') {
-            $('body').addClass('sidebar-collapse');
-        }
-
-        $('[data-widget="pushmenu"]').on('click', function(event) {
-            event.preventDefault();
-            setTimeout(function() {
-                if ($('body').hasClass('sidebar-collapse')) {
-                    setCookie('sidebarState', 'collapsed', 7);
-                } else {
-                    setCookie('sidebarState', 'opened', 7);
-                }
-            }, 500);
-        });
-    });
-</script>
-
-
+<script src="/static/vendor/overlayscrollbars-2.17.1/overlayscrollbars.browser.es6.min.js"></script>
+<script src="/static/vendor/bootstrap-5.3.9/bootstrap.bundle.min.js"></script>
+<script src="/static/vendor/adminlte-4.10.2/adminlte.min.js"></script>
+<script src="/static/vendor/datatables-3.1.5/dataTables.min.js"></script>
+<script src="/static/vendor/datatables-3.1.5/dataTables.bootstrap5.min.js"></script>
+<script src="/static/vendor/datatables-3.1.5/dataTables.responsive.min.js"></script>
+<script src="/static/vendor/datatables-3.1.5/responsive.bootstrap5.min.js"></script>
+<script src="/static/vendor/tom-select-2.7.0/tom-select.complete.min.js"></script>
+<script src="/static/routerfleet/app.js"></script>
 {% include "template_messages.html" %}
 <script src="/static/routerfleet/live.js"></script>
 <script src="/static/routerfleet/theme.js"></script>
 <script src="/static/routerfleet/confirm.js"></script>
-
-<style>
-    /* The popup of a configuration change shows the lines of the diff, not the
-       name of the file, and a configuration line can be wider than the popup */
-    #genericModalBody .d2h-file-header,
-    #genericModalBody .d2h-file-list-wrapper {
-        display: none;
-    }
-
-    #genericModalBody {
-        overflow-x: auto;
-    }
-
-    /* A change in the audit trail can hold a whole command payload, and a payload
-       has lines that are longer than the popup */
-    #genericModalBody .audit-change-value {
-        word-break: break-word;
-    }
-</style>
-
-<script>
-    // What a configuration change was, in the generic popup. Everything that
-    // shows such a change links to it with class="config-change-link" and the
-    // uuid of the backup in data-uuid, so no page leaves the page.
-    var diff2HtmlState = 'not loaded';
-    var pendingDiff = null;
-
-    function withDiff2Html(callback) {
-        // diff2html is only needed when somebody asks what changed, so it is
-        // fetched on the first click instead of on every page
-        if (diff2HtmlState === 'loaded') {
-            callback();
-            return;
-        }
-        pendingDiff = callback;
-        if (diff2HtmlState === 'loading') {
-            return;
-        }
-        diff2HtmlState = 'loading';
-        $('<link rel="stylesheet" type="text/css" href="/static/plugins/diff2html/diff2html.min.css"/>')
-            .appendTo(document.head);
-        // The closing tag is written with a backslash in front of its slash, and
-        // that is not a style choice: an inline script ends at the first literal
-        // "</script" wherever it stands, inside a string as well. Written plain,
-        // the browser ended this block right here, the rest of it was shown as
-        // text at the bottom of every page, and the popup never got defined.
-        $('<script type="text/javascript" src="/static/plugins/diff2html/diff2html.min.js"><\/script>')
-            .on('load', function () {
-                diff2HtmlState = 'loaded';
-                if (pendingDiff) {
-                    pendingDiff();
-                }
-            })
-            .appendTo(document.head);
-    }
-
-    function showConfigChange(uuid) {
-        $('#genericModalLabel').text('Configuration change');
-        $('#genericModalBody').html('<p class="text-muted">Loading…</p>');
-        $('#genericModalCloseButton').text('Close');
-        $('#genericModalActionButton').hide();
-        $('#genericModal').modal('show');
-
-        $.ajax({
-            url: '/backup/config_change/?uuid=' + encodeURIComponent(uuid),
-            type: 'GET',
-            success: function (response) {
-                $('#genericModalLabel').text('Configuration change of ' + response.router);
-                $('#genericModalActionButton')
-                    .text('Open the full comparison')
-                    .attr('href', response.compare_url)
-                    // The update popup opens its link in a new tab, this one belongs here
-                    .attr('target', '_self')
-                    .show();
-                withDiff2Html(function () {
-                    var header = $('<p class="text-muted"></p>').text(
-                        'Backup ' + response.previous.id + ' of ' + response.previous.date
-                        + ' → backup ' + response.backup.id + ' of ' + response.backup.date);
-                    var diffHtml = Diff2Html.html(response.diff, {
-                        inputFormat: 'diff', showFiles: false, matching: 'lines',
-                        outputFormat: 'side-by-side',
-                    });
-                    $('#genericModalBody').empty().append(header).append(diffHtml);
-                });
-            },
-            error: function (xhr) {
-                var message = 'The change could not be loaded.';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    message = xhr.responseJSON.error;
-                }
-                $('#genericModalLabel').text('Configuration change');
-                $('#genericModalBody').empty().append(
-                    $('<p class="text-muted"></p>').text(message));
-            }
-        });
-    }
-
-    $(document).on('click', '.config-change-link', function (event) {
-        event.preventDefault();
-        showConfigChange($(this).attr('data-uuid'));
-    });
-    // End of the configuration change popup
-</script>
-
-<script>
-    // What an entry of the change log was, field by field, in the same generic
-    // popup. Each row links to it with class="audit-change-link" and the uuid of
-    // the entry in data-uuid, so nothing leaves the page.
-    function auditValue(value) {
-        if (value === true) {
-            return 'yes';
-        }
-        if (value === false) {
-            return 'no';
-        }
-        if (value === null || value === undefined) {
-            return '';
-        }
-        if (Array.isArray(value)) {
-            return value.join(', ');
-        }
-        return String(value);
-    }
-
-    function auditActor(response) {
-        if (!response.actor) {
-            return response.actor_kind ? 'by ' + response.actor_kind : '';
-        }
-        if (response.level === null || response.level === undefined) {
-            return 'by ' + response.actor;
-        }
-        return 'by ' + response.actor + ' (level ' + response.level + ')';
-    }
-
-    function auditAddress(response) {
-        if (!response.ip) {
-            return '';
-        }
-        var text = 'from ' + response.ip;
-        if (response.forwarded && response.forwarded !== response.ip) {
-            text += ' (' + response.forwarded + ')';
-        }
-        if (response.user_agent) {
-            text += ' — ' + response.user_agent;
-        }
-        return text;
-    }
-
-    function showAuditChange(uuid) {
-        $('#genericModalLabel').text('Change');
-        $('#genericModalBody').html('<p class="text-muted">Loading…</p>');
-        $('#genericModalCloseButton').text('Close');
-        $('#genericModalActionButton').hide();
-        $('#genericModal').modal('show');
-
-        $.ajax({
-            url: '/audit_log/change_detail/?uuid=' + encodeURIComponent(uuid),
-            type: 'GET',
-            success: function (response) {
-                $('#genericModalLabel').text(response.action + ' ' + response.model);
-                var body = $('#genericModalBody').empty();
-
-                var headline = [];
-                if (response.object) {
-                    headline.push(response.object);
-                }
-                var actor = auditActor(response);
-                if (actor) {
-                    headline.push(actor);
-                }
-                headline.push(response.moment);
-                body.append($('<p class="text-muted"></p>').text(headline.join(' · ')));
-
-                var address = auditAddress(response);
-                if (address) {
-                    body.append($('<p class="text-muted"></p>').text(address));
-                }
-
-                if (!response.changes.length) {
-                    // A bulk entry counts rows instead of naming fields, and a
-                    // deletion of something that had nothing set has none either
-                    body.append($('<p class="text-muted"></p>').text(
-                        response.count
-                            ? response.count + ' rows were affected.'
-                            : 'Nothing was recorded for this entry.'));
-                    return;
-                }
-
-                var table = $('<table class="table table-sm"></table>');
-                var head = $('<tr></tr>');
-                ['Field', 'Before', 'After'].forEach(function (title) {
-                    head.append($('<th></th>').text(title));
-                });
-                table.append($('<thead></thead>').append(head));
-                var rows = $('<tbody></tbody>');
-                response.changes.forEach(function (change) {
-                    var row = $('<tr></tr>');
-                    // Text only, never markup: a router named <script> is a name
-                    row.append($('<td class="audit-change-value"></td>').text(change.field));
-                    row.append($('<td class="audit-change-value"></td>').text(auditValue(change.old)));
-                    row.append($('<td class="audit-change-value"></td>').text(auditValue(change.new)));
-                    rows.append(row);
-                });
-                table.append(rows);
-                body.append(table);
-            },
-            error: function (xhr) {
-                var message = 'The change could not be loaded.';
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    message = xhr.responseJSON.error;
-                }
-                $('#genericModalLabel').text('Change');
-                $('#genericModalBody').empty().append(
-                    $('<p class="text-muted"></p>').text(message));
-            }
-        });
-    }
-
-    $(document).on('click', '.audit-change-link', function (event) {
-        event.preventDefault();
-        showAuditChange($(this).attr('data-uuid'));
-    });
-    // End of the audit change popup
-</script>
-
-{% block custom_page_scripts %}
-
-{% endblock %}
-
+{% block custom_page_scripts %}{% endblock %}
 </body>
 </html>

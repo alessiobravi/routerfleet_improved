@@ -6,7 +6,8 @@ templates/includes/object_hero.html.
 
     hero     {'title', 'subtitle', 'chip': (state, label), 'ring': percent | None,
               'icon': fa-class | None, 'meta': [text], 'actions': [action]}
-    action   {'label', 'icon', 'href' | 'onclick', 'style': 'danger' | 'primary' | ''}
+    action   {'label', 'icon', 'href' | 'post' + 'confirm' + 'word', 'style': 'danger' | 'primary' | ''}
+             post: sent as a POST after the confirm question with a small sum
     tiles    [{'value', 'label', 'state': ok | run | wait | bad | info, 'href'}]
     timeline [{'when': datetime, 'text', 'state'}], newest first
 """
@@ -62,7 +63,7 @@ def job_page(job, tasks):
         meta.append('Result verified on the device')
     actions = []
     if not job.completed:
-        actions.append({'label': 'Abort', 'icon': 'fa-hand-paper', 'onclick': f"abortJob('{job.uuid}')", 'style': 'danger'})
+        actions.append({'label': 'Abort', 'icon': 'fa-hand-paper', 'post': f'/fleet_commander/job/abort/?uuid={job.uuid}', 'confirm': 'Abort this job? A command already running on a device finishes; nothing after it runs.', 'word': 'abort', 'style': 'danger'})
     hero = {'title': job.command.name, 'subtitle': f'job #{job.id}', 'chip': chip,
             'ring': job.progress_percentage, 'meta': meta, 'actions': actions}
     tiles = [
@@ -110,7 +111,7 @@ def task_page(task):
         meta.append(f'{task.router.address} · {task.router.get_router_type_display()}')
     actions = [{'label': 'Job', 'icon': 'fa-list', 'href': f'/fleet_commander/job/details/?uuid={task.job.uuid}', 'style': ''}]
     if task.status == 'pending':
-        actions.append({'label': 'Abort', 'icon': 'fa-hand-paper', 'onclick': f"abortTask('{task.uuid}')", 'style': 'danger'})
+        actions.append({'label': 'Abort', 'icon': 'fa-hand-paper', 'post': f'/fleet_commander/task/abort/?uuid={task.uuid}', 'confirm': 'Abort this task?', 'word': 'abort', 'style': 'danger'})
     icon = {'ok': 'fa-check', 'bad': 'fa-times', 'info': 'fa-hand-paper', 'run': 'fa-circle-notch fa-spin',
             'wait': 'fa-hourglass-half'}[chip[0]]
     hero = {'title': name, 'subtitle': 'task', 'chip': chip, 'ring': None, 'icon': icon, 'meta': meta, 'actions': actions}

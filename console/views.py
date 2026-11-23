@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csp import csp_override
 
 from router_manager.models import Router, RouterStatus
 from user_manager.models import UserAcl
@@ -13,6 +14,18 @@ from user_manager.models import UserAcl
 from .models import ConsoleSession
 
 USERNAME = re.compile(r'^[A-Za-z0-9._@+\-\\]{1,100}$')
+
+
+# xterm.js draws the terminal with <style> elements of its own (theme, cell
+# size) and offers no way to give them a nonce. On the terminal page only,
+# style elements may be inline; scripts stay 'self' and style attributes stay
+# blocked, so nothing injected can run.
+TERMINAL_CSP = {**settings.SECURE_CSP, 'style-src-elem': ["'self'", "'unsafe-inline'"]}
+
+
+@csp_override(TERMINAL_CSP)
+def render_terminal(request, context):
+    return render(request, 'console/terminal.html', context)
 
 
 def allowed(user):
@@ -61,7 +74,7 @@ def view_console(request):
             errors.append('Choose an account.')
         if not errors:
             session, ticket = ConsoleSession.open(request.user, router, transport, account, username)
-            return render(request, 'console/terminal.html', {
+            return render_terminal(request, {
                 'page_title': f'Console: {router.name}', 'router': router, 'session': session, 'ticket': ticket,
                 'ask_password': transport == 'ssh' and account == 'other', 'back': back,
                 'idle_minutes': settings.CONSOLE_IDLE_SECONDS // 60})

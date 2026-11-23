@@ -1,5 +1,5 @@
 #!/bin/bash
-# Manual alternative to the CI workflow: builds the four images and pushes them
+# Manual alternative to the CI workflow: builds the six images and pushes them
 # tagged with the current version and as latest. CI does this on every push to
 # main; use this only when you need to publish from a workstation.
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 VERSION=$(python3 scripts/version.py)
 REGISTRY=ghcr.io/alessiobravi
-IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres)
+IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres18 routerfleet-postgres)
 
 if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
   echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin

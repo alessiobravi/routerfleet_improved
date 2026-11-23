@@ -163,6 +163,23 @@ class FormTests(TestCase):
 
 
 @override_settings(ALLOWED_HOSTS=[HOST, 'testserver'])
+class TerminalPolicyTests(TestCase):
+    """xterm.js needs inline <style> elements: allowed on the terminal page only,
+    and only style elements - scripts and style attributes stay strict."""
+
+    def test_only_the_terminal_allows_inline_style_elements(self):
+        router = make_router(name='edge-2', password='stored-secret')
+        self.client.force_login(make_user(30))
+        form = self.client.get(f'/router/console/?uuid={router.uuid}')
+        self.assertNotIn('unsafe-inline', form['Content-Security-Policy'])
+        page = self.client.post('/router/console/', {'action': 'open', 'router': str(router.uuid),
+                                                      'transport': 'ssh', 'account': 'backup'})
+        policy = page['Content-Security-Policy']
+        self.assertIn("style-src-elem 'self' 'unsafe-inline'", policy)
+        self.assertIn("script-src 'self';", policy)
+        self.assertIn("style-src 'self';", policy)
+
+
 class ConsumerTests(TransactionTestCase):
     def setUp(self):
         self.user = make_user(30)

@@ -13,6 +13,57 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.24.0] - 2026-11-23
+
+### Changed
+- **The bundled database is PostgreSQL 18** on Alpine (`routerfleet-postgres18`),
+  with the built-in `C.UTF-8` ordering, so text ordering never depends on the C
+  library again. Existing installations move by export and re-import with
+  `scripts/migrate-database.sh` - the old volume is never touched, and the new
+  image refuses to start empty beside it. Compose files from before keep the
+  PostgreSQL 16 image, still published, until they migrate.
+- **The interface runs on AdminLTE 4 and Bootstrap 5.3**, replacing AdminLTE 3
+  and Bootstrap 4, which no longer receives fixes. Pages look as before - same
+  layout, colours, switches and dark mode, compared page by page - but no page
+  loads jQuery any more: DataTables 3, Tom Select (in place of Chosen) and Font
+  Awesome 7, all bundled. Page scripts and styles moved into static files.
+
+### Security
+- **A strict Content-Security-Policy on every page.** Only the installation's
+  own scripts, styles and fonts load; no page carries inline script, inline
+  handlers or inline styles any more, so markup that ever slipped past the
+  escaping could not run. Values reach the page scripts as escaped attributes
+  instead of being written into JavaScript. The device console alone allows
+  inline style elements, which its terminal library needs
+  ([Security](docs/security.md#response-headers)).
+
+### Added
+- **The ports are settings**: `HTTP_PORT` and `HTTPS_PORT` in `.env` (80 and 443
+  by default), for a host where those are already taken - by another web
+  server, for example. The compose file stays as shipped, and the HTTP
+  redirect goes to the HTTPS port you chose instead of 443.
+
+### Fixed
+- **Export as CSV** in the router list works again: it relied on a table
+  extension the pages never loaded. The file is written in the browser, and a
+  cell that starts like a spreadsheet formula is written as text.
+- The release notes of an update are shown as text, never as markup.
+- **Forms work behind a published port other than 443** (`8443:443`): nginx
+  passed the address on without its port, so Django saw `10.0.0.5` while the
+  browser came from `https://10.0.0.5:8443`, and every form - the first one
+  after creating the administrator - failed with *CSRF verification failed*.
+  The device console was refused the same way. nginx now passes the address as
+  the browser sent it, in every HTTPS mode; `SERVER_ADDRESS` needs no port.
+- **`HTTPS_MODE_OVERRIDE` and `LETSENCRYPT_STAGING` in `.env` work.** They
+  were documented since 0.16.0 but never reached the nginx container, so the
+  emergency override and Let's Encrypt's test service did nothing.
+- **`.env.example` explains every setting**, grouped (address and ports, HTTPS,
+  database, general), with the optional ones commented out at their defaults.
+  A test keeps it, the documentation and the compose files in agreement.
+- A first installation no longer warns that `POSTGRES_HOST` and `POSTGRES_PORT`
+  are not set: with the bundled database they are meant to be empty, and the
+  compose files now say so. Nothing changes in how RouterFleet starts.
+
 ## [0.23.1] - 2026-11-23
 
 ### Security

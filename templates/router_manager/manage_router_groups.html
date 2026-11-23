@@ -23,9 +23,9 @@
                     </div>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="add_group">Add to Group:</label>
-                                <select class="form-control" id="add_group" name="add_group">
+                                <select class="form-select" id="add_group" data-rf-differs-from="remove_group" data-rf-differs-message="You cannot select the same group for both adding and removing." name="add_group">
                                     <option value="">-- Select Group --</option>
                                     {% for group in groups %}
                                         <option value="{{ group.uuid }}">{{ group.name }}</option>
@@ -34,9 +34,9 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
+                            <div class="mb-3">
                                 <label for="remove_group">Remove from Group:</label>
-                                <select class="form-control" id="remove_group" name="remove_group">
+                                <select class="form-select" id="remove_group" data-rf-differs-from="add_group" data-rf-differs-message="You cannot select the same group for both adding and removing." name="remove_group">
                                     <option value="">-- Select Group --</option>
                                     {% for group in groups %}
                                         <option value="{{ group.uuid }}">{{ group.name }}</option>
@@ -56,21 +56,4 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block custom_page_scripts %}
-<script>
-$(document).ready(function() {
-    // Prevent selecting the same group for both add and remove
-    $('#add_group, #remove_group').on('change', function() {
-        var addGroup = $('#add_group').val();
-        var removeGroup = $('#remove_group').val();
-
-        if (addGroup && removeGroup && addGroup === removeGroup) {
-            alert("You cannot select the same group for both adding and removing.");
-            $(this).val('');
-        }
-    });
-});
-</script>
 {% endblock %}

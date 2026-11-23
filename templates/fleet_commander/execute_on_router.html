@@ -13,9 +13,9 @@
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="router" value="{{ router.uuid }}">
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="command">Command</label>
-                        <select class="form-control" id="command" name="command" required>
+                        <select class="form-select" id="command" name="command" required>
                             <option value="">-- Select a command --</option>
                             {% for command in commands %}<option value="{{ command.uuid }}">{{ command.name }}</option>{% endfor %}
                         </select>

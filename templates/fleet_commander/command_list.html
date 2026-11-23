@@ -20,7 +20,7 @@
 
     <div class="d-flex justify-content-between align-items-end">
         <div class="rf-set-title">Commands</div>
-        {% if can_manage %}<a href="/fleet_commander/command/manage/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-plus mr-1"></i>Add command</a>{% endif %}
+        {% if can_manage %}<a href="/fleet_commander/command/manage/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-plus me-1"></i>Add command</a>{% endif %}
     </div>
     <div class="rf-set-group">
         {% for command in command_list %}
@@ -37,7 +37,7 @@
     </div>
 
     {% if system_command_list %}
-    <div class="rf-set-title"><i class="fas fa-lock mr-1"></i>System commands</div>
+    <div class="rf-set-title"><i class="fas fa-lock me-1"></i>System commands</div>
     <div class="rf-set-group">
         {% for command in system_command_list %}
         <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">

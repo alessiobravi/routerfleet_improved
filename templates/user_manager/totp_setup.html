@@ -13,10 +13,10 @@
             <form method="post" class="form-inline" autocomplete="off">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="disable">
-                <input type="text" name="code" class="form-control mr-2" inputmode="numeric" maxlength="7"
+                <input type="text" name="code" class="form-control me-2" inputmode="numeric" maxlength="7"
                        autocomplete="one-time-code" placeholder="123456" required>
                 <button type="submit" class="btn btn-danger">Turn off</button>
-                <a href="/user/settings/" class="btn btn-outline-secondary ml-2">Back</a>
+                <a href="/user/settings/" class="btn btn-outline-secondary ms-2">Back</a>
             </form>
         {% else %}
             <div class="row">
@@ -34,10 +34,10 @@
                     <form method="post" class="form-inline" autocomplete="off">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="enable">
-                        <input type="text" name="code" class="form-control mr-2" inputmode="numeric" maxlength="7"
+                        <input type="text" name="code" class="form-control me-2" inputmode="numeric" maxlength="7"
                                autocomplete="one-time-code" placeholder="123456" autofocus required>
                         <button type="submit" class="btn btn-primary">Turn on</button>
-                        <a href="/user/settings/" class="btn btn-outline-secondary ml-2">Cancel</a>
+                        <a href="/user/settings/" class="btn btn-outline-secondary ms-2">Cancel</a>
                     </form>
                     <p class="small text-muted mt-3">Until a code is confirmed nothing changes: signing in keeps asking
                         for your password only.</p>

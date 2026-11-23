@@ -13,7 +13,7 @@
                         <div class="card-header">
                             <h3 class="card-title">{{ router.name }}
                             </h3>
-                            <span class="float-right">
+                            <span class="float-end">
                         <a href="/router/manage/?uuid={{ router.uuid }}" >
                             <i class="fas fa-edit"></i>
                         </a>
@@ -24,7 +24,7 @@
                                 <ul class="list-group list-group-unbordered mb-3">
                                     <li class="list-group-item">
                                         <b>Enabled</b>
-                                        <span class="float-right">
+                                        <span class="float-end">
                                     {% if router.enabled %}
                                         <i class="far fa-check-circle text-success" ></i>
                                     {% else %}
@@ -34,15 +34,15 @@
                                     </li>
                                     <li class="list-group-item">
                                         <b>Address</b>
-                                        <span class="float-right">{{ router.address }}</span>
+                                        <span class="float-end">{{ router.address }}</span>
                                     </li>
                                     {% if router.is_managed %}
                                         <li class="list-group-item">
                                             <b>SSH Host Key</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {% if host_key %}
                                                     <code title="{{ host_key.key_type }}, trusted since {{ host_key.first_seen }}">{{ host_key.fingerprint }}</code>
-                                                        <a href="#" title="Forget host key" onclick="if (confirm('Forget the stored host key? The key the device presents on the next connection will be trusted. Only do this after resetting or replacing the device.')) { postAction('/router/manage/?uuid={{ router.uuid }}', {action: 'forget_host_key'}); } return false;"><i class="fas fa-eraser"></i></a>
+                                                        <a href="#" title="Forget host key" data-rf-post="/router/manage/?uuid={{ router.uuid }}" data-rf-field-action="forget_host_key" data-rf-confirm="Forget the stored host key? The key the device presents on the next connection will be trusted. Only do this after resetting or replacing the device."><i class="fas fa-eraser"></i></a>
                                                 {% else %}
                                                     <span class="text-muted">trusted on the next connection</span>
                                                 {% endif %}
@@ -50,11 +50,11 @@
                                         </li>
                                         <li class="list-group-item">
                                             <b>username</b>
-                                            <span class="float-right">{{ router.username }}</span>
+                                            <span class="float-end">{{ router.username }}</span>
                                         </li>
                                         <li class="list-group-item">
                                             <b>Authentication</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                     {% if router.ssh_key %}
                                         <i class="fas fa-key"></i> SSH Key: {{ router.ssh_key }}
                                     {% elif router.password %}
@@ -67,7 +67,7 @@
                                     {% endif %}
                                     <li class="list-group-item">
                                         <b>Monitoring</b>
-                                        <span class="float-right">
+                                        <span class="float-end">
                                 {% if router.monitoring %}
                                     {% if router.routerstatus.status_online %}
                                         <i class="far fa-check-circle text-success" title="Host is Online"></i>
@@ -82,7 +82,7 @@
                                     {% if router.monitoring %}
                                         <li class="list-group-item">
                                             <b>Availability (last 7 days)</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                     <a href="/router/availability/?uuid={{ router.uuid }}">
                                     {{ last_week_availability }}%
                                     </a>
@@ -91,21 +91,21 @@
                                     {% endif %}
                                     <li class="list-group-item">
                                         <b>Router Type</b>
-                                        <span class="float-right">{{ router.get_router_type_display }}</span>
+                                        <span class="float-end">{{ router.get_router_type_display }}</span>
                                     </li>
 
                                     <li class="list-group-item">
                                         <b>Groups</b>
-                                        <span class="float-right">
+                                        <span class="float-end">
                                 {% for router_group in router.routergroup_set.all %}
-                                    <span class="badge badge-primary">{{ router_group.name }}</span>
+                                    <span class="badge text-bg-primary">{{ router_group.name }}</span>
                                 {% endfor %}
                                 </span>
                                     </li>
                                     {% if router.is_managed %}
                                         <li class="list-group-item">
                                             <b>Backup Profile</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                 {% if router.backup_profile %}
                                     {{ router.backup_profile }}
                                     {% if router.routerstatus.last_backup_failed %}
@@ -118,8 +118,8 @@
                                         </li>
                                         <li class="list-group-item">
                                             <b>Instant Backup</b>
-                                            <span class="float-right">
-                                    <a href="#" onclick="postAction('/router/create_instant_backup/?uuid={{ router.uuid }}'); return false;">
+                                            <span class="float-end">
+                                    <a href="#" data-rf-post="/router/create_instant_backup/?uuid={{ router.uuid }}">
                                         Backup now
                                     </a>
                                 </span>
@@ -127,7 +127,7 @@
                                     {% endif %}
                                     <li class="list-group-item">
                                         <b>Notes</b>
-                                        <span class="float-right">{{ router.internal_notes|default_if_none:""|linebreaksbr }}</span>
+                                        <span class="float-end">{{ router.internal_notes|default_if_none:""|linebreaksbr }}</span>
                                     </li>
                                 </ul>
                             </div>
@@ -140,84 +140,60 @@
                             <div class="card-header">
                                 <h3 class="card-title">Router Information
                                 </h3>
-                                <span class="float-right">
+                                <span class="float-end">
                                     {% if not router_information.success and not router_information.error %}
                                         <i class="far fa-clock" title="Fetching router information on next cron"></i>
 
                                     {% else %}
-                                        <a href="#" onclick="postAction('/router/manage/?uuid={{ router.uuid }}', {action: 'refresh_information'}); return false;"><i class="fas fa-sync"></i></a>
+                                        <a href="#" data-rf-post="/router/manage/?uuid={{ router.uuid }}" data-rf-field-action="refresh_information"><i class="fas fa-sync"></i></a>
                                     {% endif %}
                                     {% if can_execute_commands or can_edit_routers %}
-                                    <a href="#" class="ml-2" id="test-connection-stored" title="Test connection with the saved settings"><i class="fas fa-plug"></i></a>
+                                    <a href="#" class="ms-2" id="test-connection-stored" data-uuid="{{ router.uuid }}" title="Test connection with the saved settings"><i class="fas fa-plug"></i></a>
                                     {% endif %}
                                 </span>
                                 <div id="test-connection-stored-result" class="small" role="status" aria-live="polite"></div>
                             </div>
-                            <script>
-                            (function () {
-                                if (window.rfTestStoredBound) { return; }
-                                window.rfTestStoredBound = true;
-                                document.addEventListener('click', function (event) {
-                                    if (!event.target.closest('#test-connection-stored')) { return; }
-                                    event.preventDefault();
-                                    var result = document.getElementById('test-connection-stored-result');
-                                    var data = new FormData();
-                                    data.append('uuid', '{{ router.uuid }}');
-                                    data.append('stored', '1');
-                                    data.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-                                    result.className = 'small text-muted';
-                                    result.textContent = 'Connecting...';
-                                    fetch('/router/test_connection/', {method: 'POST', body: data, credentials: 'same-origin'})
-                                        .then(function (r) { return r.json(); })
-                                        .then(function (answer) {
-                                            result.className = 'small ' + (answer.success ? 'text-success' : 'text-danger');
-                                            result.textContent = answer.message;
-                                        })
-                                        .catch(function () { result.className = 'small text-danger'; result.textContent = 'The test could not be run.'; });
-                                });
-                            })();
-                            </script>
                             <div class="card-body row">
                                 <div class="col-lg-12">
                                     <ul class="list-group list-group-unbordered mb-3">
                                         <li class="list-group-item">
                                             <b>Model Name</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.model_name|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Version</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.model_version|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Serial</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.serial_number|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>OS Version</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.os_version|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Firmware Version</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.firmware_version|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Available Version</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {% if router_information.update_available %}
                                                     <span class="text-warning">{{ router_information.available_version }}
                                                         <i class="fas fa-arrow-up" title="Upgrade available"></i></span>
@@ -229,21 +205,21 @@
 
                                         <li class="list-group-item">
                                             <b>Architeture</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.architecture|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>CPU</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {{ router_information.cpu|default_if_none:"" }}
                                             </span>
                                         </li>
 
                                         <li class="list-group-item">
                                             <b>Last Update</b>
-                                            <span class="float-right">
+                                            <span class="float-end">
                                                 {% if router_information.success %}
                                                     {{ router_information.last_retrieval }}
                                                 {% elif router_information.error %}
@@ -257,12 +233,12 @@
                                         <li class="list-group-item">
                                             <div>
                                                 <b>Source Data</b>
-                                                <span class="float-right">
-                                        <a href="#" onclick="$('#router_information_json').slideToggle()">
+                                                <span class="float-end">
+                                        <a href="#" data-rf-toggle="#router_information_json">
                                             <i class="far fa-eye"></i></a>
                                     </span>
                                             </div>
-                                            <span id="router_information_json" style="display: none;">
+                                            <span id="router_information_json" class="d-none">
                                     {{ router_information.json_data|default_if_none:"" }}
                                 </span>
                                         </li>
@@ -282,13 +258,13 @@
                         <div class="card card-primary card-outline">
                             <div class="card-header">
                                 <h3 class="card-title">Backup history</h3>
-                                <span class="float-right">
+                                <span class="float-end">
                         {% if router.backupschedule %}
-                            <a onclick="$('.backup-schedule-information').slideToggle();" href="#">
+                            <a data-rf-toggle=".backup-schedule-information" href="#">
                             show schedule <i class="far fa-clock"></i>
                         </a>
                         {% else %}
-                            <a onclick="alert('There\'s no backup schedule for this equipment.');" href="#">
+                            <a data-rf-alert="There's no backup schedule for this equipment." href="#">
                             show schedule <i class="far fa-clock"></i>
                         </a>
                         {% endif %}
@@ -308,7 +284,7 @@
                                         </thead>
                                         <tbody>
                                         {% if router.backupschedule.next_daily_backup %}
-                                            <tr class="backup-schedule-information"  style="display: none;">
+                                            <tr class="backup-schedule-information d-none">
                                                 <td><i class="far fa-clock text-info"></i></td>
                                                 <td>Daily</td>
                                                 <td>{{ router.backupschedule.next_daily_backup }}</td>
@@ -317,7 +293,7 @@
                                             </tr>
                                         {% endif %}
                                         {% if router.backupschedule.next_weekly_backup %}
-                                            <tr class="backup-schedule-information"  style="display: none;">
+                                            <tr class="backup-schedule-information d-none">
                                                 <td><i class="far fa-clock text-info"></i></td>
                                                 <td>Weekly</td>
                                                 <td>{{ router.backupschedule.next_weekly_backup }}</td>
@@ -326,7 +302,7 @@
                                             </tr>
                                         {% endif %}
                                         {% if router.backupschedule.next_monthly_backup %}
-                                            <tr class="backup-schedule-information" style="display: none;">
+                                            <tr class="backup-schedule-information d-none">
                                                 <td><i class="far fa-clock text-info"></i></td>
                                                 <td>Monthly</td>
                                                 <td>{{ router.backupschedule.next_monthly_backup }}</td>
@@ -386,9 +362,9 @@
                         <div class="card card-primary card-outline">
                             <div class="card-header">
                                 <h3 class="card-title">Fleet Commander tasks</h3>
-                                <span class="float-right">Last 25 entries
+                                <span class="float-end">Last 25 entries
                                     {% if can_execute_commands %}
-                                    <a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="btn btn-sm btn-outline-primary ml-2"><i class="fas fa-terminal"></i> Execute command</a>
+                                    <a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="btn btn-sm btn-outline-primary ms-2"><i class="fas fa-terminal"></i> Execute command</a>
                                     {% endif %}
                                 </span>
                             </div>
@@ -412,16 +388,16 @@
                                                 </td>
                                                 <td>
                                                     {% if task.status == 'success' %}
-                                                        <span class="badge badge-success">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-success">{{ task.get_status_display }}</span>
                                                     {% elif task.status == 'error' %}
-                                                        <span class="badge badge-danger">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-danger">{{ task.get_status_display }}</span>
                                                     {% elif task.status == 'aborted' %}
-                                                        <span class="badge badge-secondary">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-secondary">{{ task.get_status_display }}</span>
                                                     {% else %}
-                                                        <span class="badge badge-warning">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-warning">{{ task.get_status_display }}</span>
                                                     {% endif %}
                                                     {% if task.verified %}
-                                                        <i class="fas fa-check-double text-success ml-1"
+                                                        <i class="fas fa-check-double text-success ms-1"
                                                            title="Result verified on the router"></i>
                                                     {% endif %}
                                                 </td>

@@ -2,11 +2,12 @@ name: CI
 
 # Every push to main is a release: tests, then images tagged with the version,
 # then a tag and a GitHub Release, then the untagged image versions earlier
-# builds left behind are removed. Pull requests only run the tests.
+# builds left behind are removed. Pull requests and pushes to a wave/ branch
+# run every check - stack, migration, vulnerability gates - and publish nothing.
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'wave/**']
   pull_request:
   workflow_dispatch:
 
@@ -174,6 +175,21 @@ jobs:
         run: |
           for FILE in docker-compose.yml docker-compose-no-postgres.yml docker-compose-dev.yml docker-compose-build.yml; do
             docker compose -f "${FILE}" config --quiet && echo "${FILE}: valid"
+          done
+
+      - name: A first installation starts without warnings
+        # What a new user does: copy .env.example and run compose. Compose
+        # warns about every variable it finds unset; any warning fails here.
+        run: |
+          WORK="$(mktemp -d)"
+          cp .env.example "${WORK}/.env"
+          for FILE in docker-compose.yml docker-compose-no-postgres.yml; do
+            cp "${FILE}" "${WORK}/"
+            OUTPUT="$(cd "${WORK}" && docker compose -f "${FILE}" config --quiet 2>&1)"
+            if [ -n "${OUTPUT}" ]; then
+              echo "${FILE}:"; echo "${OUTPUT}"; exit 1
+            fi
+            echo "${FILE}: no warnings"
           done
 
       - name: Build and start, waiting for the healthchecks
@@ -426,15 +442,18 @@ jobs:
       # fix, whatever its severity - the ones Debian has not fixed are reported
       # in the release notes instead. Medium and low findings never block a
       # release; they are listed in its notes.
+      - name: Build the PostgreSQL 16 image (compose files before 0.24, migration)
+        run: docker build -t routerfleet-dev/routerfleet-postgres:local -f containers/postgres/Dockerfile-postgres containers/postgres
+
       - name: Vulnerability gate - RouterFleet images
         run: |
-          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx; do
+          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres18; do
             trivy image --quiet --scanners vuln --severity CRITICAL,HIGH --exit-code 1 \
               "routerfleet-dev/${IMAGE}:local"
             echo "routerfleet-dev/${IMAGE}:local: no critical or high vulnerability"
           done
 
-      - name: Vulnerability gate - database image
+      - name: Vulnerability gate - PostgreSQL 16 image
         run: |
           trivy image --quiet --scanners vuln --ignore-unfixed --exit-code 1 \
             routerfleet-dev/routerfleet-postgres:local
@@ -452,7 +471,7 @@ jobs:
         run: |
           {
             echo "## Vulnerabilities, all severities"
-            for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres; do
+            for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres18 routerfleet-postgres; do
               echo "### ${IMAGE}"
               echo '```'
               trivy image --quiet --scanners vuln --format table "routerfleet-dev/${IMAGE}:local" || true
@@ -468,9 +487,99 @@ jobs:
         if: always()
         run: docker compose -f docker-compose-dev.yml down -v
 
+  # An installation of an earlier release - PostgreSQL 16, real data - moved to
+  # PostgreSQL 18 by scripts/migrate-database.sh, then RouterFleet started on it
+  migration:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Environment
+        run: |
+          {
+            echo "SERVER_ADDRESS=localhost"
+            echo "DEBUG_MODE=False"
+            echo "TIMEZONE=Etc/UTC"
+            echo "DATABASE_ENGINE=postgres"
+            echo "POSTGRES_DB=routerfleet"
+            echo "POSTGRES_USER=routerfleet"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "HTTPS_REDIRECT_POLICY=always"
+          } > .env
+
+      - name: Build the images
+        run: |
+          docker compose -f docker-compose-dev.yml build
+          docker build -t routerfleet-dev/routerfleet-postgres:local -f containers/postgres/Dockerfile-postgres containers/postgres
+
+      - name: A PostgreSQL 16 database of an earlier release, with data
+        run: |
+          set -eu
+          set -a; . ./.env; set +a
+          PROJECT="$(docker compose -f docker-compose-dev.yml config --format json | jq -r .name)"
+          docker network create rf-old
+          docker run -d --name old-db --network rf-old -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
+            -v "${PROJECT}_postgres_data:/var/lib/postgresql/data" routerfleet-dev/routerfleet-postgres:local
+          for _ in $(seq 1 60); do docker exec old-db pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" && break; sleep 2; done
+          docker run --rm --network rf-old -e SERVER_ADDRESS=localhost -e DEBUG_MODE=False -e DATABASE_ENGINE=postgres \
+            -e POSTGRES_HOST=old-db -e POSTGRES_PORT=5432 -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
+            -e COMPOSE_VERSION=08a -e COMPOSE_TYPE=no-postgres -v "${PROJECT}_app_secrets:/app_secrets" \
+            routerfleet-dev/routerfleet:local bash -c 'python manage.py migrate --noinput && python manage.py shell -c "
+          from router_manager.models import Router
+          from backup_data.models import RouterBackup
+          from django.contrib.auth.models import User
+          router = Router.objects.create(name=\"migration-check\", address=\"192.0.2.77\", router_type=\"routeros\", password=\"Secret-77\")
+          RouterBackup.objects.create(router=router, schedule_type=\"instant\", success=True, backup_text=\"/system identity\\nset name=città-ü-ß\\n\")
+          User.objects.create_user(\"migration-user\", password=\"Not-used-in-ci-77\")
+          print(\"seeded\")"'
+          docker rm -f old-db
+          docker network rm rf-old
+
+      - name: The new database refuses to start empty beside the old one
+        run: |
+          docker compose -f docker-compose-dev.yml up -d --no-deps routerfleet-postgres
+          sleep 8
+          docker logs routerfleet-postgres 2>&1 | tee guard.log
+          grep -q "still to be moved to PostgreSQL 18" guard.log
+          test "$(docker inspect -f '{{.State.Running}}' routerfleet-postgres)" != "true" \
+            || [ "$(docker inspect -f '{{.RestartCount}}' routerfleet-postgres)" -gt 0 ]
+          docker compose -f docker-compose-dev.yml rm -sf routerfleet-postgres
+
+      - name: Migrate with the script
+        env:
+          RF_LEGACY_IMAGE: routerfleet-dev/routerfleet-postgres:local
+        run: ./scripts/migrate-database.sh -f docker-compose-dev.yml
+
+      - name: RouterFleet runs on PostgreSQL 18 with every row
+        run: |
+          set -eu
+          docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300
+          docker exec routerfleet python manage.py shell -c "
+          from django.db import connection
+          from router_manager.models import Router
+          from backup_data.models import RouterBackup
+          router = Router.objects.get(name='migration-check')
+          assert router.password == 'Secret-77', 'the encrypted password reads back'
+          assert 'città-ü-ß' in RouterBackup.objects.get(router=router).backup_text, 'text with accents intact'
+          with connection.cursor() as cursor:
+              cursor.execute('SHOW server_version_num')
+              assert int(cursor.fetchone()[0]) >= 180000, 'PostgreSQL 18'
+              cursor.execute('SELECT datlocprovider FROM pg_database WHERE datname = current_database()')
+              assert cursor.fetchone()[0] == 'b', 'built-in ordering'
+          print('migrated database verified')"
+          ls routerfleet-pg16-*.dump
+
+      - name: Logs
+        if: always()
+        run: docker compose -f docker-compose-dev.yml ps -a && docker compose -f docker-compose-dev.yml logs --tail 60
+
   images:
-    needs: [test, test-postgres, stack]
-    if: github.event_name != 'pull_request'
+    needs: [test, test-postgres, stack, migration]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -496,6 +605,10 @@ jobs:
             context: ./containers/nginx
             file: ./containers/nginx/Dockerfile-nginx
             title: RouterFleet Improved web server
+          - image: routerfleet-postgres18
+            context: ./containers/postgres18
+            file: ./containers/postgres18/Dockerfile-postgres18
+            title: RouterFleet Improved database (PostgreSQL 18)
           - image: routerfleet-postgres
             context: ./containers/postgres
             file: ./containers/postgres/Dockerfile-postgres
@@ -569,7 +682,7 @@ jobs:
 
   release:
     needs: [test, images]
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -586,7 +699,7 @@ jobs:
         env:
           VERSION: ${{ needs.test.outputs.version }}
         run: |
-          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres; do
+          for IMAGE in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres18 routerfleet-postgres; do
             trivy image --quiet --scanners vuln --image-src remote --platform linux/amd64 \
               --format json --output "scan-${IMAGE}.json" "ghcr.io/alessiobravi/${IMAGE}:${VERSION}"
           done
@@ -600,7 +713,8 @@ jobs:
           {
             echo
             python scripts/cve_report.py "${TRIVY_VERSION}" scan-routerfleet.json scan-routerfleet-cron.json \
-              scan-routerfleet-monitoring.json scan-routerfleet-nginx.json scan-routerfleet-postgres.json
+              scan-routerfleet-monitoring.json scan-routerfleet-nginx.json scan-routerfleet-postgres18.json \
+              scan-routerfleet-postgres.json
           } >> release-notes.md
           gh release create "v${VERSION}" --target "${GITHUB_SHA}" \
             --title "$(python scripts/version.py title)" --notes-file release-notes.md
@@ -627,14 +741,15 @@ jobs:
 
   cleanup:
     needs: [test, images]
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     strategy:
       matrix:
-        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-postgres]
+        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-postgres18,
+                routerfleet-postgres]
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

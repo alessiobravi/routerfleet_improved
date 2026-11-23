@@ -19,10 +19,9 @@
                 {% endif %}
                 <form method="post">
                     {% csrf_token %}
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label for="payload">{% if command.system_key == 'backup_download' %}Files to download, one path per line{% else %}Commands, one per line{% endif %}</label>
-                        <textarea class="form-control" id="payload" name="payload" rows="8" spellcheck="false"
-                                  style="font-family: monospace;">{{ payload }}</textarea>
+                        <textarea class="form-control font-monospace" id="payload" name="payload" rows="8" spellcheck="false">{{ payload }}</textarea>
                         <small class="text-muted">
                             {% if definition.placeholders %}Placeholders: {% for name in definition.placeholders %}<code>{% templatetag openvariable %} {{ name }} {% templatetag closevariable %}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.{% else %}No placeholders.{% endif %}
                             {% if not definition.required %} Empty: nothing is run for this device type.{% endif %}
@@ -39,9 +38,9 @@
     </div>
     <div class="col-lg-4">
         <div class="card card-outline card-secondary">
-            <div class="card-header"><h3 class="card-title">Default {% if is_default %}<span class="badge badge-success ml-1">in use</span>{% else %}<span class="badge badge-warning ml-1">edited</span>{% endif %}</h3></div>
+            <div class="card-header"><h3 class="card-title">Default {% if is_default %}<span class="badge text-bg-success ms-1">in use</span>{% else %}<span class="badge text-bg-warning ms-1">edited</span>{% endif %}</h3></div>
             <div class="card-body p-0">
-                <pre class="m-0 p-3" style="white-space: pre-wrap; word-break: break-word;">{{ default_payload|default:"(nothing)" }}</pre>
+                <pre class="m-0 p-3 rf-pre-wrap">{{ default_payload|default:"(nothing)" }}</pre>
             </div>
         </div>
     </div>

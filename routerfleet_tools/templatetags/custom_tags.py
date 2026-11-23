@@ -67,3 +67,15 @@ def startswith(value, prefix):
     """The menu marks the section a page belongs to by the START of its address:
     /fleet_commander/router/execute/ is Fleet Commander, not Router Manager."""
     return str(value or '').startswith(str(prefix))
+
+
+@register.simple_tag
+def page_messages(messages, form=None):
+    """The messages queued for the page and the errors of a form that was not
+    saved, as plain data for notify.js (template_messages.html)."""
+    queued = [[message.tags or 'info', str(message)] for message in (messages or [])]
+    errors = []
+    if form is not None and getattr(form, 'errors', None):
+        for field_errors in form.errors.values():
+            errors.extend(str(error) for error in field_errors)
+    return {'messages': queued, 'errors': errors}

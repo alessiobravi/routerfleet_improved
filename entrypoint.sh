@@ -3,7 +3,9 @@ PRODUCTION_SETTINGS_FILE="/app/routerfleet/production_settings.py"
 
 set -e
 
-if [[ "$COMPOSE_VERSION" != "08a" ]]; then
+# 09a: PostgreSQL 18 (0.24); 08a: the compose files before it, still valid -
+# their PostgreSQL 16 image keeps being published until they move
+if [[ "$COMPOSE_VERSION" != "09a" && "$COMPOSE_VERSION" != "08a" ]]; then
     echo "ERROR: Please upgrade your docker compose file. Exiting."
     exit 1
 fi

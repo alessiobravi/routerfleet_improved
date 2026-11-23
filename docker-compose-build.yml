@@ -23,6 +23,13 @@ services:
       dockerfile: Dockerfile-nginx
 
   routerfleet-postgres:
+    image: ghcr.io/alessiobravi/routerfleet-postgres18:latest
+    build:
+      context: ./containers/postgres18
+      dockerfile: Dockerfile-postgres18
+
+  # The PostgreSQL 16 image, still published for compose files from before 0.24
+  routerfleet-postgres16:
     image: ghcr.io/alessiobravi/routerfleet-postgres:latest
     build:
       context: ./containers/postgres

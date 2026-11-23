@@ -25,20 +25,15 @@
 
   function showPill(state) {
     if (!pill) {
-      var style = document.createElement('style');
-      style.textContent =
-        '#rf-live-pill{position:fixed;right:16px;bottom:16px;z-index:1900;display:flex;align-items:center;gap:8px;' +
-        'background:#1f3a5f;color:#fff;font-size:.8rem;font-weight:600;padding:6px 12px;border-radius:999px;' +
-        'box-shadow:0 6px 18px rgba(15,34,56,.3)}' +
-        '#rf-live-pill .rf-dot{width:8px;height:8px;border-radius:50%;background:#14a89a;animation:rf-pulse 1.4s ease-in-out infinite}' +
-        '#rf-live-pill.rf-paused .rf-dot{background:#f2a93b;animation:none}' +
-        '@keyframes rf-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}' +
-        '@media (prefers-reduced-motion:reduce){#rf-live-pill .rf-dot{animation:none}}';
-      document.head.appendChild(style);
       pill = document.createElement('div');
       pill.id = 'rf-live-pill';
       pill.setAttribute('role', 'status');
-      pill.innerHTML = '<span class="rf-dot" aria-hidden="true"></span><span class="rf-label"></span>';
+      var dot = document.createElement('span');
+      dot.className = 'rf-dot';
+      dot.setAttribute('aria-hidden', 'true');
+      var label = document.createElement('span');
+      label.className = 'rf-label';
+      pill.append(dot, label);
       document.body.appendChild(pill);
     }
     if (!state) { pill.remove(); pill = null; return; }

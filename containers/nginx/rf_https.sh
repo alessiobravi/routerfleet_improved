@@ -5,6 +5,7 @@
 #   rf_https.sh apply    render, test and (if nginx runs) reload - once
 #   rf_https.sh watch    apply whenever the settings or certificates change;
 #                        obtain and renew Let's Encrypt certificates
+#   rf_https.sh render   print the configuration of the current mode
 #
 # The settings file is data. Every value is checked again here before it
 # reaches the configuration, and a configuration nginx refuses is never kept:
@@ -27,6 +28,18 @@ valid_email() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.
 valid_net() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$|^[0-9A-Fa-f:]+(/[0-9]{1,3})?$'; }
 
 state() { [ -f "$STATE" ] && jq -r "$1 // empty" "$STATE" 2>/dev/null; }
+
+# The HTTPS port the host publishes (HTTPS_PORT in .env, 443 by default): an
+# HTTP request is redirected to it. Inside the container nginx always listens
+# on 80 and 443. Prints ":8443", or nothing for 443 or a value that is not a port.
+https_port_suffix() {
+    port=${HTTPS_PORT:-443}
+    if ! printf '%s' "$port" | grep -Eq '^[0-9]{1,5}$' || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        log "HTTPS_PORT is not a port: $port - redirecting to 443" >&2
+        port=443
+    fi
+    [ "$port" = "443" ] || printf ':%s' "$port"
+}
 
 mode() {
     # The emergency override in .env wins over System settings
@@ -60,7 +73,7 @@ locations() {
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host \$host;
+        proxy_set_header Host \$http_host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $1;
         proxy_read_timeout 4h;
@@ -76,7 +89,7 @@ locations() {
         proxy_read_timeout 30m;
         proxy_send_timeout 30m;
         proxy_pass http://routerfleet:8001;
-        proxy_set_header Host \$host;
+        proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $1;
@@ -84,7 +97,7 @@ locations() {
 
     location / {
         proxy_pass http://routerfleet:8001;
-        proxy_set_header Host \$host;
+        proxy_set_header Host \$http_host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         # Set here, never passed through from the client
@@ -102,7 +115,7 @@ server {
         root $ACME_ROOT;
     }
     location / {
-        return 301 https://\$host\$request_uri;
+        return 301 https://\$host$(https_port_suffix)\$request_uri;
     }
 }
 
@@ -136,7 +149,9 @@ render() {  # writes the configuration for the current mode to stdout
             if [ "$HTTPS_REDIRECT_POLICY" = "never" ]; then
                 cat "$TEMPLATES/virtualhost_noredirect.conf.disabled"
             else
-                cat "$TEMPLATES/virtualhost.conf.disabled"
+                # The redirect goes to the published HTTPS port
+                sed "s|https://\$host\$request_uri|https://\$host$(https_port_suffix)\$request_uri|" \
+                    "$TEMPLATES/virtualhost.conf.disabled"
             fi
             ;;
         selfsigned)
@@ -330,8 +345,12 @@ case "$1" in
             last=$(signature)
         done
         ;;
+    render)
+        # The configuration of the current mode, printed - nothing applied
+        render
+        ;;
     *)
-        echo "usage: rf_https.sh apply|watch" >&2
+        echo "usage: rf_https.sh apply|watch|render" >&2
         exit 2
         ;;
 esac

@@ -19,7 +19,7 @@
                     <li><b>Trusted by browsers:</b> {% if proposal.certificate.trusted %}yes{% else %}no - browsers will warn, passkeys will not work{% endif %}</li>
                 </ul>
                 {% endif %}
-                <h6>Passkeys after the change {% if passkeys_ok %}<span class="badge badge-success">will work</span>{% else %}<span class="badge badge-warning">will not work</span>{% endif %}</h6>
+                <h6>Passkeys after the change {% if passkeys_ok %}<span class="badge text-bg-success">will work</span>{% else %}<span class="badge text-bg-warning">will not work</span>{% endif %}</h6>
                 <ul class="list-unstyled">
                     {% for label, ok in requirements %}
                     <li>{% if ok is True %}<i class="fas fa-check-circle text-success"></i>{% elif ok is False %}<i class="fas fa-times-circle text-danger"></i>{% else %}<i class="fas fa-question-circle text-muted"></i>{% endif %} {{ label }}</li>
@@ -30,8 +30,8 @@
 
                 {% if needs_sum %}
                 <div class="text-center mt-3">
-                    <button type="button" class="btn btn-danger btn-lg" data-toggle="modal" data-target="#confirmHttps"><i class="fas fa-unlock"></i> Switch HTTPS off</button>
-                    <a href="/system/https/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+                    <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#confirmHttps"><i class="fas fa-unlock"></i> Switch HTTPS off</button>
+                    <a href="/system/https/" class="btn btn-secondary btn-lg ms-2">Cancel</a>
                 </div>
                 <div class="modal fade" id="confirmHttps" tabindex="-1" role="dialog" aria-labelledby="confirmHttpsTitle" aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered" role="document">
@@ -39,14 +39,14 @@
                             {% csrf_token %}
                             <input type="hidden" name="action" value="apply"><input type="hidden" name="token" value="{{ token }}">
                             <div class="modal-header bg-danger"><h5 class="modal-title" id="confirmHttpsTitle"><i class="fas fa-exclamation-triangle"></i> Switch HTTPS off</h5>
-                                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+                                <button type="button" class="close text-white" data-bs-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
                             <div class="modal-body">
                                 <p>RouterFleet will stop encrypting the connection itself. To confirm that you read the warnings, solve:</p>
                                 <p class="h3 text-center my-3"><strong>{{ first }} + {{ second }} = ?</strong></p>
                                 <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control form-control-lg text-center" name="answer" autocomplete="off" required aria-label="Result of {{ first }} plus {{ second }}">
                                 <small class="text-muted">One attempt: a wrong result cancels the change.</small>
                             </div>
-                            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                 <button type="submit" class="btn btn-danger"><i class="fas fa-check"></i> Apply</button></div>
                         </form>
                     </div>
@@ -56,7 +56,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="apply"><input type="hidden" name="token" value="{{ token }}">
                     <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-check"></i> Apply</button>
-                    <a href="/system/https/" class="btn btn-secondary btn-lg ml-2">Cancel</a>
+                    <a href="/system/https/" class="btn btn-secondary btn-lg ms-2">Cancel</a>
                 </form>
                 {% endif %}
             </div>

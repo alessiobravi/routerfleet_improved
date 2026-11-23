@@ -13,11 +13,11 @@
         {% for target in targets %}
         <div class="rf-set-row">
             <span class="rf-set-icon {% if target.state == 'done' %}teal{% elif target.state == 'failed' %}red{% elif target.state == 'waiting' or target.state == 'skipped' %}grey{% else %}blue{% endif %}"><i class="fas {% if target.state == 'done' %}fa-check{% elif target.state == 'failed' %}fa-times{% elif target.state == 'waiting' or target.state == 'skipped' %}fa-pause{% else %}fa-sync-alt fa-spin{% endif %}"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block"><a href="/router/details/?uuid={{ target.router.uuid }}">{{ target.router.name }}</a>{% if target.canary %} <span class="badge badge-info">first</span>{% endif %} · {{ target.get_state_display }}</span>
+            <span class="rf-set-text"><span class="rf-set-label d-block"><a href="/router/details/?uuid={{ target.router.uuid }}">{{ target.router.name }}</a>{% if target.canary %} <span class="badge text-bg-info">first</span>{% endif %} · {{ target.get_state_display }}</span>
                 <span class="rf-set-sub d-block">{% if target.from_version %}from {{ target.from_version }} · {% endif %}{{ target.message }}{% if target.backup %} · <a href="/backup/backup_details/?uuid={{ target.backup.uuid }}">pre-update backup</a>{% endif %}</span></span>
         </div>
         {% endfor %}
     </div>
-    {% if rollout.active %}<div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" onclick="var c = rfConfirm('Abort this rollout? Devices not started are skipped; a device already installing finishes on its own.', 'abort'); if (c) { postAction(window.location.pathname + window.location.search, {action: 'abort', confirmation: c}); }">Abort</button></div>{% endif %}
+    {% if rollout.active %}<div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" data-rf-post="" data-rf-field-action="abort" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this rollout? Devices not started are skipped; a device already installing finishes on its own.">Abort</button></div>{% endif %}
 </div>
 {% endblock %}

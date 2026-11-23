@@ -322,9 +322,9 @@ published, and a release that fails the scan is not published.
 
 ```mermaid
 flowchart LR
-    build["CI builds the five images<br/>and boots the stack"] --> own{"RouterFleet images:<br/>any critical or high?"}
+    build["CI builds the images<br/>and boots the stack"] --> own{"RouterFleet and PostgreSQL 18 images:<br/>any critical or high?"}
     own -->|yes| stop["Release blocked"]
-    own -->|no| db{"Database image:<br/>any CVE with a fix?"}
+    own -->|no| db{"PostgreSQL 16 image:<br/>any CVE with a fix?"}
     db -->|yes| stop
     db -->|no| repo{"Repository:<br/>critical/high in dependencies,<br/>or a committed secret?"}
     repo -->|yes| stop
@@ -334,7 +334,8 @@ flowchart LR
 | What | Blocks a release | Reported in the release notes |
 |---|---|---|
 | The application, scheduler, monitoring and nginx images | any critical or high vulnerability, with or without a fix | medium and low |
-| The database image | any vulnerability with a published fix | those its distribution has not fixed yet |
+| The PostgreSQL 18 database image | any critical or high vulnerability, with or without a fix | medium and low |
+| The PostgreSQL 16 image (compose files before 0.24) | any vulnerability with a published fix | those its distribution has not fixed yet |
 | Python dependencies and bundled browser libraries | any critical or high vulnerability | — |
 | The repository | any committed secret (tokens, keys) | — |
 
@@ -343,7 +344,7 @@ How the images stay clean:
 - **They are rebuilt for every release with every available update installed**
   (`apk upgrade` / `apt-get upgrade`), so a release never ships a vulnerability
   whose fix was already published.
-- **`gosu` in the database image is built from source** - a pinned release
+- **`gosu` in the PostgreSQL 16 image is built from source** - a pinned release
   with the current Go and current libraries - rather than shipping the
   published binary that bundles vulnerable ones.
 - **The four RouterFleet images are based on Alpine Linux.** On Alpine every
@@ -351,16 +352,13 @@ How the images stay clean:
   They carry nothing the application does not use: no editors, no network
   tools, and no `pip` after the dependencies are installed — the tools that
   were in them before brought most of the findings.
-- **The database image stays on Debian** — the official `postgres:16` with all
-  updates — because PostgreSQL's text ordering comes from the C library. Moving
-  an existing database to an image with a different C library would leave its
-  indexes ordered the old way and silently wrong; staying on Debian keeps every
-  upgrade in place. The official image's `gosu` is rebuilt from source with the
-  current Go, which removes the vulnerabilities its old Go runtime carried.
-  Debian publishes fixes on its own schedule, which is why the database image is
-  held to "nothing with a fix" and lists the rest. The GnuPG tools the official
-  image keeps after verifying its packages are removed: PostgreSQL never uses
-  them, and they brought findings of their own.
+- **The database image is PostgreSQL 18 on Alpine** with every update, held to
+  the same rule as RouterFleet's own images: no critical or high
+  vulnerability. Its databases use PostgreSQL's built-in `C.UTF-8` ordering, so
+  text ordering never depends on the C library. Installations from before 0.24
+  keep the Debian-based PostgreSQL 16 image - still published, held to "nothing
+  with a fix" - until they migrate by export and re-import
+  ([Upgrading](upgrading.md#moving-to-postgresql-18)).
 - **Browser libraries** are listed with their exact versions in
   `third_party/browser-libraries/` so the scan can check them; a test keeps that
   list equal to the files actually served. Only the files pages load are
@@ -380,7 +378,8 @@ scanning**.
 
 ## Transport
 
-nginx terminates TLS and redirects port 80 to 443. It does not announce its
+nginx terminates TLS and redirects HTTP to HTTPS (to `HTTPS_PORT`, 443 by
+default). It does not announce its
 version.
 
 ### Response headers
@@ -389,6 +388,25 @@ Django sends, on every page it renders: `X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY` (no page can be framed by another site),
 `Referrer-Policy: same-origin` and `Cross-Origin-Opener-Policy: same-origin`.
 nginx adds the first and third to the static files it serves itself.
+
+**Content-Security-Policy.** Every page carries a strict policy: scripts,
+styles, fonts and data come from the installation itself, and no page carries an
+inline script, inline handler (`onclick="..."`) or inline style. A `<script>` or
+`onerror="..."` that ever got past the escaping of the templates would not run.
+
+```
+default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;
+font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';
+form-action 'self'; frame-ancestors 'none'
+```
+
+`data:` images are Bootstrap's own: the arrow of a select and the knob of a
+switch, drawn in its stylesheet. One page has one exception: the **device
+console** allows inline `<style>` elements (`style-src-elem 'unsafe-inline'`),
+because xterm.js draws the terminal with style elements of its own and offers
+no way to mark them. Scripts and style attributes stay strict there too. A test
+fails if a template, or markup built in Python, ever carries inline code again.
+Every page was opened in a browser with the policy enforced, with no violation.
 
 **HSTS is deliberately not sent.** With the self-signed certificate an
 installation starts with, a browser that has seen HSTS refuses to let the user
@@ -466,6 +484,9 @@ internet access:
   release 3.006R, unmodified, under the SIL Open Font License 1.1;
 - **Chart.js 4.6.1** (MIT), used by the status page, is bundled under
   `static/vendor/`, pinned to that version;
-- the AdminLTE theme and its plugins were already bundled.
+- the interface - **AdminLTE 4** on **Bootstrap 5.3**, DataTables, Tom Select,
+  Font Awesome - is bundled under `static/vendor/`, each library the file of its
+  npm release, checked against the registry's SHA-512 when it was added. There
+  is no jQuery.
 
 The test suite fails if a template ever references an external host again.

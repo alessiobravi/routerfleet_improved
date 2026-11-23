@@ -19,12 +19,12 @@
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Group status changes</div>
                 <div class="rf-set-sub">Devices going offline and online within the delay below go into one message; a device that is back before the delay ends sends nothing.</div></div>
-                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="id_concatenate_status_change" name="concatenate_status_change" {% if form.concatenate_status_change.value %}checked{% endif %}><label class="custom-control-label" for="id_concatenate_status_change"><span class="sr-only">Group status changes</span></label></div></div>
+                <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="id_concatenate_status_change" name="concatenate_status_change" {% if form.concatenate_status_change.value %}checked{% endif %}><label class="form-check-label" for="id_concatenate_status_change"><span class="visually-hidden">Group status changes</span></label></div></div>
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_status_change_delay">Status change delay (seconds)</label>
                 <input type="number" class="form-control" id="id_status_change_delay" name="status_change_delay" min="0" required value="{{ form.status_change_delay.value|default_if_none:'' }}"></div></div>
             <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Group failed backups</div>
                 <div class="rf-set-sub">Failures within the delay below go into one message instead of one each.</div></div>
-                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="id_concatenate_backup_fails" name="concatenate_backup_fails" {% if form.concatenate_backup_fails.value %}checked{% endif %}><label class="custom-control-label" for="id_concatenate_backup_fails"><span class="sr-only">Group failed backups</span></label></div></div>
+                <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="id_concatenate_backup_fails" name="concatenate_backup_fails" {% if form.concatenate_backup_fails.value %}checked{% endif %}><label class="form-check-label" for="id_concatenate_backup_fails"><span class="visually-hidden">Group failed backups</span></label></div></div>
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_backup_fails_delay">Failed backup delay (seconds)</label>
                 <input type="number" class="form-control" id="id_backup_fails_delay" name="backup_fails_delay" min="0" required value="{{ form.backup_fails_delay.value|default_if_none:'' }}"></div></div>
         </div>
@@ -40,7 +40,7 @@
                 <input type="number" class="form-control" id="id_retry_interval" name="retry_interval" min="0" required value="{{ form.retry_interval.value|default_if_none:'' }}"></div></div>
         </div>
         <div class="text-center mt-4"><button type="submit" class="btn btn-primary btn-lg">Save</button>
-            <a href="/system/notifications/" class="btn btn-secondary btn-lg ml-2">Cancel</a></div>
+            <a href="/system/notifications/" class="btn btn-secondary btn-lg ms-2">Cancel</a></div>
     </form>
 </div>
 {% endblock %}
