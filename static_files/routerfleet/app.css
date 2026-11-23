@@ -396,3 +396,13 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 #rf-live-pill.rf-paused .rf-dot { background: #f2a93b; animation: none; }
 @keyframes rf-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 @media (prefers-reduced-motion: reduce) { #rf-live-pill .rf-dot { animation: none; } }
+
+/* Source data of a device (router details): each command, then its output -
+   real line breaks, scrollable both ways */
+.rf-source { margin-top: .6rem; max-height: 28rem; overflow: auto; border: 1px solid var(--rf-line);
+    border-radius: 8px; background: var(--rf-hover); padding: .5rem .75rem; }
+.rf-source-cmd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 700;
+    color: var(--rf-heading); margin-top: .5rem; }
+.rf-source-cmd::before { content: '> '; color: var(--rf-muted); }
+.rf-source-cmd:first-child { margin-top: 0; }
+.rf-source-out { font-size: 12px; margin: .15rem 0 .4rem; white-space: pre; overflow: visible; color: var(--rf-text); }

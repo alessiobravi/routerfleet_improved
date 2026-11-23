@@ -60,8 +60,10 @@ The page updates itself while a backup, a command or an information read runs.
 ## Inventory
 
 RouterFleet reads each device and stores model, serial number, OS version,
-firmware version, architecture and CPU, plus the raw command output as JSON for
-reference. What it sends is the [system
+firmware version, architecture and CPU, plus the raw output of every command
+for reference - *Source data* on the device page, each command with its output,
+scrollable. A value the device does not report shows as *not reported by the
+device* (RouterOS on x86 or CHR has no model, serial or firmware). What it sends is the [system
 command](fleet-commander.md#system-commands) *inventory and versions*; where
 each field is found in its output is set by the [device
 type](device-types.md#inventory-sources) - `key: value` lines or patterns.
@@ -214,6 +216,14 @@ Devices that cannot offer an action stay plain text: a monitoring device, a
 device with no username for SSH, anything that is not RouterOS for Winbox.
 **Passwords are never part of a link.**
 
+### Quick actions
+
+The last column holds what is done to one device: **Edit**, **Back up now**
+(an instant backup; level 20, enabled devices - one without a backup profile
+says so; the list stays where it was), **Console** and **Execute command** where the user's level
+allows them, and an amber arrow when an update is available. The icons keep
+their places on every row.
+
 ### Export and selection
 
 **Select All** selects what the search currently shows, not every device in the
@@ -235,6 +245,7 @@ Select devices in the list and act on all of them:
 | Take an instant backup | 20 — Backup Operator |
 | Refresh inventory | 30 — Host Manager |
 | Edit | 30 — Host Manager |
+| Enable / Disable | 30 — Host Manager |
 
 **Edit** changes port, username, password, SSH key, backup profile, monitoring,
 enabled state and internal notes for every selected device at once. **A blank
@@ -243,6 +254,12 @@ field leaves the current value alone.**
 The selection is handed over in a POST request and held in the session rather
 than passed in the URL, so editing several hundred devices does not overflow the
 URL length limit. Groups and Run Command use the same mechanism.
+
+**Disable** asks first. A disabled device is neither backed up nor monitored: the
+monitoring loop skips it, a status report still on its way is ignored, and an
+outage that was open ends when it is disabled - so it does not count as
+downtime. Switching monitoring off for a device does the same. **Enable** brings
+both back; the change log records each change and its time.
 
 ## Groups
 

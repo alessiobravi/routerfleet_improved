@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import OuterRef, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
@@ -128,6 +129,8 @@ def view_router_list(request):
         'address_link': UserAcl.objects.filter(user=request.user).values_list('address_link', flat=True).first() or 'none',
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
         'can_open_console': UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists(),
+        'can_backup': UserAcl.objects.filter(user=request.user, user_level__gte=20).exists(),
+        'can_edit': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
     }
     return render(request, 'router_manager/router_list.html', context=context)
 
@@ -446,8 +449,13 @@ def view_create_instant_backup_task(request):
     if error:
         messages.warning(request, f'Backup task not created | {error}')
     else:
-        messages.success(request, 'Backup task created successfully')
+        messages.success(request, f'Backup task created | {router.name}')
 
+    # Back where the button was - the router list's quick action - but only to
+    # a page of this site
+    back = request.POST.get('next', '')
+    if back.startswith('/router/list/') and url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()}):
+        return redirect(back)
     return redirect(router_details_url)
 
 
@@ -470,6 +478,29 @@ def view_create_instant_backup_multiple_routers(request):
         return JsonResponse({'results': results})
 
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+
+@login_required
+def view_enable_routers_multiple(request):
+    """Enable or disable the selected routers. A disabled router is neither
+    backed up nor monitored; Router.save closes its open outage."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid request method.'}, status=405)
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=30).exists():
+        return JsonResponse({'error': 'Permission denied.'}, status=403)
+    action = request.POST.get('action')
+    if action not in ('enable', 'disable'):
+        return JsonResponse({'error': 'Unknown action.'}, status=400)
+    uuids = request.POST.getlist('routers[]')
+    if not uuids:
+        return JsonResponse({'error': 'No routers selected.'}, status=400)
+    enabled = action == 'enable'
+    changed = 0
+    for router in Router.objects.filter(uuid__in=uuids).exclude(enabled=enabled):
+        router.enabled = enabled
+        router.save(update_fields=['enabled', 'updated'])   # records the change and its time
+        changed += 1
+    return JsonResponse({'changed': changed, 'enabled': enabled})
 
 
 @login_required

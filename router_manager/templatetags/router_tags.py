@@ -153,3 +153,25 @@ def device_links(router):
     """The management links of a device's type: [(label, url)]."""
     from router_manager.device_types import links_for
     return links_for(router)
+
+
+@register.filter
+def source_sections(json_data):
+    """The raw output the inventory read, as [(command, output)] with real
+    line breaks: stored as JSON {command: output}, which shows \\r\\n literally.
+    Text that is not that JSON comes back as one section without a command."""
+    import json
+    if not json_data:
+        return []
+    try:
+        data = json.loads(json_data)
+    except (TypeError, ValueError):
+        return [('', str(json_data))]
+    if not isinstance(data, dict):
+        return [('', json.dumps(data, indent=2))]
+    sections = []
+    for command, output in data.items():
+        text = output if isinstance(output, str) else json.dumps(output, indent=2)
+        text = text.replace('\r\n', '\n').replace('\r', '\n').strip('\n')
+        sections.append((str(command), text))
+    return sections

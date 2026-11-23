@@ -13,6 +13,24 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.25.0] - 2026-11-23
+
+### Added
+- **Quick actions** in the router list: the column has a name, and **Back up
+  now** starts an instant backup of that device without leaving the list.
+- **Enable / Disable the selected hosts** in the router list (level 30). A
+  disabled host is neither backed up nor monitored.
+
+### Changed
+- **Source data** on the device page is readable: each command with its
+  output, real line breaks, in a scrollable box - instead of one line of JSON.
+
+### Fixed
+- **A disabled or unmonitored host could still be marked offline**: a status
+  report already on its way opened an outage and sent a notification. It is
+  ignored now, and disabling a host or switching its monitoring off ends an
+  outage that was open, so it does not count as downtime for ever.
+
 ## [0.24.3] - 2026-11-23
 
 ### Maintenance

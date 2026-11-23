@@ -76,6 +76,10 @@ def view_update_router_status(request):
     if not request.user.is_authenticated and not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     router = Router.objects.get(uuid=request.GET.get('uuid'))
+    if not (router.enabled and router.monitoring):
+        # Disabled or not monitored: a report still in flight changes nothing,
+        # opens no outage and sends no notification
+        return JsonResponse({'status': 'ignored', 'reason': 'not monitored'})
     new_status = request.GET.get('status')
     if router.routerstatus.status_online:
         current_status = 'online'

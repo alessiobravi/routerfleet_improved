@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load router_tags %}
 
 {% block content %}
 <div id="rf-live-router" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="{{ live_reason }}" data-rf-live-interval="5">
@@ -238,9 +239,14 @@
                                             <i class="far fa-eye"></i></a>
                                     </span>
                                             </div>
-                                            <span id="router_information_json" class="d-none">
-                                    {{ router_information.json_data|default_if_none:"" }}
-                                </span>
+                                            <div id="router_information_json" class="d-none rf-source" tabindex="0" aria-label="Source data">
+                                                {% for command, output in router_information.json_data|source_sections %}
+                                                    {% if command %}<div class="rf-source-cmd">{{ command }}</div>{% endif %}
+                                                    <pre class="rf-source-out">{{ output }}</pre>
+                                                {% empty %}
+                                                    <div class="text-body-secondary">Nothing was read yet.</div>
+                                                {% endfor %}
+                                            </div>
                                         </li>
                                     </ul>
                                 </div>

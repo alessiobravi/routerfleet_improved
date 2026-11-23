@@ -542,3 +542,88 @@ class SavedRouterMessageTests(TestCase):
     def test_other_changes_say_only_saved(self):
         self.assertEqual(self.message(changed={'username'}), 'Router saved')
         self.assertEqual(self.message(created=True, monitoring=False), 'Router added|Monitoring is off for this router.')
+
+
+class QuickActionsAndBulkEnableTests(TestCase):
+    """The router list's Quick actions (Back up now) and enabling / disabling
+    the selected hosts - a disabled host is neither backed up nor monitored."""
+
+    def setUp(self):
+        self.profile = make_profile()
+        self.router = make_router(name='edge-q1', backup_profile=self.profile)
+        self.client.force_login(make_user(30))
+
+    def test_the_column_is_named_and_offers_back_up_now(self):
+        page = self.client.get('/router/list/')
+        self.assertContains(page, 'Quick actions')
+        self.assertContains(page, f'data-rf-post="/router/create_instant_backup/?uuid={self.router.uuid}"')
+        self.client.force_login(make_user(10))
+        self.assertNotContains(self.client.get('/router/list/'), 'Back up now')
+
+    def test_a_disabled_host_offers_no_backup(self):
+        self.router.enabled = False
+        self.router.save()
+        self.assertNotContains(self.client.get('/router/list/'), f'create_instant_backup/?uuid={self.router.uuid}')
+
+    def test_back_up_now_returns_to_the_list_and_never_elsewhere(self):
+        url = f'/router/create_instant_backup/?uuid={self.router.uuid}'
+        response = self.client.post(url, {'next': '/router/list/?filter_group=all'})
+        self.assertRedirects(response, '/router/list/?filter_group=all', fetch_redirect_response=False)
+        self.assertTrue(RouterBackup.objects.filter(router=self.router, schedule_type='instant').exists())
+        RouterBackup.objects.all().delete()
+        for foreign in ('https://evil.example/router/list/', '//evil.example/router/list/', '/accounts/logout/'):
+            response = self.client.post(url, {'next': foreign})
+            self.assertRedirects(response, f'/router/details/?uuid={self.router.uuid}', fetch_redirect_response=False)
+            RouterBackup.objects.all().delete()
+
+    def test_disable_and_enable_the_selected_hosts(self):
+        other = make_router(name='edge-q2')
+        RouterDownTime.objects.create(router=self.router, start_time=timezone.now() - datetime.timedelta(minutes=5))
+        response = self.client.post('/router/enable/multiple/', {'routers[]': [self.router.uuid, other.uuid],
+                                                                  'action': 'disable'})
+        self.assertEqual(response.json(), {'changed': 2, 'enabled': False})
+        self.router.refresh_from_db()
+        self.assertFalse(self.router.enabled)
+        self.assertIsNotNone(self.router.enabled_changed_at)
+        self.assertFalse(RouterDownTime.objects.filter(router=self.router, end_time=None).exists(),
+                         'the open outage is closed: a disabled host is not monitored')
+        self.assertTrue(ChangeRecord.objects.filter(model_label='router_manager.Router').exists())
+        response = self.client.post('/router/enable/multiple/', {'routers[]': [self.router.uuid], 'action': 'enable'})
+        self.assertEqual(response.json()['changed'], 1)
+        self.router.refresh_from_db()
+        self.assertTrue(self.router.enabled)
+
+    def test_bulk_enable_needs_level_30_a_post_and_a_known_action(self):
+        self.assertEqual(self.client.get('/router/enable/multiple/').status_code, 405)
+        self.assertEqual(self.client.post('/router/enable/multiple/', {'routers[]': [self.router.uuid],
+                                                                       'action': 'delete'}).status_code, 400)
+        self.client.force_login(make_user(20))
+        self.assertEqual(self.client.post('/router/enable/multiple/', {'routers[]': [self.router.uuid],
+                                                                       'action': 'disable'}).status_code, 403)
+        self.router.refresh_from_db()
+        self.assertTrue(self.router.enabled)
+
+    def test_a_status_report_for_a_disabled_host_is_ignored(self):
+        self.router.enabled = False
+        self.router.save()
+        response = self.client.get(f'/monitoring/update_router_status/?uuid={self.router.uuid}&status=offline')
+        self.assertEqual(response.json()['status'], 'ignored')
+        self.assertFalse(RouterDownTime.objects.filter(router=self.router).exists())
+
+    def test_switching_monitoring_off_closes_the_open_outage(self):
+        RouterDownTime.objects.create(router=self.router, start_time=timezone.now())
+        self.router.monitoring = False
+        self.router.save()
+        self.assertFalse(RouterDownTime.objects.filter(router=self.router, end_time=None).exists())
+
+
+class SourceDataTests(SimpleTestCase):
+    def test_output_gets_real_line_breaks_per_command(self):
+        import json
+        from router_manager.templatetags.router_tags import source_sections
+        data = json.dumps({'/system resource print': ' uptime: 4w3d \r\n version: 7.24.5 \r\n\r\n',
+                           '/system routerboard print': ' model: RB450G\r\n'})
+        self.assertEqual(source_sections(data), [('/system resource print', ' uptime: 4w3d \n version: 7.24.5 '),
+                                                 ('/system routerboard print', ' model: RB450G')])
+        self.assertEqual(source_sections(''), [])
+        self.assertEqual(source_sections('not json'), [('', 'not json')])

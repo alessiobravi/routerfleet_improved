@@ -134,14 +134,22 @@ class Router(models.Model):
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
 
     def save(self, *args, **kwargs):
+        stops_watching = False
         if self.pk:
-            before = Router.objects.filter(pk=self.pk).values_list('enabled', flat=True).first()
-            if before is not None and before != self.enabled:
+            before = Router.objects.filter(pk=self.pk).values_list('enabled', 'monitoring').first()
+            if before is not None and before[0] != self.enabled:
                 from django.utils import timezone
                 self.enabled_changed_at = timezone.now()
                 if kwargs.get('update_fields') is not None:
                     kwargs['update_fields'] = set(kwargs['update_fields']) | {'enabled_changed_at'}
+            # Disabled or no longer monitored: not monitored from now on
+            stops_watching = before is not None and all(before) and not (self.enabled and self.monitoring)
         super().save(*args, **kwargs)
+        if stops_watching:
+            # An outage still open would count as downtime for ever
+            from django.utils import timezone
+            from monitoring.models import RouterDownTime
+            RouterDownTime.objects.filter(router=self, end_time=None).update(end_time=timezone.now())
 
     def __str__(self):
         return self.name

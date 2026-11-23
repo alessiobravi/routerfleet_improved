@@ -28,7 +28,8 @@
     {name: 'architecture', label: 'Architecture', default: false},
     {name: 'cpu', label: 'CPU', default: false}
   ];
-  var ACTIONS = ['update-information', 'create-backup', 'run-command', 'manage-groups', 'edit-multiple'];
+  var ACTIONS = ['update-information', 'create-backup', 'run-command', 'manage-groups', 'edit-multiple',
+                 'enable-multiple', 'disable-multiple'];
 
   function byId(id) { return document.getElementById(id); }
   function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
@@ -346,6 +347,33 @@
         .then(function () { setAll(table, false); });
     });
     on('manage-groups', function () { postSelected(table, '/router/manage_groups/multiple/'); });
+    // Enable / disable: a disabled host is neither backed up nor monitored
+    function setEnabled(enable) {
+      var routers = selected(table);
+      if (!routers.length) { return; }
+      if (!enable && !window.confirm('Disable ' + routers.length + ' host(s)? They are not backed up or monitored ' +
+                                     'until enabled again.')) { return; }
+      var body = new URLSearchParams();
+      routers.forEach(function (uuid) { body.append('routers[]', uuid); });
+      body.append('action', enable ? 'enable' : 'disable');
+      body.append('csrfmiddlewaretoken', csrfToken());
+      fetch('/router/enable/multiple/', {method: 'POST', body: body, credentials: 'same-origin',
+                                         headers: {'X-CSRFToken': csrfToken(), 'Accept': 'application/json'}})
+        .then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (data) {
+            if (!response.ok) { throw new Error(data.error || 'The request failed.'); }
+            return data;
+          });
+        })
+        .then(function (data) {
+          rfNotify('success', enable ? 'Hosts enabled' : 'Hosts disabled',
+                   data.changed + ' host(s) changed. The list is reloaded.');
+          setTimeout(function () { window.location.reload(); }, 900);
+        })
+        .catch(function (error) { rfNotify('danger', 'Error', error.message); });
+    }
+    on('enable-multiple', function () { setEnabled(true); });
+    on('disable-multiple', function () { setEnabled(false); });
     on('run-command', function () { postSelected(table, '/fleet_commander/command/execute_multiple/'); });
     on('edit-multiple', function () { postSelected(table, '/router/edit/multiple/'); });
   }
