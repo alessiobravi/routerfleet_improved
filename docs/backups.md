@@ -9,7 +9,7 @@ retention.
 
 | Device type | Configuration text | Binary image |
 |---|---|---|
-| RouterOS | `/export` output → `.rsc` | `/system backup save` → `.backup` |
+| RouterOS | `/export` output → `.rsc` | none (until 0.22: `/system backup save` → `.backup`) |
 | OpenWrt | `uci export` output → `.txt` | `sysupgrade --create-backup` → `.tar.gz` |
 | Ubiquiti airOS | `/tmp/system.cfg` downloaded → `.cfg` | none |
 | Cisco IOS | `show running-config` → `.cfg` | none |

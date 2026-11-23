@@ -248,3 +248,40 @@ class DatabaseOptimizeCommandTests(TransactionTestCase):
         out = io.StringIO()
         call_command('optimize_database', stdout=out)
         self.assertIn('Database optimized', out.getvalue())
+
+
+class DeleteBinariesTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.openwrt = Router.objects.create(name='ow', address='192.0.2.9', router_type='openwrt',
+                                             backup_profile=self.only_changes)
+        self.client.force_login(make_user(50))
+
+    def test_only_the_chosen_types_lose_their_binaries(self):
+        import os
+        mikrotik = self.backup(self.a, 'A', days_ago=1)
+        other = self.backup(self.openwrt, 'B', days_ago=1)
+        path = mikrotik.backup_binary.path
+        summary = {row['slug']: row for row in backup_tools.binary_summary()}
+        self.assertEqual(summary['routeros']['count'], 1)
+        page = self.client.get('/tools/backup_cleanup/')
+        self.assertContains(page, 'Delete the chosen binary backups')
+        # Without the confirmation nothing happens
+        self.client.post('/tools/backup_cleanup/', {'action': 'delete_binaries', 'types': ['routeros']})
+        mikrotik.refresh_from_db()
+        self.assertTrue(mikrotik.backup_binary)
+        self.client.post('/tools/backup_cleanup/', {'action': 'delete_binaries', 'types': ['routeros'],
+                                                    'confirmation': 'delete_binaries'})
+        mikrotik.refresh_from_db()
+        other.refresh_from_db()
+        self.assertFalse(mikrotik.backup_binary)
+        self.assertFalse(os.path.exists(path), 'the file is gone from the disk')
+        self.assertEqual(RouterBackup.objects.get(pk=mikrotik.pk).backup_text, 'A', 'the text is kept')
+        self.assertTrue(other.backup_binary, 'OpenWrt was not chosen')
+        self.assertTrue(ChangeRecord.objects.filter(note='Binary backups deleted').exists())
+
+    def test_unknown_types_are_ignored(self):
+        self.backup(self.a, 'A')
+        self.client.post('/tools/backup_cleanup/', {'action': 'delete_binaries', 'types': ['no-such-type'],
+                                                    'confirmation': 'delete_binaries'})
+        self.assertTrue(RouterBackup.objects.exclude(backup_binary='').exclude(backup_binary__isnull=True).exists())

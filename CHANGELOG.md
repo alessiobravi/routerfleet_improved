@@ -28,10 +28,20 @@ the Zabbix kit reads, says so under **Monitoring**.
   FULL to give the space back to the disk. Also `manage.py optimize_database`.
   Statistics are refreshed after every backup clean-up.
 
+- **Delete binary backups** (Tools, Backup clean-up): the stored binary
+  files of chosen device types - RouterOS `.backup` by default - with their
+  count and size shown first; every text backup stays. Confirmed with a sum,
+  one entry in the change log.
 - **Name, surname and phone** in a user's details (User Manager), shown in the
   user list; the phone is optional, checked, and in the change log.
 
 ### Changed
+- **RouterOS backups are text only**: the `/export` output, nothing written on
+  the device and nothing downloaded - the binary `.backup` is no longer taken.
+  Installations whose RouterOS backup commands are as shipped are converted;
+  edited ones keep theirs. Backups already stored keep their files until you
+  delete them (above). A backup with nothing to download now finishes in one
+  step instead of waiting for a second one.
 - **Tools, User Manager, Message Center and Fleet Commander** use the layout of
   System settings. The message history can be filtered; grouping and daily
   reports explain each setting beside it; the user list and editor show each

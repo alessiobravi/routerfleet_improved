@@ -26,7 +26,7 @@ class DefinitionTests(TestCase):
 
     def test_the_defaults(self):
         lines = system_commands.lines('backup_create', 'routeros', backup_name='b', export_parameters=' terse')
-        self.assertEqual(lines, ['/system backup save name=b.backup'])
+        self.assertEqual(lines, [], 'RouterOS takes no binary backup')
         self.assertEqual(system_commands.lines('backup_text', 'routeros', export_parameters=' terse'),
                          ['configuration: /export  terse'])
         self.assertEqual(system_commands.lines('backup_text', 'juniper-junos'),

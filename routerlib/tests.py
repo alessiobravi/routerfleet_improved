@@ -124,7 +124,7 @@ class CronEndpointTests(SimpleTestCase):
 
 class DeviceTypeTests(TestCase):
     def test_file_extensions_come_from_the_type(self):
-        self.assertEqual(get_router_backup_file_extension('routeros'), {'text': 'rsc', 'binary': 'backup'})
+        self.assertEqual(get_router_backup_file_extension('routeros'), {'text': 'rsc', 'binary': None})
         self.assertEqual(get_router_backup_file_extension('openwrt'), {'text': 'txt', 'binary': 'tar.gz'})
         self.assertEqual(get_router_backup_file_extension('ubiquiti-airos'), {'text': 'cfg', 'binary': None})
         self.assertEqual(get_router_backup_file_extension('cisco-ios'), {'text': 'cfg', 'binary': None})

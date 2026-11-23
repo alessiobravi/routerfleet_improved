@@ -23,7 +23,7 @@ Devices, Fleet Commander variants and CSV imports refer to a type by its
 
 | Short name | Connection | Text backup | Files | Update check |
 |---|---|---|---|---|
-| `routeros` — Mikrotik (RouterOS) | channel | `configuration: /export` | `.backup` | the device |
+| `routeros` — Mikrotik (RouterOS) | channel | `configuration: /export` | - | the device |
 | `openwrt` — OpenWrt | channel | `configuration: uci export` | sysupgrade archive | vendor release list |
 | `ubiquiti-airos` — Ubiquiti airOS | channel | `/tmp/system.cfg` (downloaded) | - | none |
 | `cisco-ios` — Cisco IOS / IOS-XE | shell | `running-config: show running-config` | - | none |

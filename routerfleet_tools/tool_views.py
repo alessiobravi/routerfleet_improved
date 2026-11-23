@@ -57,6 +57,16 @@ def view_backup_cleanup(request):
         return denied
     include_every_profile = request.POST.get('include_every_profile') == 'on' or \
         request.GET.get('include_every_profile') == 'on'
+    if posted_action(request, 'delete_binaries'):
+        from router_manager.models import DeviceType
+        slugs = [s for s in request.POST.getlist('types') if DeviceType.objects.filter(slug=s).exists()]
+        if posted_confirmation(request) != 'delete_binaries' or not slugs:
+            messages.warning(request, 'Nothing deleted|Choose the device types and confirm.')
+        else:
+            count, size = backup_tools.delete_binaries(slugs)
+            messages.success(request, f'Binary backups deleted|{count} files, {filesizeformat(size)} freed. '
+                                      'The text backups are kept.')
+        return redirect('/tools/backup_cleanup/')
     if posted_action(request, 'clean'):
         if posted_confirmation(request) != 'clean':
             messages.warning(request, 'Nothing cleaned|Type clean to confirm.')
@@ -70,7 +80,8 @@ def view_backup_cleanup(request):
         return redirect('/tools/backup_cleanup/' + suffix)
     report = backup_tools.audit(include_every_profile)
     return render(request, 'routerfleet_tools/backup_cleanup.html',
-                  {'page_title': 'Backup clean-up', 'report': report, 'include_every_profile': include_every_profile})
+                  {'page_title': 'Backup clean-up', 'report': report, 'include_every_profile': include_every_profile,
+                   'binaries': backup_tools.binary_summary()})
 
 
 @login_required

@@ -70,6 +70,16 @@ The archive holds every configuration at once, passwords and keys included
 where the devices store them: keep it safe. Each export is recorded in the
 change log with the number of devices.
 
+## Deleting binary backups
+
+Below the clean-up, **Binary backups** lists the stored binary files per device
+type - RouterOS `.backup`, OpenWrt archives - with their count and size.
+Deleting those of the chosen types removes the files and their references; the
+text backups stay, with their history and comparisons. RouterOS no longer
+takes binary backups, so this frees what earlier releases stored. Keep a binary
+where you need what an export leaves out (local users' passwords, private
+keys).
+
 ## Database
 
 The Tools page shows the database's size and offers **Optimize the database**

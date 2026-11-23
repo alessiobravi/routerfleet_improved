@@ -78,6 +78,33 @@
         </div>
     </div>
 </div>
+{% if binaries %}
+<div class="rf-settings mt-3">
+    <div class="rf-set-title">Binary backups</div>
+    <form method="post" id="binaries-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_binaries">
+        <input type="hidden" name="confirmation" id="binaries-confirmation">
+        <div class="rf-set-group">
+            {% for row in binaries %}
+            <label class="rf-set-row mb-0" style="cursor: pointer">
+                <span class="custom-control custom-checkbox mr-2"><input type="checkbox" class="custom-control-input" id="bin-{{ row.slug }}" name="types" value="{{ row.slug }}" {% if row.slug == 'routeros' %}checked{% endif %}><span class="custom-control-label" for="bin-{{ row.slug }}"></span></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.name }}</span>
+                    <span class="rf-set-sub d-block">{{ row.count }} file{{ row.count|pluralize }} · {{ row.bytes|filesizeformat }}</span></span>
+            </label>
+            {% endfor %}
+        </div>
+        <div class="rf-set-foot">Deletes the binary files (RouterOS <code>.backup</code>, OpenWrt archives) of the chosen device types, and their references. Every text backup stays, with its history and comparisons. A binary backup can restore what an export leaves out - passwords of local users, private keys - so keep them for devices where that matters.</div>
+        <div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" id="binaries-button"><i class="fas fa-trash-alt mr-1"></i>Delete the chosen binary backups</button></div>
+    </form>
+</div>
+<script>
+    document.getElementById('binaries-button').addEventListener('click', function () {
+        var c = rfConfirm('Delete the binary backups of the chosen device types? The text backups are kept. This can not be undone.', 'delete_binaries');
+        if (c) { document.getElementById('binaries-confirmation').value = c; document.getElementById('binaries-form').submit(); }
+    });
+</script>
+{% endif %}
 {% endblock %}
 
 {% block custom_page_scripts %}

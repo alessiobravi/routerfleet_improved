@@ -140,7 +140,11 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         def payload(key, router_type):
             return NewVariant.objects.get(command__system_key=key, router_type=router_type).payload
         self.assertEqual(payload('backup_text', 'routeros'), 'configuration: /export {{ export_parameters }}')
-        self.assertEqual(payload('backup_create', 'routeros'), '/system backup save name={{ backup_name }}.backup')
+        # ... and, since 0.23, without the binary .backup
+        self.assertEqual(payload('backup_create', 'routeros'), '')
+        self.assertEqual(payload('backup_download', 'routeros'), '')
+        from router_manager.models import DeviceType as NewType
+        self.assertEqual(NewType.objects.get(slug='routeros').binary_extension, '')
         self.assertEqual(payload('backup_text', 'openwrt'), 'configuration: uci export')
         self.assertEqual(payload('backup_create', 'openwrt'), 'sysupgrade --create-backup /tmp/{{ backup_name }}.tar.gz')
         self.assertEqual(payload('firmware_install', 'routeros'), '/system reboot')

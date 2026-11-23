@@ -176,6 +176,16 @@ class TaskCreationTests(TestCase):
 RSC = '# 2026-06-01 header comment\n/ip address\nadd address=10.0.0.1/24\n'
 
 
+def with_routeros_binary():
+    """The RouterOS file commands of an installation that kept the binary
+    .backup (shipped until 0.22): text from /export, the .backup downloaded."""
+    from fleet_commander.models import CommandVariant
+    for key, payload in (('backup_create', '/system backup save name={{ backup_name }}.backup'),
+                         ('backup_download', '/{{ backup_name }}.backup'),
+                         ('backup_remove', '/file remove "{{ backup_name }}.backup"')):
+        CommandVariant.objects.filter(command__system_key=key, router_type='routeros').update(payload=payload)
+
+
 class PipelineTests(TestCase):
     def setUp(self):
         self.profile = make_profile(parameter_sensitive=True, parameter_terse=True)
@@ -195,35 +205,41 @@ class PipelineTests(TestCase):
         backup.refresh_from_db()
         return backup
 
-    def test_routeros_two_phases(self):
+    def test_routeros_text_only_in_one_step(self):
+        backup = self.make_backup('routeros')
+        # The text backup is the output of /export, with the profile's options
+        client = FakeSSHClient({'/export  show-sensitive terse': RSC})
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+        self.assertTrue(backup.success, backup.error_message)
+        self.assertFalse(backup.backup_pending_retrieval)
+        self.assertEqual(client.commands[0], '/export  show-sensitive terse')
+        self.assertNotIn('/system backup save', ' '.join(client.commands), 'no binary backup any more')
+        self.assertEqual(FakeSCPClient.fetched, [], 'nothing downloaded')
+        self.assertFalse(backup.backup_binary)
+        # Comment lines are stripped, so a header timestamp is not a change
+        self.assertNotIn('header comment', backup.backup_text)
+        self.assertIn('add address=10.0.0.1/24', backup.backup_text)
+        self.assertEqual(backup.backup_text_name, 'configuration')
+        self.assertIn('[stdout suppressed]', backup.task_console_output)
+        self.assertIn('file remove [find where name~"routerfleet-backup-"]', client.commands)
+        status = RouterStatus.objects.get(router=backup.router)
+        self.assertIsNone(status.backup_lock)
+        self.assertIsNotNone(status.last_backup)
+
+    def test_routeros_with_the_binary_kept(self):
+        with_routeros_binary()
         backup = self.make_backup('routeros')
         name = backup_functions.gen_backup_name(backup)
-        # The text backup is the output of /export, with the profile's options
         client = FakeSSHClient({'/export  show-sensitive terse': RSC})
         with temporary_media_root() as media:
             backup = self.run_phase(backup, client)
             self.assertTrue(backup.backup_pending_retrieval)
-            self.assertFalse(backup.success)
-            self.assertEqual(client.commands[:2], ['/export  show-sensitive terse',
-                                                   f'/system backup save name={name}.backup'])
-            self.assertNotIn('/export file=', ' '.join(client.commands), 'no export file on the device any more')
-            # Comment lines are stripped, so a header timestamp is not a change
-            self.assertNotIn('header comment', backup.backup_text)
-            self.assertIn('add address=10.0.0.1/24', backup.backup_text)
-            self.assertEqual(backup.backup_text_name, 'configuration')
-            self.assertIn('[stdout suppressed]', backup.task_console_output)
-
             FakeSCPClient.files = {f'/{name}.backup': b'\x00binary'}
             backup = self.run_phase(backup, client)
             self.assertTrue(backup.success)
-            self.assertFalse(backup.backup_pending_retrieval)
-            self.assertTrue(os.path.exists(backup.backup_binary.path))
             self.assertTrue(backup.backup_binary.path.startswith(media))
             self.assertIn(f'/file remove "{name}.backup"', client.commands)
-            self.assertIn('file remove [find where name~"routerfleet-backup-"]', client.commands)
-        status = RouterStatus.objects.get(router=backup.router)
-        self.assertIsNone(status.backup_lock)
-        self.assertIsNotNone(status.last_backup)
         self.assertIn('=== Retrieving backup files ===', backup.task_console_output)
 
     def test_an_edited_routeros_backup_keeps_its_exported_file(self):
@@ -256,9 +272,7 @@ class PipelineTests(TestCase):
         client = FakeSSHClient({'show configuration': '## Last commit: 2026-11-22\nsystem { host-name r1; }\n',
                                 'show configuration | display set': 'set system host-name r1\n'})
         backup = self.run_phase(backup, client)
-        self.assertTrue(backup.backup_pending_retrieval, backup.error_message)
-        # Nothing to download: the second phase completes without a connection
-        backup = self.run_phase(backup, client)
+        # Nothing to download: finished in one step
         self.assertTrue(backup.success, backup.error_message)
         self.assertEqual(backup.backup_text_name, 'configuration')
         self.assertNotIn('Last commit', backup.backup_text, "the type's noise lines are dropped")
@@ -268,7 +282,7 @@ class PipelineTests(TestCase):
         RouterStatus.objects.filter(router=router).update(backup_lock=timezone.now())
         second = RouterBackup.objects.create(router=router, schedule_type='instant', schedule_time=timezone.now())
         client.responses['show configuration | display set'] = 'set system host-name r2\n'
-        second = self.run_phase(self.run_phase(second, client), client)
+        second = self.run_phase(second, client)
         self.assertTrue(second.success, second.error_message)
         self.assertTrue(second.config_change_detected)
 
@@ -514,6 +528,7 @@ class RetrievalLeavesNothingBehindTests(TestCase):
     directory is gone afterwards - after a failure as much as after success."""
 
     def setUp(self):
+        with_routeros_binary()
         import tempfile
         self.parent = tempfile.mkdtemp(prefix='rf-test-')
         self.created = []
@@ -561,6 +576,7 @@ class KeepOnlyChangesPipelineTests(TestCase):
     gone from the disk; a changed one is stored in full."""
 
     def setUp(self):
+        with_routeros_binary()
         self.profile = make_profile()
         self.router = make_router(router_type='routeros', backup_profile=self.profile)
         FakeSCPClient.files = {}

@@ -37,9 +37,7 @@ PRESET_COMMANDS = {
         'inventory': '/system resource print\n/system routerboard print\n'
                      '/system package update check-for-updates\n/system package update print',
         'backup_text': 'configuration: /export {{ export_parameters }}',
-        'backup_create': '/system backup save name={{ backup_name }}.backup',
-        'backup_download': '/{{ backup_name }}.backup',
-        'backup_remove': '/file remove "{{ backup_name }}.backup"',
+        # Leftover files of the binary backups RouterFleet took before 0.23
         'backup_cleanup': 'file remove [find where name~"routerfleet-backup-"]',
         'firmware_verify': ':put [/file get [find name="{{ firmware_name }}"] size]',
         'firmware_install': '/system reboot',
@@ -86,7 +84,7 @@ PRESETS = {
     },
     'routeros': {
         'name': 'Mikrotik (RouterOS)', 'vendor': 'MikroTik', 'position': 10,
-        'description': 'RouterOS over SSH. Text backup from /export, binary backup (.backup) by SCP.',
+        'description': 'RouterOS over SSH. Text backup from /export output - nothing written on the device.',
         'session_mode': 'exec',
         'test_pattern': r'platform: MikroTik',
         'inventory_fields': {
@@ -96,7 +94,7 @@ PRESETS = {
             'available_version': ['key:latest-version'],
         },
         'inventory_repeat': r'package update print',
-        'text_extension': 'rsc', 'binary_extension': 'backup',
+        'text_extension': 'rsc', 'binary_extension': '',
         'text_ignore_pattern': r'^\s*#',
         'option_sensitive': 'show-sensitive', 'option_terse': 'terse',
         'management_links': 'Winbox: winbox://{address}',

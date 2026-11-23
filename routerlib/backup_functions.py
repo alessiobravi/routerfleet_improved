@@ -131,6 +131,12 @@ def perform_backup(router_backup: RouterBackup):
             router_backup.retry_count = 0
             router_backup.next_retry = timezone.now() + datetime.timedelta(seconds=router_backup.router.backup_profile.retrieve_interval)
             router_backup.save()
+            # Nothing to download (text from command output only): finished now,
+            # not one retrieve interval later
+            from fleet_commander import system_commands
+            if not system_commands.lines('backup_download', router_backup.router.router_type,
+                                         **_backup_values(router_backup)):
+                perform_backup(router_backup)
         else:
             handle_backup_failure(router_backup, error_message)
     return

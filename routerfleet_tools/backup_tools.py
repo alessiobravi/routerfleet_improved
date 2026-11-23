@@ -219,6 +219,43 @@ def clean(include_every_profile=False):
     return report, freed
 
 
+def binary_summary():
+    """Stored binary backups per device type: [{slug, name, count, bytes}]."""
+    from router_manager import device_types
+    rows = {}
+    for backup in RouterBackup.objects.exclude(backup_binary='').exclude(backup_binary__isnull=True) \
+            .select_related('router').only('id', 'backup_binary', 'router__router_type'):
+        slug = backup.router.router_type
+        row = rows.setdefault(slug, {'slug': slug, 'name': device_types.name_of(slug), 'count': 0, 'bytes': 0})
+        row['count'] += 1
+        row['bytes'] += _size_of_file(backup.backup_binary)
+    return sorted(rows.values(), key=lambda r: r['name'])
+
+
+def delete_binaries(slugs):
+    """Deletes the stored binary backups of devices of these types: the files,
+    and the database's reference to them. Text backups stay. Returns
+    (count, bytes). Recorded as one entry in the change log."""
+    count = size = 0
+    with collect('Binary backups deleted') as batch:
+        backups = RouterBackup.objects.filter(router__router_type__in=list(slugs)).exclude(backup_binary='') \
+            .exclude(backup_binary__isnull=True).only('id', 'backup_binary')
+        ids = []
+        for backup in backups:
+            size += _size_of_file(backup.backup_binary)
+            try:
+                backup.backup_binary.delete(save=False)
+            except OSError:
+                pass   # already gone from the disk: the reference is cleared all the same
+            ids.append(backup.id)
+        for start in range(0, len(ids), CHUNK):
+            RouterBackup.objects.filter(pk__in=ids[start:start + CHUNK]).update(backup_binary=None)
+        count = len(ids)
+        if count:
+            batch.counted('Binary backups deleted', count)
+    return count, size
+
+
 def _safe_name(text, fallback):
     name = re.sub(r'[^A-Za-z0-9._-]+', '_', str(text)).strip('._')
     return name[:80] or fallback
