@@ -134,10 +134,11 @@ stored and the version is simply left unknown.
 
 ## Version colours
 
-A device with a newer version available also carries an **amber arrow** beside
-its name in the device list, whichever columns are shown; hovering it names
-the running and the available version. It follows the same rule as the colours
-below.
+A device with a newer version available also carries an **amber arrow** after
+its operations (edit, console, command) in the device list, whichever columns
+are shown; hovering it names the running and the available version. It follows
+the same rule as the colours below. The operations keep their place on every
+row, so the arrows line up.
 
 The device list colours two columns, and the status page counts the same rule,
 so the overview and the list cannot tell different stories.
