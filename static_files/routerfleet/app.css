@@ -406,3 +406,6 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 .rf-source-cmd::before { content: '> '; color: var(--rf-muted); }
 .rf-source-cmd:first-child { margin-top: 0; }
 .rf-source-out { font-size: 12px; margin: .15rem 0 .4rem; white-space: pre; overflow: visible; color: var(--rf-text); }
+
+/* The bootloader firmware (RouterBOOT) arrow: its own colour, its own process */
+.rf-boot-mark, .rf-boot-mark:hover { color: #7e57c2 !important; }

@@ -13,6 +13,36 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.27.0] - 2026-11-23
+
+### Added
+- **The rollout page is a timeline**, like a device page: the update and its
+  progress, a tile per state, every device with its step, and every step of
+  every device - the backup, the upload or download, the install, and after
+  each reboot the reachability checks: gone, back over SSH with the version it
+  reports, back on the new version. It updates itself.
+- **A notification when a firmware update finishes**: a device back online on
+  its new version, or an update that failed (event *Firmware update finished*,
+  off for existing channels).
+- **MikroTik bootloader firmware (RouterBOOT), as a process of its own**:
+  a purple arrow in the router list when the device could install a newer
+  bootloader firmware (the amber arrow stays the system update), *Update
+  bootloader* on the device page and for selected hosts, its own page and
+  rollout. The inventory reads the firmware the device can install.
+- **Firmware procedures for more platforms**, from the vendors' documentation:
+  OpenWrt online updates with `owut` (stable and oldstable channels, across
+  major versions), Juniper Junos, Cisco IOS-XE install mode, Ubiquiti airOS.
+  Classic IOS and Huawei VRP are not shipped: their reboot always asks for a
+  confirmation. Channel lines can carry their own pattern, and a device type
+  says whether a newer major version is offered.
+
+### Changed
+- A lock shows as a red lock icon - the job page, the router list's lock
+  columns - instead of a "locked" tag.
+
+### Fixed
+- The rollout page did not update itself while the update ran.
+
 ## [0.26.0] - 2026-11-23
 
 ### Added

@@ -186,14 +186,14 @@ def view_rollout(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     rollout = get_object_or_404(FirmwareRollout.objects.select_related('image__device_type'),
                                 uuid=request.GET.get('uuid'))
-    if posted_action(request, 'abort') and posted_confirmation(request) == 'abort':
+    # The hero's Abort sends the confirmation word; older pages also the action
+    if request.method == 'POST' and posted_confirmation(request) == 'abort':
         engine.abort(rollout, request.user)
-        messages.success(request, 'Rollout aborted|Devices not started yet are skipped.')
+        messages.success(request, 'Update aborted|Devices not started yet are skipped.')
         return redirect(f'/system/firmware/rollout/?uuid={rollout.uuid}')
-    targets = rollout.targets.select_related('router', 'backup')
-    counts = {state: targets.filter(state=state).count() for state, _ in RolloutTarget.STATES}
-    return render(request, 'firmware/rollout.html', {'page_title': 'Firmware rollout', 'rollout': rollout,
-                                                     'targets': targets, 'counts': counts})
+    from .pages import rollout_page
+    return render(request, 'firmware/rollout.html', {'page_title': 'Firmware update', 'rollout': rollout,
+                                                     'page': rollout_page(rollout)})
 
 
 @cron_endpoint
@@ -202,20 +202,22 @@ def view_cron_rollouts(request):
     return JsonResponse({'running': FirmwareRollout.objects.filter(state='running').count()})
 
 
-def _choices(routers):
-    """The update options of these devices, one entry per distinct option: in
-    order (files of the repository, then the online channels), each with the
-    devices it is for and the version each of them would get."""
+def _choices(routers, kind='system'):
+    """The update options of these devices for one process - the system (files
+    of the repository, then the online channels) or the bootloader firmware -
+    one entry per distinct option, each with the devices it is for and the
+    version each of them would get."""
     from .options import options_for
     choices, without = {}, []
     for router in routers:
-        options = options_for(router)
+        options = [o for o in options_for(router) if (o['kind'] == 'bootloader') == (kind == 'bootloader')]
         if not options:
             without.append(router)
         for option in options:
             choice = choices.setdefault(option['key'], {'key': option['key'], 'kind': option['kind'],
                                                         'image': option['image'], 'channel': option['channel'],
-                                                        'devices': [], 'versions': set(), 'recommended': 0})
+                                                        'devices': [], 'versions': set(), 'recommended': 0,
+                                                        'bootloader_after': option.get('bootloader_after', False)})
             choice['devices'].append((router, option['version']))
             choice['versions'].add(option['version'])
             choice['recommended'] += 1 if option.get('recommended') else 0
@@ -224,8 +226,12 @@ def _choices(routers):
         max(ordered, key=lambda c: c['recommended'])['is_recommended'] = True
     for choice in ordered:
         versions = ', '.join(sorted(choice['versions']))
-        choice['label'] = (f'{versions} from the firmware repository ({choice["image"].filename})'
-                           if choice['kind'] == 'image' else f'{versions} - online update, {choice["channel"]} channel')
+        if choice['kind'] == 'image':
+            choice['label'] = f'{versions} from the firmware repository ({choice["image"].filename})'
+        elif choice['kind'] == 'online':
+            choice['label'] = f'{versions} - online update, {choice["channel"]} channel'
+        else:
+            choice['label'] = f'Bootloader firmware to {versions} (RouterBOOT)'
     return ordered, without
 
 
@@ -234,13 +240,15 @@ def view_update_devices(request):
     """Update the firmware of one device (?uuid=) or of a selection (routers[])."""
     if not allowed(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    # Two independent processes: the system (OS) and the bootloader firmware
+    kind = 'bootloader' if (request.POST.get('kind') or request.GET.get('kind')) == 'bootloader' else 'system'
     uuids = request.POST.getlist('routers[]') or request.GET.getlist('uuid')
     routers = list(Router.objects.filter(uuid__in=uuids, enabled=True).select_related('routerinformation')
                    .order_by('name')) if uuids else []
     if not routers:
         messages.warning(request, 'Nothing to update|Choose enabled devices in the router list.')
         return redirect('/router/list/')
-    choices, without = _choices(routers)
+    choices, without = _choices(routers, kind)
     busy = set(RolloutTarget.objects.filter(rollout__state='running', router__in=routers)
                .values_list('router_id', flat=True))
     if posted_action(request, 'start'):
@@ -264,7 +272,8 @@ def view_update_devices(request):
                 source=choice['kind'], image=choice['image'], channel=choice['channel'], batch_size=batch,
                 created_by=request.user, created_by_name=request.user.username)
             for position, (router, version) in enumerate(devices):
-                RolloutTarget.objects.create(rollout=rollout, router=router, position=position, to_version=version)
+                RolloutTarget.objects.create(rollout=rollout, router=router, position=position,
+                                             to_version='' if choice['kind'] == 'bootloader' else version)
             first = devices[0][0].name
             messages.success(request, f'Update started|{first} goes first; the others follow when it is back on '
                                       f'its new version.' if len(devices) > 1 else f'Update started|{first}.')
@@ -275,5 +284,6 @@ def view_update_devices(request):
         rows.append({'router': router, 'running': getattr(info, 'os_version', '') or 'not read yet',
                      'busy': router.id in busy, 'without': router in without})
     return render(request, 'firmware/update_devices.html', {
-        'page_title': 'Update firmware', 'routers': routers, 'rows': rows, 'choices': choices,
-        'without': without, 'single': len(routers) == 1})
+        'page_title': 'Update bootloader firmware' if kind == 'bootloader' else 'Update system',
+        'routers': routers, 'rows': rows, 'choices': choices, 'without': without, 'single': len(routers) == 1,
+        'kind': kind})

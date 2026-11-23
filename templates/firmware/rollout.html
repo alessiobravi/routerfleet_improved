@@ -1,23 +1,28 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="rf-settings" {% if rollout.active %}data-rf-live="active" data-rf-live-reason="firmware rollout running"{% endif %}>
+<div id="rf-live-rollout" data-rf-live="{% if rollout.active %}active{% else %}done{% endif %}" data-rf-live-reason="firmware update running" data-rf-live-interval="5">
     <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
-    <div class="rf-set-title">{{ rollout.label }} · {{ rollout.get_state_display }}</div>
-    <div class="rf-set-group">
-        <div class="rf-set-row"><span class="rf-set-text"><span class="rf-set-label d-block">{{ counts.done }} updated, {{ counts.failed }} failed, {{ counts.waiting }} waiting{% if counts.skipped %}, {{ counts.skipped }} not started{% endif %}</span>
-            <span class="rf-set-sub d-block">Started by {{ rollout.created_by_name }}, {{ rollout.created|date:"Y-m-d H:i" }}; {{ rollout.batch_size }} at a time after the first{% if rollout.message %}. {{ rollout.message }}{% endif %}</span></span></div>
-    </div>
-    <div class="rf-set-title">Devices</div>
-    <div class="rf-set-group">
-        {% for target in targets %}
-        <div class="rf-set-row">
-            <span class="rf-set-icon {% if target.state == 'done' %}teal{% elif target.state == 'failed' %}red{% elif target.state == 'waiting' or target.state == 'skipped' %}grey{% else %}blue{% endif %}"><i class="fas {% if target.state == 'done' %}fa-check{% elif target.state == 'failed' %}fa-times{% elif target.state == 'waiting' or target.state == 'skipped' %}fa-pause{% else %}fa-sync-alt fa-spin{% endif %}"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block"><a href="/router/details/?uuid={{ target.router.uuid }}">{{ target.router.name }}</a>{% if target.canary %} <span class="badge text-bg-info">first</span>{% endif %} · {{ target.get_state_display }}</span>
-                <span class="rf-set-sub d-block">{% if target.from_version %}from {{ target.from_version }} · {% endif %}{{ target.message }}{% if target.backup %} · <a href="/backup/backup_details/?uuid={{ target.backup.uuid }}">pre-update backup</a>{% endif %}</span></span>
+    {% include 'includes/object_hero.html' %}
+    <div class="rf-object rf-o-grid rf-o-split">
+        <div class="rf-o-card">
+            <h3>Devices{% if rollout.message %} <span class="small text-muted">{{ rollout.message }}</span>{% endif %}</h3>
+            <div class="rf-o-rows">
+                {% for row in page.rows %}
+                <div class="rf-o-r">
+                    <div>
+                        <div class="rf-o-name"><a href="/router/details/?uuid={{ row.target.router.uuid }}">{{ row.target.router.name }}</a>{% if row.first %} <i class="fas fa-flag text-info ms-1" role="img" aria-label="Goes first" title="Goes first, alone"></i>{% endif %}</div>
+                        <div class="rf-o-sub">{% if row.target.from_version %}{{ row.target.from_version }} → {% endif %}{{ row.version }}{% if row.target.message %} · {{ row.target.message }}{% endif %}{% if row.target.backup %} · <a href="/backup/backup_details/?uuid={{ row.target.backup.uuid }}">pre-update backup</a>{% endif %}</div>
+                    </div>
+                    <span class="rf-o-time">{% if row.target.finished_at %}{{ row.target.finished_at|date:"H:i:s" }}{% elif row.target.started_at %}{{ row.target.started_at|date:"H:i:s" }}{% endif %}</span>
+                    <span class="rf-o-chip rf-o-{{ row.chip.0 }}"><span class="rf-o-dot"></span>{{ row.chip.1 }}</span>
+                </div>
+                {% empty %}
+                <p class="text-muted p-3 mb-0">No devices.</p>
+                {% endfor %}
+            </div>
         </div>
-        {% endfor %}
+        {% include 'includes/object_timeline.html' %}
     </div>
-    {% if rollout.active %}<div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" data-rf-post="" data-rf-field-action="abort" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this rollout? Devices not started are skipped; a device already installing finishes on its own.">Abort</button></div>{% endif %}
 </div>
 {% endblock %}

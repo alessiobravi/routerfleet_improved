@@ -6,27 +6,28 @@
     <form method="post" id="update-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="start">
+        <input type="hidden" name="kind" value="{{ kind }}">
         <input type="hidden" name="confirmation" id="confirmation">
         {% for router in routers %}<input type="hidden" name="routers[]" value="{{ router.uuid }}">{% endfor %}
 
-        <div class="rf-set-title">{% if single %}Update {{ routers.0.name }}{% else %}Update {{ routers|length }} devices{% endif %}</div>
+        <div class="rf-set-title">{% if kind == 'bootloader' %}Bootloader firmware of {% else %}System update of {% endif %}{% if single %}{{ routers.0.name }}{% else %}{{ routers|length }} devices{% endif %}</div>
         <div class="rf-set-group">
             {% for choice in choices %}
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="option" value="{{ choice.key }}" {% if choice.is_recommended %}checked{% endif %}>
-                <span class="rf-set-icon {% if choice.kind == 'image' %}teal{% else %}blue{% endif %}"><i class="fas {% if choice.kind == 'image' %}fa-box-archive{% else %}fa-cloud-arrow-down{% endif %}"></i></span>
+                <span class="rf-set-icon {% if choice.kind == 'image' %}teal{% elif choice.kind == 'online' %}blue{% else %}purple{% endif %}"><i class="fas {% if choice.kind == 'image' %}fa-box-archive{% elif choice.kind == 'online' %}fa-cloud-arrow-down{% else %}fa-microchip{% endif %}"></i></span>
                 <span class="rf-set-text">
                     <span class="rf-set-label d-block">{{ choice.label }}{% if choice.is_recommended %} <span class="rf-set-pill on">suggested</span>{% endif %}</span>
-                    <span class="rf-set-sub d-block">{% if choice.kind == 'image' %}Uploaded from this installation and checked on the device before it is installed.{% else %}The device downloads and installs the release itself, from its vendor; it must reach the vendor's server.{% endif %}
+                    <span class="rf-set-sub d-block">{% if choice.kind == 'image' %}Uploaded from this installation and checked on the device before it is installed.{% elif choice.kind == 'online' %}The device downloads and installs the release itself, from its vendor; it must reach the vendor's server.{% else %}The bootloader firmware that comes with the running OS; it takes effect at a reboot.{% endif %}
                         {% if not single %}For {{ choice.devices|length }} of the {{ routers|length }} devices.{% endif %}</span>
                 </span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
             {% empty %}
-            <div class="rf-set-row"><span class="rf-set-text text-muted">No update to offer: {% if single %}the device runs the newest version its repository files and channels offer, or its version is not read yet{% else %}no option is newer than what these devices run{% endif %}.</span></div>
+            <div class="rf-set-row"><span class="rf-set-text text-muted">{% if kind == 'bootloader' %}No bootloader firmware to upgrade: {% if single %}the device runs the one its system brings, or it was not read yet{% else %}these devices run the one their system brings{% endif %}.{% else %}No update to offer: {% if single %}the device runs the newest version its repository files and channels offer, or its version is not read yet{% else %}no option is newer than what these devices run{% endif %}.{% endif %}</span></div>
             {% endfor %}
         </div>
-        <div class="rf-set-foot">In order: a file of the firmware repository made for the device (type, model, architecture), newest first; then the device's own online update, with the newest release of each channel. Only newer versions of the same major version are offered.</div>
+        <div class="rf-set-foot">{% if kind == 'bootloader' %}The bootloader firmware (RouterOS: RouterBOOT) that comes with the system the device runs - a process of its own, apart from system updates. It takes effect at the reboot the upgrade ends with.{% else %}In order: a file of the firmware repository made for the device (type, model, architecture), newest first; then the device's own online update, with the newest release of each channel. Only newer versions are offered - of the same major version, unless the device type allows another. The bootloader firmware is upgraded on its own, from the purple arrow.{% endif %}</div>
 
         <div class="rf-set-title">Devices</div>
         <div class="rf-set-group">
@@ -47,7 +48,7 @@
                 <input type="number" class="form-control" id="batch_size" name="batch_size" min="1" max="20" value="3"></div></div>
         </div>
         {% endif %}
-        <div class="rf-set-foot">For every device: a backup first; then the update, and the device must come back reporting the version it was offered. {% if not single %}The device marked "first" goes alone; the others follow only when it is back, a few at a time. {% endif %}Any failure stops the devices not started yet. Devices reboot.</div>
+        <div class="rf-set-foot">For every device: a backup first; then {% if kind == 'bootloader' %}the bootloader upgrade and a reboot, and the device must come back reporting the new bootloader firmware{% else %}the update, and the device must come back reporting the version it was offered{% endif %}. {% if not single %}The device marked "first" goes alone; the others follow only when it is back, a few at a time. {% endif %}Any failure stops the devices not started yet. Devices reboot.</div>
         <div class="text-center mt-3"><button type="button" class="btn btn-danger btn-lg" data-rf-submit="update-form" data-rf-confirm-word="update" data-rf-confirm-sum="Start the update? The devices reboot."><i class="fas fa-rocket me-1"></i>Start the update</button></div>
         {% endif %}
     </form>

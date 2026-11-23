@@ -15,7 +15,7 @@ ADMINISTRATOR = 50
 EVENTS = (('backup_fail', 'Backup failed'), ('backup_success', 'Backup succeeded'),
           ('daily_backup_report', 'Daily backup report'), ('daily_status_report', 'Daily status report'),
           ('status_change_offline', 'Device offline'), ('status_change_online', 'Device back online'),
-          ('command_failed', 'Fleet Commander job with failures'))
+          ('command_failed', 'Fleet Commander job with failures'), ('firmware_update', 'Firmware update finished'))
 
 
 def level(user):

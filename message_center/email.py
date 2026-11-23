@@ -68,6 +68,7 @@ PERSONAL_EVENTS = (
     ('status_change_offline', 'Device offline', 'When a monitored device stops answering.'),
     ('status_change_online', 'Device back online', 'When it answers again.'),
     ('command_failed', 'Fleet Commander job with failures', 'When a job finishes with failed tasks.'),
+    ('firmware_update', 'Firmware update finished', 'When a device is back online on its new version - or the update failed.'),
 )
 
 

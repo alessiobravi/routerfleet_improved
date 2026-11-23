@@ -270,6 +270,25 @@ def notify_backup_success(router_backup: RouterBackup):
                                        f'({router_backup.router.address}) succeeded: {state}.')
 
 
+def notify_firmware_update(target):
+    """A device of a firmware rollout finished: back online on its new version,
+    or the update failed - for the channels that asked."""
+    channels = MessageChannel.objects.filter(enabled=True, firmware_update=True)
+    if not channels.exists():
+        return
+    router = target.router
+    if target.state == 'done':
+        subject = f'Firmware updated: {router.name}'
+        text = (f'{router.name} ({router.address}) is back online: {target.message}'
+                f'{" Before: " + target.from_version + "." if target.from_version else ""}')
+    else:
+        subject = f'Firmware update failed: {router.name}'
+        text = f'The update of {router.name} ({router.address}) failed: {target.message}'
+    text += f'\n\nRollout: {target.rollout.label}.'
+    for channel in channels:
+        Message.objects.create(channel=channel, subject=subject, message=text)
+
+
 def notify_command_job_failed(job):
     """A Fleet Commander job that finished with failed tasks."""
     message_channel_list = MessageChannel.objects.filter(enabled=True, command_failed=True)

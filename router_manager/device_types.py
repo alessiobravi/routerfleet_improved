@@ -26,6 +26,7 @@ INVENTORY_FIELDS = (
     ('architecture', 'Architecture'),
     ('cpu', 'CPU'),
     ('available_version', 'Version offered by the device'),
+    ('firmware_available', 'Firmware the device can install (bootloader)'),
 )
 # At least one of these must be found, or reading the inventory failed
 INVENTORY_IDENTITY = ('model_name', 'model_version', 'os_version')
@@ -42,11 +43,14 @@ PRESET_COMMANDS = {
         'firmware_verify': ':put [/file get [find name="{{ firmware_name }}"] size]',
         'firmware_install': '/system reboot',
         # The device downloads and installs the newest release of the chosen channel itself
+        # RouterBOOT: takes effect at the next reboot
+        'firmware_bootloader_upgrade': '/system routerboard upgrade\n/system reboot',
         'firmware_online_update': '/system package update set channel={{ channel }}\n'
                                   '/system package update check-for-updates once\n'
                                   '/system package update install',
     },
     'openwrt': {
+        'firmware_online_update': 'owut upgrade -V {{ firmware_version }}',
         'connection_test': 'ubus call system board',
         'inventory': 'cat /etc/os-release\necho "hostname=$(uci get system.@system[0].hostname)"\n'
                      'echo "architecture=$(uname -m)"\necho "mac=$(cat /sys/class/net/eth0/address)"',
@@ -59,17 +63,23 @@ PRESET_COMMANDS = {
         'firmware_install': 'sysupgrade {{ firmware_path }}',
     },
     'ubiquiti-airos': {
+        'firmware_verify': 'wc -c < /tmp/fwupdate.bin',
+        'firmware_install': '/sbin/fwupdate -m',
         'connection_test': 'cat /etc/version',
         'inventory': 'echo "firmware=$(cat /etc/version)"\ncat /etc/board.info\necho "kernel=$(uname -r)"\n'
                      'cat /proc/cpuinfo',
         'backup_download': '/tmp/system.cfg',  # nosec B108 - a path on the device
     },
     'cisco-ios': {
+        'firmware_verify': 'dir flash:{{ firmware_name }}',
+        'firmware_install': 'install add file flash:{{ firmware_name }} activate commit prompt-level none',
         'connection_test': 'show version',
         'inventory': 'show version\nshow inventory',
         'backup_text': 'running-config: show running-config',
     },
     'juniper-junos': {
+        'firmware_verify': 'file checksum sha-256 /var/tmp/{{ firmware_name }}',
+        'firmware_install': 'request system software add /var/tmp/{{ firmware_name }} reboot',
         'connection_test': 'show version',
         'inventory': 'show version\nshow chassis hardware',
         'backup_text': 'configuration: show configuration\nset: show configuration | display set',
@@ -95,7 +105,7 @@ PRESETS = {
             'model_name': ['key:board-name'], 'os_version': ['key:version'],
             'architecture': ['key:architecture-name'], 'cpu': ['key:cpu'], 'model_version': ['key:model'],
             'serial_number': ['key:serial-number'], 'firmware_version': ['key:current-firmware'],
-            'available_version': ['key:latest-version'],
+            'available_version': ['key:latest-version'], 'firmware_available': ['key:upgrade-firmware'],
         },
         'inventory_repeat': r'package update print',
         'text_extension': 'rsc', 'binary_extension': '',
@@ -111,6 +121,9 @@ PRESETS = {
         'firmware_upload_path': '/{{ firmware_name }}', 'firmware_verify': 'size',
     },
     'openwrt': {
+        # Firmware (see docs/firmware.md for sources and caveats)
+        'update_channels': '* stable: https://downloads.openwrt.org/.versions.json | "stable_version"\\s*:\\s*"([^"]+)"\n* oldstable: https://downloads.openwrt.org/.versions.json | "oldstable_version"\\s*:\\s*"([^"]+)"',
+        'update_any_major': True,
         'name': 'OpenWrt', 'vendor': 'OpenWrt', 'position': 20,
         'description': 'OpenWrt over SSH. Text backup from uci export, archive from sysupgrade by SCP.',
         'session_mode': 'exec',
@@ -130,6 +143,9 @@ PRESETS = {
         'firmware_upload_path': '/tmp/{{ firmware_name }}', 'firmware_verify': 'sha256',  # nosec B108
     },
     'ubiquiti-airos': {
+        # Firmware (see docs/firmware.md for sources and caveats)
+        'firmware_upload_path': '/tmp/fwupdate.bin',
+        'firmware_verify': 'size',
         'name': 'Ubiquiti airOS', 'vendor': 'Ubiquiti', 'position': 30,
         'description': 'airOS over SSH. Its configuration file is downloaded as the text backup.',
         'session_mode': 'exec',
@@ -143,6 +159,9 @@ PRESETS = {
         'text_extension': 'cfg', 'binary_extension': '',
     },
     'cisco-ios': {
+        # Firmware (see docs/firmware.md for sources and caveats)
+        'firmware_upload_path': 'flash:{{ firmware_name }}',
+        'firmware_verify': 'size',
         'name': 'Cisco IOS / IOS-XE', 'vendor': 'Cisco', 'position': 40,
         'description': 'Cisco IOS and IOS-XE through an interactive SSH shell. Text backup: show running-config. '
                        'Set an enable password on the device when the account does not land in privileged mode.',
@@ -163,6 +182,9 @@ PRESETS = {
                                r'|Current configuration :|ntp clock-period)',
     },
     'juniper-junos': {
+        # Firmware (see docs/firmware.md for sources and caveats)
+        'firmware_upload_path': '/var/tmp/{{ firmware_name }}',
+        'firmware_verify': 'sha256',
         'name': 'Juniper Junos', 'vendor': 'Juniper', 'position': 50,
         'description': 'Junos through an interactive SSH shell (CLI). Two text backups: the configuration and the '
                        'same in set format.',
@@ -201,7 +223,8 @@ FIELD_DEFAULTS = {
     'session_setup': '', 'enable_command': '', 'management_links': '', 'test_pattern': '', 'inventory_fields': {}, 'inventory_repeat': '',
     'text_extension': 'txt', 'binary_extension': '', 'text_ignore_pattern': '', 'option_sensitive': '',
     'option_terse': '', 'option_hide_sensitive': '', 'legacy_before_version': '', 'legacy_option_sensitive': '',
-    'legacy_option_hide_sensitive': '', 'update_channels': '', 'update_channel_pattern': '', 'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
+    'legacy_option_hide_sensitive': '', 'update_channels': '', 'update_channel_pattern': '', 'update_any_major': False,
+    'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
     'vendor_keys': '', 'vendor_confirm_url': '', 'vendor_target': '', 'vendor_version_field': 'os_version',
     'firmware_upload_path': '', 'firmware_verify': 'none',
 }

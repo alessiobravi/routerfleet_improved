@@ -161,9 +161,14 @@ def router_page(router, router_status, router_information, availability, can_exe
     if can_execute and router.is_managed:
         actions.append({'label': 'Execute command', 'icon': 'fa-terminal',
                         'href': f'/fleet_commander/router/execute/?uuid={router.uuid}', 'style': 'primary'})
-    if can_update_firmware and router.is_managed and router.enabled and getattr(router_information, 'update_available', False):
-        actions.append({'label': 'Update', 'icon': 'fa-arrow-alt-circle-up',
-                        'href': f'/system/firmware/update/?uuid={router.uuid}', 'style': 'primary'})
+    from router_manager.templatetags.router_tags import bootloader_behind
+    if can_update_firmware and router.is_managed and router.enabled:
+        if getattr(router_information, 'update_available', False):
+            actions.append({'label': 'Update system', 'icon': 'fa-arrow-alt-circle-up',
+                            'href': f'/system/firmware/update/?uuid={router.uuid}', 'style': 'primary'})
+        if bootloader_behind(router_information):
+            actions.append({'label': 'Update bootloader', 'icon': 'fa-microchip',
+                            'href': f'/system/firmware/update/?kind=bootloader&uuid={router.uuid}', 'style': ''})
     hero = {'title': router.name, 'subtitle': '', 'chip': chip,
             'ring': round(availability) if router.monitoring else None,
             'ring_caption': 'availability, 7 days', 'icon': 'fa-network-wired', 'meta': meta, 'actions': actions}

@@ -97,7 +97,7 @@ class MessageChannelForm(forms.ModelForm):
         model = MessageChannel
         fields = [
             'name', 'enabled', 'channel_type', 'destination', 'token', 'status_change_offline', 'status_change_online',
-            'backup_fail', 'daily_status_report', 'daily_backup_report', 'backup_success', 'command_failed',
+            'backup_fail', 'daily_status_report', 'daily_backup_report', 'backup_success', 'command_failed', 'firmware_update',
             'server_url', 'priority'
         ]
 
@@ -133,6 +133,7 @@ class MessageChannelForm(forms.ModelForm):
                     Div(Field('backup_fail'), css_class='col-md-6'),
                     Div(Field('backup_success'), css_class='col-md-6'),
                     Div(Field('command_failed'), css_class='col-md-6'),
+                    Div(Field('firmware_update'), css_class='col-md-6'),
                     Div(Field('enabled'), css_class='col-md-6'),
                     css_class='row'),
                 Div(

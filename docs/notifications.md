@@ -10,6 +10,7 @@ flowchart LR
     ev3["Backup failed"]
     ev5["Backup succeeded"]
     ev6["Job finished with failures"]
+    ev7["Firmware update finished"]
     ev4["Backup task lock expired"]
     note["Notification rows"]
     conc["/cron/concatenate_notifications/<br/>every minute"]
@@ -18,7 +19,7 @@ flowchart LR
     out["Email · ntfy · Telegram"]
 
     ev1 & ev2 & ev3 & ev5 & ev4 --> note --> conc --> msg --> send --> out
-    ev6 --> msg
+    ev6 & ev7 --> msg
 ```
 
 ## Channels
@@ -55,8 +56,10 @@ Each channel independently selects which events it wants:
 - daily backup report
 - backup succeeded - grouped like failures, so a night of backups is one message
 - a Fleet Commander job that finished with failed tasks
+- a firmware update finished - a device back online on its new version, or an
+  update that failed ([Firmware](firmware.md))
 
-The last two were added later: they start **off** on every channel that
+The last three were added later: they start **off** on every channel that
 existed, so an upgrade sends nothing new.
 
 So an on-call channel can take outages only, while a mailbox-style channel takes

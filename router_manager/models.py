@@ -55,6 +55,10 @@ class DeviceType(models.Model):
     # the version out of the answer; empty: the first word.
     update_channels = models.TextField(blank=True)
     update_channel_pattern = models.CharField(max_length=200, blank=True)
+    # Offer a newer major version too (OpenWrt: 24.10 to 25.12 is the usual
+    # upgrade); off: only the device's own major version (RouterOS 6 to 7
+    # takes a procedure of its own)
+    update_any_major = models.BooleanField(default=False)
     # Which version the device could run
     check_device = models.BooleanField(default=False)
     check_vendor = models.BooleanField(default=False)
@@ -233,6 +237,8 @@ class RouterInformation(models.Model):
     serial_number = models.CharField(max_length=100, null=True, blank=True)
 
     os_version = models.CharField(max_length=100, null=True, blank=True)
+    # The bootloader firmware the device could install (RouterOS: upgrade-firmware)
+    firmware_available = models.CharField(max_length=100, null=True, blank=True)
     firmware_version = models.CharField(max_length=100, null=True, blank=True)
     # Version the router could be upgraded to, and whether it differs from the
     # installed one. Empty when the router type has no automatic update check.

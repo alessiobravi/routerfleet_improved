@@ -52,6 +52,7 @@ class MessageChannel(models.Model):
     # Added later: off for every channel that existed, so an upgrade sends nothing new
     backup_success = models.BooleanField(default=False, verbose_name='Backup succeeded')
     command_failed = models.BooleanField(default=False, verbose_name='Fleet Commander job with failures')
+    firmware_update = models.BooleanField(default=False, verbose_name='Firmware update finished')
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)

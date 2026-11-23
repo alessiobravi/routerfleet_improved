@@ -4,6 +4,13 @@
     waiting -> backing_up -> uploading -> verifying -> installing -> rebooting -> done
     an online update (the device downloads the release itself):
     waiting -> backing_up -> installing -> rebooting -> done
+    the bootloader firmware, alone or after either of them (then_bootloader):
+    ... -> bootloader -> boot_waiting -> done
+
+Every step is recorded for the rollout's timeline (RolloutEvent): what was
+done, and after a reboot each change of reachability - the device gone, back
+over SSH, reporting which version. A device that finishes - updated or failed -
+is notified to the channels that asked ("firmware update finished").
 
 - backing_up: a fresh backup through the normal backup pipeline; the rollout
   waits for it to succeed.
@@ -28,7 +35,7 @@ import re
 from django.db.models import Q
 from django.utils import timezone
 
-from .models import FirmwareRollout, RolloutTarget
+from .models import FirmwareRollout, RolloutEvent, RolloutTarget
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,39 @@ NUMBER = re.compile(r'\b(\d+)\b')
 
 class StepFailed(Exception):
     pass
+
+
+def event(target, state, text):
+    """A line on the rollout's timeline."""
+    RolloutEvent.objects.create(target=target, state=state, text=f'{target.router.name}: {text}'[:500])
+
+
+def event_once(target, state, text):
+    """A line, unless the device's latest line already says it: a step polled
+    every minute records each change, not each poll."""
+    latest = target.events.order_by('-created', '-id').first()
+    if latest is None or latest.text != f'{target.router.name}: {text}'[:500]:
+        event(target, state, text)
+
+
+def _notify(target):
+    try:
+        from message_center.functions import notify_firmware_update
+        notify_firmware_update(target)
+    except Exception as error:   # a notification never breaks a rollout
+        logger.warning(f'Firmware update notification for {target.router.name} failed: {error}')
+
+
+def _finish(target, message):
+    target.state, target.finished_at, target.message = 'done', timezone.now(), message
+    target.save(update_fields=['state', 'finished_at', 'message', 'updated'])
+    event(target, 'ok', message)
+    _notify(target)
+
+
+def bootloader_commands(target):
+    from fleet_commander import system_commands
+    return system_commands.lines('firmware_bootloader_upgrade', target.router.router_type)
 
 
 def online(target):
@@ -88,6 +128,8 @@ def _fail(target, message):
     rollout.message = f'Stopped: {target.router.name} - {message}'[:500]
     rollout.finished_at = now
     rollout.save(update_fields=['state', 'message', 'finished_at', 'updated'])
+    event(target, 'bad', f'failed - {message}')
+    _notify(target)
 
 
 def _move(target, state, message='', deadline=None):
@@ -95,6 +137,8 @@ def _move(target, state, message='', deadline=None):
     if deadline is not None:
         target.deadline = deadline
     target.save(update_fields=['state', 'message', 'deadline', 'updated'])
+    if message:
+        event(target, 'run', message)
 
 
 def check_target(target):
@@ -104,6 +148,11 @@ def check_target(target):
     if device_type is None or not device_type.managed:
         return 'the device is not reached over SSH'
     from fleet_commander import system_commands
+    if target.rollout.source == 'bootloader' or target.rollout.then_bootloader:
+        if not bootloader_commands(target):
+            return f'{device_type.name} has no bootloader firmware upgrade'
+        if target.rollout.source == 'bootloader':
+            return ''
     if online(target):
         if not target.to_version:
             return 'no version to update to'
@@ -142,7 +191,9 @@ def step_backing_up(target):
     if backup is None:
         raise StepFailed('the pre-update backup disappeared')
     backup.refresh_from_db()
-    if backup.success and online(target):
+    if backup.success and target.rollout.source == 'bootloader':
+        _move(target, 'bootloader', 'Backup taken. Upgrading the bootloader firmware.')
+    elif backup.success and online(target):
         _move(target, 'installing', f'Backup taken. Starting the online update to {target.to_version}.')
     elif backup.success:
         _move(target, 'uploading', 'Backup taken. Uploading the firmware.', timezone.now() + UPLOAD_WAIT)
@@ -206,8 +257,8 @@ def step_installing(target):
             session.close()
         except Exception:
             pass
-    _move(target, 'rebooting', 'Installing; waiting for the device to come back with the new version.',
-          timezone.now() + REBOOT_WAIT)
+    _move(target, 'rebooting', f'Installing {expected_version(target)}; the device reboots - waiting for it to '
+                               f'come back with it.', timezone.now() + REBOOT_WAIT)
 
 
 def step_rebooting(target):
@@ -227,21 +278,83 @@ def step_rebooting(target):
         # A file of the repository: the same version number; an online update:
         # exactly the version offered (a beta is not its final release)
         if same_version(running, expected) if online(target) else compare_versions(running, expected) == 0:
-            target.state, target.finished_at = 'done', timezone.now()
-            target.message = f'Updated: now running {running}.'
-            target.save(update_fields=['state', 'finished_at', 'message', 'updated'])
+            if target.rollout.then_bootloader:
+                _move(target, 'bootloader', f'Back online on {running}. Upgrading the bootloader firmware next.')
+                return
+            _finish(target, f'Back online, updated: now running {running}.')
             return
         last = f'it reports {running or "no version"}'
+        event_once(target, 'info', f'reachable again over SSH; reports {running or "no version"}, waiting for {expected}')
     else:
         last = error or 'not reachable yet'
+        event_once(target, 'run', 'not reachable - rebooting')
     if target.deadline and timezone.now() > target.deadline:
         raise StepFailed(f'did not come back with {expected} within 20 minutes ({last})')
     target.message = f'Waiting for {expected}: {last}.'
     target.save(update_fields=['message', 'updated'])
 
 
+def _read_firmware(target):
+    """(ok, error, running firmware, firmware it can install), read anew."""
+    from router_manager.models import RouterInformation
+    from routerlib.router_functions import get_router_information
+    info, _ = RouterInformation.objects.get_or_create(router=target.router)
+    ok, error = get_router_information(info)
+    info.refresh_from_db()
+    return ok, error, (info.firmware_version or '').strip(), (info.firmware_available or '').strip()
+
+
+def step_bootloader(target):
+    ok, error, running, available = _read_firmware(target)
+    if not ok:
+        raise StepFailed(f'the device could not be read before the bootloader upgrade: {error or "no answer"}')
+    if not available or available == running:
+        _finish(target, f'Bootloader firmware already current ({running or "unknown"}).' if target.rollout.source == 'bootloader'
+                else f'Updated: now running {getattr(target.router.routerinformation, "os_version", "")}; '
+                     f'bootloader firmware already current ({running or "unknown"}).')
+        return
+    target.to_firmware = available[:64]
+    target.save(update_fields=['to_firmware', 'updated'])
+    session = _session(target.router)
+    try:
+        for command in bootloader_commands(target):
+            try:
+                _run(session, command)
+            except Exception as error:   # the device went down to reboot: expected
+                logger.info(f'Bootloader upgrade on {target.router.name}: connection ended ({error})')
+                break
+    finally:
+        try:
+            session.close()
+        except Exception:
+            pass
+    _move(target, 'boot_waiting', f'Upgrading the bootloader firmware {running} to {available}; the device reboots.',
+          timezone.now() + REBOOT_WAIT)
+
+
+def step_boot_waiting(target):
+    from .options import same_version
+    if timezone.now() - target.updated < REBOOT_GRACE and target.message.startswith('Upgrading the bootloader'):
+        return
+    ok, error, running, _ = _read_firmware(target)
+    if ok and same_version(running, target.to_firmware):
+        _finish(target, f'Back online, updated: bootloader firmware {running}.')
+        return
+    if ok:
+        last = f'it reports bootloader firmware {running or "unknown"}'
+        event_once(target, 'info', f'reachable again over SSH; {last}, waiting for {target.to_firmware}')
+    else:
+        last = error or 'not reachable yet'
+        event_once(target, 'run', 'not reachable - rebooting')
+    if target.deadline and timezone.now() > target.deadline:
+        raise StepFailed(f'did not come back with bootloader firmware {target.to_firmware} within 20 minutes ({last})')
+    target.message = f'Waiting for bootloader firmware {target.to_firmware}: {last}.'
+    target.save(update_fields=['message', 'updated'])
+
+
 STEPS = {'waiting': step_waiting, 'backing_up': step_backing_up, 'uploading': step_uploading,
-         'verifying': step_verifying, 'installing': step_installing, 'rebooting': step_rebooting}
+         'verifying': step_verifying, 'installing': step_installing, 'rebooting': step_rebooting,
+         'bootloader': step_bootloader, 'boot_waiting': step_boot_waiting}
 
 
 def step(target):

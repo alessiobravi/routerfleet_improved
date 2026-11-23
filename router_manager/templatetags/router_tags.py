@@ -175,3 +175,12 @@ def source_sections(json_data):
         text = text.replace('\r\n', '\n').replace('\r', '\n').strip('\n')
         sections.append((str(command), text))
     return sections
+
+
+@register.filter
+def bootloader_behind(router_information):
+    """Whether the device could install a newer bootloader firmware than it
+    runs (RouterOS: upgrade-firmware newer than current-firmware)."""
+    running = (getattr(router_information, 'firmware_version', '') or '').strip()
+    available = (getattr(router_information, 'firmware_available', '') or '').strip()
+    return bool(running and available) and compare_versions(running, available) == -1

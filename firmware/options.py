@@ -4,11 +4,13 @@
    type, model and architecture - newest first;
 2. the device's own online update, one option per release channel its device
    type lists for the device's major version, each with the newest version the
-   vendor publishes on that channel.
+   vendor publishes on that channel;
+3. the bootloader firmware (RouterOS: RouterBOOT), when the device can install
+   a newer one than it runs. After an OS update it can follow as one more step.
 
-Only versions newer than the one the device runs are offered, and never one of
-another major version: such a jump (RouterOS 6 to 7) takes a procedure of its
-own. Nothing here knows a vendor: the channels, the addresses that publish
+Only versions newer than the one the device runs are offered - and only of its
+own major version, unless the device type allows another (OpenWrt: 24.10 to
+25.12 is the usual upgrade; RouterOS 6 to 7 takes a procedure of its own). Nothing here knows a vendor: the channels, the addresses that publish
 their newest version and the procedures are configuration of the device type
 and its system commands.
 """
@@ -20,19 +22,22 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-CHANNEL_LINE = re.compile(r'^\s*(\d{1,3})\s+([A-Za-z0-9][\w.\-]{0,39})\s*:\s*(https://\S{1,300})\s*$')
+# "<major or *> <channel>: https://... [| pattern]" - the pattern reads this line's version
+CHANNEL_LINE = re.compile(r'^\s*(\d{1,3}|\*)\s+([A-Za-z0-9][\w.\-]{0,39})\s*:\s*(https://[^\s|]{1,300})\s*(?:\|\s*(.{1,200}?))?\s*$')
 DEFAULT_PATTERN = r'^\s*([0-9][0-9A-Za-z.\-]*)'
 CACHE_SECONDS = 3600
 _cache = {}   # url -> (time, version)
 
 
 def parse_channels(text):
-    """[(major, channel, url)] of the update_channels lines; others ignored."""
+    """[(major or None for every major, channel, url, pattern)] of the
+    update_channels lines; others ignored."""
     channels = []
     for line in (text or '').splitlines():
         match = CHANNEL_LINE.match(line)
         if match:
-            channels.append((int(match.group(1)), match.group(2), match.group(3)))
+            major = None if match.group(1) == '*' else int(match.group(1))
+            channels.append((major, match.group(2), match.group(3), (match.group(4) or '').strip()))
     return channels
 
 
@@ -40,9 +45,16 @@ def channel_problems(text):
     """What is wrong with update_channels, for the device type form."""
     problems = []
     for number, line in enumerate((text or '').splitlines(), 1):
-        if line.strip() and not CHANNEL_LINE.match(line):
-            problems.append(f'Update channels, line {number}: "<major version> <channel>: https://..." '
-                            f'(for example "7 stable: https://...").')
+        match = CHANNEL_LINE.match(line)
+        if line.strip() and not match:
+            problems.append(f'Update channels, line {number}: "<major version or *> <channel>: https://... '
+                            f'[| pattern]" (for example "7 stable: https://...").')
+        elif match and match.group(4):
+            try:
+                if re.compile(match.group(4).strip()).groups < 1:
+                    problems.append(f'Update channels, line {number}: the pattern needs a group around the version.')
+            except re.error as error:
+                problems.append(f'Update channels, line {number}: the pattern is not valid ({error}).')
     return problems
 
 
@@ -62,29 +74,30 @@ def same_version(running, expected):
     return plain(running).lower() == plain(expected).lower() and bool(plain(expected))
 
 
-def fetch_channel_version(device_type, url):
+def fetch_channel_version(device_type, url, pattern=''):
     """The newest version the vendor publishes at url, '' when it can not be
-    read. Fetched by the server, https only, never on RouterFleet's own
-    networks, kept for an hour."""
+    read - read with the line's pattern, else the device type's, else the
+    first word. Fetched by the server, https only, never on RouterFleet's own
+    networks, kept for an hour (one fetch for lines sharing an address)."""
     from routerlib.router_functions import _safe_url
     cached = _cache.get(url)
     if cached and time.time() - cached[0] < CACHE_SECONDS:
-        return cached[1]
+        text = cached[1]
+    else:
+        try:
+            response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
+                                    headers={'User-Agent': 'RouterFleet-Improved'})
+            response.raise_for_status()
+            text = response.text[:20000]
+        except Exception as error:
+            logger.info(f'Update channel {url} could not be read: {type(error).__name__}')
+            return ''   # not cached: asked again next time
+        _cache[url] = (time.time(), text)
     try:
-        response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
-                                headers={'User-Agent': 'RouterFleet-Improved'})
-        response.raise_for_status()
-        text = response.text[:2000]
-    except Exception as error:
-        logger.info(f'Update channel {url} could not be read: {type(error).__name__}')
-        return ''   # not cached: asked again next time
-    try:
-        match = re.search(device_type.update_channel_pattern or DEFAULT_PATTERN, text, re.MULTILINE)
+        match = re.search(pattern or device_type.update_channel_pattern or DEFAULT_PATTERN, text, re.MULTILINE)
     except re.error:
         match = None
-    version = match.group(1).strip()[:64] if match and match.groups() else ''
-    _cache[url] = (time.time(), version)
-    return version
+    return match.group(1).strip()[:64] if match and match.groups() else ''
 
 
 def current_channel(router):
@@ -117,7 +130,8 @@ def options_for(router, fetch=fetch_channel_version):
     major = major_of(running)
 
     def newer(version):
-        return compare_versions(running, version) == -1 and major_of(version) == major
+        return compare_versions(running, version) == -1 and \
+            (device_type.update_any_major or major_of(version) == major)
 
     options = []
     if system_commands.payload_of('firmware_install', router.router_type).strip():
@@ -131,15 +145,24 @@ def options_for(router, fetch=fetch_channel_version):
                             'label': f'{image.version} from the firmware repository ({image.filename})'})
     if system_commands.payload_of('firmware_online_update', router.router_type).strip():
         on = current_channel(router)
-        for line_major, channel, url in parse_channels(device_type.update_channels):
-            if line_major != major:
+        for line_major, channel, url, pattern in parse_channels(device_type.update_channels):
+            if line_major is not None and line_major != major:
                 continue
-            version = fetch(device_type, url)
+            version = fetch(device_type, url, pattern)
             if version and newer(version):
                 options.append({'key': f'online:{channel}', 'kind': 'online', 'version': version, 'image': None,
                                 'channel': channel, 'current': channel == on,
                                 'label': f'{version} - online update, {channel} channel'
                                          + (' (the channel it is on)' if channel == on else '')})
+    bootloader = bool(system_commands.payload_of('firmware_bootloader_upgrade', router.router_type).strip())
+    for option in options:
+        option['bootloader_after'] = bootloader
+    firmware = (getattr(info, 'firmware_version', '') or '').strip()
+    can_install = (getattr(info, 'firmware_available', '') or '').strip()
+    if bootloader and firmware and can_install and compare_versions(firmware, can_install) == -1:
+        options.append({'key': 'bootloader', 'kind': 'bootloader', 'version': can_install, 'image': None,
+                        'channel': '', 'bootloader_after': False,
+                        'label': f'Bootloader firmware {firmware} to {can_install}'})
     if options:
         # The first file of the repository; without one, the channel the device is on
         recommended = next((o for o in options if o['kind'] == 'image'), None) \

@@ -24,9 +24,11 @@ With the device type's **firmware repository** update check on, a device is
 
 ## Updating a device that has an update
 
-A device with an update available carries the amber arrow in the router list.
-For the Configuration Manager the arrow opens **Update** - so does *Update* on
-the device page, and **Update firmware** for the devices selected in the list.
+A device with a system update available carries the **amber arrow** in the
+router list. For the Configuration Manager the arrow opens the update page - so
+does *Update system* on the device page, and **Update system** for the devices
+selected in the list. (The bootloader firmware has its own purple arrow and
+process - below.)
 The page offers every update the device can take, **in this order**:
 
 1. **A file of the repository made for it** - its device type, and the model
@@ -46,6 +48,35 @@ The update then runs like every rollout (below): a backup first, the update,
 and the device must come back on **exactly** the version it was offered - a
 beta is not another beta, nor its final release. Several devices: one first,
 alone; the rest a few at a time; any failure stops the others.
+
+### The bootloader firmware (RouterOS: RouterBOOT) - a process of its own
+
+A MikroTik keeps its bootloader, RouterBOOT, apart from RouterOS:
+`current-firmware` is what it boots with, `upgrade-firmware` what the installed
+RouterOS brings. The inventory reads both. Upgrading it is **independent of
+system updates**: its own **purple arrow** in the router list (the amber one is
+the system), **Update bootloader** on the device page and for selected hosts,
+its own page and its own rollout - a backup, the upgrade, a reboot, and the
+device must come back reporting the new bootloader firmware. A system update
+never touches it.
+
+The procedure is the system command **firmware - bootloader upgrade**
+(RouterOS: `/system routerboard upgrade`, then `/system reboot`). MikroTik
+documents a confirmation for the upgrade on an interactive terminal; over
+RouterFleet's connection it runs as a script does - try it on one device first.
+
+### Watching an update
+
+The rollout page shows the update the way a device page shows a device: what
+is updated and how far it is, a tile per state, every device with its step, and
+the **timeline** - every step of every device: the backup, the upload or the
+download, the install, and after each reboot every change of reachability: the
+device gone, back over SSH with the version it reports, back on the new version.
+It updates itself while the update runs.
+
+When a device is done - back online on its new version, or failed - the
+channels with **Firmware update finished** switched on get a message
+([Notifications](notifications.md)). The event is off for existing channels.
 
 How each step is done is configuration of the device type, nothing is built
 in: the channels and the addresses publishing their newest version (*Online
@@ -97,16 +128,29 @@ sum. Every image and rollout is in the change log.
 
 ## Install procedures
 
-| Type | Upload to | Verified by | Install |
-|---|---|---|---|
-| RouterOS | `/{{ firmware_name }}` | size in bytes | `/system reboot` (RouterOS installs a `.npk` found at boot) |
-| OpenWrt | `/tmp/{{ firmware_name }}` | SHA-256 | `sysupgrade {{ firmware_path }}` (keeps the configuration) |
-| Cisco, Juniper, Huawei, airOS | - | - | none shipped |
+What ships with each device type. Everything is configuration: change it in
+the device type and its system commands, and try a change on one device first.
+They follow the vendors' documentation; airOS rests on field reports.
 
-The shipped procedures of the network operating systems are deliberately empty:
-their install steps depend on the platform (IOS-XE install mode or bundle mode,
-Junos `request system software add`, VRP `startup system-software`). Define
-them for your platform in the device type, and try them on one device first.
+| Type | Upload to | Verified by | Install | Online update |
+|---|---|---|---|---|
+| RouterOS | `/{{ firmware_name }}` | size in bytes (RouterOS has no SHA-256 on the device) | `/system reboot` - RouterOS installs a `.npk` found at boot | `/system package update set channel=…`, `check-for-updates once`, `install` (it reboots by itself); channels long-term, stable, testing, development |
+| OpenWrt | `/tmp/{{ firmware_name }}` | SHA-256 (`sha256sum`) | `sysupgrade {{ firmware_path }}` - keeps the configuration, reboots by itself | `owut upgrade -V {{ firmware_version }}` - stable and oldstable from `downloads.openwrt.org/.versions.json`, any major version. `owut` ships on official images for devices with enough flash; elsewhere `apk add owut` (or `opkg install owut`) first |
+| Juniper Junos | `/var/tmp/{{ firmware_name }}` | SHA-256 (`file checksum sha-256`) | `request system software add … reboot` | none |
+| Cisco IOS-XE | `flash:{{ firmware_name }}` (the device needs `ip scp server enable`) | size (`dir`) - IOS offers MD5 and SHA-512, not SHA-256 | install mode: `install add file … activate commit prompt-level none` - no confirmation, reloads | none |
+| Ubiquiti airOS | `/tmp/fwupdate.bin` | size (`wc -c`) | `/sbin/fwupdate -m` - reboots by itself (field reports, not a vendor document) | none |
+| Huawei VRP | - | - | not shipped | none |
+
+Not shipped, and why:
+
+- **Cisco classic IOS (bundle mode)** sets `boot system` and reloads - and
+  `reload` always asks for a confirmation, with no documented way to skip it.
+  The shipped Cisco procedure is IOS-XE install mode; for classic IOS write your
+  own, run through an interactive shell that answers.
+- **Huawei VRP** sets the next startup software with `startup system-software`,
+  but `reboot` always asks *Continue? [Y/N]*, with no documented way to skip it.
+- **airOS, Junos, IOS-XE and VRP have no public address** that publishes the
+  newest version, so no online update; MikroTik and OpenWrt have one.
 
 Each step runs from the scheduler, one step per device per minute; an upload
 must complete within five minutes per scheduler call (a slow link is retried

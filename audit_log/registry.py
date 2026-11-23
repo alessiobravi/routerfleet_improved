@@ -335,7 +335,7 @@ def build():
                   'management_links', 'test_pattern', 'inventory_fields', 'inventory_repeat', 'text_extension',
                   'binary_extension', 'text_ignore_pattern', 'option_sensitive', 'option_terse', 'option_hide_sensitive',
                   'legacy_before_version', 'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'update_channels',
-                  'update_channel_pattern', 'check_device',
+                  'update_channel_pattern', 'update_any_major', 'check_device',
                   'check_vendor', 'check_repository', 'vendor_url', 'vendor_keys', 'vendor_confirm_url',
                   'vendor_target', 'vendor_version_field', 'firmware_upload_path', 'firmware_verify'],
           create=True)
@@ -351,7 +351,7 @@ def build():
     watch(apps.get_model('message_center', 'MessageChannel'),
           fields=['name', 'enabled', 'channel_type', 'destination', 'server_url', 'priority', 'token',
                   'status_change_offline', 'status_change_online', 'backup_fail', 'backup_success',
-                  'daily_status_report', 'daily_backup_report', 'command_failed'],
+                  'daily_status_report', 'daily_backup_report', 'command_failed', 'firmware_update'],
           create=True, redact=('token',))
     watch(apps.get_model('message_center', 'MessageSettings'),
           fields=editable(apps.get_model('message_center', 'MessageSettings'),

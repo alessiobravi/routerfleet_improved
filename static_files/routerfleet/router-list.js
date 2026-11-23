@@ -29,7 +29,8 @@
     {name: 'cpu', label: 'CPU', default: false}
   ];
   var ACTIONS = ['update-information', 'create-backup', 'run-command', 'manage-groups', 'edit-multiple',
-                 'enable-multiple', 'disable-multiple', 'update-firmware'];
+                 'enable-multiple', 'disable-multiple', 'update-firmware',
+                 'update-bootloader'];
 
   function byId(id) { return document.getElementById(id); }
   function csrfToken() { var m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
@@ -348,6 +349,7 @@
     });
     on('manage-groups', function () { postSelected(table, '/router/manage_groups/multiple/'); });
     on('update-firmware', function () { postSelected(table, '/system/firmware/update/'); });
+    on('update-bootloader', function () { postSelected(table, '/system/firmware/update/?kind=bootloader'); });
     // Enable / disable: a disabled host is neither backed up nor monitored
     function setEnabled(enable) {
       var routers = selected(table);

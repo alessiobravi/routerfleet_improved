@@ -320,7 +320,7 @@ CHANNEL_VERSIONS = {'NEWESTa7.long-term': '7.24.7', 'NEWESTa7.stable': '7.25.2',
                     'NEWESTa7.development': '7.26beta7', 'NEWEST6.long-term': '6.49.23', 'NEWEST6.stable': '6.49.23'}
 
 
-def fake_channel(device_type, url):
+def fake_channel(device_type, url, pattern=''):
     return CHANNEL_VERSIONS.get(url.rsplit('/', 1)[-1], '')
 
 
@@ -352,7 +352,9 @@ class UpdateOptionsTests(TestCase):
         payload = system_commands.payload_of('firmware_online_update', 'routeros')
         self.assertIn('channel={{ channel }}', payload)
         self.assertIn('/system package update install', payload)
-        self.assertEqual(system_commands.payload_of('firmware_online_update', 'openwrt').strip(), '')
+        self.assertEqual(system_commands.payload_of('firmware_online_update', 'openwrt').strip(),
+                         'owut upgrade -V {{ firmware_version }}')
+        self.assertEqual(system_commands.payload_of('firmware_online_update', 'huawei-vrp').strip(), '')
 
     def test_repository_files_first_then_every_channel(self):
         from firmware.options import options_for
@@ -455,7 +457,7 @@ class OnlineUpdateTests(TestCase):
     def test_a_selection_from_the_list(self):
         other = routeros_device('rb-online-2', '7.24.1 (stable)')
         page = self.client.post('/system/firmware/update/', {'routers[]': [self.router.uuid, other.uuid]})
-        self.assertContains(page, 'Update 2 devices')
+        self.assertContains(page, 'System update of 2 devices')
         self.assertContains(page, 'For 2 of the 2 devices')
 
     def run_rollout(self, comes_back_with):
@@ -491,3 +493,306 @@ class OnlineUpdateTests(TestCase):
         target, _ = self.run_rollout('7.25.1 (stable)')
         self.assertNotEqual(target.state, 'done')
         self.assertIn('Waiting for 7.25.2', target.message)
+
+
+class TimelineNotificationBootloaderTests(TestCase):
+    """The rollout's timeline, the notification when a device is back, and the
+    bootloader firmware (RouterBOOT) - alone or after the OS update."""
+
+    def setUp(self):
+        from message_center.models import MessageChannel
+        self.media = temporary_media_root()
+        self.media.__enter__()
+        self.addCleanup(self.media.__exit__, None, None, None)
+        self.router = routeros_device('rb-tl', '7.24.5 (stable)')
+        self.channel = MessageChannel.objects.create(name='ops', channel_type='email', destination='ops@example.com',
+                                                     firmware_update=True)
+
+    def advance(self, rollout, device):
+        """Runs the rollout against a device that answers as `device` says."""
+        client = FakeSSHClient({})
+
+        def inventory(info):
+            reachable = device.get('reachable', True)
+            if reachable:
+                RouterInformation.objects.filter(pk=info.pk).update(
+                    os_version=device.get('os', '7.24.5 (stable)'), firmware_version=device.get('fw', '7.24.5'),
+                    firmware_available=device.get('can', '7.24.5'))
+            return (True, '') if reachable else (False, 'timed out')
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), \
+                mock.patch('routerlib.router_functions.get_router_information', side_effect=inventory), \
+                mock.patch.object(engine, 'REBOOT_GRACE', timezone.timedelta(0)):
+            engine.advance(rollout)
+            RouterBackup.objects.filter(success=False, error=False).update(success=True)
+        return client
+
+    def test_timeline_reachability_and_notification(self):
+        from message_center.models import Message
+        from firmware.models import RolloutEvent
+        rollout = FirmwareRollout.objects.create(source='online', channel='stable', created_by_name='ops')
+        target = RolloutTarget.objects.create(rollout=rollout, router=self.router, to_version='7.25.2')
+        device = {}
+        for _ in range(3):                                  # backup, backup done, install
+            self.advance(rollout, device)
+        device['reachable'] = False
+        self.advance(rollout, device)
+        self.advance(rollout, device)                        # still down: recorded once
+        device.update(reachable=True, os='7.24.5 (stable)')
+        self.advance(rollout, device)                        # back, old version
+        device['os'] = '7.25.2 (stable)'
+        self.advance(rollout, device)                        # back on the new version
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'done', target.message)
+        texts = list(RolloutEvent.objects.filter(target=target).order_by('created', 'id').values_list('text', flat=True))
+        self.assertEqual(sum('not reachable - rebooting' in t for t in texts), 1, texts)
+        self.assertTrue(any('reachable again over SSH; reports 7.24.5' in t for t in texts), texts)
+        self.assertIn('Back online, updated: now running 7.25.2 (stable).', texts[-1])
+        message = Message.objects.get(channel=self.channel)
+        self.assertEqual(message.subject, 'Firmware updated: rb-tl')
+        page = self.client
+        page.force_login(make_user(40))
+        response = page.get(f'/system/firmware/rollout/?uuid={rollout.uuid}')
+        self.assertContains(response, 'Timeline')
+        self.assertContains(response, 'reachable again over SSH')
+        self.assertContains(response, 'rf-o-hero')
+
+    def test_a_failure_is_notified_too(self):
+        from message_center.models import Message
+        rollout = FirmwareRollout.objects.create(source='online', channel='stable')
+        target = RolloutTarget.objects.create(rollout=rollout, router=self.router, to_version='')   # nothing to go to
+        self.advance(rollout, {})
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'failed')
+        self.assertTrue(Message.objects.filter(channel=self.channel, subject='Firmware update failed: rb-tl').exists())
+
+    def test_the_bootloader_after_the_os(self):
+        rollout = FirmwareRollout.objects.create(source='online', channel='stable', then_bootloader=True)
+        target = RolloutTarget.objects.create(rollout=rollout, router=self.router, to_version='7.25.2')
+        device = {}
+        for _ in range(3):
+            self.advance(rollout, device)
+        device.update(os='7.25.2 (stable)', fw='7.24.5', can='7.25.2')
+        self.advance(rollout, device)                        # OS back: bootloader next
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'bootloader')
+        client = self.advance(rollout, device)               # runs the RouterBOOT upgrade
+        self.assertIn('/system routerboard upgrade', client.commands)
+        target.refresh_from_db()
+        self.assertEqual((target.state, target.to_firmware), ('boot_waiting', '7.25.2'))
+        device['fw'] = '7.25.2'
+        self.advance(rollout, device)
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'done', target.message)
+        self.assertIn('bootloader firmware 7.25.2', target.message)
+
+    def test_the_bootloader_alone_is_offered_and_runs(self):
+        from firmware.options import options_for
+        RouterInformation.objects.filter(router=self.router).update(os_version='7.25.2 (stable)', firmware_version='7.24.5',
+                                                                     firmware_available='7.25.2')
+        self.router.refresh_from_db()
+        options = options_for(self.router, fetch=fake_channel)
+        self.assertEqual(options[-1]['kind'], 'bootloader')
+        self.assertEqual(options[-1]['label'], 'Bootloader firmware 7.24.5 to 7.25.2')
+        rollout = FirmwareRollout.objects.create(source='bootloader')
+        target = RolloutTarget.objects.create(rollout=rollout, router=self.router)
+        device = {'os': '7.25.2 (stable)', 'fw': '7.24.5', 'can': '7.25.2'}
+        self.advance(rollout, device)
+        self.advance(rollout, device)
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'bootloader')
+        self.advance(rollout, device)
+        device['fw'] = '7.25.2'
+        self.advance(rollout, device)
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'done', target.message)
+        self.assertEqual(rollout.label, 'Bootloader firmware upgrade')
+
+
+class MorePlatformsTests(TestCase):
+    """The procedures shipped for other device types, and OpenWrt's channels:
+    one JSON for two channels, any major version."""
+
+    def test_shipped_procedures(self):
+        from fleet_commander import system_commands
+        self.assertIn('request system software add /var/tmp/{{ firmware_name }} reboot',
+                      system_commands.payload_of('firmware_install', 'juniper-junos'))
+        self.assertIn('prompt-level none', system_commands.payload_of('firmware_install', 'cisco-ios'))
+        self.assertEqual(system_commands.payload_of('firmware_install', 'ubiquiti-airos').strip(), '/sbin/fwupdate -m')
+        self.assertEqual(system_commands.payload_of('firmware_install', 'huawei-vrp').strip(), '',
+                         'VRP asks to confirm a reboot: not shipped')
+        self.assertEqual(device_types.get('juniper-junos').firmware_verify, 'sha256')
+        self.assertEqual(device_types.get('ubiquiti-airos').firmware_upload_path, '/tmp/fwupdate.bin')
+
+    def test_openwrt_channels_across_major_versions(self):
+        import json
+        from firmware import options
+        router = make_router(name='ow-1', router_type='openwrt', backup_profile=make_profile())
+        RouterInformation.objects.update_or_create(router=router, defaults={'os_version': '24.10.2'})
+        router.refresh_from_db()
+        openwrt = device_types.get('openwrt')
+        self.assertTrue(openwrt.update_any_major)
+        body = json.dumps({'stable_version': '25.12.6', 'oldstable_version': '24.10.8', 'upcoming_version': ''})
+        options._cache.clear()
+        with mock.patch('firmware.options.requests.get', return_value=mock.MagicMock(status_code=200, text=body)) as get, \
+                mock.patch('routerlib.router_functions._safe_url', side_effect=lambda url: url):
+            found = options.options_for(router)
+        online = [(o['channel'], o['version']) for o in found if o['kind'] == 'online']
+        self.assertEqual(online, [('stable', '25.12.6'), ('oldstable', '24.10.8')])
+        self.assertEqual(get.call_count, 1, 'two channels, one address: fetched once')
+
+
+class EdgeCaseTests(TestCase):
+    """What can go wrong on the way: a device that can not be read, a bootloader
+    already current, a device that does not come back, refusals on the page."""
+
+    def setUp(self):
+        self.media = temporary_media_root()
+        self.media.__enter__()
+        self.addCleanup(self.media.__exit__, None, None, None)
+        self.router = routeros_device('rb-edge', '7.25.2 (stable)')
+
+    def bootloader_target(self, state='bootloader', source='bootloader', **fields):
+        rollout = FirmwareRollout.objects.create(source=source, then_bootloader=source != 'bootloader')
+        return RolloutTarget.objects.create(rollout=rollout, router=self.router, state=state, **fields)
+
+    def step(self, target, read, client=None):
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client or FakeSSHClient({})), \
+                mock.patch('firmware.rollout._read_firmware', return_value=read), \
+                mock.patch.object(engine, 'REBOOT_GRACE', timezone.timedelta(0)):
+            engine.step(target)
+        target.refresh_from_db()
+        return target
+
+    def test_unreadable_before_the_bootloader_fails(self):
+        target = self.step(self.bootloader_target(), (False, 'timed out', '', ''))
+        self.assertEqual(target.state, 'failed')
+        self.assertIn('could not be read', target.message)
+
+    def test_a_current_bootloader_is_done_at_once(self):
+        alone = self.step(self.bootloader_target(), (True, '', '7.25.2', '7.25.2'))
+        self.assertEqual(alone.state, 'done')
+        self.assertIn('already current', alone.message)
+        after = self.step(self.bootloader_target(source='online', to_version='7.25.2'), (True, '', '7.25.2', ''))
+        self.assertEqual(after.state, 'done')
+        self.assertIn('Updated: now running', after.message)
+
+    def test_the_connection_drops_while_the_bootloader_reboots(self):
+        client = FakeSSHClient({'/system routerboard upgrade': OSError('connection closed')})
+        target = self.step(self.bootloader_target(), (True, '', '7.24.5', '7.25.2'), client)
+        self.assertEqual((target.state, target.to_firmware), ('boot_waiting', '7.25.2'))
+
+    def test_a_bootloader_that_does_not_come_back_fails_at_the_deadline(self):
+        target = self.bootloader_target(state='boot_waiting', to_firmware='7.25.2', message='Waiting',
+                                        deadline=timezone.now() + timezone.timedelta(minutes=5))
+        target = self.step(target, (False, 'timed out', '', ''))
+        self.assertEqual(target.state, 'boot_waiting')
+        self.assertTrue(target.events.filter(text__contains='not reachable - rebooting').exists())
+        RolloutTarget.objects.filter(pk=target.pk).update(deadline=timezone.now() - timezone.timedelta(minutes=1))
+        target.refresh_from_db()
+        target = self.step(target, (True, '', '7.24.5', '7.25.2'))
+        self.assertEqual(target.state, 'failed')
+        self.assertIn('did not come back with bootloader firmware 7.25.2', target.message)
+
+    def test_a_type_without_the_bootloader_procedure_is_refused(self):
+        from fleet_commander.models import CommandVariant
+        CommandVariant.objects.filter(command__system_key='firmware_bootloader_upgrade', router_type='routeros').update(payload='')
+        target = self.bootloader_target(state='waiting')
+        self.assertIn('no bootloader firmware upgrade', engine.check_target(target))
+
+    def test_bad_channel_lines_and_patterns(self):
+        from firmware import options
+        problems = options.channel_problems('7 stable: https://a.example/x | ([\n7 stable: https://a.example/x | no-group')
+        self.assertEqual(len(problems), 2, problems)
+        routeros = device_types.get('routeros')
+        options._cache['https://a.example/x'] = (__import__('time').time(), '7.25.2 1')
+        self.assertEqual(options.fetch_channel_version(routeros, 'https://a.example/x', '(['), '')
+        RouterInformation.objects.filter(router=self.router).update(json_data='not json')
+        self.router.refresh_from_db()
+        self.assertEqual(options.current_channel(self.router), '')
+
+    def test_the_page_refuses_what_it_can_not_do(self):
+        self.client.force_login(make_user(40))
+        self.assertRedirects(self.client.get('/system/firmware/update/'), '/router/list/', fetch_redirect_response=False)
+        url = f'/system/firmware/update/?uuid={self.router.uuid}'
+        with mock.patch('firmware.options.fetch_channel_version', side_effect=fake_channel):
+            RouterInformation.objects.filter(router=self.router).update(os_version='7.24.5 (stable)')
+            self.client.post(url, {'action': 'start', 'option': 'nothing', 'confirmation': 'update',
+                                   'routers[]': [self.router.uuid]})
+            self.assertFalse(FirmwareRollout.objects.exists())
+            busy = FirmwareRollout.objects.create(source='online', channel='stable')
+            RolloutTarget.objects.create(rollout=busy, router=self.router, to_version='7.25.2')
+            self.client.post(url, {'action': 'start', 'option': 'online:stable', 'confirmation': 'update',
+                                   'batch_size': 'many', 'routers[]': [self.router.uuid]})
+            self.assertEqual(FirmwareRollout.objects.count(), 1, 'the device is already in a running update')
+            busy.state = 'done'
+            busy.save()
+            self.client.post(url, {'action': 'start', 'option': 'online:stable', 'confirmation': 'update',
+                                   'then_bootloader': 'on', 'routers[]': [self.router.uuid]})
+            started = FirmwareRollout.objects.get(state='running')
+            self.assertFalse(started.then_bootloader, 'the bootloader is a process of its own')
+
+    def test_an_aborted_rollout_page(self):
+        from firmware.pages import rollout_page
+        rollout = FirmwareRollout.objects.create(source='online', channel='stable', then_bootloader=True)
+        RolloutTarget.objects.create(rollout=rollout, router=self.router, to_version='7.25.2')
+        RolloutTarget.objects.create(rollout=rollout, router=routeros_device('rb-edge-2', '7.24.5'), to_version='7.25.2', position=1)
+        engine.abort(rollout)
+        rollout.refresh_from_db()
+        page = rollout_page(rollout)
+        self.assertEqual(page['hero']['chip'], ('info', 'Aborted'))
+        self.assertFalse(page['hero']['actions'], 'nothing to abort any more')
+        self.assertTrue(any('then the bootloader firmware' in m for m in page['hero']['meta']))
+        self.assertTrue(any(m.startswith('finished') for m in page['hero']['meta']))
+
+    def test_no_channel_no_message(self):
+        from message_center.functions import notify_firmware_update
+        from message_center.models import Message
+        rollout = FirmwareRollout.objects.create(source='online', channel='stable')
+        target = RolloutTarget.objects.create(rollout=rollout, router=self.router, to_version='7.25.2', state='done')
+        notify_firmware_update(target)
+        self.assertFalse(Message.objects.exists())
+
+    def test_the_device_type_form_checks_the_channels(self):
+        from router_manager.device_type_views import read_form
+        routeros = device_types.get('routeros')
+        base = {'name': routeros.name, 'session_mode': 'exec', 'text_extension': 'rsc'}
+        problems, _ = read_form({**base, 'update_channels': 'stable https://x', 'update_any_major': 'on'}, routeros)
+        self.assertTrue(any('Update channels' in p for p in problems), problems)
+        self.assertTrue(routeros.update_any_major)
+
+
+class BootloaderOnlyEntryTests(TestCase):
+    """A device whose only update is its bootloader still gets the arrow and the
+    Update action."""
+
+    def test_arrow_and_action_for_a_bootloader_behind(self):
+        router = routeros_device('rb-boot', '7.25.2 (stable)')
+        RouterInformation.objects.filter(router=router).update(update_available=False, firmware_version='7.24.5',
+                                                               firmware_available='7.25.2')
+        self.client.force_login(make_user(40))
+        listing = self.client.get('/router/list/')
+        self.assertContains(listing, 'rf-boot-mark')
+        self.assertContains(listing, f'kind=bootloader&amp;uuid={router.uuid}')
+        self.assertNotContains(listing, 'rf-update-mark', msg_prefix='no system update: no amber arrow')
+        details = self.client.get('/router/details/?uuid=' + str(router.uuid))
+        self.assertContains(details, 'Update bootloader')
+        self.assertNotContains(details, 'Update system')
+        RouterInformation.objects.filter(router=router).update(firmware_version='7.25.2')
+        self.assertNotContains(self.client.get('/router/list/'), 'rf-boot-mark')
+
+    def test_two_independent_pages(self):
+        router = routeros_device('rb-two', '7.24.5 (stable)')
+        RouterInformation.objects.filter(router=router).update(firmware_version='7.24.1', firmware_available='7.24.5')
+        self.client.force_login(make_user(40))
+        with mock.patch('firmware.options.fetch_channel_version', side_effect=fake_channel):
+            system = self.client.get(f'/system/firmware/update/?uuid={router.uuid}')
+            self.assertContains(system, 'online update, stable channel')
+            self.assertNotContains(system, 'Bootloader firmware to')
+            boot = self.client.get(f'/system/firmware/update/?kind=bootloader&uuid={router.uuid}')
+            self.assertContains(boot, 'Bootloader firmware to 7.24.5')
+            self.assertNotContains(boot, 'online update')
+            self.client.post(f'/system/firmware/update/?kind=bootloader&uuid={router.uuid}',
+                             {'action': 'start', 'kind': 'bootloader', 'option': 'bootloader', 'confirmation': 'update',
+                              'routers[]': [router.uuid]})
+        rollout = FirmwareRollout.objects.get()
+        self.assertEqual((rollout.source, rollout.then_bootloader), ('bootloader', False))

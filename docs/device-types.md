@@ -13,7 +13,7 @@ A device type says:
 | **Inventory** | the commands, and where each value - model, serial number, OS version, firmware, architecture, CPU, the version offered - is found |
 | **Backups** | named text backups from command output; optional files made on the device and downloaded by SCP; lines to ignore (timestamps); export options, with other words for OS versions below a given one (RouterOS 6) |
 | **Update checks** | which of the device itself, the vendor's release list and the firmware repository say which version it could run |
-| **Firmware** | where a firmware file is uploaded, how the upload is verified, how it is installed; the release channels of online updates and where each publishes its newest version |
+| **Firmware** | where a firmware file is uploaded, how the upload is verified, how it is installed; the release channels of online updates - `<major or *> <channel>: https://… [| pattern]` - and whether a newer major version is offered |
 | **Links** | what the address in the device list opens besides SSH (Winbox for RouterOS) |
 
 Devices, Fleet Commander variants and CSV imports refer to a type by its
@@ -40,7 +40,7 @@ recorded sessions; try them on your own device before relying on them (below).
 
 The commands of a type are its [system commands](fleet-commander.md#system-commands)
 in Fleet Commander: connection test, inventory, backup - text, create, files to
-download, remove, clean leftovers, and firmware - verify, install, online update. On an existing
+download, remove, clean leftovers, and firmware - verify, install, online update, bootloader upgrade. On an existing
 type they are edited one at a time, each with a review of the change. The
 wizard for a new type takes them all at once, since nothing runs them yet.
 

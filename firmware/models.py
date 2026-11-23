@@ -76,11 +76,14 @@ class FirmwareImage(models.Model):
 class FirmwareRollout(models.Model):
     STATES = [('running', 'Running'), ('done', 'Done'), ('failed', 'Stopped by a failure'), ('aborted', 'Aborted')]
 
-    SOURCES = [('image', 'A file of the repository'), ('online', 'Online update by the device')]
+    SOURCES = [('image', 'A file of the repository'), ('online', 'Online update by the device'),
+               ('bootloader', 'Bootloader firmware upgrade')]
     # A file of the repository, or the device's own online update of a channel
     image = models.ForeignKey(FirmwareImage, on_delete=models.PROTECT, related_name='rollouts', null=True, blank=True)
     source = models.CharField(max_length=10, choices=SOURCES, default='image')
     channel = models.CharField(max_length=40, blank=True)
+    # After the OS update, the bootloader firmware too (RouterOS: RouterBOOT)
+    then_bootloader = models.BooleanField(default=False)
     batch_size = models.PositiveSmallIntegerField(default=3)
     state = models.CharField(max_length=10, choices=STATES, default='running')
     message = models.CharField(max_length=500, blank=True)
@@ -100,6 +103,8 @@ class FirmwareRollout(models.Model):
 
     @property
     def label(self):
+        if self.source == 'bootloader':
+            return 'Bootloader firmware upgrade'
         if self.source == 'online':
             versions = sorted(set(self.targets.exclude(to_version='').values_list('to_version', flat=True)))
             return f'Online update, {self.channel} channel' + (f' ({", ".join(versions)})' if versions else '')
@@ -113,15 +118,19 @@ class FirmwareRollout(models.Model):
 class RolloutTarget(models.Model):
     STATES = [('waiting', 'Waiting'), ('backing_up', 'Backing up'), ('uploading', 'Uploading'),
               ('verifying', 'Verifying the upload'), ('installing', 'Installing'),
-              ('rebooting', 'Waiting for the new version'), ('done', 'Updated'), ('failed', 'Failed'),
-              ('skipped', 'Not started')]
-    IN_PROGRESS = ('backing_up', 'uploading', 'verifying', 'installing', 'rebooting')
+              ('rebooting', 'Waiting for the new version'), ('bootloader', 'Upgrading the bootloader firmware'),
+              ('boot_waiting', 'Waiting for the new bootloader firmware'), ('done', 'Updated'),
+              ('failed', 'Failed'), ('skipped', 'Not started')]
+    IN_PROGRESS = ('backing_up', 'uploading', 'verifying', 'installing', 'rebooting', 'bootloader',
+                   'boot_waiting')
 
     rollout = models.ForeignKey(FirmwareRollout, on_delete=models.CASCADE, related_name='targets')
     router = models.ForeignKey(Router, on_delete=models.CASCADE)
     position = models.PositiveIntegerField(default=0)
     # The version the device must come back with (an online update: the channel's newest)
     to_version = models.CharField(max_length=64, blank=True)
+    # The bootloader firmware it must come back with
+    to_firmware = models.CharField(max_length=64, blank=True)
     state = models.CharField(max_length=12, choices=STATES, default='waiting')
     message = models.TextField(blank=True)
     from_version = models.CharField(max_length=100, blank=True)
@@ -145,3 +154,18 @@ class RolloutTarget(models.Model):
     @property
     def canary(self):
         return self.position == 0
+
+
+class RolloutEvent(models.Model):
+    """One step of one device in a rollout, for the rollout's timeline."""
+    STATES = [('ok', 'Done'), ('bad', 'Failed'), ('run', 'In progress'), ('info', 'Information')]
+    target = models.ForeignKey(RolloutTarget, on_delete=models.CASCADE, related_name='events')
+    state = models.CharField(max_length=4, choices=STATES, default='info')
+    text = models.CharField(max_length=500)
+    created = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created', '-id']
+
+    def __str__(self):
+        return self.text

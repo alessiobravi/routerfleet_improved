@@ -29,7 +29,7 @@
                         <div class="rf-o-name">
                             {% if task.router %}<a href="/router/details/?uuid={{ task.router.uuid }}">{{ task.router.name }}</a>{% else %}{{ task.router_name|default_if_none:task.router_uuid }}{% endif %}
                             {% if task.router.routerstatus.command_lock or task.router.routerstatus.backup_lock %}
-                                <span class="badge text-bg-light border" title="Backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'-' }} / Command lock: {{ task.router.routerstatus.command_lock|default_if_none:'-' }}">locked</span>
+                                <i class="fas fa-lock text-danger ms-1" role="img" aria-label="Locked" title="Locked - backup lock: {{ task.router.routerstatus.backup_lock|default_if_none:'none' }}, command lock: {{ task.router.routerstatus.command_lock|default_if_none:'none' }}"></i>
                             {% endif %}
                         </div>
                         <div class="rf-o-sub">{% if task.router %}{{ task.router.address }} · {{ task.router.get_router_type_display }}{% endif %}{% if task.retry_count > 1 %} · run {{ task.retry_count }} times{% endif %}</div>

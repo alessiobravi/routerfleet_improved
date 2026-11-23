@@ -97,6 +97,15 @@ DEFAULTS = {
         'placeholders': ('firmware_name', 'firmware_path', 'firmware_version'),
         'required': False,
     },
+    'firmware_bootloader_upgrade': {
+        'name': 'System: firmware - bootloader upgrade',
+        'description': 'Upgrades the bootloader firmware to the one the device can install (RouterOS: the '
+                       'RouterBOOT firmware of the running RouterOS) - it takes effect at the reboot this '
+                       'command ends with. RouterFleet then waits for the device to report it. Empty: the device '
+                       'type has no bootloader upgrade.',
+        'placeholders': (),
+        'required': False,
+    },
     'firmware_online_update': {
         'name': 'System: firmware - online update',
         'description': 'The device downloads and installs a release itself, from its vendor - usually ending in '
