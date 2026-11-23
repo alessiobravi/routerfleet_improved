@@ -83,6 +83,9 @@ class LoginRecord(models.Model):
 
     class Meta:
         ordering = ['-created']
+        indexes = [
+            models.Index(fields=['username', '-created'], name='login_username'),
+        ]
 
     def __str__(self):
         return f'{self.username} ({"signed in" if self.successful else "refused"})'
@@ -138,6 +141,9 @@ class ChangeRecord(models.Model):
 
     class Meta:
         ordering = ['-created']
+        indexes = [
+            models.Index(fields=['model_label', 'object_uuid', '-created'], name='change_object'),
+        ]
 
     def __str__(self):
         return f'{self.get_action_display()} {self.display_object}'

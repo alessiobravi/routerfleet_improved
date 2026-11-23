@@ -157,7 +157,11 @@ def view_user_list(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=50).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     page_title = 'User Manager'
-    user_acl_list = UserAcl.objects.all().order_by('user__username')
+    from django.db.models import Count, Exists, OuterRef
+    from .models import UserTotp
+    user_acl_list = UserAcl.objects.select_related('user').annotate(
+        passkeys=Count('user__passkeys', distinct=True),
+        app=Exists(UserTotp.objects.filter(user=OuterRef('user'), confirmed=True))).order_by('user__username')
     context = {'page_title': page_title, 'user_acl_list': user_acl_list}
     return render(request, 'user_manager/list.html', context)
 

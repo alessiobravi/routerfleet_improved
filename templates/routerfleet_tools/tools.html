@@ -1,28 +1,54 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <p class="text-muted">Maintenance run by hand. Each tool says what it will do before it does anything.</p>
-    </div>
-    <div class="col-md-6 col-xl-4 mb-3">
-        <a href="/tools/backup_cleanup/" class="card card-outline card-primary h-100 text-reset" style="text-decoration: none;">
-            <div class="card-body">
-                <h5><i class="fas fa-broom text-primary"></i> Backup clean-up</h5>
-                <p class="mb-0 text-muted">Audit the stored backups: find duplicates - the same configuration stored again -
-                    and files no backup refers to, and free their space. Duplicates stay in the history as
-                    <em>unchanged</em> backups.</p>
-            </div>
+<div class="rf-settings">
+    <div class="rf-set-title">Backups</div>
+    <div class="rf-set-group">
+        <a class="rf-set-row" href="/tools/backup_cleanup/">
+            <span class="rf-set-icon teal"><i class="fas fa-broom"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Backup clean-up</span>
+                <span class="rf-set-sub d-block">Find duplicates - the same configuration stored again - and files no backup refers to, and free their space. Duplicates stay in the history as unchanged backups.</span></span>
+            <span class="rf-set-value">{{ backup_count }} backup{{ backup_count|pluralize }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="rf-set-row" href="/tools/backup_export/">
+            <span class="rf-set-icon blue"><i class="fas fa-file-archive"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Export latest backups</span>
+                <span class="rf-set-sub d-block">A zip with the latest configuration of every device - a folder per device, one file per backup, and a manifest.</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
-    <div class="col-md-6 col-xl-4 mb-3">
-        <a href="/tools/backup_export/" class="card card-outline card-primary h-100 text-reset" style="text-decoration: none;">
-            <div class="card-body">
-                <h5><i class="fas fa-file-archive text-primary"></i> Export latest backups</h5>
-                <p class="mb-0 text-muted">Download a zip with the latest configuration of every device - a folder per device,
-                    one file per backup, and a manifest.</p>
+
+    <div class="rf-set-title">Database</div>
+    <form method="post" id="optimize-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="optimize">
+        <input type="hidden" name="confirmation" id="optimize-confirmation">
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon purple"><i class="fas fa-database"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Size</span>
+                    <span class="rf-set-sub d-block">{% if database_vendor == 'postgresql' %}PostgreSQL{% else %}SQLite{% endif %}{% if database_size %} · {{ database_size|filesizeformat }}{% endif %}</span></span>
             </div>
-        </a>
-    </div>
+            {% if database_vendor == 'postgresql' %}
+            <div class="rf-set-row">
+                <div class="rf-set-text"><div class="rf-set-label">Give the space back to the disk</div>
+                    <div class="rf-set-sub">VACUUM FULL: rewrites each table and locks it while it does - pages wait for a few seconds to minutes. Off: the space of deleted data becomes reusable, without locking.</div></div>
+                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="full" name="full"><label class="custom-control-label" for="full"><span class="sr-only">VACUUM FULL</span></label></div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="rf-set-foot">{% if database_vendor == 'postgresql' %}PostgreSQL makes the space of deleted data reusable on its own over time; optimizing does it now and refreshes the statistics queries rely on.{% else %}SQLite keeps its file at its largest size until it is optimized; optimizing rewrites it - the database is locked meanwhile, and needs free disk space as large as itself.{% endif %} Best after a backup clean-up.</div>
+        <div class="text-center mt-3"><button type="button" class="btn btn-outline-primary btn-lg" id="optimize-button"><i class="fas fa-compress-arrows-alt mr-1"></i>Optimize the database</button></div>
+    </form>
 </div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<script>
+    document.getElementById('optimize-button').addEventListener('click', function () {
+        var c = rfConfirm('Optimize the database now? It may be busy for a while.', 'optimize');
+        if (c) { document.getElementById('optimize-confirmation').value = c; document.getElementById('optimize-form').submit(); }
+    });
+</script>
 {% endblock %}

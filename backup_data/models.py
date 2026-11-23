@@ -5,6 +5,18 @@ import uuid
 import hashlib
 
 
+# The columns that make a backup row heavy - the configuration texts and the
+# console log of the run. Queries leave them out unless the code reads them
+# (then they are fetched for that backup alone): lists, counts, the scheduler
+# and change detection never carry megabytes of configuration they do not show.
+HEAVY_FIELDS = ('backup_text', 'extra_texts', 'task_console_output')
+
+
+class RouterBackupManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().defer(*HEAVY_FIELDS)
+
+
 class RouterBackup(models.Model):
     router = models.ForeignKey(Router, on_delete=models.CASCADE)
     success = models.BooleanField(default=False)
@@ -40,6 +52,8 @@ class RouterBackup(models.Model):
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    objects = RouterBackupManager()
 
     class Meta:
         # The backup list (by outcome, newest first), the queue (by next retry),

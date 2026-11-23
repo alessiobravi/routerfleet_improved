@@ -1,92 +1,55 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Enabled</th>
-                                        <th>Variants</th>
-                                        <th>Schedules</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                {% for command in command_list %}
-                                    <tr>
-                                        <td>
-                                            <a href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
-                                                {{ command.name }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            {% if command.enabled %}
-                                                <i class="far fa-check-circle text-success"></i>
-                                            {% else %}
-                                                <i class="far fa-times-circle text-danger"></i>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ command.variants.count }}</td>
-                                        <td>{{ command.schedules.count }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-lg-12">
-                            <a href="/fleet_commander/command/manage/" class="btn btn-primary">Add Command</a>
-                            <a href="/fleet_commander/job/list/" class="btn btn-outline-secondary ml-2">
-                                <i class="fas fa-history"></i> Job History
-                            </a>
-                            <a href="/fleet_commander/schedule/defaults/" class="btn btn-outline-secondary ml-2"
-                               title="The start time and the repeat interval a new schedule is created with">
-                                <i class="fas fa-clock"></i> Schedule Defaults
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="rf-settings">
+    <div class="rf-set-group mt-2">
+        <a class="rf-set-row" href="/fleet_commander/job/list/">
+            <span class="rf-set-icon blue"><i class="fas fa-history"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Job history</span>
+                <span class="rf-set-sub d-block">Every run, by hand or scheduled, with each device's result</span></span>
+            {% if jobs_running %}<span class="rf-set-pill on">{{ jobs_running }} running</span>{% endif %}
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="rf-set-row" href="/fleet_commander/schedule/defaults/">
+            <span class="rf-set-icon purple"><i class="fas fa-clock"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Schedule defaults</span>
+                <span class="rf-set-sub d-block">The start time and repeat interval a new schedule starts with</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
     </div>
+
+    <div class="d-flex justify-content-between align-items-end">
+        <div class="rf-set-title">Commands</div>
+        {% if can_manage %}<a href="/fleet_commander/command/manage/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-plus mr-1"></i>Add command</a>{% endif %}
+    </div>
+    <div class="rf-set-group">
+        {% for command in command_list %}
+        <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
+            <span class="rf-set-icon {% if command.enabled %}teal{% else %}grey{% endif %}"><i class="fas fa-terminal"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ command.name }}</span>
+                <span class="rf-set-sub d-block">{{ command.variant_count }} device type{{ command.variant_count|pluralize }}{% if command.schedule_count %} · {{ command.schedule_count }} schedule{{ command.schedule_count|pluralize }}{% endif %}{% if command.description %} · {{ command.description|truncatewords:12 }}{% endif %}</span></span>
+            <span class="rf-set-pill {% if command.enabled %}on{% endif %}">{% if command.enabled %}On{% else %}Off{% endif %}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% empty %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">No command yet.</span></div>
+        {% endfor %}
+    </div>
+
     {% if system_command_list %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-outline card-secondary">
-                <div class="card-header">
-                    <h3 class="card-title"><i class="fas fa-lock"></i> System commands</h3>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">What RouterFleet itself sends to devices - the connection test, the inventory
-                        and every step of a backup. They can not be deleted, disabled or run by hand; an administrator
-                        can edit their variants after a confirmation.</p>
-                    <table class="table table-sm table-hover mb-0">
-                        <thead><tr><th>Name</th><th>Purpose</th><th>Variants</th></tr></thead>
-                        <tbody>
-                        {% for command in system_command_list %}
-                            <tr>
-                                <td class="text-nowrap"><a href="/fleet_commander/command/details/?uuid={{ command.uuid }}"><i class="fas fa-lock text-muted mr-1"></i>{{ command.name }}</a>
-                                    <span class="badge badge-secondary ml-1">System</span></td>
-                                <td class="small text-muted">{{ command.description|truncatewords:18 }}</td>
-                                <td>{{ command.variants.count }}</td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="rf-set-title"><i class="fas fa-lock mr-1"></i>System commands</div>
+    <div class="rf-set-group">
+        {% for command in system_command_list %}
+        <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
+            <span class="rf-set-icon grey"><i class="fas fa-lock"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ command.name }}</span>
+                <span class="rf-set-sub d-block">{{ command.description|truncatewords:18 }}</span></span>
+            <span class="rf-set-value">{{ command.variant_count }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
     </div>
+    <div class="rf-set-foot">What RouterFleet itself sends to devices: the connection test, the inventory, every step of a backup, and firmware updates - one variant per device type. They can not be deleted, disabled or run by hand; an administrator edits a variant after reviewing the change.</div>
     {% endif %}
+</div>
 {% endblock %}

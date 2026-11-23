@@ -46,6 +46,11 @@ class ConsoleSession(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'ended_at'], name='console_user_open'),
+        ]
+
     def __str__(self):
         return f'Console on {self.router_name} as {self.username or "-"} ({self.get_transport_display()})'
 

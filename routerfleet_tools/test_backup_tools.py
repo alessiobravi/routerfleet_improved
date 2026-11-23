@@ -6,7 +6,7 @@ import zipfile
 
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
 from audit_log.models import ChangeRecord
@@ -214,3 +214,37 @@ class ToolPagesTests(Base):
     def test_export_with_nothing_to_export(self):
         self.client.force_login(make_user(50))
         self.assertRedirects(self.client.post('/tools/backup_export/'), '/tools/backup_export/', fetch_redirect_response=False)
+
+
+class DatabaseMaintenanceTests(TestCase):
+    def test_tools_page_shows_the_database(self):
+        self.client.force_login(make_user(50))
+        page = self.client.get('/tools/')
+        self.assertContains(page, 'Optimize the database')
+        self.assertContains(page, 'Backup clean-up')
+
+    def test_optimize_needs_the_confirmation(self):
+        from unittest import mock
+        self.client.force_login(make_user(50))
+        with mock.patch('routerfleet_tools.database.optimize', return_value=(2097152, 1048576)) as optimize:
+            self.client.post('/tools/', {'action': 'optimize'})
+            optimize.assert_not_called()
+            response = self.client.post('/tools/', {'action': 'optimize', 'confirmation': 'optimize'})
+        optimize.assert_called_once_with(full=False)
+        self.assertRedirects(response, '/tools/', fetch_redirect_response=False)
+
+    def test_inside_a_transaction_it_refuses(self):
+        from routerfleet_tools import database
+        with self.assertRaises(RuntimeError):
+            database.optimize()
+        database.size()  # None for an in-memory test database, a number otherwise
+        database.analyze()
+
+
+class DatabaseOptimizeCommandTests(TransactionTestCase):
+    def test_the_command_runs(self):
+        import io
+        from django.core.management import call_command
+        out = io.StringIO()
+        call_command('optimize_database', stdout=out)
+        self.assertIn('Database optimized', out.getvalue())

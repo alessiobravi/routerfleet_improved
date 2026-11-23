@@ -16,6 +16,11 @@ class Notification(models.Model):
     updated = models.DateTimeField(auto_now=True)
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['notification_type', 'created'], name='notification_type_created'),
+        ]
+
 
 class MessageChannel(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -78,6 +83,12 @@ class Message(models.Model):
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['status', 'next_retry'], name='message_queue'),
+            models.Index(fields=['-created'], name='message_history'),
+        ]
 
 
 class MessageSettings(models.Model):

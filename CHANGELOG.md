@@ -23,6 +23,17 @@ the Zabbix kit reads, says so under **Monitoring**.
   the button can not flood GitHub; follows UPDATE_CHECK and UPDATE_CHECK_URL.
   The page shows when the last check ran.
 
+- **Database maintenance** (Tools, Database): the database's size, and
+  *Optimize* - VACUUM and fresh statistics; on PostgreSQL optionally VACUUM
+  FULL to give the space back to the disk. Also `manage.py optimize_database`.
+  Statistics are refreshed after every backup clean-up.
+
+### Changed
+- **Tools, User Manager, Message Center and Fleet Commander** use the layout of
+  System settings. The message history can be filtered; grouping and daily
+  reports explain each setting beside it; the user list shows each user's level
+  and second factors.
+
 ### Fixed
 - **The backup list was slow**: every row fetched its device with a query of
   its own and read the full configuration text and console log it never
@@ -32,6 +43,17 @@ the Zabbix kit reads, says so under **Monitoring**.
   list, the queue, a device's history and retention. On 3,000 backups: from
   3,014 queries and 0.8 s to 15 queries and 0.04 s. A device's backup page no
   longer reads every earlier configuration text either.
+- **Deleting duplicates was slow**: every duplicate was saved on its own, with
+  its change detection and change-log work - 6,001 queries for 3,000. They are
+  now freed in bulk (21 queries, 0.09 s), and the clean-up page no longer reads
+  every configuration text to measure it.
+- **Backup rows no longer load their configuration texts and console log**
+  unless the code reads them: lists, counts, the scheduler and change detection
+  stay light whatever the size of the configurations.
+- **Indexes** for the message queue and history, notifications, the change log
+  by object, sign-ins by user, downtime by device, and open console sessions.
+- **Dark mode**: command payloads on a command's page were light text on a
+  light background.
 
 ### Security
 - **Try on a device** (device types) answers with a fixed sentence per kind of

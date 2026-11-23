@@ -69,3 +69,20 @@ it repeats.
 The archive holds every configuration at once, passwords and keys included
 where the devices store them: keep it safe. Each export is recorded in the
 change log with the number of devices.
+
+## Database
+
+The Tools page shows the database's size and offers **Optimize the database**
+(confirmed with a sum):
+
+- **PostgreSQL**: `VACUUM (ANALYZE)` - the space of deleted data becomes
+  reusable at once and the statistics queries rely on are refreshed, without
+  locking anyone out. With *Give the space back to the disk*, `VACUUM FULL`
+  rewrites each table to shrink the files - it locks each table while it runs.
+  The bundled PostgreSQL also does the first on its own over time (autovacuum).
+- **SQLite**: `VACUUM` rewrites the file at its real size. The database is
+  locked while it runs, and it needs free disk space as large as itself.
+
+Best right after a backup clean-up, which empties large texts. The same from
+the command line: `docker compose exec routerfleet python manage.py
+optimize_database` (add `--full` for VACUUM FULL on PostgreSQL).

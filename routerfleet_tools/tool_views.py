@@ -23,7 +23,31 @@ def _denied(request):
 
 @login_required
 def view_tools(request):
-    return _denied(request) or render(request, 'routerfleet_tools/tools.html', {'page_title': 'Tools'})
+    denied = _denied(request)
+    if denied:
+        return denied
+    from django.db import connection
+    from . import database
+    if posted_action(request, 'optimize'):
+        if posted_confirmation(request) != 'optimize':
+            messages.warning(request, 'Not optimized|The confirmation was not given.')
+        else:
+            full = request.POST.get('full') == 'on' and connection.vendor == 'postgresql'
+            try:
+                before, after = database.optimize(full=full)
+            except Exception as error:
+                import logging
+                logging.getLogger(__name__).warning('Database optimization failed', exc_info=True)
+                messages.error(request, f'Not optimized|The database refused it ({error.__class__.__name__}); see the log.')
+            else:
+                def mb(value):
+                    return 'an unknown size' if value is None else f'{value / 1048576:.1f} MB'
+                messages.success(request, f'Database optimized|From {mb(before)} to {mb(after)}.')
+        return redirect('/tools/')
+    from backup_data.models import RouterBackup
+    return render(request, 'routerfleet_tools/tools.html', {
+        'page_title': 'Tools', 'database_size': database.size(), 'database_vendor': connection.vendor,
+        'backup_count': RouterBackup.objects.count()})
 
 
 @login_required

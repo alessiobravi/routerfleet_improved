@@ -195,7 +195,7 @@ def view_message_history(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
-    message_list = Message.objects.all().order_by('-created')
+    message_list = Message.objects.select_related('channel').order_by('-created')
     context = {
         'message_settings': message_settings,
         'message_list': message_list,
@@ -213,33 +213,8 @@ def view_manage_message_settings(request):
         form.save()
         messages.success(request, 'Message Settings saved successfully')
         return redirect('/system/notifications/')
-    form_description_content = '''
-    <strong>Max Length</strong>
-    <p>Maximum length of a message in characters. Longer messages will be truncated.</p>
-    <strong>Daily Report Time</strong>
-    <p>Time of day to send daily status and backup reports. Format: HH:MM (24-hour clock)</p>
-    <strong>Max Retry and Retry Interval</strong>
-    <p>Maximum number of retries for a failed message and the interval between retries in seconds.</p>
-    <strong>Concatenate Status Change</strong>
-    <p>
-    When enabled, the system will concatenate status change notifications for multiple routers into a single message.
-    If a router goes offline and then online again within the status change delay, the system will not send any message.
-    </p>
-    <strong>Concatenate Backup Fails</strong>
-    <p>Instead of sending a single message for each backup failure, the system will concatenate multiple failures into a single message.</p>
-    <strong>Status Change and Backup fail Delay</strong>
-    <p>Time in seconds to wait for additional notifications before sending a concatenated message.</p>
-    '''
-
-    context = {
-        'message_settings': message_settings,
-        'form': form,
-        'form_description': {
-            'size': '',
-            'content': form_description_content
-        },
-    }
-    return render(request, 'generic_form.html', context=context)
+    return render(request, 'message_center/message_settings.html',
+                  {'form': form, 'page_title': 'Grouping and daily reports'})
 
 
 @login_required()

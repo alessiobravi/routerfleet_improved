@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/system/notifications/" class="small"><i class="fas fa-chevron-left"></i> Notifications</a>
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="rf-set-title">Daily reports</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><span class="rf-set-icon amber"><i class="fas fa-clock"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="id_daily_report_time">Time of day</label>
+                    <input type="text" class="form-control" id="id_daily_report_time" name="daily_report_time" maxlength="5" required pattern="[0-2][0-9]:[0-5][0-9]" value="{{ form.daily_report_time.value|default_if_none:'' }}">
+                    <small class="text-muted">When the daily status and backup reports go out, HH:MM on a 24-hour clock.</small></div></div>
+        </div>
+
+        <div class="rf-set-title">Grouping</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Group status changes</div>
+                <div class="rf-set-sub">Devices going offline and online within the delay below go into one message; a device that is back before the delay ends sends nothing.</div></div>
+                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="id_concatenate_status_change" name="concatenate_status_change" {% if form.concatenate_status_change.value %}checked{% endif %}><label class="custom-control-label" for="id_concatenate_status_change"><span class="sr-only">Group status changes</span></label></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_status_change_delay">Status change delay (seconds)</label>
+                <input type="number" class="form-control" id="id_status_change_delay" name="status_change_delay" min="0" required value="{{ form.status_change_delay.value|default_if_none:'' }}"></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Group failed backups</div>
+                <div class="rf-set-sub">Failures within the delay below go into one message instead of one each.</div></div>
+                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="id_concatenate_backup_fails" name="concatenate_backup_fails" {% if form.concatenate_backup_fails.value %}checked{% endif %}><label class="custom-control-label" for="id_concatenate_backup_fails"><span class="sr-only">Group failed backups</span></label></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_backup_fails_delay">Failed backup delay (seconds)</label>
+                <input type="number" class="form-control" id="id_backup_fails_delay" name="backup_fails_delay" min="0" required value="{{ form.backup_fails_delay.value|default_if_none:'' }}"></div></div>
+        </div>
+
+        <div class="rf-set-title">Delivery</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_max_length">Longest message (characters)</label>
+                <input type="number" class="form-control" id="id_max_length" name="max_length" min="500" max="2000" required value="{{ form.max_length.value|default_if_none:'' }}">
+                <small class="text-muted">500 to 2000; a longer message is cut.</small></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_max_retry">Attempts for a message that fails</label>
+                <input type="number" class="form-control" id="id_max_retry" name="max_retry" min="0" required value="{{ form.max_retry.value|default_if_none:'' }}"></div></div>
+            <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_retry_interval">Between attempts (seconds)</label>
+                <input type="number" class="form-control" id="id_retry_interval" name="retry_interval" min="0" required value="{{ form.retry_interval.value|default_if_none:'' }}"></div></div>
+        </div>
+        <div class="text-center mt-4"><button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <a href="/system/notifications/" class="btn btn-secondary btn-lg ml-2">Cancel</a></div>
+    </form>
+</div>
+{% endblock %}

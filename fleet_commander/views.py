@@ -83,20 +83,25 @@ def create_default_commands():
 def view_command_list(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
-    command_list = Command.objects.all().order_by('system_key', 'name')
+    from django.db.models import Count
+    counted = Command.objects.annotate(variant_count=Count('variants', distinct=True),
+                                       schedule_count=Count('schedules', distinct=True))
+    command_list = counted.order_by('system_key', 'name')
     if not Command.objects.filter(system_key__isnull=True).exists():
         # Seeded while a page is being rendered, so nothing is recorded: the
         # application made these for itself, nobody did
         with suspend():
             create_default_commands()
         messages.success(request, 'Default commands created successfully')
-        command_list = Command.objects.all().order_by('system_key', 'name')
+        command_list = counted.order_by('system_key', 'name')
 
     context = {
         'command_list': [c for c in command_list if not c.system_key],
         'system_command_list': sorted((c for c in command_list if c.system_key),
                                       key=lambda c: SYSTEM_ORDER.index(c.system_key) if c.system_key in SYSTEM_ORDER else 99),
         'page_title': 'Fleet Commander',
+        'jobs_running': CommandJob.objects.filter(completed__isnull=True).count(),
+        'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'fleet_commander/command_list.html', context)
 

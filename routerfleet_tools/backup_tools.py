@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 
 from django.conf import settings
 from django.db.models import Q
+from django.db.models.functions import Length
 from django.utils import timezone
 
 from audit_log.bulk import collect
@@ -24,6 +25,8 @@ from backup_data.models import RouterBackup
 from router_manager.models import Router
 
 BACKUP_DIRECTORY = 'backups'
+# Rows per bulk statement: well within every database's limit on parameters
+CHUNK = 400
 
 
 def _size_of_file(field_file):
@@ -110,21 +113,22 @@ def audit(include_every_profile=False):
         profile = _profile_of(router, default)
         entry = RouterReport(router=router, keeps_every_backup=router.keeps_unchanged(profile), profile=profile)
         last_stored = None
+        # The texts themselves are never read: their length comes from the database
         backups = RouterBackup.objects.filter(router=router, success=True).exclude(backup_text_hash='') \
-            .order_by('created', 'id')
+            .only('id', 'router_id', 'created', 'schedule_type', 'same_as_id', 'backup_text_hash', 'backup_binary') \
+            .annotate(text_size=Length('backup_text')).order_by('created', 'id')
         for backup in backups:
             if backup.same_as_id:
                 entry.unchanged += 1
                 continue
-            if not backup.backup_text:
+            if not backup.text_size:
                 # No content of its own and no link: a lost link, repaired below
                 continue
             if last_stored is not None and backup.schedule_type != 'instant' \
                     and backup.backup_text_hash == last_stored.backup_text_hash:
                 # The same configuration as the stored backup before it: a copy
                 entry.duplicates.append((backup, last_stored))
-                entry.duplicate_bytes += len((backup.backup_text or '').encode('utf-8')) + \
-                    _size_of_file(backup.backup_binary)
+                entry.duplicate_bytes += (backup.text_size or 0) + _size_of_file(backup.backup_binary)
             else:
                 entry.stored += 1
                 last_stored = backup
@@ -134,7 +138,8 @@ def audit(include_every_profile=False):
     # Unchanged records whose stored backup is gone (a link set to nothing):
     # point them at a stored backup of the same device with the same configuration
     for backup in RouterBackup.objects.filter(success=True, same_as__isnull=True, backup_text='') \
-            .exclude(backup_text_hash='').filter(Q(backup_binary='') | Q(backup_binary__isnull=True)):
+            .exclude(backup_text_hash='').filter(Q(backup_binary='') | Q(backup_binary__isnull=True)) \
+            .only('id', 'router_id', 'backup_text_hash', 'same_as_id'):
         report.broken_links.append((backup, _stored_with(backup)))
 
     # Files on disk and the database, reconciled both ways
@@ -147,7 +152,8 @@ def audit(include_every_profile=False):
             relative = f'{BACKUP_DIRECTORY}/{entry_name}'
             if os.path.isfile(path) and not os.path.islink(path) and relative not in referenced:
                 report.orphan_files.append((relative, os.path.getsize(path)))
-    for backup in RouterBackup.objects.exclude(backup_binary='').exclude(backup_binary__isnull=True):
+    for backup in RouterBackup.objects.exclude(backup_binary='').exclude(backup_binary__isnull=True) \
+            .only('id', 'backup_binary'):
         if not backup.backup_binary.storage.exists(backup.backup_binary.name):
             report.missing_files.append(backup)
     return report
@@ -162,14 +168,21 @@ def clean(include_every_profile=False):
         for entry in report.routers:
             if not report.applies_to(entry):
                 continue
+            # In bulk, a few hundred rows per statement, grouped by the stored
+            # backup they now point to. Their hash and change flag stay as they
+            # are: a duplicate has the stored backup's hash already.
+            targets = {}
             for backup, stored in entry.duplicates:
-                freed['bytes'] += len((backup.backup_text or '').encode('utf-8')) + _size_of_file(backup.backup_binary)
+                freed['bytes'] += (backup.text_size or 0) + _size_of_file(backup.backup_binary)
                 if backup.backup_binary:
                     backup.backup_binary.delete(save=False)
-                backup.backup_text = ''
-                backup.same_as = stored
-                backup.save()
-                freed['duplicates'] += 1
+                targets.setdefault(stored.id, []).append(backup.id)
+            for stored_id, ids in targets.items():
+                for start in range(0, len(ids), CHUNK):
+                    chunk = ids[start:start + CHUNK]
+                    RouterBackup.objects.filter(pk__in=chunk).update(
+                        backup_text='', extra_texts=[], backup_binary=None, same_as_id=stored_id)
+                    freed['duplicates'] += len(chunk)
         for relative, size in report.orphan_files:
             path = os.path.join(settings.MEDIA_ROOT, relative)
             # Only plain files directly in the backup directory, as the audit listed them
@@ -194,6 +207,15 @@ def clean(include_every_profile=False):
                             ('Missing files cleared', freed['missing']), ('Links repaired', freed['relinked'])):
             if count:
                 batch.counted(name, count)
+    if freed['duplicates'] or freed['missing']:
+        # Thousands of rows changed: fresh statistics, so queries keep using
+        # the indexes well. The space itself: Tools, Database
+        from . import database
+        try:
+            database.analyze()
+        except Exception as error:
+            import logging
+            logging.getLogger(__name__).warning(f'ANALYZE after the clean-up failed: {error}')
     return report, freed
 
 
