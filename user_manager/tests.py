@@ -115,7 +115,7 @@ class UserDetailsTests(TestCase):
 
 class SessionLengthAndListStyleTests(TestCase):
     """Each user chooses how long a sign-in lasts (24 hours by default, from
-    the last use, self-refreshing pages not counting) and how lists look."""
+    the last use, self-refreshing pages not counting)."""
 
     def setUp(self):
         from routerfleet.testing import make_user
@@ -147,13 +147,6 @@ class SessionLengthAndListStyleTests(TestCase):
             self.client.get('/status/')
             self.assertGreater(self.client.session['rf_renewed'], renewed, 'a page opened is')
 
-    def test_the_list_style_reaches_every_page(self):
-        self.assertNotIn('rf-lists-grouped', self.client.get('/status/').content.decode())
-        self.client.post('/user/settings/', {'action': 'lists', 'list_style': 'grouped'})
-        self.assertIn('rf-lists-grouped', self.client.get('/status/').content.decode())
-        self.client.post('/user/settings/', {'action': 'lists', 'list_style': 'nonsense'})
-        self.assertEqual(UserAcl.objects.get(user=self.user).list_style, 'grouped')
-
 
 class MySettingsSectionsAndPasswordTests(TestCase):
     """My Settings in collapsible sections, security first; a user changes
@@ -165,11 +158,12 @@ class MySettingsSectionsAndPasswordTests(TestCase):
 
     def test_sections_security_first_closed_by_default(self):
         page = self.client.get('/user/settings/').content.decode()
-        order = [page.index(marker) for marker in ('data-rf-remember="security"', '>Account<',
+        order = [page.index(marker) for marker in ('>Account<', 'data-rf-remember="security"',
                                                    'data-rf-remember="display"', 'data-rf-remember="email"')]
-        self.assertEqual(order, sorted(order), 'security settings first, before the username')
+        self.assertEqual(order, sorted(order), 'the account (username and email) on top, then security')
+        self.assertNotIn('list_style', page, 'list pages have one look')
         self.assertNotIn('<details class="rf-set-section" data-rf-remember="security" open', page)
-        security = page[page.index('data-rf-remember="security"'):page.index('>Account<')]
+        security = page[page.index('data-rf-remember="security"'):page.index('data-rf-remember="display"')]
         for item in ('Authenticator app', '/user/settings/password/', 'id="passkey-add"', 'Session expiration time'):
             self.assertIn(item, security)
         self.assertLess(security.index('/user/settings/password/'), security.index('id="passkey-add"'))

@@ -26,24 +26,31 @@
         <input type="hidden" name="confirmation" id="optimize-confirmation">
         <div class="rf-set-group">
             <div class="rf-set-row">
-                <span class="rf-set-icon purple"><i class="fas fa-database"></i></span>
-                <span class="rf-set-text"><span class="rf-set-label d-block">Size</span>
-                    <span class="rf-set-sub d-block">{% if database_vendor == 'postgresql' %}PostgreSQL{% else %}SQLite{% endif %}{% if database_size %} · {{ database_size|filesizeformat }}{% endif %}</span></span>
+                <span class="rf-set-icon indigo"><i class="fas fa-database"></i></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{% if database_vendor == 'postgresql' %}PostgreSQL{% else %}SQLite{% endif %} database</span>
+                    <span class="rf-set-sub d-block">{% if database_vendor == 'postgresql' %}Space on disk, free space PostgreSQL keeps for new data included{% else %}The size of the database file{% endif %}</span></span>
+                {% if database_size %}<span class="rf-set-value">{{ database_size|filesizeformat }}</span>{% endif %}
             </div>
             {% if database_vendor == 'postgresql' %}
             <div class="rf-set-row">
-                <div class="rf-set-text"><div class="rf-set-label">Also shrink the database on disk (VACUUM FULL)</div>
-                    <div class="rf-set-sub"><b>What it does:</b> rewrites every table into a new, compact copy and removes the old one, so the space left by deleted backups and history goes back to the disk.
-                        <b>Meanwhile:</b> each table is locked in turn - pages and backups wait, from a few seconds to minutes on a large database - and it needs free disk space as large as the biggest table.
-                        <b>Afterwards:</b> the database takes less space on disk; RouterFleet works exactly as before.
-                        <b>When:</b> after deleting a lot (a large backup clean-up, many devices removed) with the disk running short.
-                        <b>Off:</b> the space stays with the database and is reused for new data; nothing waits.</div></div>
-                <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="full" name="full"><label class="form-check-label" for="full"><span class="visually-hidden">VACUUM FULL</span></label></div>
+                <span class="rf-set-icon amber"><i class="fas fa-compress"></i></span>
+                <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="full">Also shrink the files (VACUUM FULL)</label>
+                    <div class="rf-set-sub">Gives the space of deleted data back to the disk. Each table is locked while it is rewritten: pages wait.</div>
+                    <details class="rf-more"><summary>What happens exactly</summary>
+                        <p>Every table is copied into a new, compact file and the old one removed. While a table is copied, pages and backups that need it wait - seconds on a small database, minutes on a large one - and the disk needs free space as large as the biggest table.</p>
+                        <p>Afterwards the database takes less space on disk and works exactly as before. Worth it after deleting a lot - a large backup clean-up, many devices removed - when the disk runs short. Without it, the space stays with the database and is reused for new data, and nothing waits.</p>
+                    </details></div>
+                <div class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" id="full" name="full"></div>
             </div>
             {% endif %}
+            <button type="button" class="rf-set-row rf-set-action w-100" id="optimize-button" data-rf-submit="optimize-form" data-rf-confirm-word="optimize" data-rf-confirm-sum="Optimize the database now? It may be busy for a while.">
+                <span class="rf-set-icon indigo"><i class="fas fa-wand-magic-sparkles"></i></span>
+                <span class="rf-set-text text-start"><span class="rf-set-label d-block">Optimize now</span>
+                    <span class="rf-set-sub d-block">{% if database_vendor == 'postgresql' %}Makes the space of deleted data reusable and refreshes the statistics queries rely on{% else %}Rewrites the file at its smallest size; the database is locked meanwhile{% endif %}</span></span>
+                <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+            </button>
         </div>
-        <div class="rf-set-foot">{% if database_vendor == 'postgresql' %}PostgreSQL makes the space of deleted data reusable on its own over time; optimizing does it now and refreshes the statistics queries rely on.{% else %}SQLite keeps its file at its largest size until it is optimized; optimizing rewrites it - the database is locked meanwhile, and needs free disk space as large as itself.{% endif %} Best after a backup clean-up.</div>
-        <div class="text-center mt-3"><button type="button" class="btn btn-outline-primary btn-lg" id="optimize-button" data-rf-submit="optimize-form" data-rf-confirm-word="optimize" data-rf-confirm-sum="Optimize the database now? It may be busy for a while."><i class="fas fa-compress-arrows-alt me-1"></i>Optimize the database</button></div>
+        <div class="rf-set-foot">Best after a backup clean-up.{% if database_vendor != 'postgresql' %} It needs free disk space as large as the database.{% endif %}</div>
     </form>
 </div>
 {% endblock %}

@@ -3,16 +3,20 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
-    <div class="d-flex justify-content-between align-items-end">
-        <div class="rf-set-title">Firmware by device type</div>
-        <a href="/system/firmware/upload/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-upload me-1"></i>Upload firmware</a>
+    <div class="rf-set-group mt-3">
+        <a class="rf-set-row rf-set-add" href="/system/firmware/upload/">
+            <span class="rf-set-icon purple"><i class="fas fa-upload"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Upload firmware</span>
+                <span class="rf-set-sub d-block">A file for a device type, model and architecture - checked by its SHA-256</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
     </div>
     {% for entry in types %}
     <div class="rf-set-title">{{ entry.type.name }}{% if not entry.installable %} <span class="badge text-bg-secondary ms-1" title="The device type has no firmware install procedure">no install procedure</span>{% endif %}</div>
     <div class="rf-set-group">
         {% for image in entry.images %}
         <a class="rf-set-row" href="/system/firmware/image/?uuid={{ image.uuid }}">
-            <span class="rf-set-icon {% if image.enabled %}teal{% else %}grey{% endif %}"><i class="fas fa-microchip"></i></span>
+            <span class="rf-set-icon {% if image.enabled %}purple{% else %}amber{% endif %}"><i class="fas fa-microchip"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ image.version }}</span>
                 <span class="rf-set-sub d-block">{{ image.filename }} · {{ image.size|filesizeformat }}{% if image.models_pattern %} · models {{ image.models_pattern }}{% endif %}{% if image.architecture %} · {{ image.architecture }}{% endif %}</span></span>
             <span class="rf-set-pill {% if image.enabled %}on{% endif %}">{% if image.enabled %}Offered{% else %}Off{% endif %}</span>

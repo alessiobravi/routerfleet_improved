@@ -3,20 +3,23 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
-    <div class="d-flex justify-content-between align-items-end">
-        <div class="rf-set-title">Device types</div>
-        <a href="/system/device-types/new/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-plus me-1"></i>New device type</a>
-    </div>
+    <div class="rf-set-title">Device types</div>
     <div class="rf-set-group">
         {% for row in rows %}
         <a class="rf-set-row" href="/system/device-types/edit/?uuid={{ row.type.uuid }}">
-            <span class="rf-set-icon {% if not row.type.managed %}grey{% elif row.type.session_mode == 'shell' %}purple{% else %}teal{% endif %}"><i class="fas {% if not row.type.managed %}fa-heartbeat{% elif row.type.session_mode == 'shell' %}fa-terminal{% else %}fa-network-wired{% endif %}"></i></span>
+            <span class="rf-set-icon {% if not row.type.managed %}sky{% elif row.type.session_mode == 'shell' %}purple{% else %}teal{% endif %}"><i class="fas {% if not row.type.managed %}fa-heartbeat{% elif row.type.session_mode == 'shell' %}fa-terminal{% else %}fa-network-wired{% endif %}"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.type.name }}{% if not row.type.enabled %} <span class="badge text-bg-secondary">not offered</span>{% endif %}</span>
                 <span class="rf-set-sub d-block">{% if row.type.managed %}{{ row.type.get_session_mode_display }}{% if row.type.checks %} · update check: {{ row.type.checks|join:", " }}{% endif %}{% else %}availability only{% endif %}</span></span>
             <span class="rf-set-value">{{ row.devices }} device{{ row.devices|pluralize }}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
         {% endfor %}
+        <a class="rf-set-row rf-set-add" href="/system/device-types/new/">
+            <span class="rf-set-icon purple"><i class="fas fa-plus"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Add a device type</span>
+                <span class="rf-set-sub d-block">Another vendor or model: how to talk to it, its commands and backups - from a preset or from scratch</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
     </div>
     <div class="rf-set-foot">A device type says how RouterFleet talks to a kind of device, how it recognises it, where its inventory values are, which backups it takes, how it learns which version the device could run, and how firmware is installed. The shipped types can be edited and restored.</div>
 </div>

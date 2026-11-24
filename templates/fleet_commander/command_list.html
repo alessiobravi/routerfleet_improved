@@ -18,14 +18,11 @@
         </a>
     </div>
 
-    <div class="d-flex justify-content-between align-items-end">
-        <div class="rf-set-title">Commands</div>
-        {% if can_manage %}<a href="/fleet_commander/command/manage/" class="btn btn-primary btn-sm mb-2"><i class="fas fa-plus me-1"></i>Add command</a>{% endif %}
-    </div>
+    <div class="rf-set-title">Commands</div>
     <div class="rf-set-group">
         {% for command in command_list %}
         <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
-            <span class="rf-set-icon {% if command.enabled %}teal{% else %}grey{% endif %}"><i class="fas fa-terminal"></i></span>
+            <span class="rf-set-icon green"><i class="fas fa-terminal"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ command.name }}</span>
                 <span class="rf-set-sub d-block">{{ command.variant_count }} device type{{ command.variant_count|pluralize }}{% if command.schedule_count %} · {{ command.schedule_count }} schedule{{ command.schedule_count|pluralize }}{% endif %}{% if command.description %} · {{ command.description|truncatewords:12 }}{% endif %}</span></span>
             <span class="rf-set-pill {% if command.enabled %}on{% endif %}">{% if command.enabled %}On{% else %}Off{% endif %}</span>
@@ -34,11 +31,19 @@
         {% empty %}
         <div class="rf-set-row"><span class="rf-set-text text-muted">No command yet.</span></div>
         {% endfor %}
+        {% if can_manage %}
+        <a class="rf-set-row rf-set-add" href="/fleet_commander/command/manage/">
+            <span class="rf-set-icon green"><i class="fas fa-plus"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Add a command</span>
+                <span class="rf-set-sub d-block">Something to run on devices: a payload per device type, by hand or on a schedule</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
     </div>
 
     {% if system_command_list %}
     <details class="rf-set-section" data-rf-remember="system-commands">
-        <summary class="rf-set-summary"><i class="fas fa-lock text-danger me-2" aria-hidden="true"></i>System commands<span class="rf-set-summary-sub">{{ system_command_list|length }} commands RouterFleet itself sends to devices - protected</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon red" aria-hidden="true"><i class="fas fa-lock"></i></span>System commands<span class="rf-set-summary-sub">{{ system_command_list|length }} commands RouterFleet itself sends to devices - protected</span></summary>
     <div class="rf-set-group">
         {% for command in system_command_list %}
         <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">

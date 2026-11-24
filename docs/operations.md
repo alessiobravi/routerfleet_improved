@@ -158,14 +158,16 @@ which follows the device: dark when the computer or phone is in dark mode, and
 changing with it. The choice is kept by each browser. The page is drawn in its
 theme from the start, without a white flash.
 
-### Lists: cards or grouped
+### Colours
 
-*My Settings → Visualization options* draws the list pages - the router list, backups, job
-history, the audit log and the others - either as **Cards** (each list in a
-card with a title bar, tabs underlined) or **Grouped** (like the settings
-pages: a small section title, the list in a rounded group, tabs as a switch, a
-tinted header band and airy rows). Each user chooses for themselves;
-the choice follows them to every device.
+Every section of the menu has a tone, and the icons of its pages carry it:
+Status sky, Router Manager blue, Backup teal, Fleet Commander green, User
+Manager rose, Message Center orange, Tools indigo, System settings purple,
+Audit Log amber, My Settings cyan. Where an icon tells a state, the state
+decides: green up to date, amber to be set up, red locked or failing.
+
+Adding something - a user, a command, a device type, firmware, a channel - is
+the last row of its list, with a coloured "+".
 
 ### Switches
 

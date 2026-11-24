@@ -54,12 +54,6 @@ def view_user_settings(request):
             messages.success(request, f'Session expiration time saved|You stay signed in for {dict(UserAcl.SESSION_HOURS)[hours]} '
                                       f'after your last use.')
         return redirect('/user/settings/')
-    if request.method == 'POST' and request.POST.get('action') == 'lists':
-        style = request.POST.get('list_style')
-        if style in dict(UserAcl._meta.get_field('list_style').choices):
-            user_acl.list_style = style
-            user_acl.save(update_fields=['list_style', 'updated'])
-        return redirect('/user/settings/')
     if request.method == 'POST' and request.POST.get('action') == 'test_email':
         try:
             email_notifications.send(request.user.email, 'RouterFleet Improved: test email',
@@ -82,11 +76,6 @@ def view_user_settings(request):
                          for field, label, sub in email_notifications.PERSONAL_EVENTS],
         'email_ready': SmtpSettings.load().ready,
         'session_choices': UserAcl.SESSION_HOURS, 'session_hours': user_acl.session_hours,
-        'list_style': user_acl.list_style,
-        'list_style_choices': (('cards', 'Cards', 'Each list in a card: a title bar on top, tabs underlined, the table '
-                                                 'with its column names in bold.'),
-                               ('grouped', 'Grouped', 'Like the settings pages: a small section title, the list in a '
-                                                      'rounded group, tabs as a switch, a tinted header band and airy rows.')),
         'theme_choices': (('auto', 'Automatic', 'fa-adjust', 'Follows this device: dark when it is dark.'),
                           ('light', 'Light', 'fa-sun', 'Always light.'),
                           ('dark', 'Dark', 'fa-moon', 'Always dark - for the night.')),

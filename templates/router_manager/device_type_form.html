@@ -174,7 +174,7 @@
         <div class="rf-set-group">
             {% for key, definition, variant in stored_commands %}
             <a class="rf-set-row" href="{% if variant %}/fleet_commander/system/variant/?uuid={{ variant.uuid }}{% else %}#{% endif %}">
-                <span class="rf-set-icon grey"><i class="fas fa-lock"></i></span>
+                <span class="rf-set-icon red"><i class="fas fa-lock"></i></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">{{ definition.name|cut:"System: " }}</span>
                     <span class="rf-set-sub d-block rf-mono">{% if variant and variant.payload %}{{ variant.payload|truncatechars:90 }}{% else %}empty{% endif %}</span></span>
                 <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>

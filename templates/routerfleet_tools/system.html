@@ -2,7 +2,8 @@
 
 {% block content %}
 <div class="rf-settings">
-    <div class="rf-set-title">Messaging</div>
+    <details class="rf-set-section" data-rf-remember="messaging">
+        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-bell"></i></span>Messaging<span class="rf-set-summary-sub">Channels, mail server, grouping and daily reports</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/system/notifications/">
             <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
@@ -13,7 +14,7 @@
         </a>
         {% if is_administrator %}
         <a class="rf-set-row" href="/system/notifications/email/">
-            <span class="rf-set-icon {% if smtp.ready %}teal{% else %}grey{% endif %}"><i class="fas fa-envelope"></i></span>
+            <span class="rf-set-icon {% if smtp.ready %}teal{% else %}amber{% endif %}"><i class="fas fa-envelope"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">Mail server (SMTP)</span>
                 <span class="rf-set-sub d-block">{% if smtp.ready %}{{ smtp.host }}:{{ smtp.port }}{% else %}Not set up: email is not sent{% endif %}</span></span>
             <span class="rf-set-pill {% if smtp.ready %}on{% endif %}">{% if smtp.ready %}On{% else %}Off{% endif %}</span>
@@ -21,15 +22,17 @@
         </a>
         {% endif %}
         <a class="rf-set-row" href="/message_center/manage_settings/">
-            <span class="rf-set-icon"><i class="fas fa-layer-group"></i></span>
+            <span class="rf-set-icon orange"><i class="fas fa-layer-group"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">Grouping and daily reports</span>
                 <span class="rf-set-sub d-block">How long events are collected into one message; when the daily reports go out</span></span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
+    </details>
 
     {% if is_administrator or can_firmware %}
-    <div class="rf-set-title">Devices</div>
+    <details class="rf-set-section" data-rf-remember="devices">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-network-wired"></i></span>Devices<span class="rf-set-summary-sub">Device types and the firmware repository</span></summary>
     <div class="rf-set-group">
         {% if is_administrator %}
         <a class="rf-set-row" href="/system/device-types/">
@@ -47,9 +50,11 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
+    </details>
     {% endif %}
 
-    <div class="rf-set-title">Display</div>
+    <details class="rf-set-section" data-rf-remember="display">
+        <summary class="rf-set-summary"><span class="rf-set-icon indigo" aria-hidden="true"><i class="fas fa-table-columns"></i></span>Display<span class="rf-set-summary-sub">Rows per table</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/system/display/">
             <span class="rf-set-icon blue"><i class="fas fa-table"></i></span>
@@ -60,8 +65,10 @@
         </a>
     </div>
     <div class="rf-set-foot">Light or dark mode is each person's choice, in My Settings.</div>
+    </details>
 
-    <div class="rf-set-title">Backups and jobs</div>
+    <details class="rf-set-section" data-rf-remember="backups">
+        <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-box-open"></i></span>Backups and jobs<span class="rf-set-summary-sub">Backup profiles and schedule defaults</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/backup/profile_list/">
             <span class="rf-set-icon teal"><i class="fas fa-archive"></i></span>
@@ -76,9 +83,11 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
+    </details>
 
     {% if is_administrator %}
-    <div class="rf-set-title">Security</div>
+    <details class="rf-set-section" data-rf-remember="security">
+        <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>Security<span class="rf-set-summary-sub">HTTPS and updates</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/system/https/">
             <span class="rf-set-icon teal"><i class="fas fa-lock"></i></span>
@@ -88,13 +97,14 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
         <a class="rf-set-row" href="/system/updates/">
-            <span class="rf-set-icon {% if update_available %}amber{% else %}grey{% endif %}"><i class="fas fa-cloud-download-alt"></i></span>
+            <span class="rf-set-icon {% if update_available %}amber{% else %}green{% endif %}"><i class="fas fa-cloud-download-alt"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">Updates</span>
                 <span class="rf-set-sub d-block">The running version, the newest release, and how to update</span></span>
             <span class="rf-set-value">{% if update_available %}{{ update_available }} available{% else %}{{ current }}{% endif %}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
+    </details>
     {% else %}
     <div class="rf-set-foot">HTTPS, updates and the mail server are for administrators.</div>
     {% endif %}

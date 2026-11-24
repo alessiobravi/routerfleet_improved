@@ -9,7 +9,7 @@
         {% csrf_token %}
         <div class="rf-set-title">{{ form.instance.pk|yesno:"Edit user,New user" }}</div>
         <div class="rf-set-group">
-            <div class="rf-set-row"><span class="rf-set-icon"><i class="fas fa-user"></i></span>
+            <div class="rf-set-row"><span class="rf-set-icon rose"><i class="fas fa-user"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.username.id_for_label }}">Username</label>
                     <input type="text" class="form-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" required value="{{ form.username.value|default_if_none:'' }}" {% if form.instance.pk %}readonly{% endif %}></div></div>
             <div class="rf-set-row"><div class="rf-set-text"><div class="d-flex flex-wrap">
@@ -42,7 +42,7 @@
                     <input type="password" class="form-control" id="{{ form.password2.id_for_label }}" name="{{ form.password2.html_name }}" autocomplete="new-password" placeholder="Again" aria-label="Retype password" {% if not form.instance.pk %}required{% endif %}>
                     {% if form.instance.pk %}<small class="text-muted">A new password signs the user out everywhere.</small>{% endif %}</div></div>
             {% if mfa_state %}
-            <div class="rf-set-row"><span class="rf-set-icon grey"><i class="fas fa-mobile-alt"></i></span>
+            <div class="rf-set-row"><span class="rf-set-icon amber"><i class="fas fa-mobile-alt"></i></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">Second factors</span>
                     <span class="rf-set-sub d-block">{% if mfa_state.totp %}authenticator app{% endif %}{% if mfa_state.totp and mfa_state.passkeys %} · {% endif %}{% if mfa_state.passkeys %}{{ mfa_state.passkeys }} passkey{{ mfa_state.passkeys|pluralize }}{% endif %}{% if not mfa_state.totp and not mfa_state.passkeys %}none - password only{% endif %}</span></span>
                 {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="reset_mfa" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="This removes the authenticator app and every passkey of {{ user_acl.user.username }}, who then signs in with a password only.">Reset</button>{% endif %}

@@ -311,8 +311,8 @@ class DisplaySettingsTests(TestCase):
     def test_hub_sections(self):
         page = self.client.get('/system/').content.decode()
         for section in ('Messaging', 'Display', 'Backups and jobs'):
-            self.assertIn(f'<div class="rf-set-title">{section}</div>', page)
-        self.assertNotIn('<div class="rf-set-title">Security</div>', page, 'HTTPS is for administrators')
+            self.assertIn(f'</span>{section}<span class="rf-set-summary-sub">', page)
+        self.assertNotIn('</span>Security<span class="rf-set-summary-sub">', page, 'HTTPS is for administrators')
         self.client.force_login(make_user(30))
         self.assertContains(self.client.get('/system/display/'), 'Access Denied')
 

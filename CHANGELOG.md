@@ -13,6 +13,29 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.33.0] - 2026-11-24
+
+### Changed
+- **One look for list pages**: each list in a card - a title bar on top, tabs
+  underlined, the column names in bold. The choice between two looks is gone
+  from My Settings.
+- **Adding something is the same everywhere**: the last row of its list - a
+  coloured "+" with what it adds and what that means - for users, commands,
+  device types, firmware and channels, instead of buttons beside the titles.
+- **Colours that identify**: every section of the menu has a tone, and its
+  icons carry it - Status sky, Router Manager blue, Backup teal, Fleet
+  Commander green, User Manager rose, Message Center orange, Tools indigo,
+  System settings purple, Audit Log amber, My Settings cyan - also in the
+  menu itself. Grey icons are gone; meanings keep their colour (green up to
+  date, amber to be set up, red locked or failing).
+- **System settings in collapsible sections**, like My Settings, each with a
+  coloured badge and what it holds.
+- **My Settings**: the account - username and email - on top.
+- **The message filter** is the first row of the message list.
+- **The database on Tools**, smaller and clearer: its size on one row, the
+  VACUUM FULL switch with a one-line summary (the details open on demand) and
+  "Optimize now" as a row of the same group.
+
 ## [0.32.0] - 2026-11-24
 
 ### Added

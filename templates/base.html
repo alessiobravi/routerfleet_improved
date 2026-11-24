@@ -22,7 +22,7 @@
 </head>
 {% load custom_tags %}
 {% tag_webadmin_version as webadmin_version %}
-<body class="layout-fixed sidebar-expand-lg sidebar-mini bg-body-tertiary{% if request.COOKIES.sidebarState == 'collapsed' %} sidebar-collapse{% endif %}{% if rf_list_style == 'grouped' %} rf-lists-grouped{% endif %}"
+<body class="layout-fixed sidebar-expand-lg sidebar-mini bg-body-tertiary{% if request.COOKIES.sidebarState == 'collapsed' %} sidebar-collapse{% endif %}"
       data-page-size="{{ rf_page_size|default:10 }}">
 <div class="app-wrapper">
 
@@ -76,7 +76,7 @@
                 <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation">
                     <li class="nav-item">
                     <a href="/status/" class="nav-link {% if request.path|startswith:'/status/' %}active{% endif %}">
-                    <i class="fas fa-tachometer-alt nav-icon"></i>
+                    <i class="fas fa-tachometer-alt nav-icon rf-tone-sky"></i>
                     <p>
                     Status
                     </p>
@@ -84,7 +84,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/router/list/" class="nav-link {% if request.path|startswith:'/router/' %}active{% endif %}">
-                    <i class="fas fa-network-wired nav-icon"></i>
+                    <i class="fas fa-network-wired nav-icon rf-tone-blue"></i>
                     <p>
                     Router Manager
                     </p>
@@ -92,7 +92,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/backup/profile_list/" class="nav-link {% if request.path|startswith:'/backup/' %}active{% endif %}">
-                    <i class="fas fa-box-open nav-icon"></i>
+                    <i class="fas fa-box-open nav-icon rf-tone-teal"></i>
                     <p>
                     Backup
                     </p>
@@ -101,7 +101,7 @@
                     <li class="nav-item">
                     <a href="/fleet_commander/"
                     class="nav-link {% if request.path|startswith:'/fleet_commander/' %}active{% endif %}">
-                    <i class="fas fa-terminal nav-icon"></i>
+                    <i class="fas fa-terminal nav-icon rf-tone-green"></i>
                     <p>
                     Fleet Commander
                     </p>
@@ -109,7 +109,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/user/list/" class="nav-link {% if request.path|startswith:'/user/list/' or request.path|startswith:'/user/manage/' %}active{% endif %}">
-                    <i class="fas fa-users nav-icon"></i>
+                    <i class="fas fa-users nav-icon rf-tone-rose"></i>
                     <p>
                     User Manager
                     </p>
@@ -117,7 +117,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/message_center/message_history/" class="nav-link {% if request.path|startswith:'/message_center/' %}active{% endif %}">
-                    <i class="far fa-envelope nav-icon"></i>
+                    <i class="far fa-envelope nav-icon rf-tone-orange"></i>
                     <p>
                     Message Center
                     </p>
@@ -125,7 +125,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/tools/" class="nav-link {% if request.path|startswith:'/tools/' %}active{% endif %}">
-                    <i class="fas fa-toolbox nav-icon"></i>
+                    <i class="fas fa-toolbox nav-icon rf-tone-indigo"></i>
                     <p>
                     Tools
                     </p>
@@ -133,7 +133,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/system/" class="nav-link {% if request.path|startswith:'/system/' %}active{% endif %}">
-                    <i class="fas fa-shield-alt nav-icon"></i>
+                    <i class="fas fa-shield-alt nav-icon rf-tone-purple"></i>
                     <p>
                     System settings
                     </p>
@@ -141,7 +141,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/audit_log/login_history/" class="nav-link {% if request.path|startswith:'/audit_log/' %}active{% endif %}">
-                    <i class="fas fa-clipboard-list nav-icon"></i>
+                    <i class="fas fa-clipboard-list nav-icon rf-tone-amber"></i>
                     <p>
                     Audit Log
                     </p>
@@ -150,7 +150,7 @@
                     <!-- Personal, not administration: at the bottom with About -->
                     <li class="nav-item mt-auto">
                     <a href="/user/settings/" class="nav-link {% if request.path|startswith:'/user/settings/' %}active{% endif %}">
-                    <i class="fas fa-user-cog nav-icon"></i>
+                    <i class="fas fa-user-cog nav-icon rf-tone-cyan"></i>
                     <p>
                     My Settings
                     </p>
@@ -158,7 +158,7 @@
                     </li>
                     <li class="nav-item">
                     <a href="/about/" class="nav-link {% if request.path|startswith:'/about/' %}active{% endif %}">
-                    <i class="fas fa-info-circle nav-icon"></i>
+                    <i class="fas fa-info-circle nav-icon rf-tone-sky"></i>
                     <p>
                     About
                     </p>

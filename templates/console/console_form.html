@@ -17,7 +17,7 @@
         <div class="rf-set-title">Device</div>
         <div class="rf-set-group">
             <div class="rf-set-row">
-                <span class="rf-set-icon"><i class="fas fa-network-wired"></i></span>
+                <span class="rf-set-icon blue"><i class="fas fa-network-wired"></i></span>
                 <div class="rf-set-text"><div class="rf-set-label">{{ router.name }}</div>
                     <div class="rf-set-sub">{{ router.address }} · {{ router.get_router_type_display }}</div></div>
             </div>
@@ -63,7 +63,7 @@
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
             <div class="rf-set-row" data-rf-show-when="account" data-for="other">
-                <span class="rf-set-icon grey"><i class="fas fa-user"></i></span>
+                <span class="rf-set-icon blue"><i class="fas fa-user"></i></span>
                 <div class="rf-set-text"><input type="text" class="form-control" name="username" maxlength="100"
                         placeholder="Username" value="{{ posted.username }}" autocapitalize="none" spellcheck="false" aria-label="Username"></div>
             </div>

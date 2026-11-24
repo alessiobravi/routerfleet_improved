@@ -441,38 +441,7 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 .rf-form-page .rf-form-help .rf-set-group { padding: 14px 16px; }
 @media (max-width: 991.98px) { .rf-form-page { grid-template-columns: 1fr; } }
 
-/* List style "Grouped" (My Settings): card pages drawn like the settings -
-   the title above as a section title, the content in a rounded group */
-.rf-lists-grouped .card.card-outline { background: transparent; border: 0; box-shadow: none; border-top: 0; margin-bottom: 18px; }
-.rf-lists-grouped .card.card-outline > .card-header { background: transparent; border: 0; padding: 0 16px 7px; margin-top: 8px; }
-.rf-lists-grouped .card.card-outline > .card-header .card-title { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--rf-muted); }
-.rf-lists-grouped .card.card-outline > .card-header .card-tools { margin-top: -6px; }
-.rf-lists-grouped .card.card-outline > .card-body { background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
-.rf-lists-grouped .card.card-outline > .card-footer { background: transparent; border: 0; padding: 12px 0 0; }
-.rf-lists-grouped .card.card-outline .nav-tabs { border-bottom-color: var(--rf-line); margin-bottom: 12px; }
-.rf-lists-grouped .card.card-outline .table { margin-bottom: 0; }
-.rf-lists-grouped .card.card-outline .table > thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--rf-muted); border-bottom-width: 1px; }
-.rf-lists-grouped .card.card-outline .table > tbody > tr > td { border-color: var(--rf-line-soft, var(--rf-line)); }
-/* Grouped: tabs as a segmented switch, a tinted header band, airy rows */
-.rf-lists-grouped .card.card-outline .nav-tabs { display: inline-flex; flex-wrap: wrap; gap: 2px; border: 0; background: var(--rf-line-soft); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
-.rf-lists-grouped .card.card-outline .nav-tabs .nav-link { border: 0; border-radius: 8px; padding: 6px 14px; color: var(--rf-muted); font-weight: 600; font-size: 14px; }
-.rf-lists-grouped .card.card-outline .nav-tabs .nav-link:hover { color: var(--rf-text); }
-.rf-lists-grouped .card.card-outline .nav-tabs .nav-link.active { background: var(--rf-surface); color: var(--rf-text); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
-.rf-lists-grouped .card.card-outline .table > thead th { background: var(--rf-line-soft); border: 0; padding-top: 10px; padding-bottom: 10px; }
-.rf-lists-grouped .card.card-outline .table > thead th:first-child { border-radius: 10px 0 0 10px; }
-.rf-lists-grouped .card.card-outline .table > thead th:last-child { border-radius: 0 10px 10px 0; }
-.rf-lists-grouped .card.card-outline .table > tbody > tr > td { padding-top: 14px; padding-bottom: 14px; vertical-align: middle; }
-.rf-lists-grouped .card.card-outline .table-hover > tbody > tr:hover > * { --bs-table-bg-state: rgba(20, 168, 154, .06); }
-.rf-lists-grouped .card.card-outline .card-body > .nav-tabs + * { clear: both; }
 
-/* The two list styles, drawn small in My Settings */
-.rf-style-preview { width: 64px; height: 44px; border-radius: 8px; border: 1px solid var(--rf-line); background: var(--rf-line-soft); padding: 5px; display: flex; flex-direction: column; gap: 3px; flex: none; }
-.rf-style-preview span { display: block; border-radius: 2px; background: var(--rf-line); height: 4px; }
-.rf-style-preview.cards { background: var(--rf-surface); border-top: 3px solid #0d6efd; padding-top: 4px; }
-.rf-style-preview.cards .bar { height: 6px; background: #c9d3de; margin-bottom: 2px; }
-.rf-style-preview.grouped .title { width: 45%; height: 3px; background: #9aa6b3; }
-.rf-style-preview.grouped .box { flex: 1; background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 5px; padding: 3px; display: flex; flex-direction: column; gap: 3px; }
-.rf-style-preview.grouped .seg { width: 55%; height: 5px; border-radius: 3px; background: var(--rf-line-soft); }
 
 /* Collapsible sections of settings pages: <details class="rf-set-section"> */
 .rf-set-section { margin-top: 14px; }
@@ -480,8 +449,8 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
   background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; padding: 14px 16px; font-weight: 700; color: var(--rf-text);
   box-shadow: 0 1px 2px rgba(16, 24, 40, .04); user-select: none; }
 .rf-set-section > .rf-set-summary::-webkit-details-marker { display: none; }
-.rf-set-section > .rf-set-summary::after { content: "\f078"; font-family: "Font Awesome 7 Free"; font-weight: 900; grid-column: 3; grid-row: 1; color: #b9c1cb; transition: transform .15s; }
-.rf-set-section[open] > .rf-set-summary::after { transform: rotate(180deg); }
+.rf-set-section > .rf-set-summary::after { content: "\f078"; font-family: "Font Awesome 7 Free"; font-weight: 900; grid-column: 3; grid-row: 1; color: #b9c1cb; }
+.rf-set-section[open] > .rf-set-summary::after { content: "\f077"; }
 .rf-set-section > .rf-set-summary:focus-visible { outline: 2px solid #14a89a; outline-offset: 2px; }
 .rf-set-section .rf-set-summary-sub { grid-column: 2; grid-row: 2; font-weight: 400; font-size: 13px; color: var(--rf-muted); }
 .rf-set-section[open] > .rf-set-summary { border-radius: 14px 14px 0 0; border-bottom-color: transparent; margin-bottom: 0; }
@@ -492,10 +461,43 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 /* A row that can not be used here, shown greyed out with the reason */
 .rf-set-row.rf-set-disabled { opacity: .55; }
 .rf-set-row.rf-set-disabled .rf-set-sub { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .rf-set-section > .rf-set-summary::after { transition: none; } }
 /* A row wrapped in a form inside a group keeps its separator */
 .rf-set-group > form:not(:first-child) > .rf-set-row:first-child { border-top: 1px solid var(--rf-line-soft); }
 /* The update arrow next to a version on the device page: starts the update */
 .rf-update-link { font-size: 1.15em; margin-left: 4px; text-decoration: none; }
 .rf-update-link:hover { filter: brightness(.85); }
 .rf-update-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 50%; }
+
+/* Tones: each section of the menu has one, and its icons carry it - Status
+   sky, Router Manager blue, Backup teal, Fleet Commander green, User Manager
+   rose, Message Center orange, Tools indigo, System settings purple, Audit Log
+   amber, My Settings cyan. Meanings keep theirs: green up to date, amber
+   needs setting up, red locked or failing. */
+.rf-set-icon.green { background: #1f9d55; } .rf-set-icon.sky { background: #0ea5e9; } .rf-set-icon.rose { background: #e11d48; }
+.rf-set-icon.orange { background: #f97316; } .rf-set-icon.indigo { background: #6366f1; } .rf-set-icon.cyan { background: #0891b2; }
+.app-sidebar .nav-link .nav-icon.rf-tone-sky { color: #38bdf8; } .app-sidebar .nav-link .nav-icon.rf-tone-blue { color: #60a5fa; }
+.app-sidebar .nav-link .nav-icon.rf-tone-teal { color: #2dd4bf; } .app-sidebar .nav-link .nav-icon.rf-tone-green { color: #4ade80; }
+.app-sidebar .nav-link .nav-icon.rf-tone-rose { color: #fb7185; } .app-sidebar .nav-link .nav-icon.rf-tone-orange { color: #fb923c; }
+.app-sidebar .nav-link .nav-icon.rf-tone-indigo { color: #a5b4fc; } .app-sidebar .nav-link .nav-icon.rf-tone-purple { color: #c4b5fd; }
+.app-sidebar .nav-link .nav-icon.rf-tone-amber { color: #fbbf24; } .app-sidebar .nav-link .nav-icon.rf-tone-cyan { color: #22d3ee; }
+.app-sidebar .nav-link.active .nav-icon[class*="rf-tone-"] { color: #fff; }
+
+/* Adding something: the last row of its list, the same on every page */
+.rf-set-add .rf-set-label { color: var(--bs-link-color); }
+.rf-set-add:hover .rf-set-label { text-decoration: underline; }
+/* The coloured badge in a section's header */
+.rf-set-summary > .rf-set-icon { width: 30px; height: 30px; font-size: 14px; margin-right: 10px; grid-row: 1 / span 2; }
+.rf-set-section .rf-set-summary-sub { grid-column: 2; }
+/* A filter: the first row of the list it filters */
+.rf-set-search .form-control { border: 0; box-shadow: none; background: transparent; padding-left: 0; }
+.rf-set-search .form-control:focus { box-shadow: none; }
+.rf-set-search:focus-within { background: var(--rf-line-soft); }
+/* A row that does something (a button drawn as a row) */
+.rf-set-action { background: transparent; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; cursor: pointer; }
+.rf-set-action:first-child { border-top: 0; }
+.rf-set-action .rf-set-label { color: var(--bs-link-color); }
+.rf-set-action:hover { background: var(--rf-line-soft); }
+/* More words, on demand, inside a row */
+.rf-more { margin-top: 4px; font-size: 13px; color: var(--rf-muted); }
+.rf-more > summary { cursor: pointer; color: var(--bs-link-color); width: max-content; }
+.rf-more > p { margin: 6px 0 0; line-height: 1.4; }

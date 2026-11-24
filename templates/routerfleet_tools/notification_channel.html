@@ -14,7 +14,7 @@
         <div class="rf-set-title">Channel</div>
         <div class="rf-set-group">
             <div class="rf-set-row">
-                <span class="rf-set-icon"><i class="fas fa-tag"></i></span>
+                <span class="rf-set-icon orange"><i class="fas fa-tag"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="name">Name</label>
                     <input type="text" class="form-control" id="name" name="name" maxlength="100" required
                            placeholder="NOC mailbox" value="{{ form.name.value|default_if_none:'' }}">
@@ -67,7 +67,7 @@
                         network, but never with an access token.</small></div>
             </div>
             <div class="rf-set-row">
-                <span class="rf-set-icon"><i class="fas fa-at"></i></span>
+                <span class="rf-set-icon orange"><i class="fas fa-at"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="destination">
                         <span data-rf-show-when="channel_type" class="rf-for" data-for="email">Email address</span><span data-rf-show-when="channel_type" class="rf-for" data-for="ntfy">Topic</span><span data-rf-show-when="channel_type" class="rf-for" data-for="telegram">Chat id (a number, or @channelname)</span></label>
                     <input type="text" class="form-control" id="destination" name="destination" maxlength="100" spellcheck="false"

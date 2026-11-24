@@ -29,7 +29,8 @@ class UserAcl(models.Model):
     SESSION_HOURS = ((1, '1 hour'), (4, '4 hours'), (8, '8 hours'), (12, '12 hours'), (24, '24 hours'),
                      (72, '3 days'), (168, '1 week'), (336, '2 weeks'))
     session_hours = models.PositiveIntegerField(default=24, choices=SESSION_HOURS)
-    # How list pages are drawn: as cards, or in the grouped rows of the settings
+    # Not used any more: list pages are always cards (0.33.0). Kept, as an
+    # upgrade never removes a column
     list_style = models.CharField(max_length=10, default='cards', choices=(
         ('cards', 'Cards'), ('grouped', 'Grouped')))
 
