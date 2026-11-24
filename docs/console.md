@@ -6,7 +6,8 @@ work on its command line - over SSH, or Telnet where a device has nothing else
 Improved and without an SSH client on your computer. It works on a phone too,
 with a bar of the keys a phone keyboard lacks (Esc, Tab, Ctrl-C, Ctrl-D,
 arrows). Held upright, a phone gets a smaller font so a line of device output
-fits (about 60 columns); in landscape the font is full size.
+fits (about 72 columns, measured with the phone's own font, never under 7 px);
+in landscape the font is full size.
 
 ```mermaid
 flowchart LR

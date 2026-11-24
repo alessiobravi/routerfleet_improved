@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.33.2] - 2026-11-24
+
+### Fixed
+- **The console font on a phone held upright is small enough now**: the size
+  is chosen by measuring the columns that really fit with the browser's own
+  monospace font - phones' fonts are wider than the estimate 0.33.1 used - and
+  goes down until about 72 columns fit (never under 7 px). Landscape keeps
+  14 px.
+
 ## [0.33.1] - 2026-11-24
 
 ### Changed

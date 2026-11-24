@@ -32,23 +32,20 @@
     }
   };
   // The font follows the space: a phone held upright gets a smaller one, so a
-  // line of device output still fits (about 60 columns, never under 8 px);
-  // landscape and larger screens keep 14 px. Turning the phone switches.
-  var FULL = 14, SMALLEST = 8, PORTRAIT_COLUMNS = 60;
-  function fontSize() {
-    var portrait = window.matchMedia('(orientation: portrait)').matches;
-    var width = screen.clientWidth || window.innerWidth;
-    if (!portrait || window.innerWidth >= 768) { return FULL; }
-    // a monospace character is about 0.6 of the font size wide
-    return Math.max(SMALLEST, Math.min(FULL, Math.floor(width / (PORTRAIT_COLUMNS * 0.6))));
+  // line of device output still fits - measured with the font this browser
+  // really uses (phones' monospace fonts are wider than most): the size goes
+  // down until PORTRAIT_COLUMNS columns fit, never under SMALLEST. Landscape
+  // and larger screens keep FULL. Turning the phone switches.
+  var FULL = 14, SMALLEST = 7, PORTRAIT_COLUMNS = 72;
+  function upright() {
+    return window.matchMedia('(orientation: portrait)').matches && window.innerWidth < 768;
   }
-  var term = new Terminal({cursorBlink: true, convertEol: false, fontSize: fontSize(), scrollback: 5000, linkHandler: linkHandler,
+  var term = new Terminal({cursorBlink: true, convertEol: false, fontSize: FULL, scrollback: 5000, linkHandler: linkHandler,
                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                            theme: {background: '#0f1a28', foreground: '#d8e6e3', cursor: '#14a89a'}});
   var fit = new FitAddon.FitAddon();
   term.loadAddon(fit);
   term.open(screen);
-  fit.fit();
 
   var socket = null, started = null, timer = null, encoder = new TextEncoder();
 
@@ -136,11 +133,20 @@
       socket.send(JSON.stringify({type: 'resize', cols: size.cols, rows: size.rows}));
     }
   });
+  function bestSize() {
+    if (!upright()) { return FULL; }
+    for (var size = FULL; size > SMALLEST; size--) {
+      term.options.fontSize = size;
+      var proposed = fit.proposeDimensions();
+      if (proposed && proposed.cols >= PORTRAIT_COLUMNS) { return size; }
+    }
+    return SMALLEST;
+  }
   function refit() {
-    var size = fontSize();
-    if (term.options.fontSize !== size) { term.options.fontSize = size; }
+    term.options.fontSize = bestSize();
     fit.fit();   // tells the device the new size through onResize
   }
+  refit();
   window.addEventListener('resize', refit);
   window.addEventListener('orientationchange', refit);
 
