@@ -13,6 +13,23 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.28.0] - 2026-11-24
+
+### Changed
+- **The move to PostgreSQL 18 happens by itself.** With the current compose
+  file, `docker compose pull && docker compose up -d` is all: at its first
+  start the new database finds the PostgreSQL 16 database beside it and moves
+  it - a copy opened with PostgreSQL 16 (now carried in the database image),
+  export, import of the database and its other roles, every table and the
+  roles compared, the built-in ordering checked - and only then starts. The
+  old volume is never changed and stays the way back. A move that does not
+  complete keeps the database from starting, never on part of the data, and
+  the log says why and how to try again. Free disk space is checked first.
+- `RF_AUTO_MIGRATE=0` keeps the earlier behaviour: the database waits for
+  `scripts/migrate-database.sh`, run at a moment you choose.
+- The first start of the database may take up to 15 minutes before it counts
+  as unhealthy (it moves the old database meanwhile).
+
 ## [0.27.2] - 2026-11-24
 
 ### Fixed

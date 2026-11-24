@@ -436,7 +436,7 @@ class FirstUpdateGuidanceTests(TestCase):
         with mock.patch('routerfleet_tools.system_views.postgres_major', return_value=16):
             page = self.client.get('/system/updates/')
         self.assertContains(page, 'The database is PostgreSQL 16')
-        self.assertContains(page, 'mkdir -p scripts')
+        self.assertContains(page, 'by itself, at the first start')
         self.assertContains(page, 'HTTP_PORT and HTTPS_PORT')
         with mock.patch('routerfleet_tools.system_views.postgres_major', return_value=18):
             self.assertNotContains(self.client.get('/system/updates/'), 'The database is PostgreSQL')
@@ -452,3 +452,19 @@ class FirstUpdateGuidanceTests(TestCase):
         self.assertLess(script.index('port_taken "$port"'), script.index('say "2. Stopping RouterFleet"'),
                         'the ports are checked before anything is stopped')
         self.assertIn('The database IS moved', script)
+
+    def test_the_first_start_moves_the_database_by_itself(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent / 'containers/postgres18'
+        guard = (root / 'rf-guard.sh').read_text()
+        self.assertIn('RF_AUTO_MIGRATE:-1', guard, 'automatic unless switched off')
+        self.assertIn('rf-migration-incomplete', guard, 'a move that did not finish keeps it from starting')
+        self.assertLess(guard.index('if [ -e "$marker" ]'), guard.index('cp -a'), 'the marker is checked first')
+        dockerfile = (root / 'Dockerfile-postgres18').read_text()
+        self.assertIn('apk add --no-cache postgresql16', dockerfile)
+        self.assertIn('/docker-entrypoint-initdb.d/', dockerfile)
+        move = (root / 'rf-migrate-initdb.sh').read_text()
+        for check in ('[ "$old_counts" = "$new_counts" ]', '[ "$old_roles" =', 'datlocprovider', 'rm -f "$marker"'):
+            self.assertIn(check, move)
+        self.assertLess(move.index('[ "$old_counts" = "$new_counts" ]'), move.index('rm -f "$marker"'),
+                        'the marker goes only after every table matched')

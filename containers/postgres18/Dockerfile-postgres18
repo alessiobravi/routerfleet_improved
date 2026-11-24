@@ -30,7 +30,17 @@ COPY --from=gosu /out/gosu /usr/local/bin/gosu
 # The same check the official image runs after installing it
 RUN gosu --version && gosu nobody true
 ENV POSTGRES_INITDB_ARGS="--encoding=UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C.UTF-8"
+# PostgreSQL 16's programs, only to read a database of releases before 0.24
+# on the first start and move it (rf-migrate-initdb.sh). Where Alpine installs
+# them is found and written down; the build fails if they do not run.
+RUN apk add --no-cache postgresql16 \
+    && PG16="$(dirname "$(find /usr -path '*postgresql16*' -name postgres -type f | head -1)")" \
+    && "$PG16/postgres" --version | grep -q ' 16\.' \
+    && "$PG16/pg_ctl" --version \
+    && echo "$PG16" > /usr/local/share/rf-pg16-bin
 COPY rf-guard.sh /usr/local/bin/rf-guard.sh
-RUN sed -i 's/\r$//' /usr/local/bin/rf-guard.sh && chmod 0755 /usr/local/bin/rf-guard.sh
+COPY rf-migrate-initdb.sh /docker-entrypoint-initdb.d/00-routerfleet-migrate.sh
+RUN sed -i 's/\r$//' /usr/local/bin/rf-guard.sh /docker-entrypoint-initdb.d/00-routerfleet-migrate.sh \
+    && chmod 0755 /usr/local/bin/rf-guard.sh /docker-entrypoint-initdb.d/00-routerfleet-migrate.sh
 ENTRYPOINT ["rf-guard.sh"]
 CMD ["postgres"]

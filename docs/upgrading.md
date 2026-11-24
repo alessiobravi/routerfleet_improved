@@ -42,29 +42,19 @@ docker compose up -d
 
 **Take the current compose file** - new settings and PostgreSQL 18. An
 installation still on PostgreSQL 16 (every one from before 0.24) moves its
-database with the migration script as part of it, as described in
-[Moving to PostgreSQL 18](#moving-to-postgresql-18):
+database by itself at the first start
+([Moving to PostgreSQL 18](#moving-to-postgresql-18)):
 
 ```bash
 cd path/to/routerfleet
 cp docker-compose.yml docker-compose.yml.before   # the way back
 wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
-mkdir -p scripts && wget -O scripts/migrate-database.sh \
-  https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/scripts/migrate-database.sh
-chmod +x scripts/migrate-database.sh
-docker compose pull
-./scripts/migrate-database.sh     # PostgreSQL 16 only; skip on a new 0.24 installation
+docker compose pull && docker compose up -d
 ```
 
 **Changed the ports in your old compose file** (another web server on 80 or
 443)? The current compose file reads them from `.env`: add `HTTP_PORT` and
-`HTTPS_PORT` there first ([Ports](installation.md#ports)). The script checks
-the ports before it changes anything and says so.
-
-Taking the current compose file without the script on a PostgreSQL 16
-installation does no harm: the database refuses to start beside the old data.
-`docker compose up` then only reports it as *unhealthy*; its log
-(`docker compose logs routerfleet-postgres`) lists the commands above.
+`HTTPS_PORT` there first ([Ports](installation.md#ports)).
 
 Migrations run automatically on start. Watch them:
 
@@ -163,40 +153,56 @@ ordering**, so how text sorts no longer depends on the operating system's C
 library: a later change of base image can never leave indexes ordered the old
 way.
 
-**Nothing happens until you choose it.** A compose file from before 0.24 keeps
-running the PostgreSQL 16 image (`routerfleet-postgres`), which is still
-published and updated; `docker compose pull` updates everything else.
+A compose file from before 0.24 keeps running the PostgreSQL 16 image
+(`routerfleet-postgres`), which is still published and updated; `docker
+compose pull` updates everything else.
 
-The data moves by **export and re-import**, never by reusing the old files -
-the only safe way across a major version and a different C library:
+**Taking the current compose file moves the database by itself** (from 0.28):
 
 ```bash
 # In the folder of the compose file
 cp docker-compose.yml docker-compose.yml.pg16        # the way back
 wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/docker-compose.yml
+docker compose pull && docker compose up -d
+```
+
+**Changed the ports in your old compose file** (another web server on 80 or
+443)? The current compose file reads them from `.env`: add `HTTP_PORT` and
+`HTTPS_PORT` there first ([Ports](installation.md#ports)).
+
+At its first start the new database finds the old one beside it (mounted
+read-only) and moves it by **export and re-import**, never by reusing the old
+files - the only safe way across a major version and a different C library.
+It copies the old files to a working folder, opens the copy with PostgreSQL 16
+(carried in the image for this), counts the rows of every table, exports the
+database and its other roles - such as the [Zabbix kit's](zabbix.md)
+monitoring role, with their password hashes (PostgreSQL never stores a
+password itself) - imports both, counts again and compares every table and the
+roles, and checks the built-in ordering. Only then does it start, and
+RouterFleet with it; the working copy is removed. It needs free disk space
+about three times the size of the database, and a few minutes on a large one
+(`docker compose logs -f routerfleet-postgres` shows it). **The old volume
+(`postgres_data`) is never changed.**
+
+If anything differs or fails, the database does not start - never on part of
+the data - and its log says why. To try again: `docker compose down`,
+`docker volume rm <project>_postgres18_data`, `docker compose up -d`. A
+database edited by hand (extensions, for example) may need the import adapted.
+
+**At a moment you choose instead**: set `RF_AUTO_MIGRATE=0` in the
+`environment:` of `routerfleet-postgres`; the database then waits, and its log
+lists the commands of the script, which does the same with the export and the
+roles file kept next to the compose file:
+
+```bash
 mkdir -p scripts && wget -O scripts/migrate-database.sh \
   https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/scripts/migrate-database.sh
 chmod +x scripts/migrate-database.sh
-docker compose pull
 ./scripts/migrate-database.sh
 ```
 
-The script stops RouterFleet, starts the old database on its own, counts the
-rows of every table, exports it to `routerfleet-pg16-<date>.dump` next to the
-compose file - and its other roles, such as the [Zabbix kit's](zabbix.md)
-monitoring role, to `routerfleet-pg16-<date>.roles.sql` - creates the new
-database on the new volume `postgres18_data`, creates the roles (with their
-password hashes - PostgreSQL never stores a password itself), imports, counts again and compares every table and the roles,
-checks the new database uses the built-in ordering, and starts RouterFleet. It
-stops at the first problem and **never changes the old volume**
-(`postgres_data`). It takes a minute or two for a typical installation and
-needs free disk space about the size of the database. A database edited by
-hand (extensions, for example) may need the import adapted; the script says
-where it stopped.
-
-If you take the new compose file without running the script, the database
-refuses to start - it does not create an empty one beside your data - and its
-log says what to run (`docker compose logs routerfleet-postgres`).
+The script checks the web ports before it changes anything, and stops
+RouterFleet only for the move.
 
 **The way back**: `docker compose down`, put `docker-compose.yml.pg16` back,
 `docker compose up -d`. The old database is exactly as it was.
@@ -204,8 +210,8 @@ log says what to run (`docker compose logs routerfleet-postgres`).
 **Afterwards**, once the new database has served you well: remove the line
 `- postgres_data:/var/lib/postgresql-legacy:ro` and the `postgres_data:` volume
 from the compose file, run `docker compose up -d`, then
-`docker volume rm <project>_postgres_data` and delete the export and the roles
-file (the export holds the whole database, passwords encrypted; the roles file
+`docker volume rm <project>_postgres_data` - and, if you used the script,
+delete the export and the roles file (the export holds the whole database, passwords encrypted; the roles file
 holds the password hashes of other roles).
 
 SQLite and external PostgreSQL installations (`docker-compose-no-postgres.yml`)
@@ -219,6 +225,9 @@ The move to PostgreSQL 18 above works from either.
 
 ## What you may notice after upgrading
 
+- **0.28.0: the move to PostgreSQL 18 happens by itself** at the first start
+  of the current compose file ([Moving to PostgreSQL 18](#moving-to-postgresql-18));
+  the script stays for a move at a moment you choose.
 - **0.27.0: firmware updates for more device types.** Where a shipped device
   type's firmware settings and procedures were still empty, they are filled in
   (OpenWrt online updates, Juniper, Cisco IOS-XE, airOS - [Firmware](firmware.md#install-procedures)).
@@ -229,9 +238,9 @@ The move to PostgreSQL 18 above works from either.
   jQuery, and every page carries a strict Content-Security-Policy. Pages look
   and work as before. A browser extension that injects scripts into pages may
   be blocked by the policy; that is the policy doing its job.
-- **0.24.0: the database moves only when you run the script**
-  ([Moving to PostgreSQL 18](#moving-to-postgresql-18)). Until then the
-  PostgreSQL 16 image keeps running and keeps getting updates.
+- **0.24.0: PostgreSQL 18** with the current compose file
+  ([Moving to PostgreSQL 18](#moving-to-postgresql-18)); a compose file from
+  before keeps the PostgreSQL 16 image, which keeps getting updates.
 - **0.24.0: the ports can be set in `.env`** (`HTTP_PORT`, `HTTPS_PORT`). If you
   edited the `ports:` of your compose file, it keeps working; set `HTTPS_PORT`
   to your HTTPS port so the HTTP redirect goes to it ([Ports](installation.md#ports)).

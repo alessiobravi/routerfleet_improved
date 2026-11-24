@@ -555,15 +555,69 @@ jobs:
           docker rm -f old-db
           docker network rm rf-old
 
-      - name: The new database refuses to start empty beside the old one
+      - name: With RF_AUTO_MIGRATE=0 the new database waits for the script
         run: |
-          docker compose -f docker-compose-dev.yml up -d --no-deps routerfleet-postgres
-          sleep 8
-          docker logs routerfleet-postgres 2>&1 | tee guard.log
+          set -o pipefail
+          if docker compose -f docker-compose-dev.yml run --rm -T --no-deps -e RF_AUTO_MIGRATE=0 routerfleet-postgres 2>&1 | tee guard.log; then
+            echo "the database started instead of waiting"; exit 1
+          fi
           grep -q "still to be moved to PostgreSQL 18" guard.log
-          test "$(docker inspect -f '{{.State.Running}}' routerfleet-postgres)" != "true" \
-            || [ "$(docker inspect -f '{{.RestartCount}}' routerfleet-postgres)" -gt 0 ]
-          docker compose -f docker-compose-dev.yml rm -sf routerfleet-postgres
+          grep -q "mkdir -p scripts" guard.log
+
+      - name: The checks of a migrated database, written once for both ways
+        run: |
+          cat > verify-migrated.sh <<'VERIFY'
+          set -eu
+          docker exec -e RF_TEST_DEVICE_PW routerfleet python manage.py shell -c "
+          import os
+          from django.db import connection
+          from router_manager.models import Router
+          from backup_data.models import RouterBackup
+          router = Router.objects.get(name='migration-check')
+          assert router.password == os.environ['RF_TEST_DEVICE_PW'], 'the encrypted password reads back'
+          assert 'città-ü-ß' in RouterBackup.objects.get(router=router).backup_text, 'text with accents intact'
+          with connection.cursor() as cursor:
+              cursor.execute('SHOW server_version_num')
+              assert int(cursor.fetchone()[0]) >= 180000, 'PostgreSQL 18'
+              cursor.execute('SELECT datlocprovider FROM pg_database WHERE datname = current_database()')
+              assert cursor.fetchone()[0] == 'b', 'built-in ordering'
+          print('migrated database verified')"
+          DB="$(docker exec routerfleet-postgres printenv POSTGRES_DB)"
+          # The monitoring role came along: it signs in with its password, reads
+          # what it was granted, and is still refused the rest
+          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$DB" \
+            -Atc "SELECT count(name) FROM router_manager_router" | grep -qx 1
+          # (a negated command never stops a bash -e step: tested explicitly)
+          if docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$DB" \
+            -Atc "SELECT password FROM router_manager_router" 2>/dev/null; then
+            echo "the monitoring role reads device passwords"; exit 1
+          fi
+          docker exec routerfleet-postgres psql -U "$(docker exec routerfleet-postgres printenv POSTGRES_USER)" -d "$DB" \
+            -Atc "SELECT pg_has_role('zbx_monitor', 'pg_monitor', 'member')" | grep -qx t
+          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$DB" \
+            -Atc "SELECT count(*) >= 0 FROM pg_ls_waldir()" | grep -qx t
+          echo "monitoring role verified"
+          VERIFY
+
+      - name: The automatic way - docker compose up moves the database by itself
+        run: |
+          set -eu
+          docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 600
+          docker logs routerfleet-postgres 2>&1 | tee auto.log | grep "RouterFleet:"
+          grep -q "every row count identical" auto.log
+          bash verify-migrated.sh
+          # The old volume was never changed: still a PostgreSQL 16 database
+          set -a; . ./.env; set +a
+          PROJECT="$(docker compose -f docker-compose-dev.yml config --format json | jq -r .name)"
+          test "$(docker run --rm -v "${PROJECT}_postgres_data:/old:ro" --entrypoint cat routerfleet-dev/routerfleet-postgres:local /old/PG_VERSION)" = 16
+
+      - name: Back to before the move, for the script
+        run: |
+          set -eu
+          set -a; . ./.env; set +a
+          PROJECT="$(docker compose -f docker-compose-dev.yml config --format json | jq -r .name)"
+          docker compose -f docker-compose-dev.yml down
+          docker volume rm "${PROJECT}_postgres18_data"
 
       - name: The script refuses a web port another program holds, before changing anything
         run: |
@@ -582,39 +636,12 @@ jobs:
           RF_LEGACY_IMAGE: routerfleet-dev/routerfleet-postgres:local
         run: ./scripts/migrate-database.sh -f docker-compose-dev.yml
 
-      - name: RouterFleet runs on PostgreSQL 18 with every row
+      - name: The script's way - RouterFleet runs on PostgreSQL 18 with every row
         run: |
           set -eu
           docker compose -f docker-compose-dev.yml up -d --wait --wait-timeout 300
-          docker exec -e RF_TEST_DEVICE_PW routerfleet python manage.py shell -c "
-          import os
-          from django.db import connection
-          from router_manager.models import Router
-          from backup_data.models import RouterBackup
-          router = Router.objects.get(name='migration-check')
-          assert router.password == os.environ['RF_TEST_DEVICE_PW'], 'the encrypted password reads back'
-          assert 'città-ü-ß' in RouterBackup.objects.get(router=router).backup_text, 'text with accents intact'
-          with connection.cursor() as cursor:
-              cursor.execute('SHOW server_version_num')
-              assert int(cursor.fetchone()[0]) >= 180000, 'PostgreSQL 18'
-              cursor.execute('SELECT datlocprovider FROM pg_database WHERE datname = current_database()')
-              assert cursor.fetchone()[0] == 'b', 'built-in ordering'
-          print('migrated database verified')"
+          bash verify-migrated.sh
           ls routerfleet-pg16-*.dump routerfleet-pg16-*.roles.sql
-          # The monitoring role came along: it signs in with its password, reads
-          # what it was granted, and is still refused the rest
-          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
-            -Atc "SELECT count(name) FROM router_manager_router" | grep -qx 1
-          # (a negated command never stops a bash -e step: tested explicitly)
-          if docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
-            -Atc "SELECT password FROM router_manager_router" 2>/dev/null; then
-            echo "the monitoring role reads device passwords"; exit 1
-          fi
-          docker exec routerfleet-postgres psql -U "$(docker exec routerfleet-postgres printenv POSTGRES_USER)" -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
-            -Atc "SELECT pg_has_role('zbx_monitor', 'pg_monitor', 'member')" | grep -qx t
-          docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
-            -Atc "SELECT count(*) >= 0 FROM pg_ls_waldir()" | grep -qx t
-          echo "monitoring role verified"
 
       - name: Logs
         if: always()

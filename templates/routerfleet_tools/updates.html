@@ -33,12 +33,8 @@
     {% if database_major and database_major < 18 %}
     <div class="rf-set-title">The database is PostgreSQL {{ database_major }}</div>
     <div class="rf-set-group"><div class="rf-set-row"><div class="rf-set-text">
-        <div class="small mb-1">With your compose file as it is, the command above is all. Taking the <b>current</b> compose file moves the database to PostgreSQL 18 - the database then waits for this script, run on the host in the folder of the compose file:</div>
-        <pre class="mb-0">mkdir -p scripts
-wget -O scripts/migrate-database.sh https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/scripts/migrate-database.sh
-chmod +x scripts/migrate-database.sh
-./scripts/migrate-database.sh</pre>
-        <div class="small text-muted mt-2">If you changed the ports in your compose file (another web server on 80 or 443), set HTTP_PORT and HTTPS_PORT in .env before - the current compose file reads them from there. Every step, and the way back: docs/upgrading.md, "Moving to PostgreSQL 18".</div>
+        <div class="small mb-1">Taking the <b>current</b> compose file moves it to PostgreSQL 18 by itself, at the first start: the old database is exported, imported and every table compared before RouterFleet starts - a few minutes on a large database. The old database is kept, unchanged, as the way back.</div>
+        <div class="small text-muted mt-2">If you changed the ports in your compose file (another web server on 80 or 443), set HTTP_PORT and HTTPS_PORT in .env before - the current compose file reads them from there. Every step, the way back, and moving with a script at a moment you choose instead: docs/upgrading.md, "Moving to PostgreSQL 18".</div>
     </div></div></div>
     {% endif %}
 </div>
