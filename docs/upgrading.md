@@ -56,9 +56,15 @@ docker compose pull
 ./scripts/migrate-database.sh     # PostgreSQL 16 only; skip on a new 0.24 installation
 ```
 
+**Changed the ports in your old compose file** (another web server on 80 or
+443)? The current compose file reads them from `.env`: add `HTTP_PORT` and
+`HTTPS_PORT` there first ([Ports](installation.md#ports)). The script checks
+the ports before it changes anything and says so.
+
 Taking the current compose file without the script on a PostgreSQL 16
-installation does no harm: the database refuses to start beside the old data
-and its log says to run the script.
+installation does no harm: the database refuses to start beside the old data.
+`docker compose up` then only reports it as *unhealthy*; its log
+(`docker compose logs routerfleet-postgres`) lists the commands above.
 
 Migrations run automatically on start. Watch them:
 

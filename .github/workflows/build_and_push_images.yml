@@ -565,6 +565,18 @@ jobs:
             || [ "$(docker inspect -f '{{.RestartCount}}' routerfleet-postgres)" -gt 0 ]
           docker compose -f docker-compose-dev.yml rm -sf routerfleet-postgres
 
+      - name: The script refuses a web port another program holds, before changing anything
+        run: |
+          sudo python3 -m http.server 80 --bind 0.0.0.0 >/dev/null 2>&1 &
+          for _ in $(seq 1 20); do ss -ltnH '( sport = :80 )' | grep -q . && break; sleep 0.5; done
+          if RF_LEGACY_IMAGE=routerfleet-dev/routerfleet-postgres:local ./scripts/migrate-database.sh -f docker-compose-dev.yml 2> refused.log; then
+            echo "the script went on with port 80 taken"; exit 1
+          fi
+          cat refused.log
+          grep -q "port 80 is taken by another program" refused.log
+          if ls routerfleet-pg16-*.dump 2>/dev/null; then echo "an export was made"; exit 1; fi
+          sudo pkill -f "http.server 80" || true
+
       - name: Migrate with the script
         env:
           RF_LEGACY_IMAGE: routerfleet-dev/routerfleet-postgres:local
@@ -593,8 +605,11 @@ jobs:
           # what it was granted, and is still refused the rest
           docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
             -Atc "SELECT count(name) FROM router_manager_router" | grep -qx 1
-          ! docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
-            -Atc "SELECT password FROM router_manager_router" 2>/dev/null
+          # (a negated command never stops a bash -e step: tested explicitly)
+          if docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
+            -Atc "SELECT password FROM router_manager_router" 2>/dev/null; then
+            echo "the monitoring role reads device passwords"; exit 1
+          fi
           docker exec routerfleet-postgres psql -U "$(docker exec routerfleet-postgres printenv POSTGRES_USER)" -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \
             -Atc "SELECT pg_has_role('zbx_monitor', 'pg_monitor', 'member')" | grep -qx t
           docker exec -e PGPASSWORD="$RF_TEST_ZBX_PW" routerfleet-postgres psql -h 127.0.0.1 -U zbx_monitor -d "$(docker exec routerfleet-postgres printenv POSTGRES_DB)" \

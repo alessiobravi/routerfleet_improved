@@ -13,6 +13,23 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.27.2] - 2026-11-24
+
+### Fixed
+- **A first update to the current compose file is guided end to end**, after a
+  field report where it took several tries:
+  - the database's message, when it waits for the migration, lists every
+    command - creating the `scripts` folder, downloading the script, running it
+    on the host - and the ports to set when another web server holds 80 or 443;
+  - the migration script checks the web ports **before** it changes anything,
+    and stops with the `.env` line to add when another program holds them;
+  - if RouterFleet does not start after a migration that succeeded, the script
+    says the database is moved and what to fix;
+  - the Updates page, while the database is still PostgreSQL 16, shows the
+    commands before anybody takes the new compose file.
+- Two checks of the CI migration test could never fail (a negated command does
+  not stop a bash step); they test explicitly now.
+
 ## [0.27.1] - 2026-11-24
 
 ### Changed

@@ -422,3 +422,33 @@ class ZabbixKitTests(TestCase):
                     text = path.read_text()
                     self.assertNotRegex(text, r'\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d+\.\d+')
                     self.assertNotRegex(text, r'/Users/|/home/[a-z]')
+
+
+class FirstUpdateGuidanceTests(TestCase):
+    """Taking the current compose file on a PostgreSQL 16 installation: the
+    Updates page says so beforehand, the database's guard lists every command,
+    the migration script checks the web ports before changing anything."""
+
+    def test_the_updates_page_warns_while_the_database_is_16(self):
+        from unittest import mock
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(50))
+        with mock.patch('routerfleet_tools.system_views.postgres_major', return_value=16):
+            page = self.client.get('/system/updates/')
+        self.assertContains(page, 'The database is PostgreSQL 16')
+        self.assertContains(page, 'mkdir -p scripts')
+        self.assertContains(page, 'HTTP_PORT and HTTPS_PORT')
+        with mock.patch('routerfleet_tools.system_views.postgres_major', return_value=18):
+            self.assertNotContains(self.client.get('/system/updates/'), 'The database is PostgreSQL')
+
+    def test_the_guard_and_the_script_say_everything_needed(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parent.parent
+        guard = (root / 'containers/postgres18/rf-guard.sh').read_text()
+        for line in ('mkdir -p scripts', 'wget -O scripts/migrate-database.sh', 'chmod +x scripts/migrate-database.sh',
+                     './scripts/migrate-database.sh', 'HTTP_PORT and HTTPS_PORT', 'still to be moved to PostgreSQL 18'):
+            self.assertIn(line, guard)
+        script = (root / 'scripts/migrate-database.sh').read_text()
+        self.assertLess(script.index('port_taken "$port"'), script.index('say "2. Stopping RouterFleet"'),
+                        'the ports are checked before anything is stopped')
+        self.assertIn('The database IS moved', script)

@@ -125,6 +125,12 @@ def view_notification_channel(request):
         'removed': bool(channel and channel.channel_type == 'callmebot'), 'email': email})
 
 
+def postgres_major():
+    """The major version of the PostgreSQL in use, None on SQLite."""
+    from django.db import connection
+    return connection.pg_version // 10000 if connection.vendor == 'postgresql' and connection.pg_version else None
+
+
 @login_required
 def view_updates(request):
     """Updates: what runs, what is available, and checking now. Updating is
@@ -153,7 +159,10 @@ def view_updates(request):
     available = None
     if webadmin and webadmin.update_available and webadmin.latest_version > settings.ROUTERFLEET_VERSION:
         available = from_number(webadmin.latest_version)
+    # Still on the PostgreSQL 16 of releases before 0.24: taking the current
+    # compose file needs the migration script - say so before somebody does
+    database_major = postgres_major()
     return render(request, 'routerfleet_tools/updates.html', {
         'page_title': 'Updates', 'current': current, 'available': available,
         'last_checked': webadmin.last_checked if webadmin else None,
-        'check_enabled': check_enabled()})
+        'check_enabled': check_enabled(), 'database_major': database_major})

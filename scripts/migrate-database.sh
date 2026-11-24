@@ -53,6 +53,19 @@ DB_NAME="$(setting POSTGRES_DB)"
 DB_PASSWORD="$(setting POSTGRES_PASSWORD)"
 [ -n "$DB_USER" ] && [ -n "$DB_NAME" ] && [ -n "$DB_PASSWORD" ] || fail "POSTGRES_USER, POSTGRES_DB and POSTGRES_PASSWORD must be set in .env"
 
+# The web ports, before anything is changed: another program on them (a web
+# server) would only stop RouterFleet from starting at the very end. Our own
+# nginx holding them is fine - it is stopped first.
+port_taken() { command -v ss >/dev/null 2>&1 && ss -ltnH "( sport = :$1 )" 2>/dev/null | grep -q .; }
+for kind in HTTP HTTPS; do
+    default=80; suggest=8080
+    [ "$kind" = HTTPS ] && default=443 && suggest=8443
+    port="$(setting "${kind}_PORT")"; port="${port:-$default}"
+    if port_taken "$port" && ! docker port routerfleet-nginx 2>/dev/null | grep -q ":${port}\$"; then
+        fail "port $port is taken by another program on this host (a web server?). Set ${kind}_PORT in .env to a free port - for example ${kind}_PORT=${suggest} - and run this again."
+    fi
+done
+
 PROJECT="$("${COMPOSE[@]}" config --format json | grep -o '"name": *"[^"]*"' | head -1 | sed 's/.*"\([^"]*\)"$/\1/')"
 [ -n "$PROJECT" ] || fail "could not read the compose project name"
 OLD_VOLUME="${PROJECT}_postgres_data"
@@ -129,7 +142,17 @@ echo "$(printf '%s\n' "$NEW_COUNTS" | wc -l | tr -d ' ') tables, every row count
 docker rm -f "$NEW_NAME" >/dev/null
 
 say "6. Starting RouterFleet on PostgreSQL 18"
-"${COMPOSE[@]}" up -d
+if ! "${COMPOSE[@]}" up -d; then
+    cat >&2 <<EOT
+
+The database IS moved: PostgreSQL 18 holds every row, and the old database
+(volume $OLD_VOLUME) and the export $DUMP are kept as they were.
+RouterFleet itself did not start - see the message above. Usually a port: set
+HTTP_PORT and HTTPS_PORT in .env to free ports. Then:  docker compose up -d
+(Do not run this script again: the new database is no longer empty.)
+EOT
+    exit 1
+fi
 cat <<EOT
 
 Done. RouterFleet runs on PostgreSQL 18.
