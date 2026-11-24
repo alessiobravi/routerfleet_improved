@@ -22,6 +22,10 @@ the Zabbix kit reads, says so under **Monitoring**.
   shorter (the HTTPS modes, the router address links, system commands without
   their "System:" prefix, a backup-profile switch); the full wording is in the
   line beneath or the tooltip.
+- **The device console on a phone held upright** uses a smaller font, so a
+  line of device output fits (about 60 columns, never under 8 px); turned to
+  landscape, and on larger screens, it keeps 14 px. Turning the phone
+  switches at once, and the device is told the new terminal size.
 
 ## [0.33.0] - 2026-11-24
 

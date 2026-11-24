@@ -31,7 +31,18 @@
       }
     }
   };
-  var term = new Terminal({cursorBlink: true, convertEol: false, fontSize: 14, scrollback: 5000, linkHandler: linkHandler,
+  // The font follows the space: a phone held upright gets a smaller one, so a
+  // line of device output still fits (about 60 columns, never under 8 px);
+  // landscape and larger screens keep 14 px. Turning the phone switches.
+  var FULL = 14, SMALLEST = 8, PORTRAIT_COLUMNS = 60;
+  function fontSize() {
+    var portrait = window.matchMedia('(orientation: portrait)').matches;
+    var width = screen.clientWidth || window.innerWidth;
+    if (!portrait || window.innerWidth >= 768) { return FULL; }
+    // a monospace character is about 0.6 of the font size wide
+    return Math.max(SMALLEST, Math.min(FULL, Math.floor(width / (PORTRAIT_COLUMNS * 0.6))));
+  }
+  var term = new Terminal({cursorBlink: true, convertEol: false, fontSize: fontSize(), scrollback: 5000, linkHandler: linkHandler,
                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                            theme: {background: '#0f1a28', foreground: '#d8e6e3', cursor: '#14a89a'}});
   var fit = new FitAddon.FitAddon();
@@ -125,7 +136,13 @@
       socket.send(JSON.stringify({type: 'resize', cols: size.cols, rows: size.rows}));
     }
   });
-  window.addEventListener('resize', function () { fit.fit(); });
+  function refit() {
+    var size = fontSize();
+    if (term.options.fontSize !== size) { term.options.fontSize = size; }
+    fit.fit();   // tells the device the new size through onResize
+  }
+  window.addEventListener('resize', refit);
+  window.addEventListener('orientationchange', refit);
 
   // Closing or leaving the page ends the session at once
   function closeNow() { if (socket) { try { socket.close(1000); } catch (e) {} } }
