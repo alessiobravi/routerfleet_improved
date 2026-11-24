@@ -12,7 +12,8 @@ from audit_log import context
 
 from . import https
 from .https_views import _denied
-from .models import AccessRule, HttpsSettings
+from . import bans
+from .models import AccessRule, AddressBan, HttpsSettings
 
 URL = '/system/https/access/'
 
@@ -106,8 +107,25 @@ def view_access(request):
                     settings_row.save(update_fields=['access_default', 'updated'])
                     _apply(request, settings_row)
                     return redirect(URL)
+        elif action == 'unban':
+            AddressBan.objects.filter(uuid=request.POST.get('uuid')).delete()
+            _apply(request, settings_row)
+            return redirect(URL)
+        elif action == 'bans':
+            def number(name, low, high):
+                try:
+                    return min(max(int(request.POST.get(name, '')), low), high)
+                except ValueError:
+                    return getattr(settings_row, name)
+            settings_row.ban_enabled = request.POST.get('ban_enabled') == 'on'
+            settings_row.ban_failures = number('ban_failures', 3, 100)
+            settings_row.ban_window_minutes = number('ban_window_minutes', 1, 1440)
+            settings_row.ban_minutes = number('ban_minutes', 1, 43200)
+            settings_row.save(update_fields=['ban_enabled', 'ban_failures', 'ban_window_minutes', 'ban_minutes', 'updated'])
+            messages.success(request, 'Banning settings saved')
+            return redirect(URL)
     address, _ = context.client_address(request)
     return render(request, 'routerfleet_tools/access.html', {
         'page_title': 'HTTP access', 'rules': AccessRule.objects.all(), 'default': settings_row.access_default,
-        'error': error, 'your_address': address, 'shared': https.volume_shared(),
+        'error': error, 'your_address': address, 'settings': settings_row, 'bans': bans.active(), 'shared': https.volume_shared(),
         'you_allowed': https.access_allows(address, _rules(), settings_row.access_default) if address else True})

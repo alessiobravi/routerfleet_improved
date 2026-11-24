@@ -208,8 +208,10 @@ def clean_network(value):
 
 def access_state(https_settings):
     from .models import AccessRule
+    from .bans import active
     return {'rules': [{'action': rule.action, 'network': rule.network} for rule in AccessRule.objects.all()],
-            'default': https_settings.access_default}
+            'default': https_settings.access_default,
+            'bans': [{'address': ban.address, 'until': int(ban.until.timestamp())} for ban in active().order_by('until')]}
 
 
 def access_allows(address, rules, default='allow'):

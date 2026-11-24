@@ -48,7 +48,14 @@ def _failures(**where):
     return failures.count()
 
 
+def _banned(request):
+    from routerfleet_tools.bans import is_banned
+    return is_banned(context.client_address(request)[0])
+
+
 def is_locked_out(request, username):
+    if _banned(request):
+        return True
     attempts, _ = limits()
     if attempts <= 0:
         return False
@@ -61,6 +68,8 @@ def is_locked_out(request, username):
 
 def address_locked_out(request):
     """The address part alone, for a sign-in that names no account (a passkey)."""
+    if _banned(request):
+        return True
     attempts, _ = limits()
     if attempts <= 0:
         return False

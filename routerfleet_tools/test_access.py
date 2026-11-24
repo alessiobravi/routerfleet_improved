@@ -12,7 +12,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from routerfleet.testing import make_user
 
 from . import https
-from .models import AccessRule, HttpsSettings
+from .models import AccessRule, AddressBan, HttpsSettings
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -117,4 +117,62 @@ class PageTests(TestCase):
         call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
         self.assertFalse(AccessRule.objects.exists())
         self.assertEqual(HttpsSettings.load().access_default, 'allow')
-        self.assertEqual(self.state(), {'rules': [], 'default': 'allow'})
+        self.assertEqual(self.state(), {'rules': [], 'default': 'allow', 'bans': []})
+
+
+class BanTests(TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        override = override_settings(HTTPS_CERT_DIR=self.folder.name, LOGIN_LOCKOUT_ATTEMPTS=100)
+        override.enable()
+        self.addCleanup(override.disable)
+        settings_row = HttpsSettings.load()
+        settings_row.ban_failures = 3
+        settings_row.save()
+        make_user(50, username='owner', password='Right-password-2026!')   # else the login page sends to set-up
+
+    def fail(self, address, times=3):
+        for _ in range(times):
+            self.client.post('/accounts/login/', {'username': 'nobody', 'password': 'wrong'}, REMOTE_ADDR=address)
+
+    def test_failures_ban_the_address_at_nginx_and_in_the_application(self):
+        from .bans import is_banned
+        self.fail('198.51.100.7', 2)
+        self.assertFalse(is_banned('198.51.100.7'))
+        self.fail('198.51.100.7', 1)
+        self.assertTrue(is_banned('198.51.100.7'))
+        state = json.loads((pathlib.Path(self.folder.name) / https.STATE_FILE).read_text())['access']
+        self.assertEqual(state['bans'][0]['address'], '198.51.100.7')
+        # the application refuses its sign-ins too, even with the right password
+        page = self.client.post('/accounts/login/', {'username': 'owner', 'password': 'Right-password-2026!'},
+                                REMOTE_ADDR='198.51.100.7')
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertEqual(page.status_code, 200)
+
+    def test_whitelisted_loopback_and_disabled_are_never_banned(self):
+        from .bans import is_banned
+        AccessRule.objects.create(action='allow', network='192.0.2.0/24')
+        self.fail('192.0.2.9', 5)
+        self.fail('127.0.0.1', 5)
+        self.assertFalse(is_banned('192.0.2.9'))
+        self.assertFalse(is_banned('127.0.0.1'))
+        HttpsSettings.objects.update(ban_enabled=False)
+        self.fail('203.0.113.4', 5)
+        self.assertFalse(is_banned('203.0.113.4'))
+
+    def test_unban_settings_and_the_reset(self):
+        from .bans import is_banned
+        self.fail('2001:db8::66')
+        self.assertTrue(is_banned('2001:db8::66'))
+        self.client.force_login(make_user(50))
+        ban = AddressBan.objects.get()
+        self.client.post('/system/https/access/', {'action': 'unban', 'uuid': str(ban.uuid)}, REMOTE_ADDR='192.0.2.50')
+        self.assertFalse(is_banned('2001:db8::66'))
+        self.client.post('/system/https/access/', {'action': 'bans', 'ban_enabled': 'on', 'ban_failures': '1',
+                                                   'ban_window_minutes': '5', 'ban_minutes': '30'}, REMOTE_ADDR='192.0.2.50')
+        row = HttpsSettings.load()
+        self.assertEqual((row.ban_failures, row.ban_window_minutes, row.ban_minutes), (3, 5, 30))
+        AddressBan.objects.create(address='203.0.113.9', until=row.updated + __import__('datetime').timedelta(hours=1))
+        call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
+        self.assertFalse(AddressBan.objects.exists())

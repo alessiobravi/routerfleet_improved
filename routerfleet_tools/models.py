@@ -53,6 +53,13 @@ class HttpsSettings(models.Model):
     # HTTP access: what an address no entry of the access list matches gets
     ACCESS_POLICIES = (('allow', 'Allow'), ('deny', 'Deny'))
     access_default = models.CharField(max_length=5, choices=ACCESS_POLICIES, default='allow')
+    # Banning after failed sign-ins (fail2ban-like, at nginx): this many
+    # failures from one address within the window ban it for ban_minutes;
+    # an address an Allow entry of the access list matches is never banned
+    ban_enabled = models.BooleanField(default=True)
+    ban_failures = models.PositiveIntegerField(default=10)
+    ban_window_minutes = models.PositiveIntegerField(default=10)
+    ban_minutes = models.PositiveIntegerField(default=60)
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -145,3 +152,19 @@ class AccessRule(models.Model):
 
     def __str__(self):
         return f'{self.action} {self.network}'
+
+
+class AddressBan(models.Model):
+    """An address banned after failed sign-ins: nginx serves it nothing until
+    `until`. Lifted by itself when the time is up, or by an administrator."""
+    address = models.CharField(max_length=45, db_index=True)
+    until = models.DateTimeField(db_index=True)
+    failures = models.PositiveIntegerField(default=0)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    class Meta:
+        ordering = ['-created']
+
+    def __str__(self):
+        return self.address

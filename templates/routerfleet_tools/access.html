@@ -34,7 +34,7 @@
                 </select></form>
         </div>
     </div>
-    <div class="rf-set-foot">Your address, as nginx sees it: <b>{{ your_address|default:"unknown" }}</b> - {% if you_allowed %}allowed{% else %}not allowed{% endif %}. A change that would shut it out is refused. Lost access anyway? On the host: <code>docker compose exec routerfleet python manage.py http_access --reset</code></div>
+    <div class="rf-set-foot">Your address, as nginx sees it: <b>{{ your_address|default:"unknown" }}</b> - {% if you_allowed %}allowed{% else %}not allowed{% endif %}. A change that would shut it out is refused. Lost access anyway, or banned? On the host: <code>docker compose exec routerfleet python manage.py http_access --reset</code></div>
 
     <div class="rf-set-title">Add an entry</div>
     <form method="post" class="rf-set-group">
@@ -59,6 +59,46 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </button>
     </form>
+    <div class="rf-set-title">Banning after failed sign-ins</div>
+    <form method="post" class="rf-set-group">
+        {% csrf_token %}<input type="hidden" name="action" value="bans">
+        <label class="rf-set-row" for="ban_enabled">
+            <span class="rf-set-icon red"><i class="fas fa-user-lock"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Ban addresses that keep failing to sign in</span>
+                <span class="rf-set-sub d-block">nginx then serves a banned address nothing at all, for the time set</span></span>
+            <span class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" id="ban_enabled" name="ban_enabled" {% if settings.ban_enabled %}checked{% endif %}></span>
+        </label>
+        <div class="rf-set-row"><div class="rf-set-text"><div class="row g-2">
+            <div class="col-md-4"><label class="small mb-0" for="ban_failures">Failed sign-ins</label>
+                <input type="number" class="form-control" id="ban_failures" name="ban_failures" min="3" max="100" value="{{ settings.ban_failures }}"></div>
+            <div class="col-md-4"><label class="small mb-0" for="ban_window_minutes">Within (minutes)</label>
+                <input type="number" class="form-control" id="ban_window_minutes" name="ban_window_minutes" min="1" max="1440" value="{{ settings.ban_window_minutes }}"></div>
+            <div class="col-md-4"><label class="small mb-0" for="ban_minutes">Ban for (minutes)</label>
+                <input type="number" class="form-control" id="ban_minutes" name="ban_minutes" min="1" max="43200" value="{{ settings.ban_minutes }}"></div>
+        </div></div></div>
+        <button type="submit" class="rf-set-row rf-set-action w-100">
+            <span class="rf-set-icon red"><i class="fas fa-check"></i></span>
+            <span class="rf-set-text text-start"><span class="rf-set-label d-block">Save</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </button>
+    </form>
+    <div class="rf-set-foot">Counted per address from the login history, since its last successful sign-in. Never banned: addresses an <b>Allow</b> entry above matches, loopback, and the trusted proxies. The sign-in lockout still applies beside it.</div>
+
+    <div class="rf-set-title">Banned now</div>
+    <div class="rf-set-group">
+        {% for ban in bans %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon red"><i class="fas fa-ban"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ ban.address }}</span>
+                <span class="rf-set-sub d-block">{{ ban.failures }} failed sign-ins - banned until {{ ban.until|date:"Y-m-d H:i" }}</span></span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="uuid" value="{{ ban.uuid }}">
+                <button type="submit" name="action" value="unban" class="btn btn-sm btn-outline-secondary" aria-label="Unban {{ ban.address }}"><i class="fas fa-unlock me-1"></i>Unban</button></form>
+        </div>
+        {% empty %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">No address is banned.</span></div>
+        {% endfor %}
+    </div>
+
     <div class="rf-set-foot">Applies to the web interface over HTTP and HTTPS, every HTTPS mode. Let's Encrypt's validation stays open. The scheduler and monitoring talk to the application directly and are not affected. Behind a reverse proxy, the client's address comes from the trusted proxies (see HTTPS).</div>
 </div>
 {% endblock %}

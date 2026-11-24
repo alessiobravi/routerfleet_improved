@@ -486,6 +486,21 @@ docker compose exec routerfleet python manage.py http_access --reset  # no entry
 The scheduler and monitoring talk to the application directly and are not
 affected; nor is SSH to the host.
 
+### Banning after failed sign-ins
+
+fail2ban's idea, built in - nothing to install on the host. On the same page:
+when one address fails to sign in **10 times within 10 minutes** (since its
+last successful sign-in; all three numbers can be changed), it is **banned for
+60 minutes**: nginx serves it nothing at all - the ban is checked before the
+access list - and the application refuses its sign-ins too. The ban ends by
+itself; *Banned now* lists the current ones with **Unban**, and
+`manage.py http_access --reset` lifts every ban.
+
+**Never banned:** an address an **Allow** entry of the access list matches -
+that is the whitelist - and loopback and the trusted proxies, since banning
+those would shut out everybody behind them. Banning can be switched off; the
+sign-in lockout (below) works beside it either way.
+
 ### How long a sign-in lasts
 
 Each user chooses in *My Settings → Security settings → Session expiration time*: from 1 hour to 2 weeks, **24 hours**

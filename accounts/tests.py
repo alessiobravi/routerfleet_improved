@@ -156,6 +156,9 @@ class LockoutTests(TestCase):
 
     @override_settings(LOGIN_LOCKOUT_ATTEMPTS=0)
     def test_zero_turns_it_off(self):
+        # The lockout alone: banning (System settings, HTTP access) is separate
+        from routerfleet_tools.models import HttpsSettings
+        HttpsSettings.objects.filter(pk=HttpsSettings.load().pk).update(ban_enabled=False)
         for _ in range(10):
             self.attempt('wrong')
         self.attempt('right-password')

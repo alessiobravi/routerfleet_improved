@@ -168,14 +168,18 @@ with_ipv6() {
     fi
 }
 
-# The HTTP access list (System settings, HTTP access): nginx's allow and deny,
+# The HTTP access list (System settings, HTTP access) and the addresses banned
+# after failed sign-ins: nginx's allow and deny,
 # checked in order - the first match decides - then the final policy, in every
 # server block. Let's Encrypt's validation path stays open.
 access_lines() {
     [ -f "$STATE" ] || return 0
+    # Addresses banned after failed sign-ins come first, while their ban lasts
+    bans=$(jq -r '.access.bans[]? | select(.until > now) | "deny \(.address)"' "$STATE" 2>/dev/null)
     rules=$(jq -r '.access.rules[]? | "\(.action) \(.network)"' "$STATE" 2>/dev/null)
     default=$(jq -r '.access.default // "allow"' "$STATE" 2>/dev/null)
-    [ -n "$rules" ] || [ "$default" = "deny" ] || return 0
+    [ -n "$bans$rules" ] || [ "$default" = "deny" ] || return 0
+    rules=$(printf '%s\n%s' "$bans" "$rules")
     echo "$rules" | while read -r action net; do
         [ -n "$net" ] || continue
         case "$action" in allow|deny) ;; *) echo "access list: not an action: $action" >&2; return 1 ;; esac
@@ -381,6 +385,8 @@ signature() {
         [ -f "$f" ] && md5sum "$f" 2>/dev/null
     done
     echo "$HTTPS_MODE_OVERRIDE"
+    # A ban whose time is up changes this, so nginx drops it
+    [ -f "$STATE" ] && jq -c '[.access.bans[]? | select(.until > now) | .address]' "$STATE" 2>/dev/null
 }
 
 case "$1" in

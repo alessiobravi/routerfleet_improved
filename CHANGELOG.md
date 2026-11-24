@@ -40,6 +40,11 @@ the Zabbix kit reads, says so under **Monitoring**.
   then a final policy, Allow unless changed. Enforced by nginx in every HTTPS
   mode; a change that would shut out its author is refused;
   `manage.py http_access --reset` opens access again.
+- **Banning after failed sign-ins** (fail2ban-like, built in): 10 failures from
+  one address within 10 minutes ban it for 60 minutes (all adjustable) - nginx
+  serves it nothing, the application refuses its sign-ins. Addresses an Allow
+  entry of the access list matches, loopback and trusted proxies are never
+  banned. Current bans listed with Unban.
 - **IPv4 and IPv6 everywhere, dual stack**: RouterFleet's own network has IPv6
   beside IPv4 (a private ULA prefix; `IPV6=false` in `.env` only where the
   host's kernel has IPv6 off), so every container has both; nginx, the

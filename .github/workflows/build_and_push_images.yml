@@ -295,7 +295,7 @@ jobs:
             echo "::error::nginx announces its version"; exit 1
           fi
 
-      - name: HTTP access lists reach nginx, and the command opens access again
+      - name: HTTP access lists and bans reach nginx, and the command opens access again
         run: |
           set -eu
           C="docker compose -f docker-compose-dev.yml"
@@ -320,10 +320,22 @@ jobs:
           AccessRule.objects.create(action='allow', network='::/0', position=1)
           https.write_state(HttpsSettings.load())"
           wait_code https://localhost/static/routerfleet/logo.svg 200
-          # The command from the host: no entry, Allow
+          # A ban after failed sign-ins reaches nginx as a deny, and Unban removes it
+          docker exec routerfleet python manage.py shell -c "
+          from datetime import timedelta
+          from django.utils import timezone
+          from routerfleet_tools import https
+          from routerfleet_tools.models import AddressBan, HttpsSettings
+          AddressBan.objects.create(address='192.0.2.77', until=timezone.now() + timedelta(minutes=5), failures=10)
+          https.write_state(HttpsSettings.load())"
+          for _ in $(seq 1 30); do $C exec -T routerfleet-nginx sh -c "grep -q 'deny 192.0.2.77;' /etc/nginx/conf.d/default.conf" && break; sleep 1; done
+          $C exec -T routerfleet-nginx sh -c "grep -q 'deny 192.0.2.77;' /etc/nginx/conf.d/default.conf"
+          wait_code https://localhost/static/routerfleet/logo.svg 200
+          # The command from the host: no entry, no ban, Allow
           docker exec routerfleet python manage.py http_access --reset
           wait_code https://localhost/static/routerfleet/logo.svg 200
-          if $C exec -T routerfleet-nginx sh -c "grep -q 'deny all;' /etc/nginx/conf.d/default.conf"; then
+          sleep 6
+          if $C exec -T routerfleet-nginx sh -c "grep -q 'deny ' /etc/nginx/conf.d/default.conf"; then
             echo "::error::the reset left a deny in nginx"; exit 1
           fi
 
