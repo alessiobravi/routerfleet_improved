@@ -231,6 +231,13 @@ def get_router_information(router_information: RouterInformation):
         router_information.last_retrieval = timezone.now()
         router_information.json_data = json.dumps(json_data)
         router_information.save()
+        # Its neighbour tables (LLDP, CDP, MNDP), for Discovered devices - never
+        # a reason for the inventory read to fail
+        try:
+            from discovery.store import read_neighbours
+            read_neighbours(session, router)
+        except Exception as error:   # noqa: BLE001
+            logger.info(f'Neighbour tables of {router.name} not read: {error}')
 
     except Exception as e:
         success = False

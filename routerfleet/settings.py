@@ -27,6 +27,8 @@ LOGIN_LOCKOUT_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
 # A password reset link works for an hour
 PASSWORD_RESET_TIMEOUT = 3600
+# What the optional discovery listener heard on RouterFleet's LAN (shared volume)
+DISCOVERY_FILE = '/discovery/seen.json'
 # One account from all addresses together (guessing spread over many addresses)
 LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS = 20
 
@@ -71,6 +73,7 @@ INSTALLED_APPS = [
     # Last, so that its ready() runs once every other app has its models, which
     # is what the audit trail watches
     'audit_log',
+    'discovery',
 ]
 
 MIDDLEWARE = [
@@ -221,7 +224,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.35.1'
+ROUTERFLEET_RELEASE = '0.36.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

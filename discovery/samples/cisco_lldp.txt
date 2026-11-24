@@ -1,0 +1,18 @@
+------------------------------------------------
+Local Intf: Gi0/3
+Chassis id: 48a9.8a01.0203
+Port id: ether1
+Port Description: ether1
+System Name: hap-office
+
+System Description:
+MikroTik RouterOS 7.16.2 (stable) hAP ax3
+
+Time remaining: 101 seconds
+System Capabilities: B,W,R
+Enabled Capabilities: B,R
+Management Addresses:
+    IP: 10.20.0.30
+Auto Negotiation - not supported
+------------------------------------------------
+Total entries displayed: 1

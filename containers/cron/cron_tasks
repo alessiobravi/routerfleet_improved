@@ -14,3 +14,4 @@ MAILTO=""
 * * * * *    root sleep 40; /usr/bin/curl -s http://routerfleet:8001/cron/create_command_jobs/             >> /var/log/cron.log 2>&1
 # Firmware rollouts: one step per device per minute
 * * * * *    root sleep 25; /usr/bin/curl -s --max-time 330 http://routerfleet:8001/cron/firmware_rollouts/        >> /var/log/cron.log 2>&1
+*/2 * * * *  root sleep 35; /usr/bin/curl -s http://routerfleet:8001/cron/discovery/                >> /var/log/cron.log 2>&1

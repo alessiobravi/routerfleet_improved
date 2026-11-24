@@ -314,7 +314,11 @@ def view_manage_router(request):
     else:
         router = None
 
-    form = RouterForm(request.POST or None, instance=router)
+    initial = None
+    if router is None and request.method != 'POST':
+        from discovery.views import prefill
+        initial = prefill(request.GET.get('discovered'))
+    form = RouterForm(request.POST or None, instance=router, initial=initial)
     if form.is_valid():
         created = router is None
         changed = set(form.changed_data)

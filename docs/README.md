@@ -53,6 +53,7 @@ flowchart TB
 | Page | What it covers |
 |---|---|
 | [Devices](devices.md) | Device types, inventory, version colours, list filtering, bulk operations |
+| [Discovery](discovery.md) | Devices from LLDP, CDP and MikroTik neighbour tables, the optional LAN listener, one-click add |
 | [Backups](backups.md) | Profiles, the two-phase pipeline, retention, change detection, diffs |
 | [Fleet Commander](fleet-commander.md) | Commands, variants, verified results, jobs, schedules, aborting |
 | [Monitoring](monitoring.md) | Reachability checks, downtime records, how it gates other work |

@@ -91,6 +91,10 @@ encrypted with.
 - **Update check** — the newest release and what it changes, checked hourly
   or on demand; signed release images. RouterFleet never updates itself: no
   container is given Docker access. [More](docs/updating.md)
+- **Discovery** — devices revealed by LLDP, CDP and MikroTik neighbour
+  discovery, from the neighbour tables of managed devices and, optionally, a
+  listener on RouterFleet's own LAN; added in one click.
+  [More](docs/discovery.md)
 - **Monitoring** — an independent container pings the fleet and records
   downtime; status changes raise notifications.
 - **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,
@@ -127,6 +131,7 @@ encrypted with.
 | [Devices](docs/devices.md) | Credentials, inventory, version states, the device list |
 | [Device types](docs/device-types.md) | Types as configuration: connection, recognition, inventory, backups, update checks; the wizard |
 | [Firmware repository](docs/firmware.md) | Firmware per device type; updates one device first, then the rest |
+| [Discovery](docs/discovery.md) | Devices from LLDP, CDP and MikroTik neighbour tables, and the optional LAN listener |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
 | [Monitoring](docs/monitoring.md) | Reachability checks and downtime records |

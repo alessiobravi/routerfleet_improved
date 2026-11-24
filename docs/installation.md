@@ -238,6 +238,19 @@ permanent override needs an image of your own.
 | Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once |
 | TLS certificate | `https_cert/nginx.pem`, `nginx.key` | Self-signed, RSA 4096, CN `localhost`, valid 10 years. Created only if missing |
 
+## Optional: the discovery listener
+
+The listener that hears LLDP, CDP and MikroTik MNDP on this host's LAN segment
+is not started by default. To run it:
+
+```bash
+docker compose --profile discovery up -d
+```
+
+It uses host networking and the raw-socket right, nothing else; see
+[Discovery](discovery.md). Without it, discovered devices still come from the
+neighbour tables of managed devices.
+
 ## Ports
 
 Only nginx publishes ports: 80 and 443 by default. When they are taken - by

@@ -106,6 +106,14 @@ DEFAULTS = {
         'placeholders': (),
         'required': False,
     },
+    'neighbors': {
+        'name': 'System: neighbours (discovery)',
+        'description': 'Prints the device\'s neighbour tables - LLDP, CDP, MikroTik MNDP - read with the inventory, '
+                       'for Discovered devices. RouterFleet recognises the output of RouterOS, Cisco, Junos, Huawei and '
+                       'lldpd. Empty: the device type is not asked.',
+        'placeholders': (),
+        'required': False,
+    },
     'firmware_online_update': {
         'name': 'System: firmware - online update',
         'description': 'The device downloads and installs a release itself, from its vendor - usually ending in '

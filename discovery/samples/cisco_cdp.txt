@@ -1,0 +1,23 @@
+-------------------------
+Device ID: access-sw-02.example.net
+Entry address(es):
+  IP address: 10.20.0.2
+Platform: cisco WS-C2960X-48TS-L,  Capabilities: Switch IGMP
+Interface: GigabitEthernet0/1,  Port ID (outgoing port): GigabitEthernet1/0/48
+Holdtime : 155 sec
+
+Version :
+Cisco IOS Software, C2960X Software (C2960X-UNIVERSALK9-M), Version 15.2(7)E8, RELEASE SOFTWARE (fc2)
+Technical Support: http://www.cisco.com/techsupport
+
+advertisement version: 2
+-------------------------
+Device ID: rtr-edge
+Entry address(es):
+  IP address: 10.20.0.1
+Platform: cisco ISR4331/K9,  Capabilities: Router Switch IGMP
+Interface: GigabitEthernet0/2,  Port ID (outgoing port): GigabitEthernet0/0/1
+Holdtime : 170 sec
+
+Version :
+Cisco IOS XE Software, Version 17.09.04a

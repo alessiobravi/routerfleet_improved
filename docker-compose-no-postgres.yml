@@ -20,6 +20,8 @@ services:
     volumes:
       - sqlite_volume:/var/lib/routerfleet_sqlite/
       - media_root:/var/lib/routerfleet/
+      # What the optional discovery listener heard (read only)
+      - discovery_data:/discovery:ro
       - static_volume:/app_static_files/
       - app_secrets:/app_secrets/
       # Shared with nginx: HTTPS in System settings writes the mode and certificates here
@@ -56,6 +58,23 @@ services:
       routerfleet:
         condition: service_healthy
 
+  # Optional: hears LLDP, CDP and MikroTik MNDP on this host's LAN segment, for
+  # Discovered devices. Off unless started with the profile:
+  #   docker compose --profile discovery up -d
+  # Host networking and the raw-socket right only (to read layer-2 frames);
+  # it sends nothing and hands what it hears over in a file on a shared volume.
+  routerfleet-discovery:
+    container_name: routerfleet-discovery
+    restart: unless-stopped
+    image: ghcr.io/alessiobravi/routerfleet-discovery:latest
+    profiles: ["discovery"]
+    network_mode: host
+    cap_drop: [ALL]
+    cap_add: [NET_RAW]
+    read_only: true
+    volumes:
+      - discovery_data:/discovery
+
   routerfleet-nginx:
     container_name: routerfleet-nginx
     restart: unless-stopped
@@ -90,6 +109,7 @@ services:
         condition: service_healthy
 
 volumes:
+  discovery_data:
   static_volume:
   https_cert:
   media_root:

@@ -13,6 +13,22 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.36.0] - 2026-11-25
+
+### Added
+- **Discovery** (Router Manager → Discovered): devices revealed by LLDP, CDP
+  and MikroTik MNDP, added in one click - the device form filled in with name
+  and address, the device type guessed from the announced platform.
+  - **From the neighbour tables of managed devices**: a new system command,
+    *neighbours*, read with every router information update (RouterOS,
+    Cisco, Junos, Huawei shipped; OpenWrt where lldpd is installed). Reaches
+    every network they touch; nothing to install.
+  - **An optional listener on RouterFleet's own LAN** (`docker compose
+    --profile discovery up -d`): host networking and the raw-socket right
+    only, read-only, sends nothing; hands what it hears over in a file on a
+    shared volume - no network path, no credential.
+  - Already managed devices are matched; others can be hidden.
+
 ## [0.35.1] - 2026-11-24
 
 ### Changed

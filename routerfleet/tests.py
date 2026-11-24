@@ -196,7 +196,7 @@ class CronEndpointTests(TestCase):
                 if str(pattern.pattern).startswith('cron/')]
 
     def test_all_cron_routes_are_covered(self):
-        self.assertEqual(len(self.cron_paths()), 12)
+        self.assertEqual(len(self.cron_paths()), 13)   # discovery listener import included
 
     @mock.patch('routerlib.device_session.connect_to_ssh', side_effect=OSError('no network in tests'))
     def test_direct_call_runs(self, _):

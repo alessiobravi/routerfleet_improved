@@ -16,6 +16,12 @@ services:
       context: ./containers/monitoring
       dockerfile: Dockerfile-monitoring
 
+  routerfleet-discovery:
+    image: ghcr.io/alessiobravi/routerfleet-discovery:latest
+    profiles: ["discovery"]
+    build:
+      context: ./containers/discovery
+      dockerfile: Dockerfile-discovery
   routerfleet-nginx:
     image: ghcr.io/alessiobravi/routerfleet-nginx:latest
     build:

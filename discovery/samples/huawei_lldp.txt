@@ -1,0 +1,14 @@
+GigabitEthernet0/0/1 has 1 neighbor(s):
+
+Neighbor index :1
+Chassis type   :MAC address
+Chassis ID     :00e0-fc12-3456
+Port ID type   :Interface name
+Port ID        :GigabitEthernet0/0/24
+Port description :GigabitEthernet0/0/24
+System name    :S5735-core
+System description :Huawei Versatile Routing Platform Software VRP (R) software, Version 5.170 (S5735 V200R021C10SPC600)
+System capabilities supported   :bridge router
+Management address type   :ipv4
+Management address   :10.30.0.2
+Expired time   :106s

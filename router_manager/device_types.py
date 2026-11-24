@@ -35,6 +35,7 @@ INVENTORY_IDENTITY = ('model_name', 'model_version', 'os_version')
 # Commands per system key, per preset. Keys missing for a preset are empty.
 PRESET_COMMANDS = {
     'routeros': {
+        'neighbors': '/ip neighbor print terse',
         'connection_test': '/system resource print',
         'inventory': '/system resource print\n/system routerboard print\n'
                      '/system package update check-for-updates\n/system package update print',
@@ -51,6 +52,7 @@ PRESET_COMMANDS = {
                                   '/system package update install',
     },
     'openwrt': {
+        'neighbors': 'lldpcli -f keyvalue show neighbors details',
         'firmware_online_update': 'owut upgrade -V {{ firmware_version }}',
         'connection_test': 'ubus call system board',
         'inventory': 'cat /etc/os-release\necho "hostname=$(uci get system.@system[0].hostname)"\n'
@@ -72,6 +74,7 @@ PRESET_COMMANDS = {
         'backup_download': '/tmp/system.cfg',  # nosec B108 - a path on the device
     },
     'cisco-ios': {
+        'neighbors': 'show cdp neighbors detail\nshow lldp neighbors detail',
         'firmware_verify': 'dir flash:{{ firmware_name }}',
         'firmware_install': 'install add file flash:{{ firmware_name }} activate commit prompt-level none',
         'connection_test': 'show version',
@@ -79,6 +82,7 @@ PRESET_COMMANDS = {
         'backup_text': 'running-config: show running-config',
     },
     'juniper-junos': {
+        'neighbors': 'show lldp neighbors',
         'firmware_verify': 'file checksum sha-256 /var/tmp/{{ firmware_name }}',
         'firmware_install': 'request system software add /var/tmp/{{ firmware_name }} reboot',
         'connection_test': 'show version',
@@ -86,6 +90,7 @@ PRESET_COMMANDS = {
         'backup_text': 'configuration: show configuration\nset: show configuration | display set',
     },
     'huawei-vrp': {
+        'neighbors': 'display lldp neighbor',
         'connection_test': 'display version',
         'inventory': 'display version\ndisplay esn',
         'backup_text': 'current-configuration: display current-configuration',
@@ -97,6 +102,7 @@ PRESET_COMMANDS = {
         'firmware_install': 'startup system-software {{ firmware_name }}\nreboot fast <<< y',
     },
     'cisco-ios-classic': {
+        'neighbors': 'show cdp neighbors detail\nshow lldp neighbors detail',
         'connection_test': 'show version',
         'inventory': 'show version\nshow inventory',
         'backup_text': 'running-config: show running-config',

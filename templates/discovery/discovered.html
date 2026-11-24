@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/router/list/" class="small"><i class="fas fa-chevron-left"></i> Router list</a>
+    <div class="rf-set-title">Not in RouterFleet yet</div>
+    <div class="rf-set-group">
+        {% if new %}
+        <div class="rf-set-row rf-set-search">
+            <span class="rf-set-icon blue"><i class="fas fa-magnifying-glass"></i></span>
+            <input type="search" class="form-control" data-rf-filter=".rf-discovered" placeholder="Filter by name, address, platform or where seen" aria-label="Filter discovered devices">
+        </div>
+        {% endif %}
+        {% for row in new %}
+        <div class="rf-set-row rf-discovered">
+            <span class="rf-set-icon {% if row.type == 'routeros' %}blue{% elif 'cisco' in row.type %}teal{% elif row.type %}purple{% else %}sky{% endif %}"><i class="fas fa-satellite-dish"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ row.device.identity }}">{{ row.device.identity|default:row.device.address|default:row.device.mac }}</span>
+                <span class="rf-set-sub d-block">{% if row.device.address %}{{ row.device.address }} · {% endif %}<span title="{{ row.device.platform }}">{{ row.device.platform|default:"unknown platform"|truncatechars:60 }}</span>{% if row.device.model and row.device.model not in row.device.platform %} {{ row.device.model }}{% endif %}{% if row.device.version and row.device.version not in row.device.platform %} · {{ row.device.version|truncatechars:40 }}{% endif %}</span>
+                <span class="rf-set-sub d-block">{{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %} · {{ row.device.last_seen|timesince }} ago</span></span>
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="dismiss"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
+                <button type="submit" class="btn btn-link text-muted" title="Not of interest - hide it" aria-label="Hide {{ row.device.identity }}"><i class="fas fa-eye-slash"></i></button></form>
+            {% if row.device.address %}<a class="btn btn-sm btn-outline-primary" href="/router/manage/?discovered={{ row.device.uuid }}" title="Add it, the form filled in{% if row.type %} (device type guessed){% endif %}"><i class="fas fa-plus me-1"></i>Add</a>{% endif %}
+        </div>
+        {% empty %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">Nothing new. Devices appear here as managed devices report their neighbours (with each router information update) or the listener on RouterFleet's LAN hears them.</span></div>
+        {% endfor %}
+    </div>
+    <div class="rf-set-foot">From the LLDP, CDP and MikroTik neighbour tables of managed devices{% if show_dismissed or dismissed %}, and from RouterFleet's LAN when the listener runs{% endif %}. A device without an address can not be added from here.</div>
+
+    {% if known %}
+    <div class="rf-set-title">Already in RouterFleet</div>
+    <div class="rf-set-group">
+        {% for row in known %}
+        <a class="rf-set-row rf-discovered" href="/router/details/?uuid={{ row.router.uuid }}">
+            <span class="rf-set-icon green"><i class="fas fa-check"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.router.name }}</span>
+                <span class="rf-set-sub d-block">{{ row.device.address }} · {{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %}</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if dismissed %}
+    {% if show_dismissed %}
+    <div class="rf-set-title">Hidden</div>
+    <div class="rf-set-group">
+        {% for row in dismissed %}
+        <div class="rf-set-row">
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.device.identity|default:row.device.address }}</span>
+                <span class="rf-set-sub d-block">{{ row.device.address }} · {{ row.device.platform }}</span></span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="restore"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Show again</button></form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="rf-set-foot"><a href="?dismissed=1">{{ dismissed|length }} hidden</a></div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

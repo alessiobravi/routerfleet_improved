@@ -18,6 +18,7 @@ from routerfleet import test_upgrade
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 RELEASED = {
+    'discovery/migrations/0001_initial.py': 'bf572f586c82e69855c488b5fcdab79ff400bd2b34b8dc367c871ab42dadf396',
     'audit_log/migrations/0001_initial.py': '798b0442ee6f268a979a354775c4b1271048884bf24dfacd58af0ea130c1ca4e',
     'audit_log/migrations/0002_changerecord_change_object_and_more.py': '08355a68e881e297561d6a3e044379918b9df9357c1a26f2e5ff383242e13430',
     'audit_log/migrations/0003_changerecord_revealed.py': 'ab33f96cedc2ec343857575c7cc4d829435cc1219aa4902b54c8ddbdbc1a71b8',
@@ -74,6 +75,7 @@ RELEASED = {
     'fleet_commander/migrations/0019_firmware_online_update.py': 'dfee393c769741b6bfb049a988330f35cb3e6b2201a01d24260531a02424126b',
     'fleet_commander/migrations/0020_firmware_bootloader_upgrade.py': '852e0890d00a242100bed97c9011dd415b9244dacd7d4d414841eeb03b7ce520',
     'fleet_commander/migrations/0021_huawei_firmware.py': '4a4b18bc744c0bc5e48353d881f1ff6845877c940dd70c4d0a54130d3a3d029c',
+    'fleet_commander/migrations/0022_neighbors_command.py': 'd0157beb00725cd73c60867be9e404aaf477ada56606c3fe022d209e1d5b7524',
     'import_tool/migrations/0001_initial.py': '132a6a583f3366f0e093a1bccdb08d7e5ef6314867c4b0b9dcdea6dbece200db',
     'import_tool/migrations/0002_rename_created_at_csvdata_created_and_more.py': '6a95e115daaa75a092ca33465c961ec8965bad4a7cc76ac694fa0b0cb16d0810',
     'import_tool/migrations/0003_importtask_router_group_name_importtask_ssh_key_name.py': '48dad1e0ba7c9f993bcc8ca28fa3f74a45c2200dffa501fda1aea93d6c5e7a15',

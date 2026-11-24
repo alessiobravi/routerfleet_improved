@@ -345,6 +345,7 @@ Commander page:
 | backup - clean leftovers | after every successful backup | none |
 | firmware - verify the upload | a [firmware rollout](firmware.md), after the upload | `{{ firmware_name }}`, `{{ firmware_path }}`, `{{ firmware_version }}` |
 | firmware - install | a firmware rollout, after the verification | same |
+| neighbours (discovery) | with the inventory: the neighbour tables, for [Discovered devices](discovery.md) | none |
 
 Each has one variant per [device type](device-types.md). An empty variant means
 nothing is run for that type (airOS creates nothing: its configuration is

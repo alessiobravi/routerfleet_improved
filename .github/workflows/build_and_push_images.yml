@@ -195,6 +195,22 @@ jobs:
       - name: Build and start, waiting for the healthchecks
         run: docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 300
 
+      - name: The optional discovery listener builds, starts and writes its file
+        run: |
+          set -eu
+          docker compose -f docker-compose-dev.yml --profile discovery up -d --build routerfleet-discovery
+          for _ in $(seq 1 25); do
+            docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'discovery listener' && break
+            sleep 2
+          done
+          docker compose -f docker-compose-dev.yml logs routerfleet-discovery
+          test "$(docker inspect -f '{{.HostConfig.NetworkMode}}' routerfleet-discovery)" = host
+          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' routerfleet-discovery)" = true
+          docker inspect -f '{{json .HostConfig.CapAdd}}' routerfleet-discovery | grep -q NET_RAW
+          sleep 35
+          docker exec routerfleet test -f /discovery/seen.json
+          docker exec routerfleet python manage.py shell -c "from discovery.store import import_listener_file; print('imported', import_listener_file())"
+
       - name: The installation behaves
         run: |
           set -x
@@ -781,6 +797,10 @@ jobs:
             context: ./containers/nginx
             file: ./containers/nginx/Dockerfile-nginx
             title: RouterFleet Improved web server
+          - image: routerfleet-discovery
+            context: ./containers/discovery
+            file: ./containers/discovery/Dockerfile-discovery
+            title: RouterFleet Improved discovery listener (optional)
           - image: routerfleet-postgres18
             context: ./containers/postgres18
             file: ./containers/postgres18/Dockerfile-postgres18
@@ -924,7 +944,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-postgres18,
+        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-discovery, routerfleet-postgres18,
                 routerfleet-postgres]
     steps:
       - name: Checkout repository
