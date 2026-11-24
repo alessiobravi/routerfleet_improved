@@ -29,6 +29,9 @@ the Zabbix kit reads, says so under **Monitoring**.
   page of its own, and records it in the change log as *Secret shown*.
 - **The sign-in page offers passkeys only where the HTTPS settings allow
   them** - HTTPS, reached by a name, a certificate browsers trust.
+- **A backup shows a "Binary backup" tile only when it has a binary file**
+  (OpenWrt archives, files a device type downloads); otherwise the place shows
+  how long the backup took. RouterOS backups are text only.
 
 ## [0.34.0] - 2026-11-24
 

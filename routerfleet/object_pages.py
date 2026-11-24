@@ -249,8 +249,9 @@ def backup_page(backup):
         binary = 0
     from django.template.defaultfilters import filesizeformat
     meta = [f'{backup.get_schedule_type_display()} backup', f'{timezone.localtime(backup.created):%Y-%m-%d %H:%M}']
-    if backup.finish_time:
-        meta.append(f'took {int((backup.finish_time - (backup.schedule_time or backup.created)).total_seconds())} s')
+    took = int((backup.finish_time - (backup.schedule_time or backup.created)).total_seconds()) if backup.finish_time else None
+    if took is not None:
+        meta.append(f'took {took} s')
     actions = []
     if content.backup_text or content.backup_binary:
         actions.append({'label': 'Download', 'icon': 'fa-download', 'href': f'/backup/download/?uuid={backup.uuid}&type=text', 'style': ''})
@@ -259,7 +260,10 @@ def backup_page(backup):
     lines = len((content.backup_text or '').splitlines())
     tiles = [
         {'value': f'{lines} lines' if lines else '—', 'label': f'Configuration, {filesizeformat(size)}', 'state': 'info'},
-        {'value': filesizeformat(binary) if binary else '—', 'label': 'Binary backup', 'state': 'info'},
+        # A binary backup only where there is one (OpenWrt archives, files a device
+        # type downloads); otherwise how long the backup took
+        {'value': filesizeformat(binary), 'label': 'Binary backup', 'state': 'info'} if binary else
+        {'value': f'{took} s' if took is not None else '—', 'label': 'Duration', 'state': 'info'},
         {'value': 'Unchanged' if backup.same_as_id else ('Changed' if backup.config_change_detected else 'No change'),
          'label': 'Compared with the previous', 'state': 'run' if backup.config_change_detected else 'ok'},
         {'value': backup.retry_count, 'label': 'Retries', 'state': 'bad' if backup.retry_count else 'ok'},

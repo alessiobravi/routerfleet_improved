@@ -218,3 +218,22 @@ class DevicePageStatesTests(TestCase):
         self.assertIn('Console closed: closed by the user', texts)
         self.assertIn('Went offline', texts)
         self.assertIn('Back online', texts)
+
+
+class BackupTilesTests(TestCase):
+    """A backup shows a Binary backup tile only when it has a binary file;
+    otherwise the place shows how long it took."""
+
+    def test_text_only_backup_has_no_binary_tile(self):
+        from django.utils import timezone
+        from backup_data.models import RouterBackup
+        from routerfleet.object_pages import backup_page
+        from routerfleet.testing import make_router
+        now = timezone.now()
+        backup = RouterBackup.objects.create(router=make_router(name='tiles-r1'), success=True, schedule_type='instant',
+                                             backup_text='# config\n', schedule_time=now - timezone.timedelta(seconds=7),
+                                             finish_time=now)
+        labels = [tile['label'] for tile in backup_page(backup)['tiles']]
+        self.assertNotIn('Binary backup', labels)
+        duration = next(tile for tile in backup_page(backup)['tiles'] if tile['label'] == 'Duration')
+        self.assertEqual(duration['value'], '7 s')
