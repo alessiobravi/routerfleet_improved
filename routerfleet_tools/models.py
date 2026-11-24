@@ -57,7 +57,7 @@ class HttpsSettings(models.Model):
     # failures from one address within the window ban it for ban_minutes;
     # an address an Allow entry of the access list matches is never banned
     ban_enabled = models.BooleanField(default=True)
-    ban_failures = models.PositiveIntegerField(default=10)
+    ban_failures = models.PositiveIntegerField(default=5)
     ban_window_minutes = models.PositiveIntegerField(default=10)
     ban_minutes = models.PositiveIntegerField(default=60)
 

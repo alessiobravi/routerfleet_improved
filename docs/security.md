@@ -489,7 +489,7 @@ affected; nor is SSH to the host.
 ### Banning after failed sign-ins
 
 fail2ban's idea, built in - nothing to install on the host. On the same page:
-when one address fails to sign in **10 times within 10 minutes** (since its
+when one address fails to sign in **5 times within 10 minutes** (since its
 last successful sign-in; all three numbers can be changed), it is **banned for
 60 minutes**: nginx serves it nothing at all - the ban is checked before the
 access list - and the application refuses its sign-ins too. The ban ends by
