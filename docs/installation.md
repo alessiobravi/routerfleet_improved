@@ -201,6 +201,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 | `POSTGRES_PORT` | no | `5432` | port | External server's port |
 | `HTTP_PORT` | no | `80` | port | The host port for HTTP, which redirects to HTTPS - see [Ports](#ports) |
 | `HTTPS_PORT` | no | `443` | port | The host port for HTTPS; HTTP requests are redirected to it - see [Ports](#ports) |
+| `MONITORING_PORT` | no | `8001` | a port | The application's port on the host's loopback (127.0.0.1 only), for the monitoring container on the host's network |
 | `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects HTTP to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext. Applies while [System settings → HTTPS](https.md) is *As configured in .env*, the default |
 | `HTTPS_MODE_OVERRIDE` | no | empty | `env`, `selfsigned` | Emergency override for nginx: wins over [System settings → HTTPS](https.md) until removed |
 | `LETSENCRYPT_STAGING` | no | empty | `1` | Let's Encrypt's test service, for trying a setup |
@@ -238,18 +239,20 @@ permanent override needs an image of your own.
 | Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once |
 | TLS certificate | `https_cert/nginx.pem`, `nginx.key` | Self-signed, RSA 4096, CN `localhost`, valid 10 years. Created only if missing |
 
-## The discovery listener
+## The monitoring container and discovery
 
-`routerfleet-discovery` is dormant: it listens on this host's LAN segment only
-when *Discover adjacent devices* asks, for three minutes. It uses host
-networking and the raw-socket right, nothing else; see
-[Discovery](discovery.md). To do without it, remove the service from the
-compose file; discovered devices still come from the neighbour tables of
-managed devices.
+The monitoring container runs on the **host's network**, with every right
+dropped but the raw socket: ping needs it, and so does the discovery listener
+inside it, dormant until *Discover adjacent devices* asks
+([Discovery](discovery.md)). From the host's network it reaches the
+application on the host's loopback: port **8001 on `127.0.0.1` only** - set
+`MONITORING_PORT` in `.env` if 8001 is taken on the host. Nothing outside the
+host can reach that port.
 
 ## Ports
 
-Only nginx publishes ports: 80 and 443 by default. When they are taken - by
+nginx publishes the ports the network sees: 80 and 443 by default (the
+application's 8001 is published on the host's loopback only, for monitoring). When they are taken - by
 another web server on the same host, for example - choose others in `.env`;
 the compose file stays as it is:
 

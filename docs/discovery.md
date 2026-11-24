@@ -46,22 +46,27 @@ for three minutes - long enough for several LLDP (every 30 s), CDP and MNDP
 (every minute) announcements - then it goes quiet again. Devices appear as
 they announce themselves; the page refreshes by itself meanwhile.
 
-The listening is done by a small container that is part of the compose file
-and **dormant**: it opens no socket and hears nothing until asked. It needs
-**host networking** (the protocols do not cross Docker's network) and, to
-read LLDP and CDP frames, the **raw-socket right** (`CAP_NET_RAW`) - every
-other right is dropped and its file system is read-only. It sends nothing.
-The request, its state and what it hears pass through a file on a shared
-volume; there is no network path between it and the application, and no
-credential. Without the raw-socket right it still hears MNDP and Ubiquiti
+The listening is done inside the **monitoring container**, by a listener
+that is **dormant**: it opens no socket and hears nothing until asked. For it,
+the monitoring container runs on the **host's network** (the protocols do not
+cross Docker's network) with every right dropped but the **raw socket**
+(`CAP_NET_RAW`), which ping needs as well. It sends nothing. The request, its
+state and what it hears pass through a file on a shared volume.
+
+On the host's network, monitoring reaches the application on the host's
+**loopback**: the application's port 8001 is published on `127.0.0.1` only
+(`MONITORING_PORT` in `.env` changes it). Nothing outside the host can reach
+it; a program running on the host itself can, scheduler endpoints included -
+that is the price of keeping the listener in the monitoring container. Without the raw-socket right it still hears MNDP and Ubiquiti
 discovery. Ubiquiti devices are heard only where they announce themselves
 (airOS broadcasts to UDP 10002, others to 10001) - nothing is asked, and
 Ubiquiti does not document those announcements. A device not
 heard for a day is left out.
 
 The page shows the listener's state: *ready* (dormant), *listening* with the
-time left, or *not running* - when it is not started on this host (compose
-files from before 0.36.0 do not have it: take the current one). Only the host's
+time left, or *not running* - when the monitoring container does not run the
+listener (a compose file from before 0.36.0 keeps monitoring on Docker's
+network, without it: take the current one). Only the host's
 own segment is heard: switches do not forward these protocols.
 
 ## The list

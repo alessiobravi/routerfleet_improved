@@ -1,11 +1,11 @@
-"""RouterFleet discovery listener.
+"""RouterFleet discovery listener - runs in the monitoring container.
 
 Dormant until asked: it opens no socket and hears nothing until RouterFleet
 asks for a window ("Discover adjacent devices" writes REQUEST with an end
 time). During the window it hears the neighbour protocols on the LAN segment
 of the host it runs on - MikroTik MNDP (UDP broadcast, port 5678), LLDP and
-CDP (layer-2 frames, read with a raw socket: the container has host
-networking and CAP_NET_RAW, nothing else) - then closes its sockets again.
+CDP (layer-2 frames, read with a raw socket: the monitoring container has
+host networking and CAP_NET_RAW, nothing else) - then closes its sockets again.
 Nothing is sent. What it hears goes to a JSON file on a shared volume
 (DISCOVERY_FILE); its state to STATE, so the page shows whether it runs. A
 device not heard for a day is left out. No network path to the application.
@@ -269,6 +269,10 @@ def requested_until():
 
 
 def main():
+    if not os.path.isdir(FOLDER):
+        # A compose file from before 0.36.0: no shared folder - monitoring goes on, discovery stays off
+        print(f'Discovery listener off: no shared folder {FOLDER} (take the current compose file).', flush=True)
+        return
     print("RouterFleet discovery listener: dormant until RouterFleet asks to discover adjacent devices.", flush=True)
     window = {'until': 0}
     threads = []

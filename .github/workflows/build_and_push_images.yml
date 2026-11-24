@@ -195,22 +195,25 @@ jobs:
       - name: Build and start, waiting for the healthchecks
         run: docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 300
 
-      - name: The discovery listener is dormant, and listens when asked
+      - name: Monitoring runs on the host's network, with the discovery listener dormant until asked
         run: |
           set -eu
-          docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'dormant until'
-          test "$(docker inspect -f '{{.HostConfig.NetworkMode}}' routerfleet-discovery)" = host
-          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' routerfleet-discovery)" = true
-          docker inspect -f '{{json .HostConfig.CapAdd}}' routerfleet-discovery | grep -q NET_RAW
-          # The application asks for a short window, as the button does
+          C="docker compose -f docker-compose-dev.yml"
+          test "$(docker inspect -f '{{.HostConfig.NetworkMode}}' routerfleet-monitoring)" = host
+          docker inspect -f '{{json .HostConfig.CapAdd}}' routerfleet-monitoring | grep -q NET_RAW
+          docker inspect -f '{{json .HostConfig.CapDrop}}' routerfleet-monitoring | grep -q ALL
+          # The application's port answers on the host's loopback only
+          curl -fsS -o /dev/null http://127.0.0.1:8001/accounts/login/
+          if curl -s -o /dev/null --max-time 3 "http://$(hostname -I | awk '{print $1}'):8001/accounts/login/"; then
+            echo "::error::the application port is reachable beyond the loopback"; exit 1
+          fi
+          for _ in $(seq 1 20); do $C logs routerfleet-monitoring | grep -q 'dormant until' && break; sleep 2; done
+          $C logs routerfleet-monitoring | grep -q 'dormant until'
           docker exec routerfleet python manage.py shell -c "from discovery.store import ask_listener; assert ask_listener(6)"
-          for _ in $(seq 1 10); do
-            docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'Listening for' && break
-            sleep 1
-          done
+          for _ in $(seq 1 10); do $C logs routerfleet-monitoring | grep -q 'Listening for' && break; sleep 1; done
           sleep 10
-          docker compose -f docker-compose-dev.yml logs routerfleet-discovery
-          docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'dormant again'
+          $C logs routerfleet-monitoring | tail -20
+          $C logs routerfleet-monitoring | grep -q 'dormant again'
           docker exec routerfleet test -f /discovery/seen.json
           docker exec routerfleet python manage.py shell -c "
           from discovery.store import listener_state, import_listener_file
@@ -803,10 +806,6 @@ jobs:
             context: ./containers/nginx
             file: ./containers/nginx/Dockerfile-nginx
             title: RouterFleet Improved web server
-          - image: routerfleet-discovery
-            context: ./containers/discovery
-            file: ./containers/discovery/Dockerfile-discovery
-            title: RouterFleet Improved discovery listener (optional)
           - image: routerfleet-postgres18
             context: ./containers/postgres18
             file: ./containers/postgres18/Dockerfile-postgres18
@@ -950,7 +949,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-discovery, routerfleet-postgres18,
+        image: [routerfleet, routerfleet-cron, routerfleet-monitoring, routerfleet-nginx, routerfleet-postgres18,
                 routerfleet-postgres]
     steps:
       - name: Checkout repository

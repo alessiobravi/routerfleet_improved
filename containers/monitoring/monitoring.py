@@ -7,7 +7,8 @@ import uuid
 
 
 DEBUG = False
-API_ADDRESS = "http://routerfleet:8001"
+# On the host's network the application is reached on its loopback port
+API_ADDRESS = os.environ.get("MONITORING_API", "http://routerfleet:8001").rstrip("/")
 
 HOST_LIST_URL = f"{API_ADDRESS}/monitoring/export_router_list/"
 UPDATE_STATUS_URL = f"{API_ADDRESS}/monitoring/update_router_status/"
@@ -171,6 +172,11 @@ def update_and_monitor():
 
 
 if __name__ == "__main__":
+    # The discovery listener runs alongside, dormant until "Discover adjacent
+    # devices" asks for a window (listener.py)
+    import threading
+    import listener
+    threading.Thread(target=listener.main, name='discovery-listener', daemon=True).start()
     print(f"{datetime.now()} - Monitoring container started, waiting for routerfleet container to start...")
     if not DEBUG:
         time.sleep(30)  # Wait for the routerfleet container to start

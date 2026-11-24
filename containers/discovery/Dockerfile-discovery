@@ -1,6 +1,0 @@
-FROM python:3.14-alpine
-WORKDIR /app
-# Every available update at build time; nothing but the Python standard library
-RUN apk upgrade --no-cache && pip uninstall --yes pip
-COPY listener.py .
-CMD ["python", "-u", "listener.py"]

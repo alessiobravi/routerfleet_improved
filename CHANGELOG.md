@@ -26,12 +26,17 @@ the Zabbix kit reads, says so under **Monitoring**.
     neighbours, but announces itself by CDP and Ubiquiti discovery. Reaches
     every network they touch; nothing to install.
   - **Discover adjacent devices** listens three minutes on RouterFleet's own
-    LAN (MNDP, LLDP, CDP, Ubiquiti discovery), through a small container
-    that is dormant - no
-    socket open - until asked: host networking and the raw-socket right
-    only, read-only, sends nothing; request and findings pass through a file
-    on a shared volume - no network path, no credential.
+    LAN (MNDP, LLDP, CDP, Ubiquiti discovery), with a listener inside the
+    monitoring container, dormant - no socket open - until asked; it sends
+    nothing; request and findings pass through a file on a shared volume.
   - Already managed devices are matched; others can be hidden.
+
+### Changed
+- **The monitoring container runs on the host's network** (every right
+  dropped but the raw socket, which ping and the listener need), and reaches
+  the application on the host's loopback: port 8001 is published on
+  `127.0.0.1` only (`MONITORING_PORT` in `.env` changes it). Take the current
+  compose file.
 
 ## [0.35.1] - 2026-11-24
 

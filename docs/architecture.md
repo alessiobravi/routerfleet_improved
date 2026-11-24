@@ -34,7 +34,7 @@ flowchart TB
 | `routerfleet-nginx` | TLS termination, serves `/static/`, refuses `/cron/`, proxies everything else to the app. Generates a self-signed certificate on first start if none is present. |
 | `routerfleet` | The Django application under gunicorn. Everything that touches a device over SSH happens here, including work triggered by the scheduler. |
 | `routerfleet-cron` | Has no application code. It calls the app's `/cron/` endpoints with `curl` on a fixed schedule — this is the only clock in the system. |
-| `routerfleet-monitoring` | Independent reachability loop. Pings devices with `fping` and reports status changes back over HTTP. Kept separate so a slow backup cannot delay a ping. |
+| `routerfleet-monitoring` | Independent reachability loop. Pings devices with `fping` and reports status changes back over HTTP. Kept separate so a slow backup cannot delay a ping. Runs on the host's network (every right dropped but the raw socket) for the [discovery listener](discovery.md) inside it, dormant until asked; reaches the application on the host's loopback, port 8001. |
 | `routerfleet-postgres` | The database. Optional — SQLite or an external Postgres work too, via `docker-compose-no-postgres.yml`. |
 
 ## The request path

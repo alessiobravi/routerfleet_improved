@@ -17,6 +17,10 @@ services:
       - TZ=${TIMEZONE}
       - COMPOSE_VERSION=08a
       - COMPOSE_TYPE=no-postgres
+    # Reachable from this host only (127.0.0.1), for the monitoring container on
+    # the host's network; never from the network
+    ports:
+      - "127.0.0.1:${MONITORING_PORT:-8001}:8001"
     volumes:
       - sqlite_volume:/var/lib/routerfleet_sqlite/
       - media_root:/var/lib/routerfleet/
@@ -52,27 +56,21 @@ services:
     image: ghcr.io/alessiobravi/routerfleet-monitoring:latest
     environment:
       - TZ=${TIMEZONE}
-    volumes:
-      - app_secrets:/app_secrets/
-    depends_on:
-      routerfleet:
-        condition: service_healthy
-
-  # Discovery listener: dormant - no socket open - until "Discover adjacent
-  # devices" asks for a few minutes; then it hears LLDP, CDP and MikroTik MNDP
-  # on this host's LAN segment and goes quiet again. Host networking and the
-  # raw-socket right only (to read layer-2 frames); it sends nothing; the
-  # request and what it hears pass through a file on a shared volume.
-  routerfleet-discovery:
-    container_name: routerfleet-discovery
-    restart: unless-stopped
-    image: ghcr.io/alessiobravi/routerfleet-discovery:latest
+      # The application on the host's loopback (this container is on the host's network)
+      - MONITORING_API=http://127.0.0.1:${MONITORING_PORT:-8001}
+    # The host's network, for the discovery listener (LLDP, CDP, MNDP do not
+    # cross Docker's network); every right dropped but the raw socket, which
+    # ping (fping) and the listener need. The listener is dormant until
+    # "Discover adjacent devices" asks; it sends nothing.
     network_mode: host
     cap_drop: [ALL]
     cap_add: [NET_RAW]
-    read_only: true
     volumes:
+      - app_secrets:/app_secrets/
       - discovery_data:/discovery
+    depends_on:
+      routerfleet:
+        condition: service_healthy
 
   routerfleet-nginx:
     container_name: routerfleet-nginx

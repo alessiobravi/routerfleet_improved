@@ -103,7 +103,7 @@ class DiscoveredPageTests(TestCase):
 
 
 def listener():
-    path = pathlib.Path(__file__).resolve().parent.parent / 'containers' / 'discovery' / 'listener.py'
+    path = pathlib.Path(__file__).resolve().parent.parent / 'containers' / 'monitoring' / 'listener.py'
     spec = importlib.util.spec_from_file_location('discovery_listener', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -236,3 +236,10 @@ class MoreVendorsTests(TestCase):
         self.assertEqual((record['identity'], record['mac'], record['address'], record['model']),
                          ('nanobeam-roof', '24:5a:4c:11:22:33', '192.168.1.20', 'NBE-5AC-Gen2'))
         self.assertIsNone(listener().parse_ubnt(b'\x07\x00\x00\x00'))
+
+
+class ListenerWithoutFolderTests(TestCase):
+    def test_an_older_compose_file_leaves_monitoring_alone(self):
+        module = listener()
+        module.FOLDER = '/no/such/folder'
+        self.assertIsNone(module.main())   # returns at once instead of failing on its first write

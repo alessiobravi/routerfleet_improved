@@ -9,6 +9,6 @@ RUN apk upgrade --no-cache \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip uninstall --yes pip
-COPY monitoring.py .
+COPY monitoring.py listener.py ./
 
 CMD ["python", "-u", "monitoring.py"]
