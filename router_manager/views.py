@@ -416,6 +416,39 @@ def view_manage_sshkey(request):
     return render(request, 'generic_form.html', context=context)
 
 
+REVEAL_SECONDS = 120
+
+
+@login_required
+def view_reveal_sshkey(request):
+    """An administrator shows a stored private key, on purpose: a small sum to
+    solve first (one attempt, two minutes), and every reveal is recorded in the
+    change log. The key is shown on this page only, never in a form."""
+    import secrets
+    import time
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    sshkey = get_object_or_404(SSHKey, uuid=request.GET.get('uuid'))
+    context = {'page_title': 'Show private key', 'sshkey': sshkey}
+    if request.method == 'POST':
+        challenge = request.session.pop('sshkey_reveal', None) or {}
+        answer = request.POST.get('answer', '').strip()
+        if (challenge.get('key') == str(sshkey.uuid) and time.time() < challenge.get('expires', 0)
+                and answer.isdigit() and int(answer) == challenge.get('answer')):
+            from audit_log import registry
+            from audit_log.models import ChangeRecord
+            from audit_log.signals import build_record
+            build_record(registry.watched(SSHKey), ChangeRecord.ACTION_REVEALED, instance=sshkey,
+                         note='Private key shown').save()
+            return render(request, 'router_manager/sshkey_reveal.html', dict(context, revealed=sshkey.private_key))
+        messages.error(request, 'Not shown|The answer was wrong or too late. Ask again.')
+        return redirect(f'/router/sshkey/reveal/?uuid={sshkey.uuid}')
+    first, second = 3 + secrets.randbelow(7), 11 + secrets.randbelow(29)
+    request.session['sshkey_reveal'] = {'key': str(sshkey.uuid), 'answer': first + second,
+                                        'expires': time.time() + REVEAL_SECONDS}
+    return render(request, 'router_manager/sshkey_reveal.html', dict(context, first=first, second=second))
+
+
 def create_instant_backup(router):
     if RouterBackup.objects.filter(router=router, success=False, error=False).exists():
         return 'Active router backup task already exists'

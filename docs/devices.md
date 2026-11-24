@@ -20,6 +20,17 @@ configurable port (22 by default). Passwords are encrypted at rest — see
 [Security](security.md). SSH keys are stored once under a name and shared by as
 many devices as you like; RSA, ECDSA and Ed25519 keys are accepted.
 
+**SSH keys** are checked when saved: the key must open, with its passphrase if
+it has one. The public key is derived from the private one when left empty.
+A key can have an optional **passphrase**: a protected key is given with it,
+and an unprotected key given together with a passphrase is stored protected by
+it (OpenSSH format). Both are encrypted at rest. The stored private key is
+never put back into the form - left empty, it is kept. Only an **administrator**
+can show it, from the eye in the list of keys: after solving a small sum (one
+attempt, two minutes), on a page of its own; every reveal is recorded in the
+[change log](audit-log.md) as *Secret shown*. A red lock in the list marks a
+key protected by a passphrase.
+
 **Saving a device never connects to it.** A device that does not answer - not
 installed yet, unreachable, being replaced - can still be added, imported,
 disabled or have its monitoring switched off, all in one save. The address must

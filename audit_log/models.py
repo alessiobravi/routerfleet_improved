@@ -110,11 +110,14 @@ class ChangeRecord(models.Model):
     ACTION_CHANGED = 'changed'
     ACTION_DELETED = 'deleted'
     ACTION_BULK = 'bulk'
+    # A secret shown to somebody: nothing changed, but who saw it is recorded
+    ACTION_REVEALED = 'revealed'
     ACTION_CHOICES = (
         (ACTION_CREATED, 'Created'),
         (ACTION_CHANGED, 'Changed'),
         (ACTION_DELETED, 'Deleted'),
         (ACTION_BULK, 'Bulk change'),
+        (ACTION_REVEALED, 'Secret shown'),
     )
 
     created = models.DateTimeField(auto_now_add=True, db_index=True)

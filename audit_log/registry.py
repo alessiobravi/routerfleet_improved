@@ -286,8 +286,8 @@ def build():
           fields=['name', 'default_group', 'internal_notes'],
           create=True, m2m=['routers'])
     watch(apps.get_model('router_manager', 'SSHKey'),
-          fields=['name', 'public_key', 'private_key'],
-          create=True, redact=('private_key',))
+          fields=['name', 'public_key', 'private_key', 'passphrase'],
+          create=True, redact=('private_key', 'passphrase'))
 
     # A profile is created for the installation when one is first needed, so only
     # the changes to it are a person's doing

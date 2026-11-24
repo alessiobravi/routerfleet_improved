@@ -235,3 +235,26 @@ class PasswordResetTests(TestCase):
         for _ in range(8):
             self.client.post('/accounts/password_reset/', {'name': 'rosa'}, REMOTE_ADDR='10.7.7.7')
         self.assertEqual(len(mail.outbox), 5)
+
+
+
+class PasskeySignInOfferedTests(TestCase):
+    """The sign-in page offers passkeys only where the HTTPS settings allow
+    them: HTTPS, reached by a name, a certificate browsers trust."""
+
+    @override_settings(ALLOWED_HOSTS=['testserver', '192.168.1.5'])
+    def test_not_on_plain_http_or_an_ip_address(self):
+        make_user(50)
+        self.assertNotContains(self.client.get('/accounts/login/'), 'passkey-area')
+        with mock.patch('routerfleet_tools.https.passkey_requirements',
+                        return_value=[('Served over HTTPS', True), ('Reached by a domain name', True), ('Trusted', True)]):
+            self.assertNotContains(self.client.get('/accounts/login/', HTTP_HOST='192.168.1.5'), 'passkey-area')
+
+    def test_offered_when_every_condition_holds(self):
+        make_user(50)
+        with mock.patch('routerfleet_tools.https.passkey_requirements',
+                        return_value=[('Served over HTTPS', True), ('Reached by a domain name', True), ('Trusted', True)]):
+            self.assertContains(self.client.get('/accounts/login/', HTTP_HOST='localhost'), 'passkey-area')
+        with mock.patch('routerfleet_tools.https.passkey_requirements',
+                        return_value=[('Served over HTTPS', True), ('Reached by a domain name', True), ('Trusted', False)]):
+            self.assertNotContains(self.client.get('/accounts/login/', HTTP_HOST='localhost'), 'passkey-area')

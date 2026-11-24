@@ -38,6 +38,7 @@ from user_manager.views import view_manage_user, view_user_list, view_user_setti
 
 from accounts import password_reset  # noqa: E402
 
+import router_manager.views as router_views  # noqa: E402
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('debug/run_backups/', view_debug_run_backups, name='debug_run_backups'),
@@ -96,6 +97,7 @@ urlpatterns = [
     path('router/availability/', view_router_availability, name='router_availability'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),
     path('router/ssh_keys/', view_ssh_key_list, name='ssh_keys_list'),
+    path('router/sshkey/reveal/', router_views.view_reveal_sshkey, name='sshkey_reveal'),
     path('router/manage_group/', view_manage_router_group, name='manage_router_group'),
     path('router/manage_sshkey/', view_manage_sshkey, name='manage_sshkey'),
     path('router/create_instant_backup/', view_create_instant_backup_task, name='create_instant_backup_task'),

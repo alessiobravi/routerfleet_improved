@@ -13,6 +13,23 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.35.0] - 2026-11-24
+
+### Added
+- **SSH keys can have a passphrase** (optional, encrypted at rest). A
+  protected key is given with it; an unprotected key given with a passphrase
+  is stored protected by it. Keys are checked when saved - they must open -
+  and the public key is derived when left empty. A red lock marks protected
+  keys in the list.
+
+### Changed
+- **Private keys are shown only to administrators, on purpose**: never put
+  back into the key form (left empty, the stored key is kept); *Show private
+  key* (the eye in the list) asks for a small sum first, shows the key on a
+  page of its own, and records it in the change log as *Secret shown*.
+- **The sign-in page offers passkeys only where the HTTPS settings allow
+  them** - HTTPS, reached by a name, a certificate browsers trust.
+
 ## [0.34.0] - 2026-11-24
 
 ### Added

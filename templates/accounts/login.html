@@ -20,7 +20,8 @@
     {% if password_reset %}<div class="text-center"><a href="/accounts/password_reset/" class="btn btn-link btn-sm">Forgot your password?</a></div>{% endif %}
 </form>
 
-<!-- Shown only where the browser can use a passkey here -->
+{% if passkeys %}
+<!-- Offered only where the HTTPS settings allow passkeys, and shown only where the browser can use them -->
 <div id="passkey-area" class="d-none">
     <div class="rf-auth-divider">or</div>
     <button type="button" id="passkey-button" class="btn btn-outline-primary w-100">
@@ -29,5 +30,6 @@
     <div id="passkey-error" class="text-danger small mt-2" role="alert"></div>
 </div>
 
+{% endif %}
 <script src="{% static 'routerfleet/passkeys.js' %}"></script>
 {% endblock %}

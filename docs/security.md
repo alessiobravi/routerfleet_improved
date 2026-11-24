@@ -9,7 +9,7 @@ Every credential RouterFleet stores is encrypted with
 |---|---|
 | Device passwords | `Router.password` |
 | Device enable passwords (Cisco) | `Router.enable_password` |
-| SSH private keys | `SSHKey.private_key` |
+| SSH private keys and their passphrases | `SSHKey.private_key`, `SSHKey.passphrase` |
 | Notification channel tokens | `MessageChannel.token` |
 | Import passwords | `ImportTask.password`, and the passwords inside a stored import CSV |
 
@@ -203,7 +203,10 @@ The limits are `LOGIN_LOCKOUT_ATTEMPTS`, `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` and
 ## Second factors and passkeys
 
 Each user can add a second step to signing in, in **My Settings → Security
-settings**.
+settings**. The sign-in page offers passkeys only where the HTTPS settings
+allow them - served over HTTPS, reached by a name (the one the browser used,
+not an IP address), a certificate browsers trust; behind a reverse proxy,
+whose certificate RouterFleet can not see, the browser decides.
 
 ```mermaid
 flowchart TD

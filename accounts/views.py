@@ -59,7 +59,25 @@ def view_login(request):
     else:
         form = LoginForm(request=request)
     from accounts.password_reset import available
-    return render(request, 'accounts/login.html', {'form': form, 'password_reset': available()})
+    return render(request, 'accounts/login.html', {'form': form, 'password_reset': available(),
+                                                   'passkeys': passkeys_possible(request)})
+
+
+def passkeys_possible(request):
+    """Whether passkeys can work for this sign-in page: HTTPS, reached by a
+    name (the one this browser used, not an IP address), a certificate
+    browsers trust. Unknown counts as possible - behind a reverse proxy
+    RouterFleet can not see the certificate; the browser decides."""
+    try:
+        from django.http.request import split_domain_port
+        from routerfleet_tools import https
+        from routerfleet_tools.models import HttpsSettings
+        host = split_domain_port(request.get_host())[0]
+        if not host or https._is_ip(host.strip('[]')):
+            return False
+        return all(value is not False for _, value in https.passkey_requirements(HttpsSettings.load(), request))
+    except Exception:  # before the migrations ran, or nginx status unreadable: not offered
+        return False
 
 
 def _pending_user(request):

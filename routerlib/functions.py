@@ -18,18 +18,37 @@ def gen_backup_name(router_backup):
     return f'routerfleet-backup-{router_backup.id}-{router_backup.schedule_type}-{router_backup.created.strftime("%Y-%m-%d_%H-%M")}'
 
 
-def load_private_key_from_string(key_str):
+class KeyPassphraseError(Exception):
+    pass
+
+
+def load_private_key_from_string(key_str, passphrase=None):
+    """The key, or None when it is none of the accepted types. Raises
+    KeyPassphraseError when the key is protected and the passphrase is missing
+    or wrong."""
     key_types = [
         paramiko.RSAKey,
         paramiko.ECDSAKey,
         paramiko.Ed25519Key,
     ]
+    protected = False
     for key_type in key_types:
         try:
             key_file_obj = StringIO(key_str)
-            return key_type.from_private_key(key_file_obj)
-        except paramiko.ssh_exception.SSHException:
+            return key_type.from_private_key(key_file_obj, password=passphrase or None)
+        except paramiko.ssh_exception.PasswordRequiredException:
+            protected = True
+        except paramiko.ssh_exception.SSHException as error:
+            # "not a valid ... private key file": another type - anything else,
+            # with a passphrase given, is the passphrase not opening the key
+            if passphrase and 'not a valid' not in str(error).lower():
+                protected = True
             continue
+        except ValueError:   # a wrong passphrase can surface as a padding error
+            protected = protected or bool(passphrase)
+            continue
+    if protected:
+        raise KeyPassphraseError('the passphrase is missing or wrong' if passphrase else 'the key is protected by a passphrase')
     return None
 
 
@@ -39,7 +58,7 @@ def connect_to_ssh(address, port, username, password, sshkey=None):
     stored = host_keys.prepare(ssh_client, address, port)
     try:
         if sshkey:
-            private_key = load_private_key_from_string(sshkey.private_key)
+            private_key = load_private_key_from_string(sshkey.private_key, getattr(sshkey, 'passphrase', None))
             ssh_client.connect(address, port=port, username=username, pkey=private_key, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
         else:
             ssh_client.connect(address, port=port, username=username, password=password, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)

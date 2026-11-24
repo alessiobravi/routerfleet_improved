@@ -8,7 +8,7 @@ from audit_log.models import ChangeRecord
 from backup_data.models import RouterBackup
 from monitoring.models import RouterDownTime
 from router_manager.forms import RouterBulkEditForm, RouterGroupForm
-from router_manager.models import BackupSchedule, Router, RouterGroup, RouterInformation, RouterStatus
+from router_manager.models import BackupSchedule, Router, RouterGroup, RouterInformation, RouterStatus, SSHKey
 from router_manager.templatetags.router_tags import (compare_versions, firmware_state, os_version_state,
                                                      update_state_counts, version_key)
 from router_manager.views import _router_due_for_information_update
@@ -428,8 +428,11 @@ class GroupTests(TestCase):
         response = self.client.post('/router/manage_group/', {'name': ' spaced '})
         self.assertRedirects(response, '/router/group_list/', fetch_redirect_response=False)
         self.assertTrue(RouterGroup.objects.filter(name='spaced').exists())
-        response = self.client.post('/router/manage_sshkey/', {'name': 'k', 'public_key': 'p', 'private_key': 's'})
+        response = self.client.post('/router/manage_sshkey/', {'name': 'k', 'public_key': '', 'private_key': new_private_key()})
         self.assertRedirects(response, '/router/ssh_keys/', fetch_redirect_response=False)
+        self.assertTrue(SSHKey.objects.get(name='k').public_key.startswith('ssh-ed25519 '), 'derived when left empty')
+        self.assertContains(self.client.post('/router/manage_sshkey/', {'name': 'bad', 'private_key': 'not a key'}),
+                            'not a private key RouterFleet can use')
 
     def test_ssh_key_list_never_shows_the_private_key(self):
         make_sshkey()
@@ -696,3 +699,74 @@ class DetailsUpdateArrowTests(TestCase):
         self.assertNotIn('rf-update-link', page)
         self.assertIn('rf-update-mark', page)
         self.assertIn('rf-boot-mark', page)
+
+
+
+def new_private_key(passphrase=None):
+    """A real Ed25519 private key in OpenSSH format, protected when asked."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    encryption = serialization.BestAvailableEncryption(passphrase.encode()) if passphrase else serialization.NoEncryption()
+    return Ed25519PrivateKey.generate().private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH,
+                                                      encryption).decode()
+
+
+class SSHKeySecretTests(TestCase):
+    """The private key is never filled into a form; only an administrator
+    shows it, after a sum, and the change log records it. An optional
+    passphrase protects the key."""
+
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def save(self, **data):
+        return self.client.post('/router/manage_sshkey/' + (f"?uuid={data.pop('uuid')}" if 'uuid' in data else ''),
+                                {'name': 'k1', **data})
+
+    def test_the_edit_form_never_carries_the_private_key(self):
+        key = new_private_key()
+        self.save(private_key=key)
+        stored = SSHKey.objects.get(name='k1')
+        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        self.assertNotIn(key.splitlines()[1], page)
+        self.assertIn('stored - leave empty to keep it', page)
+        self.save(uuid=stored.uuid, private_key='', name='k1-renamed')   # empty keeps it
+        self.assertEqual(SSHKey.objects.get(pk=stored.pk).private_key.strip(), key.strip())
+
+    def test_a_passphrase_protects_and_is_checked(self):
+        from routerlib.functions import KeyPassphraseError, load_private_key_from_string
+        self.save(private_key=new_private_key(), passphrase='pass-phrase-1')
+        stored = SSHKey.objects.get(name='k1')
+        self.assertEqual(stored.passphrase, 'pass-phrase-1')
+        with self.assertRaises(KeyPassphraseError):
+            load_private_key_from_string(stored.private_key, None)   # stored protected
+        self.assertIsNotNone(load_private_key_from_string(stored.private_key, 'pass-phrase-1'))
+        protected = new_private_key('right-one')
+        self.assertContains(self.save(name='k2', private_key=protected), 'protected by a passphrase')
+        self.assertContains(self.save(name='k3', private_key=protected, passphrase='wrong'), 'missing or wrong')
+        self.save(name='k4', private_key=protected, passphrase='right-one')
+        self.assertTrue(SSHKey.objects.filter(name='k4').exists())
+
+    def test_showing_it_takes_an_administrator_a_sum_and_is_recorded(self):
+        import re
+        from audit_log.models import ChangeRecord
+        key = new_private_key()
+        self.save(private_key=key)
+        stored = SSHKey.objects.get(name='k1')
+        url = f'/router/sshkey/reveal/?uuid={stored.uuid}'
+        page = self.client.get(url).content.decode()
+        self.assertNotIn(key.splitlines()[1], page)
+        first, second = map(int, re.search(r'how much is (\d+) \+ (\d+)', page).groups())
+        wrong = self.client.post(url, {'answer': str(first + second + 1)})
+        self.assertRedirects(wrong, url, fetch_redirect_response=False)
+        self.assertFalse(ChangeRecord.objects.filter(action='revealed').exists())
+        page = self.client.get(url).content.decode()
+        first, second = map(int, re.search(r'how much is (\d+) \+ (\d+)', page).groups())
+        shown = self.client.post(url, {'answer': str(first + second)}).content.decode()
+        self.assertIn(key.splitlines()[1], shown)
+        record = ChangeRecord.objects.get(action='revealed')
+        self.assertEqual((record.object_uuid, record.note), (stored.uuid, 'Private key shown'))
+        self.assertNotIn(key.splitlines()[1], str(record.changes))
+        self.client.force_login(make_user(40))
+        self.assertContains(self.client.get(url), 'Access Denied')
+        self.assertNotContains(self.client.get('/router/ssh_keys/'), '/router/sshkey/reveal/')

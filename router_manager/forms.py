@@ -313,38 +313,82 @@ class RouterGroupForm(forms.ModelForm):
 
 
 class SSHKeyForm(forms.ModelForm):
+    """An SSH key. The stored private key is never filled into the form - left
+    empty, it is kept; administrators can show it on purpose (Show private
+    key). An optional passphrase protects the key: an unprotected key given
+    with one is stored protected by it. The public key is derived from the
+    private one when left empty."""
+    private_key = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 5, 'cols': 40, 'spellcheck': 'false',
+                                                                               'autocomplete': 'off'}))
+    passphrase = forms.CharField(required=False, label='Key passphrase (optional)', strip=False,
+                                 widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+                                 help_text='Protects the private key. A key without one is stored protected by the '
+                                           'passphrase given here. Encrypted at rest, never shown again.')
+    remove_passphrase = forms.BooleanField(required=False, label='Remove the stored passphrase')
+
     class Meta:
         model = SSHKey
-        fields = ['name', 'public_key', 'private_key']
-        widgets = {
-            'public_key': forms.Textarea(attrs={'rows': 4, 'cols': 40}),
-            'private_key': forms.Textarea(attrs={'rows': 4, 'cols': 40}),
-        }
+        fields = ['name', 'public_key']
+        widgets = {'public_key': forms.Textarea(attrs={'rows': 3, 'cols': 40, 'spellcheck': 'false'})}
 
     def __init__(self, *args, **kwargs):
         super(SSHKeyForm, self).__init__(*args, **kwargs)
+        stored = bool(self.instance.pk and self.instance.private_key)
+        self.fields['public_key'].required = False
+        self.fields['public_key'].help_text = 'Left empty, it is derived from the private key.'
+        self.fields['private_key'].help_text = ('Stored - leave empty to keep it. Administrators can show it from the '
+                                                'list of keys.' if stored else 'RSA, ECDSA or Ed25519, PEM or OpenSSH format.')
+        if stored:
+            self.fields['private_key'].widget.attrs['placeholder'] = 'stored - leave empty to keep it'
+        has_passphrase = bool(self.instance.pk and self.instance.passphrase)
+        if has_passphrase:
+            self.fields['passphrase'].widget.attrs['placeholder'] = 'stored - leave empty to keep it'
+        else:
+            del self.fields['remove_passphrase']
         self.helper = FormHelper()
         self.helper.form_method = 'post'
-        if self.instance.pk:
-            delete_html = "<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>Delete</a>"
-        else:
-            delete_html = ''
-        self.helper.layout = Layout(
-            Row(
-                Column('name', css_class='col-md-12 mb-0'),
-            ),
-            Row(
-                Column('public_key', css_class='col-md-12 mb-0'),
-            ),
-            Row(
-                Column('private_key', css_class='col-md-12 mb-0'),
-            ),
-            Row(
-                Column(
-                    Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/router/ssh_keys/">Back</a> '),
-                    HTML(delete_html),
-                    css_class='col-md-12'),
-                css_class='form-row'
-            )
-        )
+        delete_html = ("<a href='#' class='btn btn-outline-danger' data-command='delete' data-rf-call='openCommandDialog'>"
+                       "Delete</a>") if self.instance.pk else ''
+        rows = [Row(Column('name', css_class='col-md-12 mb-0')),
+                Row(Column('private_key', css_class='col-md-12 mb-0')),
+                Row(Column('passphrase', css_class='col-md-12 mb-0'))]
+        if has_passphrase:
+            rows.append(Row(Column('remove_passphrase', css_class='col-md-12 mb-0')))
+        rows += [Row(Column('public_key', css_class='col-md-12 mb-0')),
+                 Row(Column(Submit('submit', 'Save', css_class='btn btn-success'),
+                            HTML(' <a class="btn btn-secondary" href="/router/ssh_keys/">Back</a> '),
+                            HTML(delete_html), css_class='col-md-12'), css_class='form-row')]
+        self.helper.layout = Layout(*rows)
+
+    def clean(self):
+        from router_manager.sshkeys import KeyProblem, checked
+        cleaned = super().clean()
+        given_key = (cleaned.get('private_key') or '').strip()
+        given_passphrase = cleaned.get('passphrase') or ''
+        removing = cleaned.get('remove_passphrase')
+        if not given_key and not (self.instance.pk and self.instance.private_key):
+            self.add_error('private_key', 'Paste the private key.')
+            return cleaned
+        key = given_key or self.instance.private_key
+        passphrase = given_passphrase or ('' if removing else (self.instance.passphrase or ''))
+        if removing and not given_key:
+            self.add_error('remove_passphrase', 'The stored key is protected by it: paste the key without '
+                                                'protection to remove the passphrase.')
+            return cleaned
+        try:
+            self._stored_key, public = checked(key, passphrase)
+        except KeyProblem as problem:
+            self.add_error('passphrase' if 'passphrase' in str(problem) else 'private_key', str(problem))
+            return cleaned
+        self._stored_passphrase = passphrase
+        if not (cleaned.get('public_key') or '').strip():
+            cleaned['public_key'] = public
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.private_key = self._stored_key
+        instance.passphrase = self._stored_passphrase or None
+        if commit:
+            instance.save()
+        return instance

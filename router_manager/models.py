@@ -93,6 +93,9 @@ class SSHKey(models.Model):
     public_key = models.TextField()
     # Encrypted at rest like Router.password; reads return the key as written
     private_key = EncryptedTextField()
+    # The key's own passphrase, when it has one (encrypted at rest the same way):
+    # the key is stored as protected as it was given
+    passphrase = EncryptedTextField(blank=True, null=True)
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)

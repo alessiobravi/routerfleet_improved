@@ -20,6 +20,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 RELEASED = {
     'audit_log/migrations/0001_initial.py': '798b0442ee6f268a979a354775c4b1271048884bf24dfacd58af0ea130c1ca4e',
     'audit_log/migrations/0002_changerecord_change_object_and_more.py': '08355a68e881e297561d6a3e044379918b9df9357c1a26f2e5ff383242e13430',
+    'audit_log/migrations/0003_changerecord_revealed.py': 'ab33f96cedc2ec343857575c7cc4d829435cc1219aa4902b54c8ddbdbc1a71b8',
     'backup/migrations/0001_initial.py': 'd903a0c9aca0cf1cf0ba5213e95a7f9f44226d1a9f9cf726f03644fd5e3e1588',
     'backup/migrations/0002_alter_backupprofile_weekly_day.py': 'ef7379a66fd82fca695a101ae50ad73862f8f9578d1e5928d75e9a1e44249690',
     'backup/migrations/0003_alter_backupprofile_retry_interval.py': '9b1c495382ca9eef11ce155dd0e282ec37147f8d13eeb9d10cf7aedd60ff79f9',
@@ -138,6 +139,7 @@ RELEASED = {
     'router_manager/migrations/0033_device_type_update_channels.py': 'af3286b42b86249987e59531df729fa2fab0bddd9c3e1ae2006244ff6d3eb61e',
     'router_manager/migrations/0034_routerinformation_firmware_available.py': 'd64b9d85797f25248f60241491a9c3d564442f14a7f8fe10214a874a16b53e85',
     'router_manager/migrations/0035_routerinformation_update_status.py': '8de826f95b70e4b3452168138b0c439163d54f14bd7e129760282d6e21b04f4a',
+    'router_manager/migrations/0036_sshkey_passphrase.py': '1c0d9e621656dec2770792c795c9cbfcfa590a5835106b068659032414e0e8c1',
     'routerfleet_tools/migrations/0001_initial.py': '489d86f5f2fd075b4e838bcbdfc384b05cc96e1a09774868204fb493c526a24f',
     'routerfleet_tools/migrations/0002_webadminsettings_cron_last_run.py': 'd5ea9f1aacfa393f3041d72b78520f13f647defcf92a59a3f33d96e8e5315634',
     'routerfleet_tools/migrations/0003_webadminsettings_monitoring_last_run_and_more.py': '56a53e01f52b9daf0696d9a090ae63a9bb4d911ef12f5a7d3c7353eeb93a57d5',
