@@ -158,6 +158,16 @@ selfsigned_for() {  # a self-signed certificate for a domain, made once
     fi
 }
 
+# IPv6 beside IPv4, where the container has it: every listen line gets its
+# [::] twin (nginx would refuse to start on [::] without IPv6)
+with_ipv6() {
+    if [ -s /proc/net/if_inet6 ]; then
+        awk '{ print } /^[ \t]*listen [0-9]+/ { line = $0; sub(/listen /, "listen [::]:", line); print line }'
+    else
+        cat
+    fi
+}
+
 render() {  # writes the configuration for the current mode to stdout
     m=$(mode)
     case "$m" in
@@ -257,12 +267,13 @@ write_status() {  # $1 applied (true/false), $2 error
 }
 
 apply() {
-    if ! render > "$CONF.new" 2> /tmp/rf_render_error; then
-        rm -f "$CONF.new"
+    if ! render > "$CONF.raw" 2> /tmp/rf_render_error; then
+        rm -f "$CONF.raw"
         write_status false "$(head -c 300 /tmp/rf_render_error)"
         log "not applied: $(cat /tmp/rf_render_error)"
         return 1
     fi
+    with_ipv6 < "$CONF.raw" > "$CONF.new" && rm -f "$CONF.raw"
     [ -f "$CONF" ] && cp "$CONF" "$CONF.bak"
     mv "$CONF.new" "$CONF"
     if nginx -t 2> /tmp/rf_nginx_test; then

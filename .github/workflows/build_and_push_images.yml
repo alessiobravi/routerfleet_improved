@@ -94,6 +94,17 @@ jobs:
               -v "$PWD/containers/nginx/${CONF}:/etc/nginx/conf.d/default.conf:ro" \
               nginx:alpine nginx -t
           done
+          # And with IPv6 switched on: every listen line with its [::] twin, as
+          # rf_https.sh writes it where the container has IPv6
+          RULE=$(sed -n "s/^.*awk '\(.*\)'$/\1/p" containers/nginx/rf_https.sh | head -1)
+          for CONF in virtualhost.conf virtualhost_noredirect.conf; do
+            awk "$RULE" "containers/nginx/${CONF}" > "/tmp/v6-${CONF}"
+            grep -q 'listen \[::\]:443 ssl' "/tmp/v6-${CONF}"
+            docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=0 --add-host routerfleet:127.0.0.1 \
+              -v /tmp/cert:/certificate:ro \
+              -v "/tmp/v6-${CONF}:/etc/nginx/conf.d/default.conf:ro" \
+              nginx:alpine nginx -t
+          done
 
   # The whole stack, built from this commit and started the way an installation
   # starts it. Images are only published when it comes up healthy and behaves.

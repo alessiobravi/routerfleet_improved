@@ -7,13 +7,17 @@ shopt -s nullglob
 # Django startup
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
+# IPv4 and IPv6: where the container has IPv6, one socket on [::] serves both
+# (Linux accepts IPv4 on it, as ::ffff:a.b.c.d); without IPv6, 0.0.0.0
+if [ -s /proc/net/if_inet6 ]; then LISTEN_HOST='::'; BIND='[::]:8001'; else LISTEN_HOST='0.0.0.0'; BIND='0.0.0.0:8001'; fi
+
 # The device console's WebSocket (routerfleet/asgi.py), behind nginx on
 # /console/ws/. A browser that disappears without closing the connection
 # (network lost, laptop asleep) is found by the ping and its session closed.
 # Restarted if it stops; gunicorn below serves every page.
 (
   while true; do
-    uvicorn routerfleet.asgi:application --host 0.0.0.0 --port 8002 \
+    uvicorn routerfleet.asgi:application --host "$LISTEN_HOST" --port 8002 \
       --ws websockets --ws-ping-interval 20 --ws-ping-timeout 20 --ws-max-size 65536 \
       --proxy-headers --forwarded-allow-ips '*' --no-server-header --log-level warning
     echo "console server stopped; restarting in 2 seconds"
@@ -29,7 +33,7 @@ python manage.py collectstatic --noinput
 THREADS=4
 if [[ "${DATABASE_ENGINE,,}" == "sqlite" ]]; then THREADS=1; fi
 exec gunicorn routerfleet.wsgi:application \
-  --bind 0.0.0.0:8001 \
+  --bind "$BIND" \
   --worker-class gthread \
   --workers 5 \
   --threads "$THREADS" \

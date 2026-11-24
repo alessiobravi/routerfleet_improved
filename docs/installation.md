@@ -189,7 +189,7 @@ start. The `routerfleet` container must be able to reach the host and port.
 
 | Variable | Required | Default | Accepted | Effect |
 |---|---|---|---|---|
-| `SERVER_ADDRESS` | **yes** | — | hostname or IP | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. No port here, also with another `HTTPS_PORT`. A wrong value gives `400 Bad Request` or CSRF errors |
+| `SERVER_ADDRESS` | **yes** | — | hostname, IPv4 or IPv6 address | The address users reach the installation at. Becomes `ALLOWED_HOSTS` and the CSRF trusted origins. No port here, also with another `HTTPS_PORT`. An IPv6 address is written bare (`2001:db8::5`) or in brackets (`[2001:db8::5]`). A wrong value gives `400 Bad Request` or CSRF errors |
 | `TIMEZONE` | no | `Etc/UTC` | an [IANA name](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) | Backup times, schedule times, daily report time, displayed timestamps. Passed to every container as `TZ` |
 | `UPDATE_CHECK` | no | `on` | `on`, `off` | Look for new RouterFleet Improved releases about once an hour (GitHub's latest release; the request carries nothing about the installation) and show them as the top bar's update icon. `off`: no request is made |
 | `DEBUG_MODE` | no | `False` | `True` / `False` | Django debug mode. **Never `True` in production** — it exposes internals on errors. Also enables `/debug/run_backups/` and `/debug/test_messages/`, for administrators (level 50) only |
@@ -248,6 +248,18 @@ inside it, dormant until *Discover adjacent devices* asks
 application on the host's loopback: port **8001 on `127.0.0.1` only** - set
 `MONITORING_PORT` in `.env` if 8001 is taken on the host. Nothing outside the
 host can reach that port.
+
+## IPv4 and IPv6
+
+Every service listens on IPv4 and IPv6 where the container has IPv6: nginx on
+both (`listen [::]:80` beside `listen 80`), the application and the console
+server on one dual-stack socket. Where IPv6 is switched off they stay on IPv4
+- nothing to configure. Docker publishes nginx's ports on the host's IPv4 and
+IPv6 addresses. Devices can be added by IPv6 address (brackets optional);
+monitoring pings both, discovery reads IPv6 management addresses, and links
+put IPv6 addresses in brackets (`ssh://admin@[2001:db8::9]:22`). Outbound
+connections - updates, mail, ntfy, Telegram, firmware channels - use
+whichever the server resolves.
 
 ## Ports
 

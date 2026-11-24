@@ -297,3 +297,47 @@ class ReachabilityAndWizardTests(TestCase):
             page = self.client.get('/router/discovered/').content.decode()
         self.assertNotIn('Add to hosts', page)
         self.assertIn('Reachable from RouterFleet', page)
+
+
+class IPv6DiscoveryTests(TestCase):
+    """IPv6 management addresses in every format and in the listener's
+    decoding; link-local addresses are never offered for adding."""
+
+    def test_neighbour_tables(self):
+        record, = parsers.parse(' 0 interface=ether1 address=fe80::1 address6=2001:db8:10::2 '
+                                'mac-address=48:A9:8A:00:00:09 identity=v6-only platform=MikroTik discovered-by=mndp')
+        self.assertEqual(record['address'], '2001:db8:10::2')
+        record, = parsers.parse('------\nLocal Intf: Gi0/1\nSystem Name: v6ap\n\nManagement Addresses:\n    IPV6: 2001:db8:30::4\n------\n')
+        self.assertEqual(record['address'], '2001:db8:30::4')
+        self.assertEqual(parsers.usable_address('fe80::1%ether1', 'ff02::1'), '')
+
+    def test_listener_lldp_and_cdp(self):
+        module = listener()
+
+        def lldp(kind, value):
+            return struct.pack('>H', (kind << 9) | len(value)) + value
+        v6 = bytes.fromhex('20010db8000000000000000000000042')
+        payload = lldp(1, b'\x04' + bytes.fromhex('001122334466')) + lldp(5, b'v6-sw') \
+            + lldp(8, b'\x11\x02' + v6 + b'\x02\x00\x00\x00\x01\x00') + lldp(0, b'')
+        frame = bytes.fromhex('0180c200000e') + bytes.fromhex('001122334466') + b'\x88\xcc' + payload
+        self.assertEqual(module.parse_frame(frame)[1]['address'], '2001:db8::42')
+
+        def cdp(kind, value):
+            return struct.pack('>HH', kind, len(value) + 4) + value
+        entry = bytes([2, 8]) + bytes.fromhex('aaaa0300000086dd') + struct.pack('>H', 16) + v6
+        payload = b'\x02\xb4\x00\x00' + cdp(1, b'v6-cdp') + cdp(2, struct.pack('>I', 1) + entry)
+        frame = bytes.fromhex('01000ccccccc') + bytes.fromhex('00aabbccdd01') + struct.pack('>H', len(payload) + 8) \
+            + b'\xaa\xaa\x03\x00\x00\x0c\x20\x00' + payload
+        self.assertEqual(module.parse_frame(frame)[1]['address'], '2001:db8::42')
+        self.assertEqual(module.usable('fe80::1%eth0'), '')
+
+    def test_reachable_and_added_by_an_ipv6_address(self):
+        from unittest import mock
+        from .reach import check, is_ip
+        self.assertTrue(is_ip('2001:db8::7'))
+        self.assertFalse(is_ip('fe80::7'))
+        device = DiscoveredDevice.objects.create(key='mac:00:00:00:00:00:77', address='2001:db8::7', identity='v6',
+                                                 last_seen='2026-11-25T10:00:00Z')
+        with mock.patch('discovery.reach.socket.create_connection') as connect:
+            check([device])
+        connect.assert_called_once_with(('2001:db8::7', 22), timeout=1.5)

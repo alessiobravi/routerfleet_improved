@@ -508,7 +508,10 @@ def links_for(router):
     device_type = router.device_type
     if device_type is None or not router.username:
         return []
-    values = {'address': quote(router.address or '', safe='.:[]'), 'port': str(router.port or ''),
+    address = router.address or ''
+    if ':' in address and not address.startswith('['):
+        address = f'[{address}]'   # an IPv6 address in a URL
+    values = {'address': quote(address, safe='.:[]'), 'port': str(router.port or ''),
               'username': quote(router.username or '', safe='')}
     result = []
     for label, template in parse_links(device_type.management_links):

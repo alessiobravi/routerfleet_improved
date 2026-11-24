@@ -71,7 +71,7 @@ screen* hides it to read or copy what the session printed. A session left open b
   backups do ([Device host keys](security.md#device-host-keys)).
 - **Devices only** - the console resolves the device's address and refuses
   loopback and link-local addresses, RouterFleet's service names, and the
-  internal networks its container is attached to, then connects to the address
+  internal networks its container is attached to (IPv4 and IPv6), then connects to the address
   it checked. A device address can therefore not be turned into a connection
   to the database or the application itself. Devices on your networks, reached
   through the gateway, are not affected.

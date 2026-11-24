@@ -31,6 +31,19 @@ the Zabbix kit reads, says so under **Monitoring**.
     nothing; request and findings pass through a file on a shared volume.
   - Already managed devices are matched; others can be hidden.
 
+- **Discovered devices are checked from RouterFleet's host** (their SSH port,
+  in parallel, every ten minutes and on request); a reachable one is added by
+  an administrator with the **Add to hosts** wizard, by its IP address: the
+  device, signing in (with *Test connection*), backups and monitoring.
+- **IPv4 and IPv6 everywhere**: nginx, the application and the console server
+  listen on both where the container has IPv6 (IPv4 only where it is switched
+  off); `SERVER_ADDRESS` takes an IPv6 address, bare or in brackets; devices
+  by IPv6 address (brackets optional); links put IPv6 addresses in brackets;
+  discovery reads IPv6 management addresses (never link-local ones) and hears
+  MNDP over IPv6; the guard on RouterFleet's own networks knows its IPv6
+  networks too; an IPv4 client on a dual-stack socket is recorded by its IPv4
+  address.
+
 ### Changed
 - **The monitoring container runs on the host's network** (every right
   dropped but the raw socket, which ping and the listener need), and reaches

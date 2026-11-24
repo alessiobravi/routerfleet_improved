@@ -20,15 +20,16 @@ import socket
 STACK_NAMES = {'routerfleet', 'routerfleet-postgres', 'routerfleet-nginx', 'routerfleet-cron',
                'routerfleet-monitoring', 'localhost'}
 ROUTE_TABLE = '/proc/net/route'
+IPV6_ROUTE_TABLE = '/proc/net/ipv6_route'
 
 
 class Refused(Exception):
     pass
 
 
-def attached_networks(route_table=ROUTE_TABLE):
-    """The IPv4 networks this container reaches without a gateway."""
-    networks = []
+def attached_networks(route_table=ROUTE_TABLE, ipv6_route_table=None):
+    """The networks this container reaches without a gateway - IPv4 and IPv6."""
+    networks = _attached_ipv6(ipv6_route_table or IPV6_ROUTE_TABLE)
     try:
         with open(route_table) as handle:
             next(handle, None)
@@ -42,6 +43,27 @@ def attached_networks(route_table=ROUTE_TABLE):
                 address = ipaddress.IPv4Address(int(destination, 16).to_bytes(4, 'little'))
                 netmask = ipaddress.IPv4Address(int(mask, 16).to_bytes(4, 'little'))
                 networks.append(ipaddress.IPv4Network(f'{address}/{netmask}', strict=False))
+    except (OSError, ValueError):
+        pass
+    return networks
+
+
+def _attached_ipv6(route_table):
+    """/proc/net/ipv6_route: destination, prefix length, ..., next hop - a
+    route without a next hop (all zeros) is a network on a link."""
+    networks = []
+    try:
+        with open(route_table) as handle:
+            for line in handle:
+                fields = line.split()
+                if len(fields) < 5:
+                    continue
+                destination, length, next_hop = fields[0], int(fields[1], 16), fields[4]
+                if next_hop != '0' * 32 or destination == '0' * 32 or length == 0:
+                    continue
+                network = ipaddress.IPv6Network((int(destination, 16), length), strict=False)
+                if not (network.is_link_local or network.is_multicast or network.is_loopback):
+                    networks.append(network)
     except (OSError, ValueError):
         pass
     return networks

@@ -68,7 +68,14 @@ if [[ "${DEBUG_MODE,,}" == "true" ]]; then
     DEBUG_VALUE="True"
 fi
 
-SERVER_HOSTNAME=$(echo $SERVER_ADDRESS | cut -d ':' -f 1)
+# The host of SERVER_ADDRESS, as browsers send it: a name or IPv4 address with
+# an optional :port, or an IPv6 address - in brackets with a port
+# ([2001:db8::5]:8443), or bare (2001:db8::5), which is put in brackets
+case "$SERVER_ADDRESS" in
+    \[*\]*) SERVER_HOSTNAME="${SERVER_ADDRESS%%]*}]" ;;
+    *:*:*)  SERVER_ADDRESS="[$SERVER_ADDRESS]"; SERVER_HOSTNAME="$SERVER_ADDRESS" ;;
+    *)      SERVER_HOSTNAME="${SERVER_ADDRESS%%:*}" ;;
+esac
 
 cat > $PRODUCTION_SETTINGS_FILE <<EOL
 DEBUG = $DEBUG_VALUE
@@ -79,7 +86,7 @@ DEBUG = $DEBUG_VALUE
 # otherwise only the one written in SERVER_ADDRESS answers and the other one is
 # refused with 400, which reads like the application being down.
 ALLOWED_HOSTS = ['routerfleet', 'localhost', '127.0.0.1', '[::1]', '$SERVER_HOSTNAME']
-CSRF_TRUSTED_ORIGINS = ['http://routerfleet', 'https://$SERVER_ADDRESS', 'http://$SERVER_ADDRESS', 'https://localhost', 'http://localhost', 'https://127.0.0.1', 'http://127.0.0.1']
+CSRF_TRUSTED_ORIGINS = ['http://routerfleet', 'https://$SERVER_ADDRESS', 'http://$SERVER_ADDRESS', 'https://localhost', 'http://localhost', 'https://127.0.0.1', 'http://127.0.0.1', 'https://[::1]', 'http://[::1]']
 SECRET_KEY = '$(openssl rand -base64 32)'
 $DATABASES_CONFIG
 EOL

@@ -132,6 +132,8 @@ class RouterForm(forms.ModelForm):
 
         if address:
             address = address.lower()
+            if address.startswith('[') and address.endswith(']'):
+                address = address[1:-1]   # an IPv6 address typed as in a URL
             cleaned_data['address'] = address
 
             try:

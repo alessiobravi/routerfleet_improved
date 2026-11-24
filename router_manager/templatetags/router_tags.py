@@ -194,3 +194,11 @@ def bootloader_behind(router_information):
     running = (getattr(router_information, 'firmware_version', '') or '').strip()
     available = (getattr(router_information, 'firmware_available', '') or '').strip()
     return bool(running and available) and compare_versions(running, available) == -1
+
+
+
+@register.filter
+def url_host(address):
+    """An address as a URL needs it: an IPv6 address in brackets."""
+    address = str(address or '')
+    return f'[{address}]' if ':' in address and not address.startswith('[') else address

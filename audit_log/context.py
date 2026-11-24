@@ -69,6 +69,9 @@ def client_address(request):
         address = forwarded.split(',')[-1].strip()
     if not address:
         address = text(meta.get('REMOTE_ADDR'), IP_LENGTH).strip()
+    # An IPv4 client on a dual-stack socket arrives as ::ffff:a.b.c.d
+    if address.lower().startswith('::ffff:') and '.' in address:
+        address = address[7:]
     return address, forwarded
 
 

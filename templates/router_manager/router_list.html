@@ -137,19 +137,19 @@
                                             {% if address_link == 'none' or not router.username or not router.is_managed %}
                                                 {{ router.address }}
                                             {% elif address_link == 'ssh' %}
-                                                <a href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}">{{ router.address }}</a>
+                                                <a href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}">{{ router.address }}</a>
                                             {% elif address_link == 'winbox' %}
                                                 {% if links %}<a href="{{ links.0.1 }}">{{ router.address }}</a>{% else %}{{ router.address }}{% endif %}
                                             {% elif links %}
                                                 <div class="dropdown d-inline address-dropdown">
                                                     <a class="dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ router.address }}</a>
                                                     <div class="dropdown-menu">
-                                                        <a class="dropdown-item" href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}" aria-label="Open SSH" data-label="SSH"></a>
+                                                        <a class="dropdown-item" href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}" aria-label="Open SSH" data-label="SSH"></a>
                                                         {% for label, url in links %}<a class="dropdown-item" href="{{ url }}" aria-label="Open {{ label }}" data-label="{{ label }}"></a>{% endfor %}
                                                     </div>
                                                 </div>
                                             {% else %}
-                                                <a href="ssh://{{ router.username }}@{{ router.address }}:{{ router.port }}">{{ router.address }}</a>
+                                                <a href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}">{{ router.address }}</a>
                                             {% endif %}
                                         </td>
                                         {% endif %}

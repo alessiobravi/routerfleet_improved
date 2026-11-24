@@ -15,6 +15,21 @@ MAC = re.compile(r'^([0-9a-f]{2}[:-]){5}[0-9a-f]{2}$|^([0-9a-f]{4}\.){2}[0-9a-f]
 IPV4 = re.compile(r'\b(\d{1,3}(?:\.\d{1,3}){3})\b')
 
 
+def usable_address(*candidates):
+    """The first address a device can be reached at: IPv4 or IPv6, never a
+    link-local one (fe80::, which needs its interface to mean anything)."""
+    import ipaddress
+    for candidate in candidates:
+        for word in re.split(r'[\s,]+', candidate or ''):
+            try:
+                address = ipaddress.ip_address(word.strip().split('%')[0])
+            except ValueError:
+                continue
+            if not (address.is_link_local or address.is_multicast or address.is_unspecified or address.is_loopback):
+                return str(address)
+    return ''
+
+
 def normal_mac(value):
     """aa:bb:cc:dd:ee:ff for a MAC address in any common spelling, else ''."""
     text = (value or '').strip()
@@ -53,7 +68,8 @@ def _routeros(text):
         if not pairs:
             continue
         found.append(_clean({
-            'identity': pairs.get('identity'), 'address': pairs.get('address4') or pairs.get('address'),
+            'identity': pairs.get('identity'),
+            'address': usable_address(pairs.get('address4'), pairs.get('address'), pairs.get('address6')),
             'mac': pairs.get('mac-address'), 'platform': pairs.get('platform'), 'model': pairs.get('board'),
             'version': pairs.get('version'), 'interface': pairs.get('interface'),
             'remote_interface': pairs.get('interface-name'),
@@ -78,9 +94,11 @@ def _cisco_cdp(text):
         platform = _field(block, 'Platform').split(',')[0]
         version_match = re.search(r'(?im)^\s*Version\s*:\s*\n\s*(.+)$', block)
         interface = re.search(r'(?im)^\s*Interface:\s*([^,]+),\s*Port ID \(outgoing port\):\s*(\S+)', block)
-        address = IPV4.search(_field(block, 'IP address') or block)
+        entry = block.split('Platform:')[0]
+        address = IPV4.search(_field(block, 'IP address') or entry)
+        address = address.group(1) if address else usable_address(_field(block, 'IPv6 address').split('(')[0])
         found.append(_clean({
-            'identity': _field(block, 'Device ID').split('(')[0], 'address': address.group(1) if address else '',
+            'identity': _field(block, 'Device ID').split('(')[0], 'address': address,
             'platform': platform, 'model': platform.replace('cisco ', '').replace('Cisco ', ''),
             'version': version_match.group(1) if version_match else '',
             'interface': interface.group(1) if interface else '', 'remote_interface': interface.group(2) if interface else '',
@@ -95,8 +113,9 @@ def _cisco_lldp(text):
             continue
         description = re.search(r'(?im)^\s*System Description:\s*\n\s*(.+)$', block)
         address = re.search(r'(?im)^\s*IP:\s*(\d{1,3}(?:\.\d{1,3}){3})', block)
+        address = address.group(1) if address else usable_address(_field(block, 'IPV6'))
         found.append(_clean({
-            'identity': _field(block, 'System Name'), 'address': address.group(1) if address else '',
+            'identity': _field(block, 'System Name'), 'address': address,
             'mac': _field(block, 'Chassis id'), 'platform': description.group(1) if description else '',
             'interface': _field(block, 'Local Intf'), 'remote_interface': _field(block, 'Port id'),
             'protocols': {'lldp'}}))
@@ -120,7 +139,7 @@ def _huawei(text):
         version = re.search(r'(?ims)^\s*Version\s*:(.*?)^\s*Platform\s*:', part)
         found.append(_clean({
             'identity': _field(part, 'Device ID') if cdp else _field(part, 'System name'),
-            'address': _field(part, 'Management address'),
+            'address': usable_address(*re.findall(r'(?im)^\s*Management address\s*:\s*(\S+)', part)),
             'mac': _field(part, 'MacAddress') if cdp else _field(part, 'Chassis ID'),
             'platform': _field(part, 'Platform') if cdp else _field(part, 'System description'),
             'version': ' '.join(version.group(1).split())[:200] if cdp and version else '',
@@ -138,7 +157,8 @@ def _lldpcli(text):
     for port, fields in by_port.items():
         via = (fields.get('via') or 'LLDP').upper()
         found.append(_clean({
-            'identity': fields.get('chassis.name') or fields.get('chassis.local'), 'address': fields.get('chassis.mgmt-ip'),
+            'identity': fields.get('chassis.name') or fields.get('chassis.local'),
+            'address': usable_address(fields.get('chassis.mgmt-ip'), fields.get('chassis.mgmt-ip6')),
             'mac': fields.get('chassis.mac'), 'platform': fields.get('chassis.descr'),
             'interface': port, 'remote_interface': fields.get('port.ifname') or fields.get('port.descr'),
             'protocols': {'cdp' if via.startswith('CDP') else 'lldp'}}))
@@ -168,9 +188,10 @@ def _junos_detail(text):
     blocks from "LLDP Neighbor Information:"."""
     found = []
     for block in re.split(r'(?m)^\s*LLDP Neighbor Information:\s*$', text)[1:]:
-        address = re.search(r'(?ims)^\s*Management address.*?^\s*Address\s*:\s*(\d{1,3}(?:\.\d{1,3}){3})', block)
+        management = block.split('Management address', 1)[1] if 'Management address' in block else ''
+        address = usable_address(*re.findall(r'(?im)^\s*Address\s*:\s*(\S+)', management))
         found.append(_clean({
-            'identity': _field(block, 'System name'), 'address': address.group(1) if address else '',
+            'identity': _field(block, 'System name'), 'address': address,
             'mac': _field(block, 'Chassis ID'), 'platform': _field(block, 'System Description'),
             'interface': _field(block, 'Local Interface'),
             'remote_interface': _field(block, 'Port description') or _field(block, 'Port ID'),

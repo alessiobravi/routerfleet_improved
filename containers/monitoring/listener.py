@@ -34,6 +34,16 @@ seen = {}
 lock = threading.Lock()
 
 
+def usable(address):
+    """An address a device can be reached at - IPv4 or IPv6, not link-local
+    (fe80:: needs its interface), else ''."""
+    try:
+        parsed = ipaddress.ip_address((address or '').split('%')[0])
+    except ValueError:
+        return ''
+    return '' if (parsed.is_link_local or parsed.is_multicast or parsed.is_unspecified) else str(parsed)
+
+
 def mac_text(raw):
     return ':'.join(f'{b:02x}' for b in raw)
 
@@ -55,7 +65,7 @@ MNDP_FIELDS = {1: 'mac', 5: 'identity', 7: 'version', 8: 'platform', 12: 'model'
 
 
 def parse_mndp(data, source=''):
-    record = {'address': source}
+    record = {'address': usable(source)}
     position = 4
     while position + 4 <= len(data):
         kind, length = struct.unpack('>HH', data[position:position + 4])
@@ -118,8 +128,11 @@ def parse_lldp(payload):
             record['identity'] = value.decode('utf-8', errors='replace')
         elif kind == 6:
             record['platform'] = value.decode('utf-8', errors='replace')
-        elif kind == 8 and len(value) >= 6 and value[1] == 1:   # management address, IPv4
-            record['address'] = str(ipaddress.IPv4Address(value[2:6]))
+        elif kind == 8 and len(value) >= 6 and value[1] == 1:   # management address, IPv4 - preferred
+            record['address'] = usable(str(ipaddress.IPv4Address(value[2:6]))) or record.get('address', '')
+        elif kind == 8 and len(value) >= 18 and value[1] == 2:  # management address, IPv6
+            if not record.get('address'):
+                record['address'] = usable(str(ipaddress.IPv6Address(value[2:18])))
     return record
 
 
@@ -142,11 +155,23 @@ def parse_cdp(payload):
         elif kind == 6:
             record['platform'] = value.decode('utf-8', errors='replace')
         elif kind == 2 and len(value) >= 4:   # addresses: count, then entries
-            entry = value[4:]
-            if len(entry) >= 9 and entry[0] == 1 and entry[1] == 1 and entry[2] == 0xCC:
-                size = struct.unpack('>H', entry[3:5])[0]
-                if size == 4:
-                    record['address'] = str(ipaddress.IPv4Address(entry[5:9]))
+            count, entry = struct.unpack('>I', value[:4])[0], value[4:]
+            found_v4, found_v6 = '', ''
+            for _ in range(min(count, 8)):
+                if len(entry) < 2:
+                    break
+                protocol_length = entry[1]
+                protocol = entry[2:2 + protocol_length]
+                size_at = 2 + protocol_length
+                size = struct.unpack('>H', entry[size_at:size_at + 2])[0]
+                address = entry[size_at + 2:size_at + 2 + size]
+                entry = entry[size_at + 2 + size:]
+                if protocol == b'\xcc' and size == 4:
+                    found_v4 = found_v4 or usable(str(ipaddress.IPv4Address(address)))
+                elif protocol == bytes.fromhex('aaaa0300000086dd') and size == 16:
+                    found_v6 = found_v6 or usable(str(ipaddress.IPv6Address(address)))
+            if found_v4 or found_v6:
+                record['address'] = found_v4 or found_v6
     return record
 
 
@@ -167,48 +192,53 @@ def parse_frame(frame):
     return None
 
 
-def listen_mndp(until):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.settimeout(1)
-    try:
-        sock.bind(('', 5678))
-    except OSError as error:
-        print(f'MNDP not heard (port 5678: {error}).', flush=True)
-        return
-    try:
-        while time.time() < until():
-            try:
-                data, (address, _) = sock.recvfrom(2048)
-            except socket.timeout:
-                continue
-            try:
-                remember(parse_mndp(data, address), 'mndp')
-            except (struct.error, ValueError):
-                continue
-    finally:
-        sock.close()
-
-
-def listen_ubnt(until):
+def udp_sockets(port):
+    """UDP sockets on this port: IPv4, and IPv6 (IPv6 only, beside it) where
+    the host has IPv6."""
     socks = []
-    for port in (10001, 10002):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    families = [(socket.AF_INET, '')]
+    if os.path.isfile('/proc/net/if_inet6') and os.path.getsize('/proc/net/if_inet6') > 0:
+        families.append((socket.AF_INET6, '::'))
+    for family, host in families:
+        sock = socket.socket(family, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if family == socket.AF_INET6:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
         sock.setblocking(False)
         try:
-            sock.bind(('', port))
+            sock.bind((host, port))
             socks.append(sock)
         except OSError as error:
-            print(f'Ubiquiti discovery not heard on port {port} ({error}).', flush=True)
+            print(f'Port {port} ({"IPv6" if family == socket.AF_INET6 else "IPv4"}) not heard: {error}.', flush=True)
             sock.close()
+    return socks
+
+
+def listen_mndp(until):
+    socks = udp_sockets(5678)
     try:
         while socks and time.time() < until():
             ready, _, _ = select.select(socks, [], [], 1)
             for sock in ready:
-                data, (address, _) = sock.recvfrom(2048)
+                data, source = sock.recvfrom(2048)
                 try:
-                    record = parse_ubnt(data, address)
+                    remember(parse_mndp(data, source[0]), 'mndp')
+                except (struct.error, ValueError):
+                    continue
+    finally:
+        for sock in socks:
+            sock.close()
+
+
+def listen_ubnt(until):
+    socks = udp_sockets(10001) + udp_sockets(10002)
+    try:
+        while socks and time.time() < until():
+            ready, _, _ = select.select(socks, [], [], 1)
+            for sock in ready:
+                data, source = sock.recvfrom(2048)
+                try:
+                    record = parse_ubnt(data, usable(source[0]))
                 except (struct.error, ValueError):
                     continue
                 if record:

@@ -14,11 +14,12 @@ MOST = 40
 
 
 def is_ip(value):
+    """An IPv4 or IPv6 address a device can be reached at (not link-local)."""
     try:
-        ipaddress.ip_address((value or '').strip())
-        return True
+        address = ipaddress.ip_address((value or '').strip())
     except ValueError:
         return False
+    return not (address.is_link_local or address.is_multicast or address.is_unspecified)
 
 
 def _probe(address, port=SSH_PORT):
