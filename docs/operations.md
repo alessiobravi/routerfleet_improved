@@ -84,9 +84,13 @@ during the offline periods the monitoring recorded, online otherwise. An
 enabled device that is not monitored has no status and is not counted. Clicking a
 day's backup bar opens that day's backups; clicking a point of a devices line
 opens the devices in that state. Below them, one card per signal,
-each with a coloured edge and a chip saying what to do - green *OK*, amber
-*Look*, red *Act*, grey for no information - and a sparkline where RouterFleet
-keeps the history. **Every card opens the list of exactly what it counts.**
+each with a coloured edge and an icon saying what to do - a green tick when all
+is well; the warning sign in yellow (worth a look), orange (needs attention
+soon) or red (act now); grey for information - and a sparkline where
+RouterFleet keeps the history. Pointing at the icon says it in words. The same
+icons mark states everywhere: beside the words of a state on object pages and
+in the state badges of lists. Backup storage turns yellow from 75 %, orange
+from 85 %, red from 90 %. **Every card opens the list of exactly what it counts.**
 
 - **Failed / successful backups, last 24 hours** — compared with the 24 hours
   before. Failed opens the devices with a failed backup.
@@ -114,7 +118,7 @@ yet.
 
 A Fleet Commander job, a task, a device and a backup open the same way:
 
-- a **hero** on top - a progress ring or a state icon, the name, a state chip,
+- a **hero** on top - a progress ring or a state icon, the name, the state (icon and words),
   the key facts, and the actions (abort, edit, execute a command, download);
 - **four tiles** with the numbers that matter for that object;
 - a **timeline** of what happened, newest first;
@@ -226,6 +230,25 @@ docker compose logs routerfleet --tail 200
 
 Look for `ERROR django.request: Internal Server Error:` followed by the path.
 Only the request line and the traceback are logged, never what a form sent.
+
+### Pages are slow
+
+Every request is in the same log with how long it took, the last field:
+
+```text
+172.18.0.6 [24/Nov/2026:10:31:02 +0000] "GET /status/ HTTP/1.0" 200 41237 23ms
+```
+
+```bash
+docker compose logs routerfleet --since 10m | grep -E ' [0-9]{4,}ms$'   # a second or more
+```
+
+Fast lines but a slow page in the browser point at the network between the
+browser and the server: static files are sent compressed and kept by the
+browser for a year (their names change when they do), so only the first page
+after an update loads them. Slow lines on `/cron/` are the scheduler's work
+with devices and do not hold pages up (each worker serves several requests at
+once on PostgreSQL).
 
 ### The update icon stays grey
 

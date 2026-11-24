@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load custom_tags %}
 {% block content %}
 <div id="rf-live-rollout" data-rf-live="{% if rollout.active %}active{% else %}done{% endif %}" data-rf-live-reason="firmware update running" data-rf-live-interval="5">
     <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
@@ -15,7 +16,7 @@
                         <div class="rf-o-sub">{% if row.target.from_version %}{{ row.target.from_version }} → {% endif %}{{ row.version }}{% if row.target.message %} · {{ row.target.message }}{% endif %}{% if row.target.backup %} · <a href="/backup/backup_details/?uuid={{ row.target.backup.uuid }}">pre-update backup</a>{% endif %}</div>
                     </div>
                     <span class="rf-o-time">{% if row.target.finished_at %}{{ row.target.finished_at|date:"H:i:s" }}{% elif row.target.started_at %}{{ row.target.started_at|date:"H:i:s" }}{% endif %}</span>
-                    <span class="rf-o-chip rf-o-{{ row.chip.0 }}"><span class="rf-o-dot"></span>{{ row.chip.1 }}</span>
+                    <span class="rf-o-chip rf-o-{{ row.chip.0 }}">{{ row.chip.0|state_icon }}{{ row.chip.1 }}</span>
                 </div>
                 {% empty %}
                 <p class="text-muted p-3 mb-0">No devices.</p>

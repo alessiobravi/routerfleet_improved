@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
 
+{% load static custom_tags %}
 {% block content %}
-<link rel="stylesheet" href="/static/vendor/xterm-6.0.0/xterm.css">
+<link rel="stylesheet" href="{% static 'vendor/xterm-6.0.0/xterm.css' %}">
 <div class="rf-console">
     <div class="rf-console-bar">
         <div class="rf-console-who">
             <i class="fas fa-keyboard" aria-hidden="true"></i>
             <strong>{{ router.name }}</strong>
             <span class="text-muted">{{ router.address }} · {{ session.get_transport_display }}{% if session.username %} · {{ session.username }}{% endif %}</span>
-            {% if session.transport == 'telnet' %}<span class="badge text-bg-danger">unencrypted</span>{% endif %}
+            {% if session.transport == 'telnet' %}<span class="badge text-bg-danger">{{ 'bad'|state_icon }}unencrypted</span>{% endif %}
         </div>
         <div class="rf-console-state"><span class="rf-console-dot" id="console-dot"></span><span id="console-state" role="status">Ready</span>
             <span class="text-muted" id="console-clock"></span></div>
@@ -50,12 +51,12 @@
     <div class="rf-console-foot">Closes when this page closes, when you sign out, after {{ idle_minutes }} minutes without input, or with Disconnect.</div>
 </div>
 
-<link rel="stylesheet" href="/static/routerfleet/terminal.css">
+<link rel="stylesheet" href="{% static 'routerfleet/terminal.css' %}">
 {% endblock %}
 
 {% block custom_page_scripts %}
-<script src="/static/vendor/xterm-6.0.0/xterm.js"></script>
-<script src="/static/vendor/xterm-6.0.0/addon-fit.js"></script>
+<script src="{% static 'vendor/xterm-6.0.0/xterm.js' %}"></script>
+<script src="{% static 'vendor/xterm-6.0.0/addon-fit.js' %}"></script>
 {{ ticket|json_script:"console-ticket" }}
-<script src="/static/routerfleet/console.js"></script>
+<script src="{% static 'routerfleet/console.js' %}"></script>
 {% endblock %}

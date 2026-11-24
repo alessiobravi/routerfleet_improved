@@ -10,7 +10,7 @@ flowchart TB
 
     subgraph stack["Docker Compose stack"]
         nginx["routerfleet-nginx<br/>nginx:alpine<br/>HTTP_PORT, HTTPS_PORT<br/>(80, 443 by default)"]
-        app["routerfleet<br/>gunicorn, 5 sync workers<br/>port 8001"]
+        app["routerfleet<br/>gunicorn, 5 workers × 4 threads<br/>port 8001"]
         cron["routerfleet-cron<br/>cron + curl"]
         mon["routerfleet-monitoring<br/>python + fping"]
         db[("routerfleet-postgres<br/>PostgreSQL 18")]

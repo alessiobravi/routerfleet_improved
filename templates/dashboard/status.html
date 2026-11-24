@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 
+{% load static custom_tags %}
 {% block content %}
-<link rel="stylesheet" href="/static/routerfleet/status.css">
+<link rel="stylesheet" href="{% static 'routerfleet/status.css' %}">
 
 <div class="rf-status">
     <!-- The charts, on top -->
@@ -36,7 +37,7 @@
         <a href="{{ card.href }}" class="rf-card {{ card.state }}"{% if card.external %} target="_blank" rel="noopener"{% endif %}>
             <div class="rf-row">
                 <span class="rf-name">{{ card.title }}</span>
-                <span class="rf-chip {{ card.state }}">{{ card.chip }}</span>
+                <span class="rf-chip-icon">{{ card.state|state_icon:card.chip }}</span>
             </div>
             <div class="rf-row mt-2">
                 <span class="rf-value">{{ card.value }}</span>
@@ -50,6 +51,6 @@
     </div>
 </div>
 
-<script src="/static/vendor/chart.js-4.6.1/chart.umd.min.js"></script>
-<script src="/static/routerfleet/status.js"></script>
+<script src="{% static 'vendor/chart.js-4.6.1/chart.umd.min.js' %}"></script>
+<script src="{% static 'routerfleet/status.js' %}"></script>
 {% endblock %}

@@ -81,8 +81,8 @@ class StatusPageTests(TestCase):
         router = Router.objects.create(name='u1', address='192.0.2.9', router_type='routeros', monitoring=False)
         RouterBackup.objects.create(router=router, schedule_type='daily', error=True)
         cards = self.cards()
-        self.assertEqual((cards['Failed backups \u00b7 24h']['state'], cards['Failed backups \u00b7 24h']['chip']), ('bad', 'Act'))
-        self.assertEqual(cards['Unmonitored devices']['state'], 'info')
+        self.assertEqual((cards['Failed backups \u00b7 24h']['state'], cards['Failed backups \u00b7 24h']['chip']), ('bad', 'Act now'))
+        self.assertEqual(cards['Unmonitored devices']['state'], 'warn')  # yellow: worth a look
         self.assertTrue(cards['Failed backups \u00b7 24h']['spark'], 'backups keep history: a sparkline')
         self.assertFalse(cards['Backup queue']['spark'], 'the queue keeps none: no invented sparkline')
 
@@ -397,3 +397,34 @@ class ThemeTests(TestCase):
         settings_page = self.client.get('/user/settings/').content.decode()
         for choice in ('auto', 'light', 'dark'):
             self.assertIn(f'name="rf-theme" value="{choice}"', settings_page)
+
+
+class StateIconTests(TestCase):
+    """States are shown as icons: a green tick, the warning sign in yellow,
+    orange or red; the word stays as the tooltip and for screen readers."""
+
+    def test_the_icon_of_each_state(self):
+        from routerfleet_tools.templatetags.custom_tags import state_icon
+        self.assertIn('fa-circle-check rf-state rf-state-ok', state_icon('ok', 'OK'))
+        for state in ('warn', 'high', 'bad'):
+            self.assertIn(f'fa-triangle-exclamation rf-state rf-state-{state}', state_icon(state, 'x'))
+        self.assertIn('aria-label="OK" title="OK"', state_icon('ok', 'OK'))
+        self.assertIn('aria-hidden="true"', state_icon('run'))
+        self.assertIn('rf-state-info', state_icon('<script>', 'a"b'))
+        self.assertIn('aria-label="a&quot;b"', state_icon('info', 'a"b'))
+
+    def test_storage_gets_more_serious_in_steps(self):
+        from unittest import mock
+        from dashboard import views
+        for pct, state in ((10, 'ok'), (76, 'warn'), (86, 'high'), (95, 'bad')):
+            with mock.patch.object(views, 'get_directory_statistics', return_value={
+                    'usage_percentage': pct, 'used': '1', 'total': '2', 'storage_warning': ''}):
+                card = next(c for c in views.status_cards() if c['title'] == 'Backup storage')
+            self.assertEqual(card['state'], state, pct)
+
+    def test_the_status_page_shows_icons_not_words(self):
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(50))
+        page = self.client.get('/status/').content.decode()
+        self.assertIn('rf-state-ok', page)
+        self.assertNotIn('class="rf-chip ', page)

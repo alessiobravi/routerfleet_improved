@@ -409,3 +409,26 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 
 /* The bootloader firmware (RouterBOOT) arrow: its own colour, its own process */
 .rf-boot-mark, .rf-boot-mark:hover { color: #7e57c2 !important; }
+
+/* State icons ({{ state|state_icon }}): a green tick when all is well, the
+   warning sign yellow, orange or red as it gets more serious */
+.rf-state { font-size: 1.05em; line-height: 1; }
+.rf-state-ok { color: #1f9d55; }
+.rf-state-warn { color: #e0a800; }
+.rf-state-high { color: #e8590c; }
+.rf-state-bad { color: #d64545; }
+.rf-state-info { color: #8a96a3; }
+.rf-state-run { color: #2f6fd1; }
+.rf-state-wait { color: #c88a0f; }
+.rf-state-purple { color: #7e57c2; }
+[data-bs-theme="dark"] .rf-state-ok { color: #3fbf75; }
+[data-bs-theme="dark"] .rf-state-warn { color: #f2c94c; }
+[data-bs-theme="dark"] .rf-state-high { color: #ff8a3d; }
+[data-bs-theme="dark"] .rf-state-bad { color: #ef6b6b; }
+[data-bs-theme="dark"] .rf-state-info { color: #a3adb8; }
+[data-bs-theme="dark"] .rf-state-run { color: #6ea0ff; }
+.rf-o-chip .rf-state { font-size: 1em; color: currentColor; }
+.rf-o-chip.rf-o-run .rf-state { animation: rf-o-spin 2s linear infinite; }
+@keyframes rf-o-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rf-o-chip.rf-o-run .rf-state { animation: none; } }
+.badge .rf-state { color: inherit; margin-right: .3em; font-size: 1em; }

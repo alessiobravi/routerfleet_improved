@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load custom_tags %}
 {% block content %}
 <div class="rf-settings">
     {% for error in errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
@@ -35,7 +36,7 @@
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="transport" value="telnet" {% if posted.transport == 'telnet' %}checked{% endif %}>
                 <span class="rf-set-icon red"><i class="fas fa-lock-open"></i></span>
-                <span class="rf-set-text"><span class="rf-set-label d-block">Telnet <span class="badge text-bg-danger">unencrypted</span></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">Telnet <span class="badge text-bg-danger">{{ 'bad'|state_icon }}unencrypted</span></span>
                     <span class="rf-set-sub d-block">Port {{ router.telnet_port }}. Everything, your password included, crosses the network in clear. You log in at the device's prompt: RouterFleet sends no stored credential over Telnet.</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>

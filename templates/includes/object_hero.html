@@ -1,3 +1,4 @@
+{% load custom_tags %}
 {# The "Hero & timeline" top of an object page: see routerfleet/object_pages.py #}
 <div class="rf-object">
     <div class="rf-o-card rf-o-hero">
@@ -12,7 +13,7 @@
         {% endif %}
         <div class="rf-o-title">
             <h2>{{ page.hero.title }}{% if page.hero.subtitle %} <span>· {{ page.hero.subtitle }}</span>{% endif %}</h2>
-            <span class="rf-o-chip rf-o-{{ page.hero.chip.0 }}"><span class="rf-o-dot"></span>{{ page.hero.chip.1 }}</span>
+            <span class="rf-o-chip rf-o-{{ page.hero.chip.0 }}">{{ page.hero.chip.0|state_icon }}{{ page.hero.chip.1 }}</span>
             <div class="rf-o-meta">{% for item in page.hero.meta %}<span>{{ item }}</span>{% endfor %}</div>
         </div>
         <div class="rf-o-actions">

@@ -79,3 +79,30 @@ def page_messages(messages, form=None):
         for field_errors in form.errors.values():
             errors.extend(str(error) for error in field_errors)
     return {'messages': queued, 'errors': errors}
+
+
+# One icon per meaning, everywhere a state is shown: a green tick when all is
+# well; the warning sign in yellow, orange or red as it gets more serious.
+STATE_ICONS = {
+    'ok': 'fa-circle-check',
+    'warn': 'fa-triangle-exclamation',      # yellow: worth a look
+    'high': 'fa-triangle-exclamation',      # orange: needs attention soon
+    'bad': 'fa-triangle-exclamation',       # red: act now
+    'info': 'fa-circle-info',
+    'run': 'fa-arrows-rotate',
+    'wait': 'fa-hourglass-half',
+    'purple': 'fa-ban',
+}
+
+
+@register.filter
+def state_icon(state, label=''):
+    """The icon of a state ('ok', 'warn', 'high', 'bad', 'info', 'run',
+    'wait'). With a label the icon stands alone and says it (tooltip, screen
+    readers); without one it sits beside text that says it."""
+    from django.utils.html import format_html
+    state = state if state in STATE_ICONS else 'info'
+    if label:
+        return format_html('<i class="fas {} rf-state rf-state-{}" role="img" aria-label="{}" title="{}"></i>',
+                           STATE_ICONS[state], state, label, label)
+    return format_html('<i class="fas {} rf-state rf-state-{}" aria-hidden="true"></i>', STATE_ICONS[state], state)

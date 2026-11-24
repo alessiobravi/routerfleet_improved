@@ -198,6 +198,12 @@ STATIC_ROOT = '/app_static_files/'
 STATICFILES_DIRS = [
     BASE_DIR / "static_files",
 ]
+# Content hashes in the file names, so browsers may keep them for a year
+# (routerfleet/static_storage.py; nginx sends the long lifetime)
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'routerfleet.static_storage.HashedStaticFiles'},
+}
 
 
 # Default primary key field type
@@ -209,7 +215,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.28.0'
+ROUTERFLEET_RELEASE = '0.29.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

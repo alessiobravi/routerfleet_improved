@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load custom_tags %}
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -19,7 +20,7 @@
                     <li><b>Trusted by browsers:</b> {% if proposal.certificate.trusted %}yes{% else %}no - browsers will warn, passkeys will not work{% endif %}</li>
                 </ul>
                 {% endif %}
-                <h6>Passkeys after the change {% if passkeys_ok %}<span class="badge text-bg-success">will work</span>{% else %}<span class="badge text-bg-warning">will not work</span>{% endif %}</h6>
+                <h6>Passkeys after the change {% if passkeys_ok %}<span class="badge text-bg-success">{{ 'ok'|state_icon }}will work</span>{% else %}<span class="badge text-bg-warning">{{ 'warn'|state_icon }}will not work</span>{% endif %}</h6>
                 <ul class="list-unstyled">
                     {% for label, ok in requirements %}
                     <li>{% if ok is True %}<i class="fas fa-check-circle text-success"></i>{% elif ok is False %}<i class="fas fa-times-circle text-danger"></i>{% else %}<i class="fas fa-question-circle text-muted"></i>{% endif %} {{ label }}</li>

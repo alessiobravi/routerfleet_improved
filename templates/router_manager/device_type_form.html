@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load static %}
 {% block content %}
 <div class="rf-settings rf-dt {% if new %}rf-wizard{% endif %}">
     <a href="/system/device-types/" class="small"><i class="fas fa-chevron-left"></i> Device types</a>
@@ -209,9 +210,9 @@
     </form>
 </div>
 {{ presets_json|json_script:"dt-presets" }}
-<link rel="stylesheet" href="/static/routerfleet/device-type-form.css">
+<link rel="stylesheet" href="{% static 'routerfleet/device-type-form.css' %}">
 {% endblock %}
 
 {% block custom_page_scripts %}
-<script src="/static/routerfleet/device-type-form.js"></script>
+<script src="{% static 'routerfleet/device-type-form.js' %}"></script>
 {% endblock %}

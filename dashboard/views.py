@@ -37,8 +37,15 @@ def get_directory_statistics(directory_path):
     # Get total disk usage
     total, used, free = shutil.disk_usage(directory_path)
     
-    # Calculate the size of the directory
-    directory_used = sum(os.path.getsize(os.path.join(root, file)) for root, dirs, files in os.walk(directory_path) for file in files)
+    # The size of the backups: every file is read, which grows with the backups
+    # kept - so it is reckoned at most every 10 minutes, not at every page
+    from django.core.cache import cache
+    key = f'rf-directory-size:{directory_path}'
+    directory_used = cache.get(key)
+    if directory_used is None:
+        directory_used = sum(os.path.getsize(os.path.join(root, file))
+                             for root, dirs, files in os.walk(directory_path) for file in files)
+        cache.set(key, directory_used, 600)
     
     # Get sizes in a human-readable format
     total_human = human_readable_size(total)
@@ -132,7 +139,7 @@ def _scheduler_card(now):
     stopped = [name for name, ok in (('scheduler', cron_ok), ('monitoring', monitoring_ok)) if not ok]
     docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/operations.md#troubleshooting'
     return _card('Scheduler & monitoring', 'Running' if not stopped else 'Stopped',
-                 *(('ok', 'OK') if not stopped else ('bad', 'Act')), docs,
+                 *(('ok', 'OK') if not stopped else ('bad', 'Act now')), docs,
                  f'scheduler {_ago(cron, now)} \u00b7 monitoring {_ago(monitoring, now)}', external=True)
 
 
@@ -158,34 +165,35 @@ def status_cards():
     versions = update_state_counts()
 
     pct = storage['usage_percentage']
-    storage_state = ('bad', 'Act') if pct >= 90 else ('warn', 'Look') if pct >= 80 else ('ok', 'OK')
+    storage_state = ('bad', 'Act now') if pct >= 90 else ('high', 'Needs attention soon') if pct >= 85 \
+        else ('warn', 'Worth a look') if pct >= 75 else ('ok', 'OK')
     cards = [
-        _card('Failed backups \u00b7 24h', error_24, *(('bad', 'Act') if error_24 else ('ok', 'OK')),
+        _card('Failed backups \u00b7 24h', error_24, *(('bad', 'Act now') if error_24 else ('ok', 'OK')),
               '/router/list/?state=backup_failed', _delta(error_24, error_before), backups['error_data'], '--rf-red'),
-        _card('Successful backups \u00b7 24h', success_24, *(('ok', 'OK') if success_24 else ('info', 'None')),
+        _card('Successful backups \u00b7 24h', success_24, *(('ok', 'OK') if success_24 else ('info', 'None in the last 24 hours')),
               '/backup/backup_list/?since=24h', _delta(success_24, success_before), backups['success_data'], '--rf-teal'),
-        _card('Backup queue', queue, *(('ok', 'Clear') if not queue else ('info', 'Running')),
+        _card('Backup queue', queue, *(('ok', 'Nothing waiting') if not queue else ('run', 'Running')),
               '/backup/backup_list/?type=queue', 'nothing waiting' if not queue else f'{queue} waiting to run'),
         _card('Backup storage', f'{pct}%', *storage_state, '/backup/backup_list/',
               f"{storage['used']} of {storage['total']}" + (f" \u00b7 {storage['storage_warning']}" if storage['storage_warning'] else '')),
-        _card('Devices online', f'{online} / {online + offline}', *(('ok', 'OK') if not offline else ('bad', 'Act')),
+        _card('Devices online', f'{online} / {online + offline}', *(('ok', 'OK') if not offline else ('bad', 'Act now')),
               '/router/list/?state=online', f'{total} devices in all', devices['online_data'], '--rf-navy'),
-        _card('Devices offline', offline, *(('ok', 'OK') if not offline else ('bad', 'Act')),
+        _card('Devices offline', offline, *(('ok', 'OK') if not offline else ('bad', 'Act now')),
               '/router/list/?state=offline', 'all monitored devices reachable' if not offline else 'not answering pings',
               devices['offline_data'] if any(devices['offline_data']) else None, '--rf-red'),
-        _card('Disabled devices', disabled, *(('ok', 'None') if not disabled else ('info', 'Info')),
+        _card('Disabled devices', disabled, *(('ok', 'None') if not disabled else ('info', 'Switched off on purpose')),
               '/router/list/?state=disabled', 'switched off on purpose' if disabled else 'every device enabled'),
-        _card('Unmonitored devices', unmonitored, *(('ok', 'OK') if not unmonitored else ('info', 'Look')),
+        _card('Unmonitored devices', unmonitored, *(('ok', 'OK') if not unmonitored else ('warn', 'Worth a look')),
               '/router/list/?state=unmonitored', 'every device monitored' if not unmonitored else 'not watched for reachability'),
     ]
     if versions['update_waiting']:
-        cards.append(_card('Missing OS updates', versions['update_waiting'], 'warn', 'Look',
+        cards.append(_card('Missing OS updates', versions['update_waiting'], 'warn', 'Worth a look',
                            '/router/list/?state=update_waiting', 'a newer version is available for them'))
     if versions['up_to_date']:
         cards.append(_card('Devices up to date', versions['up_to_date'], 'ok', 'OK',
                            '/router/list/?state=up_to_date', 'running the version they could update to'))
     cards.append(_card('Without version info', versions['no_information'],
-                       *(('info', 'Refresh') if versions['no_information'] else ('ok', 'OK')),
+                       *(('info', 'Update their router information') if versions['no_information'] else ('ok', 'OK')),
                        '/router/list/?state=no_information',
                        'update their router information' if versions['no_information'] else 'every device read'))
     cards.insert(4, _scheduler_card(now))

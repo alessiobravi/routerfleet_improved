@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 
+{% load static %}
 {% block content %}
 <div class="rf-settings">
     <div class="rf-set-title">Account</div>
@@ -110,6 +111,6 @@
 {% endblock %}
 
 {% block custom_page_scripts %}
-<script src="/static/routerfleet/passkeys.js"></script>
-<script src="/static/routerfleet/user-settings.js"></script>
+<script src="{% static 'routerfleet/passkeys.js' %}"></script>
+<script src="{% static 'routerfleet/user-settings.js' %}"></script>
 {% endblock %}

@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
 
+{% load static %}
 {% block page_custom_head %}
-    <link rel="stylesheet" type="text/css" href="/static/plugins/diff2html/diff2html.min.css"/>
-    <script type="text/javascript" src="/static/plugins/diff2html/diff2html.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="{% static 'plugins/diff2html/diff2html.min.css' %}"/>
+    <script type="text/javascript" src="{% static 'plugins/diff2html/diff2html.min.js' %}"></script>
 
-    <link rel="stylesheet" href="/static/routerfleet/compare-backups.css">
+    <link rel="stylesheet" href="{% static 'routerfleet/compare-backups.css' %}">
 
 {% endblock %}
 
@@ -52,5 +53,5 @@
 
 {% block custom_page_scripts %}
     {{ diff_str|json_script:"diff-data" }}
-    <script src="/static/routerfleet/compare-backups.js"></script>
+    <script src="{% static 'routerfleet/compare-backups.js' %}"></script>
 {% endblock %}

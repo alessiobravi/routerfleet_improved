@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load router_tags %}
+{% load router_tags custom_tags %}
 
 {% block content %}
 <div id="rf-live-router" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="{{ live_reason }}" data-rf-live-interval="5">
@@ -396,13 +396,13 @@
                                                 </td>
                                                 <td>
                                                     {% if task.status == 'success' %}
-                                                        <span class="badge text-bg-success">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-success">{{ 'ok'|state_icon }}{{ task.get_status_display }}</span>
                                                     {% elif task.status == 'error' %}
-                                                        <span class="badge text-bg-danger">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-danger">{{ 'bad'|state_icon }}{{ task.get_status_display }}</span>
                                                     {% elif task.status == 'aborted' %}
-                                                        <span class="badge text-bg-secondary">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-secondary">{{ 'info'|state_icon }}{{ task.get_status_display }}</span>
                                                     {% else %}
-                                                        <span class="badge text-bg-warning">{{ task.get_status_display }}</span>
+                                                        <span class="badge text-bg-warning">{{ 'warn'|state_icon }}{{ task.get_status_display }}</span>
                                                     {% endif %}
                                                     {% if task.verified %}
                                                         <i class="fas fa-check-double text-success ms-1"

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,18 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% if page_title %}{{ page_title }} | {% endif %}RouterFleet Improved</title>
-    <link rel="icon" href="/static/routerfleet/logo.svg" type="image/svg+xml">
+    <link rel="icon" href="{% static 'routerfleet/logo.svg' %}" type="image/svg+xml">
     <!-- Light or dark before anything is drawn -->
-    <script src="/static/routerfleet/theme-boot.js"></script>
+    <script src="{% static 'routerfleet/theme-boot.js' %}"></script>
     <!-- Source Sans Pro, served from this installation -->
-    <link rel="stylesheet" href="/static/fonts/source-sans-pro/source-sans-pro.css">
-    <link rel="stylesheet" href="/static/vendor/fontawesome-7.3.1/css/all.min.css">
-    <link rel="stylesheet" href="/static/vendor/overlayscrollbars-2.17.1/overlayscrollbars.min.css">
-    <link rel="stylesheet" href="/static/vendor/adminlte-4.10.2/adminlte.min.css">
-    <link rel="stylesheet" href="/static/vendor/datatables-3.1.5/dataTables.bootstrap5.min.css">
-    <link rel="stylesheet" href="/static/vendor/datatables-3.1.5/responsive.bootstrap5.min.css">
-    <link rel="stylesheet" href="/static/vendor/tom-select-2.7.0/tom-select.bootstrap5.min.css">
-    <link rel="stylesheet" href="/static/routerfleet/app.css">
+    <link rel="stylesheet" href="{% static 'fonts/source-sans-pro/source-sans-pro.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/fontawesome-7.3.1/css/all.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/overlayscrollbars-2.17.1/overlayscrollbars.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/adminlte-4.10.2/adminlte.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/datatables-3.1.5/dataTables.bootstrap5.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/datatables-3.1.5/responsive.bootstrap5.min.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/tom-select-2.7.0/tom-select.bootstrap5.min.css' %}">
+    <link rel="stylesheet" href="{% static 'routerfleet/app.css' %}">
     {% block page_custom_head %}{% endblock %}
 </head>
 {% load custom_tags %}
@@ -65,7 +66,7 @@
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
             <a href="/status/" class="brand-link">
-                <img src="/static/routerfleet/logo.svg" alt="" class="brand-image" width="33" height="33">
+                <img src="{% static 'routerfleet/logo.svg' %}" alt="" class="brand-image" width="33" height="33">
                 <span class="brand-text fw-light">RouterFleet Improved</span>
             </a>
         </div>
@@ -202,19 +203,19 @@
     </footer>
 </div>
 
-<script src="/static/vendor/overlayscrollbars-2.17.1/overlayscrollbars.browser.es6.min.js"></script>
-<script src="/static/vendor/bootstrap-5.3.9/bootstrap.bundle.min.js"></script>
-<script src="/static/vendor/adminlte-4.10.2/adminlte.min.js"></script>
-<script src="/static/vendor/datatables-3.1.5/dataTables.min.js"></script>
-<script src="/static/vendor/datatables-3.1.5/dataTables.bootstrap5.min.js"></script>
-<script src="/static/vendor/datatables-3.1.5/dataTables.responsive.min.js"></script>
-<script src="/static/vendor/datatables-3.1.5/responsive.bootstrap5.min.js"></script>
-<script src="/static/vendor/tom-select-2.7.0/tom-select.complete.min.js"></script>
-<script src="/static/routerfleet/app.js"></script>
+<script src="{% static 'vendor/overlayscrollbars-2.17.1/overlayscrollbars.browser.es6.min.js' %}"></script>
+<script src="{% static 'vendor/bootstrap-5.3.9/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/adminlte-4.10.2/adminlte.min.js' %}"></script>
+<script src="{% static 'vendor/datatables-3.1.5/dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables-3.1.5/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'vendor/datatables-3.1.5/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'vendor/datatables-3.1.5/responsive.bootstrap5.min.js' %}"></script>
+<script src="{% static 'vendor/tom-select-2.7.0/tom-select.complete.min.js' %}"></script>
+<script src="{% static 'routerfleet/app.js' %}"></script>
 {% include "template_messages.html" %}
-<script src="/static/routerfleet/live.js"></script>
-<script src="/static/routerfleet/theme.js"></script>
-<script src="/static/routerfleet/confirm.js"></script>
+<script src="{% static 'routerfleet/live.js' %}"></script>
+<script src="{% static 'routerfleet/theme.js' %}"></script>
+<script src="{% static 'routerfleet/confirm.js' %}"></script>
 {% block custom_page_scripts %}{% endblock %}
 </body>
 </html>

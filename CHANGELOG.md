@@ -13,6 +13,33 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.29.0] - 2026-11-24
+
+### Changed
+- **States are shown as icons**: a green tick when all is well, the warning
+  sign in yellow (worth a look), orange (needs attention soon) or red (act
+  now), grey for information. On the status page the icon replaces the
+  *OK* / *Look* / *Act* tags (pointing at it says it in words, as do screen
+  readers); on object pages and in state badges it stands beside the words.
+  Backup storage turns yellow from 75 %, orange from 85 %, red from 90 %;
+  unmonitored devices are worth a look (yellow).
+
+### Performance
+- **Pages appear faster, the first one after signing in above all.** Static
+  files carry the hash of their content in their names, so browsers keep them
+  for a year and never run an old one after an update; nginx sends them
+  compressed (pages themselves never, as they carry the CSRF token). The first
+  page after signing in loaded about 1 MB of scripts and styles uncompressed,
+  and pages asked for them again.
+- The application serves several requests per worker on PostgreSQL (5 workers,
+  4 threads each): the scheduler's work with devices, which can take up to a
+  minute per job, no longer holds up a page clicked meanwhile. SQLite keeps one
+  request per worker.
+- The status page reckons the size of the backups at most every 10 minutes
+  instead of reading every backup file at every load.
+- The application's log shows how long each request took (Operations, "Pages
+  are slow").
+
 ## [0.28.0] - 2026-11-24
 
 ### Changed

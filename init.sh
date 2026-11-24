@@ -21,10 +21,19 @@ python manage.py collectstatic --noinput
   done
 ) &
 
+# Threads: the scheduler's jobs (backups, router information, commands,
+# firmware) each hold a request for up to a minute while they talk to devices;
+# with one request per worker, a page clicked meanwhile waited behind them.
+# The access log carries how long each request took (the last field, ms).
+# SQLite takes one writer at a time: one thread per worker there, as before.
+THREADS=4
+if [[ "${DATABASE_ENGINE,,}" == "sqlite" ]]; then THREADS=1; fi
 exec gunicorn routerfleet.wsgi:application \
   --bind 0.0.0.0:8001 \
-  --worker-class sync \
+  --worker-class gthread \
   --workers 5 \
+  --threads "$THREADS" \
+  --access-logformat '%(h)s %(t)s "%(r)s" %(s)s %(b)s %(M)sms' \
   --timeout 300 \
   --graceful-timeout 30 \
   --max-requests 1000 \

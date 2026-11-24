@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% load router_tags %}
 
 
@@ -361,5 +362,5 @@
 {% endblock %}
 
 {% block custom_page_scripts %}
-    <script src="/static/routerfleet/router-list.js"></script>
+    <script src="{% static 'routerfleet/router-list.js' %}"></script>
 {% endblock %}

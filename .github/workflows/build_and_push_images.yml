@@ -216,6 +216,21 @@ jobs:
           # Static files, including the bundled font, are served with nosniff
           FONT=$(curl -fsSk -D - -o /dev/null https://localhost/static/fonts/source-sans-pro/SourceSansPro-Regular.woff2)
           grep -qi '^x-content-type-options: nosniff' <<< "${FONT}"
+          # Pages name static files with the hash of their content; those are kept
+          # a year and sent compressed, a plain name is asked again every time
+          HASHED=$(grep -oE '/static/vendor/adminlte-[0-9.]+/adminlte\.min\.[0-9a-f]{12}\.css' <<< "${PAGE}" | head -1)
+          test -n "${HASHED}" || { echo "::error::the page does not name hashed static files"; exit 1; }
+          HASHED_HEADERS=$(curl -fsSk -D - -o /dev/null -H 'Accept-Encoding: gzip' "https://localhost${HASHED}")
+          grep -qi '^cache-control: public, max-age=31536000, immutable' <<< "${HASHED_HEADERS}"
+          grep -qi '^content-encoding: gzip' <<< "${HASHED_HEADERS}"
+          grep -qi '^x-content-type-options: nosniff' <<< "${HASHED_HEADERS}"
+          PLAIN_HEADERS=$(curl -fsSk -D - -o /dev/null https://localhost/static/routerfleet/auth.js)
+          grep -qi '^cache-control: no-cache' <<< "${PLAIN_HEADERS}"
+          # Pages themselves are never compressed (BREACH): they carry the CSRF token
+          LOGIN_HEADERS=$(curl -sSkL -D - -o /dev/null -H 'Accept-Encoding: gzip' https://localhost/accounts/login/)
+          if grep -qi '^content-encoding:' <<< "${LOGIN_HEADERS}"; then
+            echo "::error::pages are sent compressed"; exit 1
+          fi
           # With HTTPS enforced, the CSRF cookie is only ever sent over HTTPS
           # (two steps: in a bracket expression, \r is a backslash and an r)
           FIRST=$(curl -sSkL -D - -o /dev/null https://localhost/accounts/login/)

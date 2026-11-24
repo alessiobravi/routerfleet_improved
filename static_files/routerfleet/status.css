@@ -35,7 +35,8 @@ html.rf-dark .rf-status { --rf-navy: #8fb3e0; }
 .rf-status .rf-card:focus-visible { outline: 3px solid var(--rf-navy); outline-offset: 2px; }
 .rf-status .rf-card.ok { border-left-color: var(--rf-green); }
 .rf-status .rf-card.bad { border-left-color: var(--rf-red); }
-.rf-status .rf-card.warn { border-left-color: var(--rf-amber); }
+.rf-status .rf-card.warn { border-left-color: #e0a800; }
+.rf-status .rf-card.high { border-left-color: #e8590c; }
 .rf-status .rf-card.info { border-left-color: var(--rf-grey); }
 .rf-status .rf-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
 .rf-status .rf-name { font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: var(--rf-muted); }
@@ -48,3 +49,4 @@ html.rf-dark .rf-status { --rf-navy: #8fb3e0; }
 .rf-status .rf-chip.info { background: rgba(138, 150, 163, .16); color: #5f6b78; }
 @media (max-width: 1199px) { .rf-status .rf-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 575px) { .rf-status .rf-cards { grid-template-columns: 1fr; } }
+.rf-status .rf-chip-icon { font-size: 18px; line-height: 1; }

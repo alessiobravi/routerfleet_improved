@@ -1,3 +1,4 @@
+{% load custom_tags %}
 <table class="table table-hover">
     <thead>
     <tr>
@@ -25,14 +26,14 @@
         <td>{{ task.address }}</td>
         <td id="status-{{ task.uuid }}">
             {% if task.import_success %}
-            <span class="badge text-bg-success">Success</span>
+            <span class="badge text-bg-success">{{ 'ok'|state_icon }}Success</span>
             {% elif task.import_error %}
-            <span class="badge text-bg-danger">Error</span>
+            <span class="badge text-bg-danger">{{ 'bad'|state_icon }}Error</span>
             {% else %}
-            <span class="badge text-bg-warning">Pending</span>
+            <span class="badge text-bg-warning">{{ 'wait'|state_icon }}Pending</span>
             {% endif %}
             {% comment %}
-            <span class="badge text-bg-info">Working...</span>
+            <span class="badge text-bg-info">{{ 'run'|state_icon }}Working...</span>
             {% endcomment %}
         </td>
         <td id="errormessage-{{ task.uuid }}">{{ task.import_error_message|default_if_none:'' }}</td>

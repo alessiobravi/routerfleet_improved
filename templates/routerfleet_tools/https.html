@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load custom_tags %}
 {% block content %}
 <div class="row">
     <div class="col-12">
@@ -38,7 +39,7 @@
                         <li class="list-group-item"><b>Trusted by browsers</b><span class="float-end">{% if current.custom_trusted %}yes{% else %}no{% endif %}</span></li>
                     {% endif %}
                 </ul>
-                <h6 class="mt-3">Passkeys {% if passkeys_ok %}<span class="badge text-bg-success">will work</span>{% else %}<span class="badge text-bg-warning">will not work</span>{% endif %}</h6>
+                <h6 class="mt-3">Passkeys {% if passkeys_ok %}<span class="badge text-bg-success">{{ 'ok'|state_icon }}will work</span>{% else %}<span class="badge text-bg-warning">{{ 'warn'|state_icon }}will not work</span>{% endif %}</h6>
                 <ul class="list-unstyled mb-1">
                     {% for label, ok in requirements %}
                     <li>{% if ok is True %}<i class="fas fa-check-circle text-success"></i>{% elif ok is False %}<i class="fas fa-times-circle text-danger"></i>{% else %}<i class="fas fa-question-circle text-muted" title="Decided by the reverse proxy"></i>{% endif %} {{ label }}</li>
@@ -61,7 +62,7 @@
                         <input type="radio" class="form-check-input" id="mode-{{ value }}" name="mode" value="{{ value }}"
                                {% if posted %}{% if posted.mode == value %}checked{% endif %}{% elif current.mode == value %}checked{% endif %}>
                         <label class="form-check-label" for="mode-{{ value }}">{{ label }}
-                            {% if value == 'plain' or value == 'proxy' %}<span class="badge text-bg-danger ms-1">HTTPS off</span>{% endif %}</label>
+                            {% if value == 'plain' or value == 'proxy' %}<span class="badge text-bg-danger ms-1">{{ 'bad'|state_icon }}HTTPS off</span>{% endif %}</label>
                     </div>
                     {% endfor %}
 

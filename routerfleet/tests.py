@@ -763,3 +763,29 @@ class EnvFileTests(TestCase):
                 self.assertTrue({'HTTPS_REDIRECT_POLICY', 'HTTPS_PORT', 'HTTPS_MODE_OVERRIDE', 'LETSENCRYPT_STAGING'} <= names)
                 self.assertEqual(nginx['ports'], ['${HTTP_PORT:-80}:80', '${HTTPS_PORT:-443}:443'])
                 self.assertTrue(all(value is None for value in compose['volumes'].values()), 'a stray line in volumes')
+
+
+class HashedStaticFilesTests(TestCase):
+    """Static file names carry the hash of their content (kept a year by
+    browsers); the vendor files' source-map comments never stop collectstatic,
+    and a name not collected falls back to the plain one."""
+
+    def test_source_maps_are_not_followed(self):
+        from routerfleet.static_storage import HashedStaticFiles
+        for _, patterns in HashedStaticFiles.patterns:
+            for pattern in patterns:
+                self.assertNotIn('sourceMappingURL', pattern if isinstance(pattern, str) else pattern[0])
+        css = dict(HashedStaticFiles.patterns)['*.css']
+        self.assertTrue(any('url' in (p if isinstance(p, str) else p[0]) for p in css), 'fonts in CSS still hashed')
+
+    def test_a_name_not_collected_is_served_plain(self):
+        import tempfile
+        from routerfleet.static_storage import HashedStaticFiles
+        with tempfile.TemporaryDirectory() as root:
+            self.assertEqual(HashedStaticFiles(location=root).stored_name('routerfleet/app.js'), 'routerfleet/app.js')
+
+    def test_templates_name_static_files_through_the_static_tag(self):
+        import pathlib, re
+        root = pathlib.Path(__file__).resolve().parent.parent / 'templates'
+        written = [str(p.relative_to(root)) for p in root.rglob('*.html') if re.search(r'"/static/', p.read_text())]
+        self.assertEqual(written, [], 'a path written by hand is never hashed')

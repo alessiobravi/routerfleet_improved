@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load custom_tags %}
 {% block content %}
 <div id="rf-live-job" data-rf-live="{% if not job.completed %}active{% else %}done{% endif %}" data-rf-live-reason="job running" data-rf-live-interval="3">
     {% if job.schedule and job.schedule.enabled %}
@@ -35,7 +36,7 @@
                         <div class="rf-o-sub">{% if task.router %}{{ task.router.address }} · {{ task.router.get_router_type_display }}{% endif %}{% if task.retry_count > 1 %} · run {{ task.retry_count }} times{% endif %}</div>
                     </div>
                     <span class="rf-o-time">{% if task.finished_at %}{{ task.finished_at|date:"H:i:s" }}{% elif task.started_at %}{{ task.started_at|date:"H:i:s" }}{% endif %}</span>
-                    <span class="rf-o-chip rf-o-{{ task.state.0 }}"><span class="rf-o-dot"></span>{{ task.state.1 }}{% if task.verified %} <i class="fas fa-check-double" title="Result verified on the device"></i>{% endif %}</span>
+                    <span class="rf-o-chip rf-o-{{ task.state.0 }}">{{ task.state.0|state_icon }}{{ task.state.1 }}{% if task.verified %} <i class="fas fa-check-double" title="Result verified on the device"></i>{% endif %}</span>
                     <span class="text-nowrap">
                         <a href="/fleet_commander/task/details/?uuid={{ task.uuid }}" title="Task details"><i class="fas fa-search"></i></a>
                         {% if task.status == 'pending' %}

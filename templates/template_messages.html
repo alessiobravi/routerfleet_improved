@@ -1,3 +1,4 @@
+{% load static %}
 {# The server's messages and a form's errors, as data notify.js reads - no inline script #}
 {% load custom_tags %}{% page_messages messages form as rf_page_messages %}{{ rf_page_messages|json_script:"rf-page-messages" }}
-<script src="/static/routerfleet/notify.js"></script>
+<script src="{% static 'routerfleet/notify.js' %}"></script>
