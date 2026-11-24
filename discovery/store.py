@@ -77,6 +77,43 @@ def import_listener_file(path=None):
     for record in (data.get('devices') or {}).values() if isinstance(data, dict) else []:
         if isinstance(record, dict):
             clean = {k: str(v)[:200] for k, v in record.items() if k != 'protocols' and isinstance(v, (str, int))}
-            clean['protocols'] = {str(p)[:8] for p in record.get('protocols') or [] if p in ('lldp', 'cdp', 'mndp')}
+            clean['protocols'] = {str(p)[:8] for p in record.get('protocols') or [] if p in ('lldp', 'cdp', 'mndp', 'ubnt')}
             records.append(clean)
     return store(records, seen_by=LAN)
+
+
+WINDOW_SECONDS = 180
+ALIVE_SECONDS = 30
+
+
+def _folder():
+    return os.path.dirname(getattr(settings, 'DISCOVERY_FILE', '/discovery/seen.json'))
+
+
+def listener_state():
+    """{'running': bool, 'listening_left': seconds} from the listener's own
+    heartbeat; not running when it has not written one for half a minute."""
+    import time
+    try:
+        with open(os.path.join(_folder(), 'listener.json'), encoding='utf-8') as handle:
+            state = json.load(handle)
+    except (OSError, ValueError):
+        return {'running': False, 'listening_left': 0}
+    now = time.time()
+    running = now - float(state.get('alive', 0)) < ALIVE_SECONDS
+    left = max(0, int(float(state.get('listening_until', 0)) - now)) if running else 0
+    return {'running': running, 'listening_left': left}
+
+
+def ask_listener(seconds=WINDOW_SECONDS):
+    """Asks the listener to listen for a while (it reads the request within
+    two seconds). False when the shared folder can not be written."""
+    import time
+    path = os.path.join(_folder(), 'request.json')
+    try:
+        with open(path + '.tmp', 'w', encoding='utf-8') as handle:
+            json.dump({'until': time.time() + seconds}, handle)
+        os.replace(path + '.tmp', path)
+        return True
+    except OSError:
+        return False

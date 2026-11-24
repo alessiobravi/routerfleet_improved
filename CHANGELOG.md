@@ -20,13 +20,17 @@ the Zabbix kit reads, says so under **Monitoring**.
   and MikroTik MNDP, added in one click - the device form filled in with name
   and address, the device type guessed from the announced platform.
   - **From the neighbour tables of managed devices**: a new system command,
-    *neighbours*, read with every router information update (RouterOS,
-    Cisco, Junos, Huawei shipped; OpenWrt where lldpd is installed). Reaches
+    *neighbours*, read with every router information update: RouterOS (MNDP,
+    CDP, LLDP), Cisco CDP and LLDP, Junos LLDP details, Huawei LLDP and CDP,
+    OpenWrt where lldpd is installed (LLDP and CDP). airOS lists no
+    neighbours, but announces itself by CDP and Ubiquiti discovery. Reaches
     every network they touch; nothing to install.
-  - **An optional listener on RouterFleet's own LAN** (`docker compose
-    --profile discovery up -d`): host networking and the raw-socket right
-    only, read-only, sends nothing; hands what it hears over in a file on a
-    shared volume - no network path, no credential.
+  - **Discover adjacent devices** listens three minutes on RouterFleet's own
+    LAN (MNDP, LLDP, CDP, Ubiquiti discovery), through a small container
+    that is dormant - no
+    socket open - until asked: host networking and the raw-socket right
+    only, read-only, sends nothing; request and findings pass through a file
+    on a shared volume - no network path, no credential.
   - Already managed devices are matched; others can be hidden.
 
 ## [0.35.1] - 2026-11-24

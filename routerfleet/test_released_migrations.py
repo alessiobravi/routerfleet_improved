@@ -75,7 +75,7 @@ RELEASED = {
     'fleet_commander/migrations/0019_firmware_online_update.py': 'dfee393c769741b6bfb049a988330f35cb3e6b2201a01d24260531a02424126b',
     'fleet_commander/migrations/0020_firmware_bootloader_upgrade.py': '852e0890d00a242100bed97c9011dd415b9244dacd7d4d414841eeb03b7ce520',
     'fleet_commander/migrations/0021_huawei_firmware.py': '4a4b18bc744c0bc5e48353d881f1ff6845877c940dd70c4d0a54130d3a3d029c',
-    'fleet_commander/migrations/0022_neighbors_command.py': 'd0157beb00725cd73c60867be9e404aaf477ada56606c3fe022d209e1d5b7524',
+    'fleet_commander/migrations/0022_neighbors_command.py': 'd65c506a20b09fc75ea739d785d60fe877a16736521c3abd874f8f73105e7fd6',
     'import_tool/migrations/0001_initial.py': '132a6a583f3366f0e093a1bccdb08d7e5ef6314867c4b0b9dcdea6dbece200db',
     'import_tool/migrations/0002_rename_created_at_csvdata_created_and_more.py': '6a95e115daaa75a092ca33465c961ec8965bad4a7cc76ac694fa0b0cb16d0810',
     'import_tool/migrations/0003_importtask_router_group_name_importtask_ssh_key_name.py': '48dad1e0ba7c9f993bcc8ca28fa3f74a45c2200dffa501fda1aea93d6c5e7a15',

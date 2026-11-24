@@ -18,6 +18,8 @@ IPV4 = re.compile(r'\b(\d{1,3}(?:\.\d{1,3}){3})\b')
 def normal_mac(value):
     """aa:bb:cc:dd:ee:ff for a MAC address in any common spelling, else ''."""
     text = (value or '').strip()
+    if re.match(r'^([0-9a-f]{2} ){5}[0-9a-f]{2}$', text, re.I):
+        text = text.replace(' ', ':')
     if not MAC.match(text):
         return ''
     digits = re.sub(r'[^0-9a-f]', '', text.lower())
@@ -102,14 +104,28 @@ def _cisco_lldp(text):
 
 
 def _huawei(text):
-    found = []
-    for block in re.split(r'(?im)^\s*Neighbor index\s*:', text)[1:]:
-        interface = re.findall(r'(?m)^(\S+) has \d+ neighbor', text.split(block)[0])
+    """`display lldp neighbor` and `display cdp neighbor` (CDP received with
+    `lldp compliance cdp receive`): per port "<port> has N neighbor(s):", then
+    blocks from "Neighbor index :"; CDP blocks name the device "Device ID"."""
+    found, port = [], ''
+    parts = re.split(r'(?im)^(\S+ has \d+ neighbor\(s\):|\s*Neighbor index\s*:.*)$', text)
+    for part in parts:
+        header = re.match(r'(\S+) has \d+ neighbor', part or '')
+        if header:
+            port = header.group(1)
+            continue
+        if not part or ('System name' not in part and 'Device ID' not in part):
+            continue
+        cdp = bool(re.search(r'(?im)^\s*Device ID\s*:', part))
+        version = re.search(r'(?ims)^\s*Version\s*:(.*?)^\s*Platform\s*:', part)
         found.append(_clean({
-            'identity': _field(block, 'System name'), 'address': _field(block, 'Management address'),
-            'mac': _field(block, 'Chassis ID'), 'platform': _field(block, 'System description'),
-            'interface': interface[-1] if interface else '', 'remote_interface': _field(block, 'Port ID'),
-            'protocols': {'lldp'}}))
+            'identity': _field(part, 'Device ID') if cdp else _field(part, 'System name'),
+            'address': _field(part, 'Management address'),
+            'mac': _field(part, 'MacAddress') if cdp else _field(part, 'Chassis ID'),
+            'platform': _field(part, 'Platform') if cdp else _field(part, 'System description'),
+            'version': ' '.join(version.group(1).split())[:200] if cdp and version else '',
+            'interface': port, 'remote_interface': _field(part, 'Port ID'),
+            'protocols': {'cdp' if cdp else 'lldp'}}))
     return found
 
 
@@ -120,11 +136,12 @@ def _lldpcli(text):
         by_port.setdefault(match.group(1), {})[match.group(2)] = match.group(3)
     found = []
     for port, fields in by_port.items():
+        via = (fields.get('via') or 'LLDP').upper()
         found.append(_clean({
-            'identity': fields.get('chassis.name'), 'address': fields.get('chassis.mgmt-ip'),
-            'mac': fields.get('chassis.mac') or fields.get('chassis.id'), 'platform': fields.get('chassis.descr'),
+            'identity': fields.get('chassis.name') or fields.get('chassis.local'), 'address': fields.get('chassis.mgmt-ip'),
+            'mac': fields.get('chassis.mac'), 'platform': fields.get('chassis.descr'),
             'interface': port, 'remote_interface': fields.get('port.ifname') or fields.get('port.descr'),
-            'protocols': {'lldp'}}))
+            'protocols': {'cdp' if via.startswith('CDP') else 'lldp'}}))
     return found
 
 
@@ -146,6 +163,21 @@ def _junos(text):
     return found
 
 
+def _junos_detail(text):
+    """`show lldp neighbors detail` (Junos 19.1R2 and later) or per interface:
+    blocks from "LLDP Neighbor Information:"."""
+    found = []
+    for block in re.split(r'(?m)^\s*LLDP Neighbor Information:\s*$', text)[1:]:
+        address = re.search(r'(?ims)^\s*Management address.*?^\s*Address\s*:\s*(\d{1,3}(?:\.\d{1,3}){3})', block)
+        found.append(_clean({
+            'identity': _field(block, 'System name'), 'address': address.group(1) if address else '',
+            'mac': _field(block, 'Chassis ID'), 'platform': _field(block, 'System Description'),
+            'interface': _field(block, 'Local Interface'),
+            'remote_interface': _field(block, 'Port description') or _field(block, 'Port ID'),
+            'protocols': {'lldp'}}))
+    return found
+
+
 def parse(text):
     """Every neighbour in the output of one or more neighbour commands."""
     text = (text or '').replace('\r', '')
@@ -154,12 +186,14 @@ def parse(text):
         found += _lldpcli(text)
     if re.search(r'\b(identity|mac-address|discovered-by)=', text):
         found += _routeros(text)
-    if 'Device ID' in text:
+    if re.search(r'(?m)^Device ID: ', text):
         found += _cisco_cdp(text)
     if 'Local Intf' in text:
         found += _cisco_lldp(text)
     if re.search(r'(?im)^\s*Neighbor index\s*:', text):
         found += _huawei(text)
+    if re.search(r'(?m)^\s*LLDP Neighbor Information:', text):
+        found += _junos_detail(text)
     if 'Local Interface' in text and 'Chassis Id' in text:
         found += _junos(text)
     return [record for record in found if record]

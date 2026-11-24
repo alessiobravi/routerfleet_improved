@@ -11,7 +11,7 @@ from routerlib.decorators import cron_endpoint
 from user_manager.models import UserAcl
 
 from .models import DiscoveredDevice
-from .store import import_listener_file
+from .store import WINDOW_SECONDS, ask_listener, import_listener_file, listener_state
 
 LEVEL = 30   # Host Manager: who adds devices
 
@@ -52,11 +52,21 @@ def allowed(request):
 def view_discovered(request):
     if not allowed(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    if request.method == 'POST' and request.POST.get('action') == 'listen':
+        if not listener_state()['running']:
+            messages.warning(request, 'Not started|The discovery listener is not running on this host - see Discovery in the documentation.')
+        elif ask_listener():
+            messages.success(request, f'Listening|For {WINDOW_SECONDS // 60} minutes on RouterFleet\'s LAN: devices appear '
+                                      'here as they announce themselves (LLDP every 30 s, CDP and MNDP every minute).')
+        else:
+            messages.error(request, 'Not started|The shared discovery folder can not be written - check the compose file.')
+        return redirect('/router/discovered/')
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'
         device.save(update_fields=['dismissed'])
         return redirect('/router/discovered/' + ('?dismissed=1' if request.GET.get('dismissed') else ''))
+    import_listener_file()   # what the listener heard so far
     routers = list(Router.objects.only('uuid', 'name', 'address'))
     new, known, dismissed = [], [], []
     for device in DiscoveredDevice.objects.select_related('seen_by_router'):
@@ -71,7 +81,8 @@ def view_discovered(request):
             new.append(row)
     return render(request, 'discovery/discovered.html', {
         'page_title': 'Discovered devices', 'new': new, 'known': known, 'dismissed': dismissed,
-        'show_dismissed': bool(request.GET.get('dismissed'))})
+        'show_dismissed': bool(request.GET.get('dismissed')), 'listener': listener_state(),
+        'window_minutes': WINDOW_SECONDS // 60})
 
 
 def prefill(uuid):

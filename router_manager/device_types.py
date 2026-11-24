@@ -82,7 +82,7 @@ PRESET_COMMANDS = {
         'backup_text': 'running-config: show running-config',
     },
     'juniper-junos': {
-        'neighbors': 'show lldp neighbors',
+        'neighbors': 'show lldp neighbors detail\nshow lldp neighbors',
         'firmware_verify': 'file checksum sha-256 /var/tmp/{{ firmware_name }}',
         'firmware_install': 'request system software add /var/tmp/{{ firmware_name }} reboot',
         'connection_test': 'show version',
@@ -90,7 +90,7 @@ PRESET_COMMANDS = {
         'backup_text': 'configuration: show configuration\nset: show configuration | display set',
     },
     'huawei-vrp': {
-        'neighbors': 'display lldp neighbor',
+        'neighbors': 'display lldp neighbor\ndisplay cdp neighbor',
         'connection_test': 'display version',
         'inventory': 'display version\ndisplay esn',
         'backup_text': 'current-configuration: display current-configuration',

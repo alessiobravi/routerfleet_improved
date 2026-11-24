@@ -18,7 +18,6 @@ services:
 
   routerfleet-discovery:
     image: ghcr.io/alessiobravi/routerfleet-discovery:latest
-    profiles: ["discovery"]
     build:
       context: ./containers/discovery
       dockerfile: Dockerfile-discovery

@@ -1,0 +1,7 @@
+lldp.eth1.via=CDPv2
+lldp.eth1.rid=2
+lldp.eth1.chassis.local=core-sw-03
+lldp.eth1.chassis.name=core-sw-03
+lldp.eth1.chassis.descr=cisco WS-C2960X running on Cisco IOS Software, Version 15.2(7)E8
+lldp.eth1.chassis.mgmt-ip=10.40.0.3
+lldp.eth1.port.ifname=GigabitEthernet1/0/12

@@ -13,8 +13,8 @@ PAYLOADS = {
     'openwrt': 'lldpcli -f keyvalue show neighbors details',
     'cisco-ios': 'show cdp neighbors detail\nshow lldp neighbors detail',
     'cisco-ios-classic': 'show cdp neighbors detail\nshow lldp neighbors detail',
-    'juniper-junos': 'show lldp neighbors',
-    'huawei-vrp': 'display lldp neighbor',
+    'juniper-junos': 'show lldp neighbors detail\nshow lldp neighbors',
+    'huawei-vrp': 'display lldp neighbor\ndisplay cdp neighbor',
 }
 
 

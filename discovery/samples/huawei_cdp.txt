@@ -1,0 +1,11 @@
+GigabitEthernet0/0/1 has 1 neighbor(s):
+Neighbor index :1
+Device ID :ME3400
+Port ID :GigabitEthernet0/4
+Version :Cisco IOS Software, ME340x Software (ME340x-METROIPACCESSK9-M),
+Version 12.2(55)SE3, RELEASE SOFTWARE (fc1)
+Technical Support: http://www.cisco.com/techsupport
+Platform :cisco ME-3400EG-2CS-A
+MacAddress :b4a4-e3cf-e984
+Discovered time:0 days, 22 hours, 33 minutes, 36 seconds
+Expired time :122

@@ -1,15 +1,19 @@
-"""RouterFleet discovery listener - optional (compose profile "discovery").
+"""RouterFleet discovery listener.
 
-Hears the neighbour protocols on the LAN segment of the host it runs on:
-MikroTik MNDP (UDP broadcast, port 5678), LLDP and CDP (layer-2 frames, read
-with a raw socket - the container has host networking and CAP_NET_RAW, and
-nothing else). Nothing is sent. What it hears goes to a JSON file on a volume
-the application reads (DISCOVERY_FILE); a device not heard for a day is left
-out. No network path to the application, no credentials.
+Dormant until asked: it opens no socket and hears nothing until RouterFleet
+asks for a window ("Discover adjacent devices" writes REQUEST with an end
+time). During the window it hears the neighbour protocols on the LAN segment
+of the host it runs on - MikroTik MNDP (UDP broadcast, port 5678), LLDP and
+CDP (layer-2 frames, read with a raw socket: the container has host
+networking and CAP_NET_RAW, nothing else) - then closes its sockets again.
+Nothing is sent. What it hears goes to a JSON file on a shared volume
+(DISCOVERY_FILE); its state to STATE, so the page shows whether it runs. A
+device not heard for a day is left out. No network path to the application.
 """
 import ipaddress
 import json
 import os
+import select
 import socket
 import struct
 import sys
@@ -17,6 +21,10 @@ import threading
 import time
 
 OUT = os.environ.get('DISCOVERY_FILE', '/discovery/seen.json')
+FOLDER = os.path.dirname(OUT)
+REQUEST = os.path.join(FOLDER, 'request.json')
+STATE = os.path.join(FOLDER, 'listener.json')
+LONGEST_WINDOW = 900
 FORGET_SECONDS = 86400
 WRITE_SECONDS = 30
 LLDP_MAC = bytes.fromhex('0180c200000e')
@@ -61,6 +69,33 @@ def parse_mndp(data, source=''):
         elif name:
             record[name] = value.decode('utf-8', errors='replace')
     return record
+
+
+# --- Ubiquiti discovery (UBNT): version, command, 2-byte length, then TLVs of
+# 1-byte type and 2-byte length (types as Wireshark's packet-ubdp.c names them).
+# Heard only when devices announce themselves (airOS broadcasts to port 10002,
+# others to 10001): nothing is asked. --------------------------------------
+UBNT_FIELDS = {0x0B: 'identity', 0x0C: 'model', 0x14: 'model', 0x15: 'model', 0x03: 'version', 0x16: 'version'}
+
+
+def parse_ubnt(data, source=''):
+    if len(data) < 4 or data[0] not in (1, 2):
+        return None
+    record = {'address': source, 'platform': 'Ubiquiti'}
+    position = 4
+    while position + 3 <= len(data):
+        kind = data[position]
+        length = struct.unpack('>H', data[position + 1:position + 3])[0]
+        value = data[position + 3:position + 3 + length]
+        position += 3 + length
+        if kind == 0x02 and len(value) == 10:
+            record['mac'] = mac_text(value[:6])
+            record['address'] = str(ipaddress.IPv4Address(value[6:10]))
+        elif kind in (0x01, 0x05, 0x13) and len(value) == 6:
+            record.setdefault('mac', mac_text(value))
+        elif kind in UBNT_FIELDS and value:
+            record.setdefault(UBNT_FIELDS[kind], value.decode('utf-8', errors='replace'))
+    return record if record.get('mac') or record.get('identity') else None
 
 
 # --- LLDP (IEEE 802.1AB): 7-bit type, 9-bit length ----------------------------
@@ -132,53 +167,134 @@ def parse_frame(frame):
     return None
 
 
-def listen_mndp():
+def listen_mndp(until):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    sock.bind(('', 5678))
-    while True:
-        data, (address, _) = sock.recvfrom(2048)
+    sock.settimeout(1)
+    try:
+        sock.bind(('', 5678))
+    except OSError as error:
+        print(f'MNDP not heard (port 5678: {error}).', flush=True)
+        return
+    try:
+        while time.time() < until():
+            try:
+                data, (address, _) = sock.recvfrom(2048)
+            except socket.timeout:
+                continue
+            try:
+                remember(parse_mndp(data, address), 'mndp')
+            except (struct.error, ValueError):
+                continue
+    finally:
+        sock.close()
+
+
+def listen_ubnt(until):
+    socks = []
+    for port in (10001, 10002):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setblocking(False)
         try:
-            remember(parse_mndp(data, address), 'mndp')
-        except (struct.error, ValueError):
-            continue
+            sock.bind(('', port))
+            socks.append(sock)
+        except OSError as error:
+            print(f'Ubiquiti discovery not heard on port {port} ({error}).', flush=True)
+            sock.close()
+    try:
+        while socks and time.time() < until():
+            ready, _, _ = select.select(socks, [], [], 1)
+            for sock in ready:
+                data, (address, _) = sock.recvfrom(2048)
+                try:
+                    record = parse_ubnt(data, address)
+                except (struct.error, ValueError):
+                    continue
+                if record:
+                    remember(record, 'ubnt')
+    finally:
+        for sock in socks:
+            sock.close()
 
 
-def listen_layer2():
+def listen_layer2(until):
     try:
         sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(ETH_P_ALL))
     except (PermissionError, AttributeError, OSError) as error:
         print(f'LLDP and CDP not heard (raw socket refused: {error}); MNDP only.', flush=True)
         return
-    while True:
-        frame, _ = sock.recvfrom(9000)
-        try:
-            found = parse_frame(frame)
-        except (struct.error, ValueError):
-            continue
-        if found:
-            remember(found[1], found[0])
+    sock.settimeout(1)
+    try:
+        while time.time() < until():
+            try:
+                frame, _ = sock.recvfrom(9000)
+            except socket.timeout:
+                continue
+            try:
+                found = parse_frame(frame)
+            except (struct.error, ValueError):
+                continue
+            if found:
+                remember(found[1], found[0])
+    finally:
+        sock.close()
 
 
-def write_out():
-    while True:
-        time.sleep(WRITE_SECONDS)
-        cutoff = time.time() - FORGET_SECONDS
-        with lock:
-            for key in [k for k, v in seen.items() if v.get('last_seen', 0) < cutoff]:
-                del seen[key]
-            data = {'written': int(time.time()), 'devices': dict(seen)}
-        temporary = OUT + '.tmp'
-        with open(temporary, 'w', encoding='utf-8') as handle:
-            json.dump(data, handle)
-        os.replace(temporary, OUT)
+def write_json(path, data):
+    temporary = path + '.tmp'
+    with open(temporary, 'w', encoding='utf-8') as handle:
+        json.dump(data, handle)
+    os.replace(temporary, path)
+
+
+def write_seen():
+    cutoff = time.time() - FORGET_SECONDS
+    with lock:
+        for key in [k for k, v in seen.items() if v.get('last_seen', 0) < cutoff]:
+            del seen[key]
+        data = {'written': int(time.time()), 'devices': dict(seen)}
+    write_json(OUT, data)
+
+
+def requested_until():
+    """The end of the window RouterFleet asked for (never more than
+    LONGEST_WINDOW from now), or 0."""
+    try:
+        with open(REQUEST, encoding='utf-8') as handle:
+            until = float(json.load(handle).get('until', 0))
+    except (OSError, ValueError, AttributeError):
+        return 0
+    return min(until, time.time() + LONGEST_WINDOW)
 
 
 def main():
-    print('RouterFleet discovery listener: MNDP, LLDP and CDP on this host\'s LAN.', flush=True)
-    for target in (listen_mndp, listen_layer2):
-        threading.Thread(target=target, daemon=True).start()
-    write_out()
+    print("RouterFleet discovery listener: dormant until RouterFleet asks to discover adjacent devices.", flush=True)
+    window = {'until': 0}
+    threads = []
+    last_write = 0
+    while True:
+        asked = requested_until()
+        now = time.time()
+        if asked > now and not any(thread.is_alive() for thread in threads):
+            window['until'] = asked
+            print(f'Listening for {int(asked - now)} s: MNDP, LLDP, CDP and Ubiquiti discovery on this host\'s LAN.', flush=True)
+            threads = [threading.Thread(target=target, args=(lambda: window['until'],), daemon=True)
+                       for target in (listen_mndp, listen_ubnt, listen_layer2)]
+            for thread in threads:
+                thread.start()
+        elif asked > window['until']:
+            window['until'] = asked   # asked again while listening: longer
+        listening = any(thread.is_alive() for thread in threads)
+        if (listening and now - last_write > WRITE_SECONDS) or (not listening and threads):
+            write_seen()
+            last_write = now
+            if not listening:
+                threads = []
+                print('Window over: dormant again.', flush=True)
+        write_json(STATE, {'alive': int(now), 'listening_until': int(window['until']) if listening else 0,
+                           'devices': len(seen)})
+        time.sleep(2)
 
 
 if __name__ == '__main__':

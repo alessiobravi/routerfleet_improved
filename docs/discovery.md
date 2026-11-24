@@ -10,7 +10,7 @@ Two sources feed the list, **Router Manager → Discovered**:
 ```mermaid
 flowchart LR
     managed["Managed devices<br/>(their neighbour tables)"] -- "SSH, with the inventory" --> app["RouterFleet"]
-    lan["RouterFleet's LAN segment"] -- "MNDP, LLDP, CDP frames" --> listener["Discovery listener<br/>(optional)"]
+    lan["RouterFleet's LAN segment"] -- "MNDP, LLDP, CDP frames, when asked" --> listener["Discovery listener<br/>(dormant until asked)"]
     listener -- "a file on a shared volume" --> app
     app --> page["Discovered devices"]
 ```
@@ -27,35 +27,42 @@ every network a managed device touches, and needs nothing installed.
 |---|---|
 | RouterOS | `/ip neighbor print terse` - MNDP, CDP and LLDP together |
 | Cisco IOS / IOS-XE, Cisco IOS (classic) | `show cdp neighbors detail`, `show lldp neighbors detail` |
-| Juniper Junos | `show lldp neighbors` |
-| Huawei VRP | `display lldp neighbor` |
-| OpenWrt | `lldpcli -f keyvalue show neighbors details` - only where lldpd is installed |
+| Juniper Junos | `show lldp neighbors detail` (Junos 19.1R2 and later), and the `show lldp neighbors` table for older releases - Junos has no CDP |
+| Huawei VRP | `display lldp neighbor`, `display cdp neighbor` - CDP is received where `lldp compliance cdp receive` is set on the port |
+| OpenWrt | `lldpcli -f keyvalue show neighbors details` - where the `lldpd` package is installed; it hears CDP too (`enable_cdp`, on by default) |
+| Ubiquiti airOS | none: airOS documents no command listing its neighbours. It *sends* CDP, so airOS devices appear in the neighbour tables of Cisco and MikroTik devices, and the listener hears Ubiquiti's own discovery |
 
 RouterFleet recognises each output by its own markers, so another device type
 needs only its command. A command that fails, or prints nothing it recognises,
 finds nothing - the inventory read is never affected. The parsers follow the
 vendors' documented output; check the list against what your devices report.
 
-## The listener on RouterFleet's LAN (optional)
+## Discover adjacent devices (RouterFleet's LAN)
 
-A small container hears the protocols on the LAN segment of the host
-RouterFleet runs on - useful for devices no managed device is connected to.
-It is **off unless started with its profile**:
+For devices no managed device is connected to, **Discover adjacent devices**
+on the same page listens on the LAN segment of the host RouterFleet runs on -
+MNDP, LLDP, CDP and Ubiquiti's own discovery announcements:
+for three minutes - long enough for several LLDP (every 30 s), CDP and MNDP
+(every minute) announcements - then it goes quiet again. Devices appear as
+they announce themselves; the page refreshes by itself meanwhile.
 
-```bash
-docker compose --profile discovery up -d
-```
+The listening is done by a small container that is part of the compose file
+and **dormant**: it opens no socket and hears nothing until asked. It needs
+**host networking** (the protocols do not cross Docker's network) and, to
+read LLDP and CDP frames, the **raw-socket right** (`CAP_NET_RAW`) - every
+other right is dropped and its file system is read-only. It sends nothing.
+The request, its state and what it hears pass through a file on a shared
+volume; there is no network path between it and the application, and no
+credential. Without the raw-socket right it still hears MNDP and Ubiquiti
+discovery. Ubiquiti devices are heard only where they announce themselves
+(airOS broadcasts to UDP 10002, others to 10001) - nothing is asked, and
+Ubiquiti does not document those announcements. A device not
+heard for a day is left out.
 
-It needs **host networking** (the protocols do not cross Docker's network)
-and, to read LLDP and CDP frames, the **raw-socket right** (`CAP_NET_RAW`) -
-every other right is dropped and its file system is read-only. It sends
-nothing. What it hears goes into a file on a shared volume that the
-application reads every two minutes (read-only); there is no network path
-between them and no credential. Without the raw-socket right it still hears
-MNDP. A device not heard for a day is left out of the file.
-
-Only the host's own segment is heard: switches do not forward these
-protocols.
+The page shows the listener's state: *ready* (dormant), *listening* with the
+time left, or *not running* - when it is not started on this host (compose
+files from before 0.36.0 do not have it: take the current one). Only the host's
+own segment is heard: switches do not forward these protocols.
 
 ## The list
 
@@ -75,5 +82,5 @@ and name, whichever source saw it.
 
 | Action | Minimum level |
 |---|---|
-| See discovered devices, add, hide | 30 - Host Manager |
+| See discovered devices, add, hide, discover adjacent devices | 30 - Host Manager |
 | Edit the neighbours system command | 50 - Administrator |

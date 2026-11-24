@@ -195,21 +195,27 @@ jobs:
       - name: Build and start, waiting for the healthchecks
         run: docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 300
 
-      - name: The optional discovery listener builds, starts and writes its file
+      - name: The discovery listener is dormant, and listens when asked
         run: |
           set -eu
-          docker compose -f docker-compose-dev.yml --profile discovery up -d --build routerfleet-discovery
-          for _ in $(seq 1 25); do
-            docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'discovery listener' && break
-            sleep 2
-          done
-          docker compose -f docker-compose-dev.yml logs routerfleet-discovery
+          docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'dormant until'
           test "$(docker inspect -f '{{.HostConfig.NetworkMode}}' routerfleet-discovery)" = host
           test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' routerfleet-discovery)" = true
           docker inspect -f '{{json .HostConfig.CapAdd}}' routerfleet-discovery | grep -q NET_RAW
-          sleep 35
+          # The application asks for a short window, as the button does
+          docker exec routerfleet python manage.py shell -c "from discovery.store import ask_listener; assert ask_listener(6)"
+          for _ in $(seq 1 10); do
+            docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'Listening for' && break
+            sleep 1
+          done
+          sleep 10
+          docker compose -f docker-compose-dev.yml logs routerfleet-discovery
+          docker compose -f docker-compose-dev.yml logs routerfleet-discovery | grep -q 'dormant again'
           docker exec routerfleet test -f /discovery/seen.json
-          docker exec routerfleet python manage.py shell -c "from discovery.store import import_listener_file; print('imported', import_listener_file())"
+          docker exec routerfleet python manage.py shell -c "
+          from discovery.store import listener_state, import_listener_file
+          state = listener_state(); assert state['running'] and not state['listening_left'], state
+          print('imported', import_listener_file())"
 
       - name: The installation behaves
         run: |

@@ -155,3 +155,84 @@ class ReadNeighboursTests(TestCase):
         self.assertEqual(read_neighbours(session, router), 2)
         session.exec_command.assert_called_once_with('/ip neighbor print terse')
         self.assertEqual(DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC').seen_by_router, router)
+
+
+class DiscoverAdjacentTests(TestCase):
+    """"Discover adjacent devices" asks the dormant listener for a window
+    through the shared folder; the page shows whether it runs."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.settings_override = override_settings(DISCOVERY_FILE=str(pathlib.Path(self.folder.name) / 'seen.json'))
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.client.force_login(make_user(30))
+
+    def heartbeat(self, listening_for=0):
+        import time
+        (pathlib.Path(self.folder.name) / 'listener.json').write_text(json.dumps(
+            {'alive': time.time(), 'listening_until': time.time() + listening_for if listening_for else 0}))
+
+    def test_not_running_the_button_is_greyed_out(self):
+        page = self.client.get('/router/discovered/').content.decode()
+        self.assertIn('Not running on this host', page)
+        self.assertRegex(page, r'rf-set-action w-100 rf-set-disabled"\s+disabled')
+        self.client.post('/router/discovered/', {'action': 'listen'})
+        self.assertFalse((pathlib.Path(self.folder.name) / 'request.json').exists())
+
+    def test_running_the_button_opens_a_window(self):
+        import time
+        self.heartbeat()
+        self.assertIn('Ready, dormant', self.client.get('/router/discovered/').content.decode())
+        self.client.post('/router/discovered/', {'action': 'listen'})
+        until = json.loads((pathlib.Path(self.folder.name) / 'request.json').read_text())['until']
+        self.assertAlmostEqual(until - time.time(), 180, delta=5)
+        self.heartbeat(listening_for=120)
+        page = self.client.get('/router/discovered/').content.decode()
+        self.assertIn('Listening -', page)
+        self.assertIn('data-rf-live="active"', page)
+
+    def test_the_listener_caps_a_window_and_ignores_a_bad_request(self):
+        import time
+        module = listener()
+        module.REQUEST = str(pathlib.Path(self.folder.name) / 'request.json')
+        self.assertEqual(module.requested_until(), 0)
+        pathlib.Path(module.REQUEST).write_text(json.dumps({'until': time.time() + 99999}))
+        self.assertLessEqual(module.requested_until(), time.time() + module.LONGEST_WINDOW + 1)
+        pathlib.Path(module.REQUEST).write_text('not json')
+        self.assertEqual(module.requested_until(), 0)
+
+
+class MoreVendorsTests(TestCase):
+    """Huawei CDP (received with lldp compliance cdp receive), Junos LLDP
+    details, lldpd CDP neighbours, Ubiquiti discovery announcements."""
+
+    def test_huawei_cdp(self):
+        record, = sample('huawei_cdp.txt')
+        self.assertEqual((record['identity'], record['mac'], record['platform'], record['remote_interface'], record['protocols']),
+                         ('ME3400', 'b4:a4:e3:cf:e9:84', 'cisco ME-3400EG-2CS-A', 'GigabitEthernet0/4', {'cdp'}))
+        self.assertIn('12.2(55)SE3', record['version'])
+
+    def test_junos_detail(self):
+        record, = sample('junos_detail.txt')
+        self.assertEqual((record['identity'], record['address'], record['mac'], record['interface']),
+                         ('bng-nw6moj.juniper.net', '10.204.39.232', '88:e0:f3:1f:14:e0', 'ge-0/0/8'))
+
+    def test_junos_old_mac_spelling(self):
+        self.assertEqual(parsers.normal_mac('00 19 bb 20 de 80'), '00:19:bb:20:de:80')
+
+    def test_lldpd_cdp_neighbour(self):
+        record, = sample('lldpcli_cdp.txt')
+        self.assertEqual((record['identity'], record['address'], record['protocols']), ('core-sw-03', '10.40.0.3', {'cdp'}))
+
+    def test_ubiquiti_announcement(self):
+        def tlv(kind, value):
+            return bytes([kind]) + struct.pack('>H', len(value)) + value
+        payload = tlv(0x02, bytes.fromhex('245a4c112233') + bytes([192, 168, 1, 20])) + tlv(0x0B, b'nanobeam-roof') \
+            + tlv(0x0C, b'NBE-5AC-Gen2') + tlv(0x03, b'XC.ar934x.v8.7.11')
+        data = b'\x01\x00' + struct.pack('>H', len(payload)) + payload
+        record = listener().parse_ubnt(data, '192.168.1.20')
+        self.assertEqual((record['identity'], record['mac'], record['address'], record['model']),
+                         ('nanobeam-roof', '24:5a:4c:11:22:33', '192.168.1.20', 'NBE-5AC-Gen2'))
+        self.assertIsNone(listener().parse_ubnt(b'\x07\x00\x00\x00'))

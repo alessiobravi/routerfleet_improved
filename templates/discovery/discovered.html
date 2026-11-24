@@ -2,8 +2,24 @@
 {% load custom_tags %}
 
 {% block content %}
-<div class="rf-settings">
+<div class="rf-settings" id="rf-live-discovered" data-rf-live="{% if listener.listening_left %}active{% else %}done{% endif %}" data-rf-live-reason="listening for adjacent devices" data-rf-live-interval="10">
     <a href="/router/list/" class="small"><i class="fas fa-chevron-left"></i> Router list</a>
+    <div class="rf-set-title">RouterFleet's LAN</div>
+    <form method="post" class="rf-set-group">
+        {% csrf_token %}<input type="hidden" name="action" value="listen">
+        <div class="rf-set-row">
+            <span class="rf-set-icon {% if listener.listening_left %}blue{% elif listener.running %}green{% else %}amber{% endif %}"><i class="fas fa-satellite-dish"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Discovery listener</span>
+                <span class="rf-set-sub d-block">{% if listener.listening_left %}{{ 'run'|state_icon }} Listening - {{ listener.listening_left }} s left. Devices appear as they announce themselves.{% elif listener.running %}{{ 'ok'|state_icon }} Ready, dormant: it hears nothing until asked.{% else %}{{ 'warn'|state_icon }} Not running on this host - it is part of the compose file; <code>docker compose up -d</code> starts it.{% endif %}</span></span>
+        </div>
+        <button type="submit" class="rf-set-row rf-set-action w-100{% if not listener.running %} rf-set-disabled{% endif %}" {% if not listener.running %}disabled{% endif %}>
+            <span class="rf-set-icon blue"><i class="fas fa-tower-broadcast"></i></span>
+            <span class="rf-set-text text-start"><span class="rf-set-label d-block">Discover adjacent devices</span>
+                <span class="rf-set-sub d-block">Listens {{ window_minutes }} minutes for LLDP, CDP and MikroTik MNDP on this host's LAN segment, then goes quiet again</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </button>
+    </form>
+
     <div class="rf-set-title">Not in RouterFleet yet</div>
     <div class="rf-set-group">
         {% if new %}
@@ -26,7 +42,7 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">Nothing new. Devices appear here as managed devices report their neighbours (with each router information update) or the listener on RouterFleet's LAN hears them.</span></div>
         {% endfor %}
     </div>
-    <div class="rf-set-foot">From the LLDP, CDP and MikroTik neighbour tables of managed devices{% if show_dismissed or dismissed %}, and from RouterFleet's LAN when the listener runs{% endif %}. A device without an address can not be added from here.</div>
+    <div class="rf-set-foot">From the LLDP, CDP and MikroTik neighbour tables of managed devices (read with each router information update) and from RouterFleet's LAN when asked. A device without an address can not be added from here.</div>
 
     {% if known %}
     <div class="rf-set-title">Already in RouterFleet</div>

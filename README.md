@@ -92,7 +92,7 @@ encrypted with.
   or on demand; signed release images. RouterFleet never updates itself: no
   container is given Docker access. [More](docs/updating.md)
 - **Discovery** — devices revealed by LLDP, CDP and MikroTik neighbour
-  discovery, from the neighbour tables of managed devices and, optionally, a
+  discovery, from the neighbour tables of managed devices and, on request, a
   listener on RouterFleet's own LAN; added in one click.
   [More](docs/discovery.md)
 - **Monitoring** — an independent container pings the fleet and records

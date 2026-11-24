@@ -1,0 +1,27 @@
+LLDP Neighbor Information:
+Local Information:
+Index: 1 Time to live: 120 Time mark: Thu Nov 26 06:41:24 2015 Age: 1 secs
+Local Interface    : ge-0/0/8
+Parent Interface   : -
+Local Port ID      : 518
+Ageout Count       : 0
+
+Neighbour Information:
+Chassis type       : Mac address
+Chassis ID         : 88:e0:f3:1f:14:e0
+Port type          : Locally assigned
+Port ID            : 880
+Port description   : ge-0/0/8
+System name        : bng-nw6moj.juniper.net
+
+System Description : Juniper Networks, Inc. ex4300-24p Ethernet Switch, kernel JUNOS 14.1I20151125_0548_rajjs
+
+System capabilities
+        Supported: Bridge Router
+        Enabled  : Bridge Router
+
+Management address
+        Address Type      : IPv4(1)
+        Address           : 10.204.39.232
+        Interface Number  : 33
+        Interface Subtype : ifIndex(2)
