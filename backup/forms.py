@@ -67,7 +67,7 @@ class BackupProfileForm(forms.ModelForm):
             self.fields[f'{kind}_retention'].help_text = (
                 f'How many days a {kind} backup is kept before it is deleted automatically.')
         self.fields['instant_retention'].help_text = 'How many days a backup made with Backup now is kept.'
-        self.fields['retain_backups_on_error'].label = 'Keep old backups while backups are failing'
+        self.fields['retain_backups_on_error'].label = 'Keep backups while failing'
         self.fields['retain_backups_on_error'].help_text = (
             'While a device\'s latest backup has failed, none of its backups are deleted for being older than their '
             'retention - so a device that is offline or unreachable for weeks does not lose its history. Deleting '

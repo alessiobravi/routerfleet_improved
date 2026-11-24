@@ -48,7 +48,7 @@
         {% for command in system_command_list %}
         <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
             <span class="rf-set-icon red"><i class="fas fa-lock" role="img" aria-label="Protected"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ command.name }}</span>
+            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ command.name }}">{{ command.name|cut:"System: " }}</span>
                 <span class="rf-set-sub d-block">{{ command.description|truncatewords:18 }}</span></span>
             <span class="rf-set-value">{{ command.variant_count }}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>

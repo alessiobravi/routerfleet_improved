@@ -33,8 +33,8 @@
         {% for rollout in rollouts %}
         <a class="rf-set-row" href="/system/firmware/rollout/?uuid={{ rollout.uuid }}">
             <span class="rf-set-icon {% if rollout.state == 'done' %}teal{% elif rollout.state == 'running' %}blue{% else %}red{% endif %}"><i class="fas {% if rollout.state == 'running' %}fa-sync-alt fa-spin{% elif rollout.state == 'done' %}fa-check{% else %}fa-stop{% endif %}"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ rollout.label }} · {{ rollout.get_state_display }}</span>
-                <span class="rf-set-sub d-block">{{ rollout.created_by_name }}, {{ rollout.created|date:"Y-m-d H:i" }}{% if rollout.message %} - {{ rollout.message }}{% endif %}</span></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ rollout.label }}">{{ rollout.label }}</span>
+                <span class="rf-set-sub d-block">{{ rollout.get_state_display }} · {{ rollout.created_by_name }}, {{ rollout.created|date:"Y-m-d H:i" }}{% if rollout.message %} - {{ rollout.message }}{% endif %}</span></span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
         {% empty %}

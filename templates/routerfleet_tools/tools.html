@@ -34,7 +34,7 @@
             {% if database_vendor == 'postgresql' %}
             <div class="rf-set-row">
                 <span class="rf-set-icon amber"><i class="fas fa-compress"></i></span>
-                <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="full">Also shrink the files (VACUUM FULL)</label>
+                <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="full" title="Also shrink the files (VACUUM FULL)">Shrink the files (VACUUM FULL)</label>
                     <div class="rf-set-sub">Gives the space of deleted data back to the disk. Each table is locked while it is rewritten: pages wait.</div>
                     <details class="rf-more"><summary>What happens exactly</summary>
                         <p>Every table is copied into a new, compact file and the old one removed. While a table is copied, pages and backups that need it wait - seconds on a small database, minutes on a large one - and the disk needs free space as large as the biggest table.</p>

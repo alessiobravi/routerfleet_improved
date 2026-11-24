@@ -19,8 +19,8 @@
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon {% if current.mode == 'plain' or current.mode == 'proxy' %}red{% else %}teal{% endif %}"><i class="fas {% if current.mode == 'plain' %}fa-lock-open{% else %}fa-lock{% endif %}"></i></span>
-                <div class="rf-set-text"><div class="rf-set-label">Mode</div></div>
-                <span class="rf-set-value text-end">{{ current.get_mode_display }}</span>
+                <div class="rf-set-text"><div class="rf-set-label">Mode</div>
+                    <div class="rf-set-sub">{{ current.get_mode_display }}</div></div>
             </div>
             {% if current.domain %}
             <div class="rf-set-row"><span class="rf-set-icon blue"><i class="fas fa-globe"></i></span>
@@ -77,7 +77,8 @@
                 <input type="radio" id="mode-{{ value }}" name="mode" value="{{ value }}"
                        {% if posted %}{% if posted.mode == value %}checked{% endif %}{% elif current.mode == value %}checked{% endif %}>
                 <span class="rf-set-icon {% if value == 'plain' or value == 'proxy' %}red{% elif value == 'letsencrypt' %}teal{% elif value == 'custom' %}purple{% else %}blue{% endif %}"><i class="fas {% if value == 'plain' %}fa-lock-open{% elif value == 'proxy' %}fa-arrow-right-arrow-left{% elif value == 'letsencrypt' %}fa-certificate{% elif value == 'custom' %}fa-file-shield{% else %}fa-lock{% endif %}"></i></span>
-                <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span></span>
+                <span class="rf-set-text"><span class="rf-set-label d-block">{% if value == 'env' %}From .env{% elif value == 'letsencrypt' %}Let's Encrypt{% elif value == 'custom' %}Own certificate{% elif value == 'selfsigned' %}Self-signed{% elif value == 'proxy' %}Reverse proxy{% elif value == 'plain' %}Plain HTTP{% else %}{{ label }}{% endif %}</span>
+                    <span class="rf-set-sub d-block">{{ label }}</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
             {% endfor %}

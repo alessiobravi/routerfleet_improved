@@ -93,7 +93,7 @@
             <input type="radio" data-rf-autosubmit name="{{ form.address_link.html_name }}" value="{{ value }}"
                    {% if form.address_link.value|stringformat:"s" == value|stringformat:"s" %}checked{% endif %}>
             <span class="rf-set-icon {% cycle 'sky' 'teal' 'blue' 'purple' %}"><i class="fas {% cycle 'fa-font' 'fa-terminal' 'fa-window-maximize' 'fa-list' %}"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ display }}</span>
+            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ display }}">{% cycle 'No links' 'Open with SSH' "Open with the device's tool" 'A menu of both' %}</span>
                 <span class="rf-set-sub d-block">{% cycle 'Shown as plain text.' 'Opens ssh://username@address:port. Monitoring devices and devices without a username stay plain text.' 'Opens winbox://address on RouterOS devices; others stay plain text.' 'A menu with SSH and Winbox, offering only what the device supports.' %}</span></span>
             <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
         </label>

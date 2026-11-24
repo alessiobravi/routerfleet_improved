@@ -13,6 +13,16 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.33.1] - 2026-11-24
+
+### Changed
+- **Phones get denser rows**: less padding, smaller icons and slightly smaller
+  text, so titles stay on one line - checked at phone width on every settings
+  page, with no page wider than the screen. Titles that were too long are
+  shorter (the HTTPS modes, the router address links, system commands without
+  their "System:" prefix, a backup-profile switch); the full wording is in the
+  line beneath or the tooltip.
+
 ## [0.33.0] - 2026-11-24
 
 ### Changed
