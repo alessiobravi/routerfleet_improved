@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_tags %}
 
 {% block content %}
 <div id="rf-live-jobs" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="jobs running" data-rf-live-interval="5">
@@ -37,19 +38,12 @@
                                         <td><a href="/fleet_commander/job/details/?uuid={{ job.uuid }}">{{ job.command.name }}</a></td>
                                         <td class="min-width">
                                             {% if job.completed %}
-                                                {% if job.error_count > 0 %}
-                                                    <i class="far fa-check-circle text-danger" title="Job completed with errors"></i>
-                                                {% elif job.aborted_count > 0 %}
-                                                    <i class="far fa-check-circle text-warning"></i>
-                                                {% else %}
-                                                    <i class="far fa-check-circle text-success"></i>
-                                                {% endif %}
+                                                {% if job.error_count > 0 %}{{ 'bad'|state_icon:'Completed with failures' }}
+                                                {% elif job.aborted_count > 0 %}{{ 'warn'|state_icon:'Completed, some tasks aborted' }}
+                                                {% else %}{{ 'ok'|state_icon:'Completed' }}{% endif %}
                                             {% else %}
-                                                {% if job.error_count > 0 or job.aborted_count > 0 %}
-                                                    <i class="far fa-clock text-danger"></i>
-                                                {% else %}
-                                                    <i class="far fa-clock text-info"></i>
-                                                {% endif %}
+                                                {% if job.error_count > 0 or job.aborted_count > 0 %}{{ 'high'|state_icon:'Running, with failures so far' }}
+                                                {% else %}{{ 'run'|state_icon:'Running' }}{% endif %}
                                             {% endif %}
                                         </td>
                                         <td>

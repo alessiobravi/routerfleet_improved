@@ -468,3 +468,40 @@ class FirstUpdateGuidanceTests(TestCase):
             self.assertIn(check, move)
         self.assertLess(move.index('[ "$old_counts" = "$new_counts" ]'), move.index('rm -f "$marker"'),
                         'the marker goes only after every table matched')
+
+
+class SettingsFormLayoutTests(TestCase):
+    """Forms drawn in the settings layout from their crispy layouts: pairs stay
+    side by side, headings become titled groups, switches keep their help,
+    buttons go to the foot - and nothing a layout omits is lost."""
+
+    def render(self, form, **context):
+        from django.template import Context, Template
+        return Template('{% load custom_tags %}{% settings_form form %}').render(Context({'form': form, **context}))
+
+    def test_the_backup_profile_form(self):
+        from backup.forms import BackupProfileForm
+        html = self.render(BackupProfileForm())
+        for title in ('Daily Backups', 'Weekly Backups', 'Monthly Backups', 'Export options', 'Backup Settings'):
+            self.assertIn(f'<div class="rf-set-title">{title}</div>', html)
+        self.assertIn('class="form-check-input', html)
+        self.assertIn('show-sensitive', html, 'a switch with an explanation shows it')
+        self.assertIn('type="submit"', html)
+        for name in BackupProfileForm().fields:
+            self.assertIn(f'name="{name}"', html, name)
+
+    def test_the_device_form_keeps_its_buttons_and_hint(self):
+        from router_manager.forms import RouterForm
+        html = self.render(RouterForm())
+        self.assertIn('id="test-connection"', html)
+        self.assertIn('dedicated account', html)
+        self.assertIn('col-md-6', html, 'username and password side by side')
+        self.assertEqual(html.count('<form'), 1)
+
+    def test_errors_are_shown_at_their_fields(self):
+        from fleet_commander.forms import CommandForm
+        form = CommandForm(data={'name': ''})
+        form.is_valid()
+        html = self.render(form)
+        self.assertIn('is-invalid', html)
+        self.assertIn('invalid-feedback', html)

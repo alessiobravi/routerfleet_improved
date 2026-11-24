@@ -13,6 +13,49 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.30.0] - 2026-11-24
+
+### Added
+- **Firmware updates for Huawei VRP**: the shipped type gets its procedure
+  where still unset - `startup system-software`, then `reboot fast` with its
+  confirmation answered; the upload checked by its size. Its OS version is now
+  read as the release (`V200R010C00SPC600`) instead of the VRP number many
+  releases share.
+- **A Cisco IOS (classic) preset** for bundle-mode devices (ISR G2, Catalyst
+  2960): the boot variable, `write memory`, `reload`. Create a device type from
+  it; the shipped Cisco type keeps the IOS-XE install mode.
+- **Commands can answer the device**: `reboot fast <<< y` answers each
+  question that command asks (*[Y/N]*, *[confirm]*, *[yes/no]*), at most three.
+- **The device form suggests a dedicated account** with the least rights
+  RouterFleet needs, linking per-vendor examples (Devices, "A dedicated
+  account").
+- CI also starts the SQLite variant and boots the whole stack on arm64.
+
+### Changed
+- **Forms in the settings layout** (grouped rows, switches, titled sections):
+  the device form, backup profile editor, schedule defaults, Fleet Commander
+  commands, variants and schedules, groups, SSH keys, the import tool and the
+  HTTPS page. Job history shows the state icons; a protected system command
+  shows the red lock.
+- **Sign-in lockout per account and address**: failing on purpose from one
+  address no longer locks the owner out elsewhere. 5 failures for an account
+  from one address lock it there; 5 from one address lock the address; 20 for
+  an account from all addresses together lock it everywhere.
+- **Passkey sign-in stores nothing until it succeeds**: the challenge is in a
+  signed five-minute cookie instead of a session row per request, and stays
+  single-use.
+
+### Fixed
+- **Versions are compared the way vendors number them**: Huawei
+  `V200R010C00SPC600` / `SPC700` and Cisco `15.5(2)T1` / `15.5(3)M` compared as
+  equal - a newer file was not offered, and a device could count as updated
+  while still on the old release. Pre-releases rank below the release
+  (7.21beta3 < 7.21rc1 < 7.21).
+- The size check of an uploaded file failed on Cisco `dir` output (the date
+  after the size ran into it) and did not read `52,434,816`.
+- The test suite runs in about half the time (a fast password hasher in tests
+  only).
+
 ## [0.29.0] - 2026-11-24
 
 ### Changed

@@ -432,3 +432,11 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 @keyframes rf-o-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rf-o-chip.rf-o-run .rf-state { animation: none; } }
 .badge .rf-state { color: inherit; margin-right: .3em; font-size: 1em; }
+/* The buttons under a form in the settings layout */
+.rf-set-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 16px 0 0; }
+.rf-set-actions #test-connection-result { flex-basis: 100%; margin-top: 0 !important; }
+/* A form page with its explanation beside it */
+.rf-form-page { display: grid; grid-template-columns: minmax(0, 720px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.rf-form-page .rf-form-help { font-size: 14px; color: var(--rf-muted); }
+.rf-form-page .rf-form-help .rf-set-group { padding: 14px 16px; }
+@media (max-width: 991.98px) { .rf-form-page { grid-template-columns: 1fr; } }

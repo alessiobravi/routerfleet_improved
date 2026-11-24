@@ -1,0 +1,51 @@
+{# A form in the settings layout: see settings_form in routerfleet_tools/templatetags/custom_tags.py #}
+{% if form_tag %}<form method="post"{% if action %} action="{{ action }}"{% endif %}{% if multipart %} enctype="multipart/form-data"{% endif %}>{% csrf_token %}{% endif %}
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+    {% for group in groups %}
+    {% if group.title %}<div class="rf-set-title">{{ group.title }}</div>{% elif not forloop.first %}<div class="mt-3"></div>{% endif %}
+    <div class="rf-set-group">
+        {% for row in group.rows %}
+        {% if row|length == 1 and row.0.checkbox and not row.0.cols %}
+        <div class="rf-set-row">
+            <div class="rf-set-text">
+                <label class="rf-set-label d-block mb-0" for="{{ row.0.field.id_for_label }}">{{ row.0.field.label }}</label>
+                {% if row.0.field.help_text %}<div class="rf-set-sub">{{ row.0.field.help_text|safe }}</div>{% endif %}
+                {% for error in row.0.field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="form-check form-switch mb-0">{{ row.0.widget }}</div>
+        </div>
+        {% else %}
+        <div class="rf-set-row">
+            <div class="rf-set-text">
+                <div class="row g-2">
+                    {% for item in row %}
+                    <div class="col-12{% if row|length == 2 %} col-md-6{% elif row|length > 2 %} col-md-4{% elif item.cols %} col-md-{{ item.cols }}{% endif %}">
+                        {% if item.checkbox %}
+                        <div class="form-check form-switch mt-md-4">{{ item.widget }}
+                            <label class="form-check-label" for="{{ item.field.id_for_label }}">{{ item.field.label }}</label></div>
+                        {% else %}
+                        <label class="small mb-0" for="{{ item.field.id_for_label }}">{{ item.field.label }}{% if item.field.field.required %}<span class="text-danger" aria-hidden="true"> *</span>{% endif %}</label>
+                        {{ item.widget }}
+                        {% endif %}
+                        {% for error in item.field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                        {% if item.field.help_text and not item.checkbox %}<div class="rf-set-sub mt-1">{{ item.field.help_text|safe }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% if group.text %}<div class="rf-set-foot">{{ group.text }}</div>{% endif %}
+    {% endfor %}
+    {% if foot %}
+    <div class="rf-set-actions">
+        {% for item in foot %}
+        {% if item.kind == 'button' %}<button type="{% if item.submit %}submit{% else %}button{% endif %}" name="{{ item.name }}" class="{{ item.css }}">{{ item.value }}</button>
+        {% else %}{{ item.html|safe }}{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+{% if form_tag %}</form>{% endif %}

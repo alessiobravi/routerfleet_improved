@@ -106,3 +106,144 @@ def state_icon(state, label=''):
         return format_html('<i class="fas {} rf-state rf-state-{}" role="img" aria-label="{}" title="{}"></i>',
                            STATE_ICONS[state], state, label, label)
     return format_html('<i class="fas {} rf-state rf-state-{}" aria-hidden="true"></i>', STATE_ICONS[state], state)
+
+
+# ---------------------------------------------------------------------------
+# Forms in the settings layout (grouped rows), from the crispy layout they
+# already have: fields side by side in a row stay so, checkboxes are switches,
+# buttons and links go to the foot.
+# ---------------------------------------------------------------------------
+
+def _layout_blocks(layout):
+    """The crispy layout as blocks: rows of field names (fields share a row as
+    their column widths allow), section headings, buttons and links."""
+    import re
+    from django.utils.html import strip_tags
+    from crispy_forms.layout import HTML, Submit, Button, Field
+    blocks = []
+
+    def is_cell(node):
+        if isinstance(node, (str, Field)):
+            return True
+        children = getattr(node, 'fields', None)
+        return bool(children) and not isinstance(node, (HTML, Submit, Button)) \
+            and all(isinstance(child, (str, Field)) for child in children)
+
+    def names(node):
+        if isinstance(node, str):
+            return [node]
+        found = []
+        for child in node.fields:
+            found += [child] if isinstance(child, str) else [f for f in child.fields if isinstance(f, str)]
+        return found
+
+    def width(node):
+        match = re.search(r'col-(?:md-|lg-)?(\d+)', getattr(node, 'css_class', '') or '')
+        return int(match.group(1)) if match else 12
+
+    def html_block(html):
+        if re.search(r'<h\d', html):
+            heading = re.search(r'<h\d[^>]*>(.*?)</h\d>', html, re.S)
+            text = strip_tags(html[heading.end():] if heading else '').strip()
+            blocks.append({'kind': 'section', 'title': strip_tags(heading.group(1)).strip() if heading else '',
+                           'text': text})
+        elif strip_tags(html).strip() or '<' in html:
+            blocks.append({'kind': 'html', 'html': html})
+
+    def walk(node):
+        if isinstance(node, (Submit, Button)):
+            blocks.append({'kind': 'button', 'value': node.value, 'name': node.name,
+                           'css': getattr(node, 'field_classes', 'btn btn-primary'),
+                           'submit': isinstance(node, Submit)})
+        elif isinstance(node, HTML):
+            html_block(node.html)
+        elif is_cell(node):
+            blocks.append({'kind': 'fields', 'names': names(node), 'cols': width(node)})
+        else:
+            row, used, grid = [], 0, 12
+            for child in getattr(node, 'fields', []):
+                if is_cell(child):
+                    w = width(child)
+                    if row and used + w > 12:
+                        blocks.append({'kind': 'fields', 'names': row, 'cols': grid})
+                        row, used = [], 0
+                    row, used, grid = row + names(child), used + w, w
+                else:
+                    if row:
+                        blocks.append({'kind': 'fields', 'names': row, 'cols': grid})
+                        row, used = [], 0
+                    walk(child)
+            if row:
+                blocks.append({'kind': 'fields', 'names': row, 'cols': grid})
+
+    walk(layout)
+    return blocks
+
+
+def _widget_class(field):
+    from django import forms
+    widget = field.field.widget
+    if isinstance(widget, forms.CheckboxInput):
+        return 'form-check-input'
+    if isinstance(widget, (forms.Select, forms.SelectMultiple)):
+        return 'form-select'
+    return 'form-control'
+
+
+@register.inclusion_tag('includes/settings_form.html', takes_context=True)
+def settings_form(context, form):
+    """The form in grouped rows. Its crispy layout decides the order and the
+    pairs; without one, every field in order."""
+    from django import forms as django_forms
+    from django.template import Context, Template
+    helper = getattr(form, 'helper', None)
+    layout = getattr(helper, 'layout', None)
+    blocks = _layout_blocks(layout) if layout is not None else \
+        [{'kind': 'fields', 'names': [name]} for name in form.fields]
+    groups, foot, shown = [], [], set()
+    current = []
+    section = {'title': '', 'text': ''}
+    for block in blocks:
+        if block['kind'] == 'section':
+            if current:
+                groups.append({**section, 'rows': current})
+            current, section = [], {'title': block['title'], 'text': block['text']}
+            continue
+        if block['kind'] == 'fields':
+            row = []
+            for name in block['names']:
+                if name not in form.fields or name in shown:
+                    continue
+                shown.add(name)
+                bound = form[name]
+                if bound.is_hidden:
+                    continue
+                css = ' '.join(filter(None, [_widget_class(bound), bound.field.widget.attrs.get('class', '')]))
+                if bound.errors and css != 'form-check-input':
+                    css += ' is-invalid'
+                row.append({'field': bound, 'widget': bound.as_widget(attrs={'class': css}),
+                            'checkbox': isinstance(bound.field.widget, django_forms.CheckboxInput)})
+            explained = [item for item in row if item['checkbox'] and item['field'].help_text]
+            if len(row) > 1 and explained:
+                current.extend([item] for item in row)
+            elif row:
+                if len(row) == 1 and block.get('cols', 12) < 12:
+                    row[0]['cols'] = block['cols']
+                current.append(row)
+        elif block['kind'] == 'html':
+            html = Template(block['html']).render(Context(context.flatten())).strip()
+            if html:
+                foot.append({'kind': 'html', 'html': html})
+        else:
+            foot.append(block)
+    # Fields the layout does not mention are shown too, at the end
+    for name in [name for name in form.fields if name not in shown and not form[name].is_hidden]:
+        bound = form[name]
+        current.append([{'field': bound, 'widget': bound.as_widget(attrs={'class': _widget_class(bound)}),
+                         'checkbox': isinstance(bound.field.widget, django_forms.CheckboxInput)}])
+    if current:
+        groups.append({**section, 'rows': current})
+    return {'form': form, 'groups': groups, 'foot': foot, 'csrf_token': context.get('csrf_token'),
+            'action': getattr(helper, 'form_action', '') or '',
+            'form_tag': getattr(helper, 'form_tag', True) if helper else True,
+            'multipart': form.is_multipart()}
