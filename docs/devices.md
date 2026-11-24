@@ -24,12 +24,18 @@ many devices as you like; RSA, ECDSA and Ed25519 keys are accepted.
 it has one. The public key is derived from the private one when left empty.
 A key can have an optional **passphrase**: a protected key is given with it,
 and an unprotected key given together with a passphrase is stored protected by
-it (OpenSSH format). Both are encrypted at rest. The stored private key is
-never put back into the form - left empty, it is kept. Only an **administrator**
-can show it, from the eye in the list of keys: after solving a small sum (one
-attempt, two minutes), on a page of its own; every reveal is recorded in the
-[change log](audit-log.md) as *Secret shown*. A red lock in the list marks a
-key protected by a passphrase.
+it (OpenSSH format). Both are encrypted at rest. A red lock in the list marks
+a key protected by a passphrase.
+
+The stored private key and passphrase are for **administrators** only, in the
+key's own page. The private-key box shows *Reveal / edit*: after a small sum
+(checked by the server; a wrong answer gives a new one) the key appears in the
+box and can be edited; every reveal is recorded in the
+[change log](audit-log.md) as *Secret shown*. Saving a replaced key, a new
+passphrase or its removal asks for another sum; *Cancel* puts the stored key
+back, hidden. A protected key gets its new passphrase - or loses it - without
+being pasted again. Others see the box locked: they can rename a key and edit
+its public key, never see or replace the private key.
 
 **Saving a device never connects to it.** A device that does not answer - not
 installed yet, unreachable, being replaced - can still be added, imported,

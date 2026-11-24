@@ -32,3 +32,21 @@ def checked(private_key, passphrase):
                 serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH,
                 serialization.BestAvailableEncryption(passphrase.encode())).decode()
     return private_key, public
+
+
+def reprotected(private_key, old_passphrase, new_passphrase):
+    """The stored key, opened with its old passphrase and written again
+    protected by the new one - or unprotected when there is none (OpenSSH
+    format). Raises KeyProblem when the old passphrase does not open it."""
+    data = (private_key or '').strip().encode() + b'\n'
+    password = old_passphrase.encode() if old_passphrase else None
+    try:
+        try:
+            key = serialization.load_ssh_private_key(data, password=password)
+        except ValueError:
+            key = serialization.load_pem_private_key(data, password=password)
+    except (TypeError, ValueError):
+        raise KeyProblem('The stored key could not be opened with its stored passphrase.') from None
+    encryption = (serialization.BestAvailableEncryption(new_passphrase.encode()) if new_passphrase
+                  else serialization.NoEncryption())
+    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH, encryption).decode()

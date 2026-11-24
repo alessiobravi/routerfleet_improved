@@ -331,13 +331,14 @@ class SSHKeyForm(forms.ModelForm):
         fields = ['name', 'public_key']
         widgets = {'public_key': forms.Textarea(attrs={'rows': 3, 'cols': 40, 'spellcheck': 'false'})}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, secrets_allowed=True, **kwargs):
         super(SSHKeyForm, self).__init__(*args, **kwargs)
+        self.secrets_allowed = secrets_allowed
         stored = bool(self.instance.pk and self.instance.private_key)
         self.fields['public_key'].required = False
         self.fields['public_key'].help_text = 'Left empty, it is derived from the private key.'
-        self.fields['private_key'].help_text = ('Stored - leave empty to keep it. Administrators can show it from the '
-                                                'list of keys.' if stored else 'RSA, ECDSA or Ed25519, PEM or OpenSSH format.')
+        self.fields['private_key'].help_text = ('Stored. Administrators reveal it here to see or replace it.'
+                                                if stored else 'RSA, ECDSA or Ed25519, PEM or OpenSSH format.')
         if stored:
             self.fields['private_key'].widget.attrs['placeholder'] = 'stored - leave empty to keep it'
         has_passphrase = bool(self.instance.pk and self.instance.passphrase)
@@ -360,9 +361,18 @@ class SSHKeyForm(forms.ModelForm):
                             HTML(delete_html), css_class='col-md-12'), css_class='form-row')]
         self.helper.layout = Layout(*rows)
 
+    def changes_secret(self):
+        """Whether this save sets a new private key or changes the passphrase."""
+        cleaned = getattr(self, 'cleaned_data', {}) or {}
+        return bool((cleaned.get('private_key') or '').strip() or cleaned.get('passphrase')
+                    or cleaned.get('remove_passphrase'))
+
     def clean(self):
         from router_manager.sshkeys import KeyProblem, checked
         cleaned = super().clean()
+        if not self.secrets_allowed:
+            # Not an administrator: the stored private key and passphrase stay as they are
+            cleaned['private_key'], cleaned['passphrase'], cleaned['remove_passphrase'] = '', '', False
         given_key = (cleaned.get('private_key') or '').strip()
         given_passphrase = cleaned.get('passphrase') or ''
         removing = cleaned.get('remove_passphrase')
@@ -371,10 +381,15 @@ class SSHKeyForm(forms.ModelForm):
             return cleaned
         key = given_key or self.instance.private_key
         passphrase = given_passphrase or ('' if removing else (self.instance.passphrase or ''))
-        if removing and not given_key:
-            self.add_error('remove_passphrase', 'The stored key is protected by it: paste the key without '
-                                                'protection to remove the passphrase.')
-            return cleaned
+        stored_passphrase = self.instance.passphrase or '' if self.instance.pk else ''
+        if not given_key and stored_passphrase and passphrase != stored_passphrase:
+            # The stored key with a new passphrase, or none: opened with the old one, written again
+            from router_manager.sshkeys import reprotected
+            try:
+                key = reprotected(key, stored_passphrase, passphrase)
+            except KeyProblem as problem:
+                self.add_error('passphrase', str(problem))
+                return cleaned
         try:
             self._stored_key, public = checked(key, passphrase)
         except KeyProblem as problem:

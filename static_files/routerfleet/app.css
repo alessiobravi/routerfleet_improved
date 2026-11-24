@@ -521,3 +521,8 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
   .rf-set-row .form-switch .form-check-input { width: 2.4em; height: 1.3em; }
   .rf-set-row .form-select.w-auto { padding-top: 4px; padding-bottom: 4px; font-size: 14px; }
 }
+/* A stored secret: hidden in its box until revealed, the button inside it */
+.rf-secret { position: relative; }
+.rf-secret-locked textarea { color: transparent; }
+.rf-secret-locked .rf-secret-reveal, .rf-secret .rf-secret-reveal { position: absolute; right: 10px; bottom: 10px; }
+.rf-confirm { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--rf-line); border-radius: 10px; background: var(--rf-line-soft); }

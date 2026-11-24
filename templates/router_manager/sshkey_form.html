@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static custom_tags %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/router/ssh_keys/" class="small"><i class="fas fa-chevron-left"></i> SSH keys</a>
+    <div class="rf-set-title">{% if instance %}SSH key {{ instance.name }}{% else %}New SSH key{% endif %}</div>
+    <form method="post" id="sshkey-form" autocomplete="off"{% if instance and admin %} data-reveal-url="/router/sshkey/reveal/?uuid={{ instance.uuid }}"{% endif %}>
+        {% csrf_token %}
+        <input type="hidden" name="confirm_answer" id="confirm-answer">
+        {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+        <div class="rf-set-group">
+            <div class="rf-set-row">
+                <span class="rf-set-icon blue"><i class="fas fa-tag"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="id_name">Name</label>
+                    <input type="text" class="form-control{% if form.name.errors %} is-invalid{% endif %}" id="id_name" name="name" maxlength="100" required value="{{ form.name.value|default:'' }}">
+                    {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
+            </div>
+
+            <div class="rf-set-row">
+                <span class="rf-set-icon red"><i class="fas fa-key"></i></span>
+                <div class="rf-set-text">
+                    <label class="small mb-0" for="id_private_key">Private key</label>
+                    {% if has_stored_key and not admin %}
+                    <textarea class="form-control font-monospace rf-fs-12" id="id_private_key" rows="4" disabled placeholder="Stored - only administrators can see or replace it"></textarea>
+                    {% else %}
+                    <div class="rf-secret{% if has_stored_key %} rf-secret-locked{% endif %}" id="secret-box">
+                        <textarea class="form-control font-monospace rf-fs-12{% if form.private_key.errors %} is-invalid{% endif %}" id="id_private_key" name="private_key" rows="5" spellcheck="false"
+                                  {% if has_stored_key %}readonly placeholder="Stored and hidden"{% else %}placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"{% endif %}></textarea>
+                        {% if has_stored_key %}<button type="button" class="btn btn-outline-danger btn-sm rf-secret-reveal" id="reveal-button"><i class="fas fa-eye me-1"></i>Reveal / edit</button>{% endif %}
+                    </div>
+                    {% if has_stored_key %}
+                    <div class="rf-confirm d-none" id="reveal-confirm" role="group" aria-label="Confirm revealing the private key">
+                        <label class="small mb-1" for="reveal-answer">To reveal it: how much is <span id="reveal-first">{{ reveal_first }}</span> + <span id="reveal-second">{{ reveal_second }}</span>?</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="reveal-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                            <button type="button" class="btn btn-danger" id="reveal-ok">Reveal</button>
+                            <button type="button" class="btn btn-outline-secondary" id="reveal-cancel">Cancel</button>
+                        </div>
+                        <div class="text-danger small mt-1" id="reveal-error" role="alert"></div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    {% for error in form.private_key.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    <div class="rf-set-sub mt-1">{% if has_stored_key %}{% if admin %}Revealing it is recorded in the change log. Replacing it asks for a sum when you save; Cancel keeps the stored key.{% endif %}{% else %}RSA, ECDSA or Ed25519, PEM or OpenSSH format.{% endif %}</div>
+                </div>
+            </div>
+
+            {% if form.passphrase %}{% if admin or not instance %}
+            <div class="rf-set-row">
+                <span class="rf-set-icon amber"><i class="fas fa-lock"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="id_passphrase">Key passphrase (optional)</label>
+                    <input type="password" class="form-control{% if form.passphrase.errors %} is-invalid{% endif %}" id="id_passphrase" name="passphrase" autocomplete="new-password"
+                           {% if instance.passphrase %}placeholder="stored - leave empty to keep it"{% endif %}>
+                    {% for error in form.passphrase.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    <div class="rf-set-sub mt-1">{{ form.passphrase.help_text }}</div></div>
+            </div>
+            {% if form.remove_passphrase %}
+            <div class="rf-set-row">
+                <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="id_remove_passphrase">Remove the stored passphrase</label>
+                    {% for error in form.remove_passphrase.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+                <div class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" id="id_remove_passphrase" name="remove_passphrase"></div>
+            </div>
+            {% endif %}
+            {% endif %}{% endif %}
+
+            <div class="rf-set-row">
+                <span class="rf-set-icon teal"><i class="fas fa-unlock"></i></span>
+                <div class="rf-set-text"><label class="small mb-0" for="id_public_key">Public key</label>
+                    <textarea class="form-control font-monospace rf-fs-12" id="id_public_key" name="public_key" rows="3" spellcheck="false">{{ form.public_key.value|default:'' }}</textarea>
+                    <div class="rf-set-sub mt-1">Left empty, it is derived from the private key.</div></div>
+            </div>
+        </div>
+
+        <div class="rf-confirm d-none mt-3" id="save-confirm" role="group" aria-label="Confirm replacing the private key">
+            <label class="small mb-1" for="save-answer">You are replacing the private key or its passphrase. To save: how much is <span id="save-first"></span> + <span id="save-second"></span>?</label>
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control" id="save-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+                <button type="button" class="btn btn-danger" id="save-ok">Save</button>
+                <button type="button" class="btn btn-outline-secondary" id="save-cancel">Cancel</button>
+            </div>
+        </div>
+
+        <div class="rf-set-actions">
+            <button type="submit" class="btn btn-success" id="sshkey-save">Save</button>
+            <a class="btn btn-secondary" href="/router/ssh_keys/">Back</a>
+            {% if instance %}<a href="#" class="btn btn-outline-danger" data-command="delete" data-rf-call="openCommandDialog">Delete</a>{% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+<button type="button" id="rf-delete-action" class="d-none" data-rf-post="?uuid={{ instance.uuid }}" data-rf-field-action="delete"
+        data-rf-confirm-word="delete" data-rf-confirm-sum="Delete this SSH key permanently?"></button>
+<script src="{% static 'routerfleet/sshkey.js' %}"></script>
+{% endblock %}

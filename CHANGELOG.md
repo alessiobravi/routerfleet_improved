@@ -13,6 +13,18 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.35.1] - 2026-11-24
+
+### Changed
+- **The private key is revealed and edited in the key's own page** -
+  administrators only: *Reveal / edit* in the private-key box asks a small sum
+  (checked by the server), then shows the key there, editable. Saving a
+  replaced key, a new passphrase or its removal asks for another sum; *Cancel*
+  keeps the stored key. The separate reveal page and the eye in the list are
+  gone. Every reveal is still recorded in the change log.
+- A protected key gets a new passphrase, or loses it, without being pasted
+  again.
+
 ## [0.35.0] - 2026-11-24
 
 ### Added

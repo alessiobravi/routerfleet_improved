@@ -385,10 +385,41 @@ def view_ssh_key_list(request):
     return render(request, 'router_manager/sshkey_list.html', context=context)
 
 
-@login_required()
+def _sum_challenge(request, purpose, sshkey):
+    """A small sum for the page, its answer kept in the session (one
+    attempt, two minutes): (first, second)."""
+    import secrets
+    import time
+    first, second = 3 + secrets.randbelow(7), 11 + secrets.randbelow(29)
+    request.session[f'sshkey_{purpose}'] = {'key': str(sshkey.uuid), 'answer': first + second,
+                                            'expires': time.time() + REVEAL_SECONDS}
+    return first, second
+
+
+def _sum_answered(request, purpose, sshkey, answer):
+    import time
+    challenge = request.session.pop(f'sshkey_{purpose}', None) or {}
+    answer = str(answer or '').strip()
+    return (challenge.get('key') == str(sshkey.uuid) and time.time() < challenge.get('expires', 0)
+            and answer.isdigit() and int(answer) == challenge.get('answer'))
+
+
+def _is_admin(request):
+    return UserAcl.objects.filter(user=request.user, user_level__gte=50).exists()
+
+
+REVEAL_SECONDS = 120
+
+
+@login_required
 def view_manage_sshkey(request):
+    """An SSH key. Its stored private key and passphrase are for
+    administrators only: the private key is revealed, and can then be edited,
+    in the key's own page after a small sum (checked here); saving a new one
+    asks for another. Others keep the name and the public key."""
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=40).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    admin = _is_admin(request)
     if request.GET.get('uuid'):
         sshkey = get_object_or_404(SSHKey, uuid=request.GET.get('uuid'))
         if posted_action(request, 'delete'):
@@ -402,51 +433,47 @@ def view_manage_sshkey(request):
     else:
         sshkey = None
 
-    form = SSHKeyForm(request.POST or None, instance=sshkey)
-    if form.is_valid():
-        form.save()
-        messages.success(request, 'SSH Key saved successfully')
-        return redirect('ssh_keys_list')
+    form = SSHKeyForm(request.POST or None, instance=sshkey, secrets_allowed=admin or sshkey is None)
+    if request.method == 'POST' and form.is_valid():
+        if sshkey is not None and form.changes_secret() and not _sum_answered(
+                request, 'save', sshkey, request.POST.get('confirm_answer')):
+            form.add_error(None, 'The confirmation was wrong or too late: the private key was not changed. '
+                                 'Reveal it again to edit it.')
+        else:
+            form.save()
+            messages.success(request, 'SSH Key saved successfully')
+            return redirect('ssh_keys_list')
 
-    context = {
-        'form': form,
-        'page_title': 'Manage SSH Key',
-        'instance': sshkey
-    }
-    return render(request, 'generic_form.html', context=context)
-
-
-REVEAL_SECONDS = 120
+    context = {'form': form, 'page_title': 'Manage SSH Key', 'instance': sshkey, 'admin': admin,
+               'has_stored_key': bool(sshkey and sshkey.private_key)}
+    if sshkey is not None and admin:
+        context['reveal_first'], context['reveal_second'] = _sum_challenge(request, 'reveal', sshkey)
+    return render(request, 'router_manager/sshkey_form.html', context=context)
 
 
 @login_required
 def view_reveal_sshkey(request):
-    """An administrator shows a stored private key, on purpose: a small sum to
-    solve first (one attempt, two minutes), and every reveal is recorded in the
-    change log. The key is shown on this page only, never in a form."""
-    import secrets
-    import time
-    if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
-        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    """The stored private key, for an administrator who answered the sum
+    shown in the key's page (POST, JSON). Recorded in the change log. The
+    answer carries a new sum: the one saving an edited key asks for."""
+    from django.http import JsonResponse
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    if not _is_admin(request):
+        return JsonResponse({'error': 'Administrators only.'}, status=403)
     sshkey = get_object_or_404(SSHKey, uuid=request.GET.get('uuid'))
-    context = {'page_title': 'Show private key', 'sshkey': sshkey}
-    if request.method == 'POST':
-        challenge = request.session.pop('sshkey_reveal', None) or {}
-        answer = request.POST.get('answer', '').strip()
-        if (challenge.get('key') == str(sshkey.uuid) and time.time() < challenge.get('expires', 0)
-                and answer.isdigit() and int(answer) == challenge.get('answer')):
-            from audit_log import registry
-            from audit_log.models import ChangeRecord
-            from audit_log.signals import build_record
-            build_record(registry.watched(SSHKey), ChangeRecord.ACTION_REVEALED, instance=sshkey,
-                         note='Private key shown').save()
-            return render(request, 'router_manager/sshkey_reveal.html', dict(context, revealed=sshkey.private_key))
-        messages.error(request, 'Not shown|The answer was wrong or too late. Ask again.')
-        return redirect(f'/router/sshkey/reveal/?uuid={sshkey.uuid}')
-    first, second = 3 + secrets.randbelow(7), 11 + secrets.randbelow(29)
-    request.session['sshkey_reveal'] = {'key': str(sshkey.uuid), 'answer': first + second,
-                                        'expires': time.time() + REVEAL_SECONDS}
-    return render(request, 'router_manager/sshkey_reveal.html', dict(context, first=first, second=second))
+    if not _sum_answered(request, 'reveal', sshkey, request.POST.get('answer')):
+        first, second = _sum_challenge(request, 'reveal', sshkey)
+        return JsonResponse({'error': 'That is not the answer, or it took too long. Try the new sum.',
+                             'first': first, 'second': second}, status=400)
+    from audit_log import registry
+    from audit_log.models import ChangeRecord
+    from audit_log.signals import build_record
+    build_record(registry.watched(SSHKey), ChangeRecord.ACTION_REVEALED, instance=sshkey,
+                 note='Private key shown').save()
+    first, second = _sum_challenge(request, 'save', sshkey)
+    return JsonResponse({'private_key': sshkey.private_key, 'protected': bool(sshkey.passphrase),
+                         'save_first': first, 'save_second': second})
 
 
 def create_instant_backup(router):

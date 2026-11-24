@@ -729,8 +729,8 @@ class SSHKeySecretTests(TestCase):
         stored = SSHKey.objects.get(name='k1')
         page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
         self.assertNotIn(key.splitlines()[1], page)
-        self.assertIn('stored - leave empty to keep it', page)
-        self.save(uuid=stored.uuid, private_key='', name='k1-renamed')   # empty keeps it
+        self.assertIn('Stored and hidden', page)
+        self.save(uuid=stored.uuid, private_key='', name='k1-renamed')   # empty keeps it, no sum needed
         self.assertEqual(SSHKey.objects.get(pk=stored.pk).private_key.strip(), key.strip())
 
     def test_a_passphrase_protects_and_is_checked(self):
@@ -747,26 +747,81 @@ class SSHKeySecretTests(TestCase):
         self.save(name='k4', private_key=protected, passphrase='right-one')
         self.assertTrue(SSHKey.objects.filter(name='k4').exists())
 
-    def test_showing_it_takes_an_administrator_a_sum_and_is_recorded(self):
+    def test_revealing_in_the_key_page_takes_an_administrator_and_a_sum(self):
         import re
         from audit_log.models import ChangeRecord
         key = new_private_key()
         self.save(private_key=key)
         stored = SSHKey.objects.get(name='k1')
-        url = f'/router/sshkey/reveal/?uuid={stored.uuid}'
-        page = self.client.get(url).content.decode()
+        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
         self.assertNotIn(key.splitlines()[1], page)
-        first, second = map(int, re.search(r'how much is (\d+) \+ (\d+)', page).groups())
+        self.assertIn('Reveal / edit', page)
+        first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
+        url = f'/router/sshkey/reveal/?uuid={stored.uuid}'
         wrong = self.client.post(url, {'answer': str(first + second + 1)})
-        self.assertRedirects(wrong, url, fetch_redirect_response=False)
+        self.assertEqual(wrong.status_code, 400)
         self.assertFalse(ChangeRecord.objects.filter(action='revealed').exists())
-        page = self.client.get(url).content.decode()
-        first, second = map(int, re.search(r'how much is (\d+) \+ (\d+)', page).groups())
-        shown = self.client.post(url, {'answer': str(first + second)}).content.decode()
-        self.assertIn(key.splitlines()[1], shown)
+        first, second = wrong.json()['first'], wrong.json()['second']
+        shown = self.client.post(url, {'answer': str(first + second)}).json()
+        self.assertEqual(shown['private_key'].strip(), key.strip())
         record = ChangeRecord.objects.get(action='revealed')
         self.assertEqual((record.object_uuid, record.note), (stored.uuid, 'Private key shown'))
         self.assertNotIn(key.splitlines()[1], str(record.changes))
+        self.assertEqual(self.client.get(url).status_code, 405)
+        # Replacing it: the sum the reveal answer carried, checked when saving
+        replacement = new_private_key()
+        refused = self.save(uuid=stored.uuid, private_key=replacement, confirm_answer='0')
+        self.assertContains(refused, 'the private key was not changed')
+        self.assertEqual(SSHKey.objects.get(pk=stored.pk).private_key.strip(), key.strip())
+        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
+        shown = self.client.post(url, {'answer': str(first + second)}).json()
+        self.save(uuid=stored.uuid, private_key=replacement, confirm_answer=str(shown['save_first'] + shown['save_second']))
+        self.assertEqual(SSHKey.objects.get(pk=stored.pk).private_key.strip(), replacement.strip())
+
+    def test_others_can_neither_see_nor_replace_it(self):
+        key = new_private_key()
+        self.save(private_key=key)
+        stored = SSHKey.objects.get(name='k1')
         self.client.force_login(make_user(40))
-        self.assertContains(self.client.get(url), 'Access Denied')
-        self.assertNotContains(self.client.get('/router/ssh_keys/'), '/router/sshkey/reveal/')
+        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        self.assertIn('only administrators can see or replace it', page)
+        self.assertNotIn('Reveal / edit', page)
+        self.assertEqual(self.client.post(f'/router/sshkey/reveal/?uuid={stored.uuid}', {'answer': '1'}).status_code, 403)
+        self.save(uuid=stored.uuid, name='renamed', private_key=new_private_key(), passphrase='x-pass')
+        after = SSHKey.objects.get(pk=stored.pk)
+        self.assertEqual((after.name, after.private_key.strip(), after.passphrase), ('renamed', key.strip(), None))
+
+
+class SSHKeyPassphraseChangeTests(TestCase):
+    """An administrator changes or removes the passphrase of a protected key
+    without pasting the key again: opened with the old one, written again."""
+
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def reveal(self, stored):
+        import re
+        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
+        shown = self.client.post(f'/router/sshkey/reveal/?uuid={stored.uuid}', {'answer': str(first + second)}).json()
+        return str(shown['save_first'] + shown['save_second'])
+
+    def test_change_then_remove(self):
+        from routerlib.functions import KeyPassphraseError, load_private_key_from_string as load
+        self.client.post('/router/manage_sshkey/', {'name': 'p1', 'private_key': new_private_key(), 'passphrase': 'first-pass'})
+        stored = SSHKey.objects.get(name='p1')
+        answer = self.reveal(stored)
+        self.client.post(f'/router/manage_sshkey/?uuid={stored.uuid}', {'name': 'p1', 'passphrase': 'second-pass',
+                                                                     'confirm_answer': answer})
+        stored.refresh_from_db()
+        self.assertEqual(stored.passphrase, 'second-pass')
+        self.assertIsNotNone(load(stored.private_key, 'second-pass'))
+        with self.assertRaises(KeyPassphraseError):
+            load(stored.private_key, 'first-pass')
+        answer = self.reveal(stored)
+        self.client.post(f'/router/manage_sshkey/?uuid={stored.uuid}', {'name': 'p1', 'remove_passphrase': 'on',
+                                                                     'confirm_answer': answer})
+        stored.refresh_from_db()
+        self.assertIsNone(stored.passphrase)
+        self.assertIsNotNone(load(stored.private_key, None))

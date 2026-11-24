@@ -30,7 +30,6 @@
                                         <td class="min-width">
                                             <a href="/router/manage_sshkey/?uuid={{ sshkey.uuid }}" title="Edit" aria-label="Edit {{ sshkey.name }}"><i
                                                     class="fas fa-edit"></i></a>
-                                            {% if rf_is_admin %}<a href="/router/sshkey/reveal/?uuid={{ sshkey.uuid }}" class="ms-2 text-danger" title="Show private key" aria-label="Show the private key of {{ sshkey.name }}"><i class="fas fa-eye"></i></a>{% endif %}
                                         </td>
                                     </tr>
                                 {% endfor %}
