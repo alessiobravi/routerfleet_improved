@@ -58,7 +58,8 @@ def view_login(request):
             return redirect('/')
     else:
         form = LoginForm(request=request)
-    return render(request, 'accounts/login.html', {'form': form})
+    from accounts.password_reset import available
+    return render(request, 'accounts/login.html', {'form': form, 'password_reset': available()})
 
 
 def _pending_user(request):

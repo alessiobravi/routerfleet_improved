@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_tags %}
 
 {% block content %}
 <div class="rf-settings">
@@ -7,12 +8,12 @@
     <form method="post" autocomplete="off">
         {% csrf_token %}
         <input type="hidden" name="action" value="save">
-        <div class="rf-set-title">Email notifications</div>
+        <div class="rf-set-title">Mail server</div>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon {% if smtp.ready %}teal{% else %}amber{% endif %}"><i class="fas fa-envelope"></i></span>
-                <div class="rf-set-text"><div class="rf-set-label">Send notifications by email</div>
-                    <div class="rf-set-sub">Each user chooses what to receive in My Settings; shared mailboxes are channels.</div></div>
+                <div class="rf-set-text"><div class="rf-set-label">Use email</div>
+                    <div class="rf-set-sub">{% if smtp.ready %}{{ 'ok'|state_icon }} Working - the server accepted the connection and the login on {{ smtp.verified_at|date:"Y-m-d H:i" }}. Email notifications and password reset are on.{% else %}{{ 'warn'|state_icon }} Not working yet: email notifications and password reset stay off until the server accepts these settings.{% endif %}</div></div>
                 <div class="form-check form-switch">
                     <input type="checkbox" class="form-check-input" id="enabled" name="enabled"
                            {% if posted %}{% if posted.enabled %}checked{% endif %}{% elif smtp.enabled %}checked{% endif %}>
@@ -89,7 +90,8 @@
         </div>
 
         <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plug-circle-check me-1"></i>Check and save</button>
+            <div class="rf-set-foot text-center">With email on, RouterFleet connects and logs in with these settings first; only settings the server accepts are saved.</div>
         </div>
     </form>
     <form method="post" class="text-center mt-2">

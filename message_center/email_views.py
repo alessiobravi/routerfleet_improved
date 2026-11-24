@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from user_manager.models import UserAcl
 
@@ -56,19 +57,30 @@ def view_email_settings(request):
         if enabled and not (host and sender):
             errors.append('To switch email on, set at least the server and the sender address.')
         if not errors:
-            smtp.enabled, smtp.host, smtp.port = enabled, host, port
-            smtp.security = data.get('security')
-            smtp.username = data.get('username', '').strip()[:254]
-            smtp.sender_address = sender
-            smtp.sender_name = email.one_line(data.get('sender_name') or 'RouterFleet Improved', 100)
+            candidate = SmtpSettings(pk=smtp.pk, name=smtp.name, enabled=enabled, host=host, port=port,
+                                     security=data.get('security'), username=data.get('username', '').strip()[:254],
+                                     sender_address=sender, password=smtp.password,
+                                     sender_name=email.one_line(data.get('sender_name') or 'RouterFleet Improved', 100))
             if data.get('remove_password') == 'on':
-                smtp.password = ''
+                candidate.password = ''
             elif data.get('password'):
-                smtp.password = data['password']
-            smtp.save()
-            messages.success(request, 'Email settings saved|' + ('Notifications are sent by email.' if smtp.ready
-                                                                 else 'Email notifications are off.'))
-            return redirect('/system/notifications/email/')
+                candidate.password = data['password']
+            if enabled:
+                # Checked before anything is saved: the connection and the login
+                try:
+                    email.check(candidate)
+                except Exception as error:   # noqa: BLE001 - the server's answer is shown, the password scrubbed
+                    errors.append('Not saved - the server did not accept these settings: '
+                                  + email.scrub(error, candidate)[:300])
+            if not errors:
+                candidate.verified_at = timezone.now() if enabled else None
+                candidate.created = smtp.created
+                candidate.uuid = smtp.uuid
+                candidate.save()
+                messages.success(request, 'Email settings saved|' + (
+                    'The server accepted the connection and the login: email notifications and password reset are on.'
+                    if enabled else 'Email is off: no email notifications, no password reset.'))
+                return redirect('/system/notifications/email/')
     return render(request, 'message_center/email_settings.html', {
         'page_title': 'Email notifications', 'smtp': smtp, 'errors': errors, 'posted': request.POST or None,
         'securities': SmtpSettings.SECURITY, 'has_password': bool(smtp.password)})

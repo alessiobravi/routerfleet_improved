@@ -26,7 +26,7 @@ def level(user):
 @login_required
 def view_system(request):
     user_level = level(request.user)
-    if user_level < CONFIGURATION_MANAGER:
+    if user_level < ADMINISTRATOR:   # System settings: administrators only
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     from .models import HttpsSettings, DisplaySettings
     from router_manager.models import DeviceType
@@ -41,7 +41,7 @@ def view_system(request):
 
 @login_required
 def view_display(request):
-    if level(request.user) < CONFIGURATION_MANAGER:
+    if level(request.user) < ADMINISTRATOR:   # System settings: administrators only
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     from .models import DisplaySettings
     display = DisplaySettings.load()
@@ -78,7 +78,7 @@ def summary(channel):
 @login_required
 def view_notifications(request):
     user_level = level(request.user)
-    if user_level < CONFIGURATION_MANAGER:
+    if user_level < ADMINISTRATOR:   # System settings: administrators only
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     shared = MessageChannel.objects.filter(user__isnull=True).order_by('channel_type', 'name')
     return render(request, 'routerfleet_tools/notifications.html', {
@@ -90,7 +90,7 @@ def view_notifications(request):
 
 @login_required
 def view_notification_channel(request):
-    if level(request.user) < CONFIGURATION_MANAGER:
+    if level(request.user) < ADMINISTRATOR:   # System settings: administrators only
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     channel = None
     if request.GET.get('uuid'):

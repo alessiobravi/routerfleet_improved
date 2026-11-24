@@ -446,6 +446,20 @@ closes and within seconds of signing out. Each session is in the change log;
 what is typed is not recorded. CI drives a real console session through nginx
 to an SSH server on every push.
 
+### Password reset
+
+When the [mail server](notifications.md#email) works, the sign-in page offers
+**Forgot your password?**: the user gives their username or email address and
+receives a link at the account's email address. The page answers the same
+whether an account matches or not, so it tells nobody which names or addresses
+exist. The link is valid for an hour and works once - it is bound to the
+current password - and using it does not sign anybody in: a second factor
+still applies at the next sign-in, and devices signed in with the old password
+sign in again. An address asking more than five times in 15 minutes is turned
+away for a while (counted per application worker). Without a working mail
+server the page does not exist; an administrator sets a new password in User
+Manager.
+
 ### How long a sign-in lasts
 
 Each user chooses in *My Settings → Security settings → Session expiration time*: from 1 hour to 2 weeks, **24 hours**

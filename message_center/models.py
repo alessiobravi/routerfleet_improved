@@ -125,6 +125,9 @@ class SmtpSettings(models.Model):
     password = EncryptedTextField(blank=True, null=True)
     sender_address = models.CharField(max_length=254, blank=True)
     sender_name = models.CharField(max_length=100, default='RouterFleet Improved')
+    # When the server last accepted a connection and the login with these
+    # settings - checked before they are saved; email works only after it
+    verified_at = models.DateTimeField(null=True, blank=True)
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -140,4 +143,6 @@ class SmtpSettings(models.Model):
 
     @property
     def ready(self):
-        return bool(self.enabled and self.host and self.sender_address)
+        """Email can be sent: switched on, and these settings were checked
+        against the server (connection and login) when they were saved."""
+        return bool(self.enabled and self.host and self.sender_address and self.verified_at)

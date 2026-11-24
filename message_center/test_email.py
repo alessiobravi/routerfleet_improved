@@ -20,7 +20,8 @@ LOCMEM = 'django.core.mail.backends.locmem.EmailBackend'
 def configure(**extra):
     smtp = SmtpSettings.load()
     for key, value in dict(enabled=True, host='smtp.example.net', port=587, security='starttls', username='rf',
-                           password='smtp-secret-1', sender_address='routerfleet@example.net', **extra).items():
+                           password='smtp-secret-1', sender_address='routerfleet@example.net',
+                           verified_at=timezone.now(), **extra).items():
         setattr(smtp, key, value)
     smtp.save()
     return smtp
@@ -79,6 +80,7 @@ class MySettingsEmailTests(TestCase):
         self.client.force_login(self.user)
 
     def test_address_and_choices_make_the_personal_channel(self):
+        configure()
         self.client.post('/user/settings/', {'action': 'email', 'email': 'me@example.net',
                                              'backup_fail': 'on', 'daily_backup_report': 'on'})
         self.user.refresh_from_db()
@@ -89,7 +91,6 @@ class MySettingsEmailTests(TestCase):
                           channel.status_change_offline), (True, True, False, False))
         page = self.client.get('/user/settings/')
         self.assertContains(page, 'id="email-backup_fail" name="backup_fail" checked')
-        self.assertContains(page, 'Email is not set up yet')
         self.assertNotContains(self.client.get('/system/notifications/'), channel.name)
 
     def test_nothing_chosen_or_no_address_means_off(self):
@@ -167,7 +168,7 @@ class NewEventTests(TestCase):
 class SharedMailboxTests(TestCase):
     def test_an_email_channel_for_a_team_address(self):
         configure()
-        self.client.force_login(make_user(40))
+        self.client.force_login(make_user(50))
         self.client.post('/system/notifications/channel/', {
             'name': 'NOC mailbox', 'channel_type': 'email', 'destination': 'noc@example.net', 'enabled': 'on',
             'backup_fail': 'on'})
@@ -177,3 +178,48 @@ class SharedMailboxTests(TestCase):
 
     def test_one_line(self):
         self.assertEqual(email.one_line('a\r\nBcc: x', 50), 'a Bcc: x')
+
+
+@override_settings(ROUTERFLEET_EMAIL_BACKEND=LOCMEM)
+class MailServerCheckedBeforeSavingTests(TestCase):
+    """The mail server settings are saved only when the server accepts the
+    connection and the login; until then email stays greyed out."""
+
+    def setUp(self):
+        self.admin = make_user(50)
+        self.client.force_login(self.admin)
+
+    def post(self, **extra):
+        data = {'action': 'save', 'host': 'smtp.example.net', 'port': '587', 'security': 'starttls',
+                'username': 'rf', 'password': 'smtp-secret-1', 'sender_address': 'routerfleet@example.net',
+                'sender_name': 'RouterFleet Improved', 'enabled': 'on', **extra}
+        return self.client.post('/system/notifications/email/', data)
+
+    def test_refused_settings_are_not_saved(self):
+        from unittest import mock
+        with mock.patch('message_center.email.check', side_effect=OSError('535 Authentication failed for smtp-secret-1')):
+            page = self.post()
+        self.assertContains(page, 'the server did not accept these settings')
+        self.assertContains(page, '535 Authentication failed for ***', msg_prefix='the password is never shown')
+        smtp = SmtpSettings.load()
+        self.assertEqual(smtp.host, '')
+        self.assertFalse(smtp.ready)
+
+    def test_accepted_settings_switch_email_on(self):
+        response = self.post()
+        self.assertRedirects(response, '/system/notifications/email/')
+        smtp = SmtpSettings.load()
+        self.assertTrue(smtp.ready)
+        self.assertIsNotNone(smtp.verified_at)
+
+    def test_until_it_works_personal_email_choices_are_greyed_out_and_kept(self):
+        user = make_user(10, username='greyed')
+        self.client.force_login(user)
+        page = self.client.get('/user/settings/').content.decode()
+        self.assertIn('Email notifications wait for the mail server', page)
+        self.assertRegex(page, r'name="backup_fail"\s+disabled')
+        configure()
+        self.client.post('/user/settings/', {'action': 'email', 'email': 'g@example.net', 'backup_fail': 'on'})
+        SmtpSettings.objects.update(verified_at=None)
+        self.client.post('/user/settings/', {'action': 'email', 'email': 'g2@example.net'})
+        self.assertTrue(MessageChannel.objects.get(user=user).backup_fail, 'kept while greyed out')

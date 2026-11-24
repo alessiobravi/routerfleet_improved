@@ -13,6 +13,32 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.34.0] - 2026-11-24
+
+### Added
+- **Password reset by email**: *Forgot your password?* on the sign-in page,
+  offered only while the mail server works. A link to the account's email
+  address, valid for an hour and once; the page answers the same whether an
+  account matches or not, does not sign anybody in, and turns away an address
+  asking too often.
+
+### Changed
+- **The mail server is checked before it is saved**: *Check and save*
+  connects and logs in with the settings first; only settings the server
+  accepts are saved, and that switches on email notifications and password
+  reset. Refused settings are not saved, and the server's answer is shown (the
+  password taken out). A server already switched on counts as checked.
+- **Email is greyed out until the mail server works**, with the reason: the
+  email switches in My Settings (the choices are kept) and the Email type of a
+  channel. The email address stays editable - also where a reset link goes.
+- **System settings are for administrators only**, and in the menu only for
+  them. Their first section is **Media and messaging**: notification channels,
+  the mail server, grouping and daily reports. Configuration Managers still
+  start and follow device updates from the router list and the device page;
+  the firmware repository itself is managed by administrators.
+- **Message Center shows the messages only** - what was sent, to which
+  channel, what failed; its settings moved to System settings.
+
 ## [0.33.2] - 2026-11-24
 
 ### Fixed

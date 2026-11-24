@@ -30,7 +30,7 @@ class RepositoryTests(TestCase):
         self.media = temporary_media_root()
         self.media.__enter__()
         self.addCleanup(self.media.__exit__, None, None, None)
-        self.client.force_login(make_user(40))
+        self.client.force_login(make_user(50))
 
     def upload(self, **fields):
         data = {'device_type': str(device_types.get('routeros').uuid), 'version': '7.18.2',
@@ -214,7 +214,7 @@ class PageAndBranchTests(TestCase):
         self.media = temporary_media_root()
         self.media.__enter__()
         self.addCleanup(self.media.__exit__, None, None, None)
-        self.client.force_login(make_user(40))
+        self.client.force_login(make_user(50))
         self.image = make_image(version='7.18')
         self.router = make_router(router_type='routeros', name='fw1', backup_profile=make_profile())
         RouterInformation.objects.create(router=self.router, os_version='7.17', model_name='hAP ax3')

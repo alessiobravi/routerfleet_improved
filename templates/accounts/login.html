@@ -17,6 +17,7 @@
         <div class="input-group-text"><span class="fas fa-lock"></span></div>
     </div>
     <button type="submit" class="btn btn-primary w-100 mt-2"><i class="fas fa-sign-in-alt me-1"></i> Sign in</button>
+    {% if password_reset %}<div class="text-center"><a href="/accounts/password_reset/" class="btn btn-link btn-sm">Forgot your password?</a></div>{% endif %}
 </form>
 
 <!-- Shown only where the browser can use a passkey here -->

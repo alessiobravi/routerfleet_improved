@@ -28,7 +28,13 @@ def max_bytes():
 
 
 def allowed(request):
+    """Starting and following an update (level 40)."""
     return UserAcl.objects.filter(user=request.user, user_level__gte=LEVEL).exists()
+
+
+def manages_repository(request):
+    """The firmware repository is a system setting: administrators only."""
+    return UserAcl.objects.filter(user=request.user, user_level__gte=50).exists()
 
 
 def safe_filename(name):
@@ -40,7 +46,7 @@ def safe_filename(name):
 
 @login_required
 def view_repository(request):
-    if not allowed(request):
+    if not manages_repository(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     types = []
     for device_type in DeviceType.objects.filter(managed=True):
@@ -56,7 +62,7 @@ def view_repository(request):
 
 @login_required
 def view_upload(request):
-    if not allowed(request):
+    if not manages_repository(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     types = DeviceType.objects.filter(managed=True)
     if request.method == 'POST':
@@ -112,7 +118,7 @@ def view_upload(request):
 
 @login_required
 def view_image(request):
-    if not allowed(request):
+    if not manages_repository(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     image = get_object_or_404(FirmwareImage, uuid=request.GET.get('uuid'))
     if request.method == 'POST':

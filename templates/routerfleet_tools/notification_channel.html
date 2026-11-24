@@ -32,11 +32,11 @@
 
         <div class="rf-set-title">Type</div>
         <div class="rf-set-group">
-            <label class="rf-set-row rf-set-choice">
-                <input type="radio" name="channel_type" value="email" {% if form.channel_type.value == 'email' %}checked{% endif %}>
-                <span class="rf-set-icon purple"><i class="fas fa-envelope"></i></span>
+            <label class="rf-set-row rf-set-choice{% if not smtp_ready and form.channel_type.value != 'email' %} rf-set-disabled{% endif %}">
+                <input type="radio" name="channel_type" value="email" {% if form.channel_type.value == 'email' %}checked{% elif not smtp_ready %}disabled{% endif %}>
+                <span class="rf-set-icon orange"><i class="fas fa-envelope"></i></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">Email</span>
-                    <span class="rf-set-sub d-block">A shared mailbox, through the mail server{% if not smtp_ready %} - not set up yet{% endif %}.</span></span>
+                    <span class="rf-set-sub d-block">{% if smtp_ready %}A shared mailbox, through the mail server.{% else %}Waits for the mail server: set it up in Media and messaging - it works once the server accepts the connection and the login.{% endif %}</span></span>
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
             <label class="rf-set-row rf-set-choice">

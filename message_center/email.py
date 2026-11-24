@@ -51,6 +51,14 @@ def send(to, subject, text, smtp=None):
     return Delivered()
 
 
+def check(smtp):
+    """Connects to the server with these settings and logs in (when a login
+    is set), then disconnects: raises what the server or the network says."""
+    smtp_connection = connection(smtp)
+    smtp_connection.open()
+    smtp_connection.close()
+
+
 def scrub(text, smtp):
     text = str(text)
     if smtp and smtp.password:

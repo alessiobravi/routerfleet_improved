@@ -426,7 +426,7 @@ class ChannelFormTests(TestCase):
 
 class ViewTests(TestCase):
     def setUp(self):
-        self.client.force_login(make_user(40))
+        self.client.force_login(make_user(50))
 
     def test_unknown_channel_is_not_found(self):
         response = self.client.get('/system/notifications/channel/?uuid=00000000-0000-0000-0000-000000000000')

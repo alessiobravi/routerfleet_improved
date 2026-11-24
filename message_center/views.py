@@ -205,7 +205,8 @@ def view_message_history(request):
 
 @login_required()
 def view_manage_message_settings(request):
-    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=40).exists():
+    # A system setting: administrators only
+    if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=50).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
     form = MessageSettingsForm(request.POST or None, instance=message_settings)

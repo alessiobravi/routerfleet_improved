@@ -59,16 +59,19 @@ and a pass that removes nothing writes nothing.
 
 ## System settings
 
-*System settings* (Configuration Manager and above) gathers what belongs to the
-whole installation, in sections:
+*System settings* - for **administrators only**, and in the menu only for them -
+gathers what belongs to the whole installation, in collapsible sections:
 
 | Section | What |
 |---|---|
-| Messaging | notification channels, the mail server (administrators), grouping and daily reports |
-| Devices | device types (administrators), the firmware repository |
+| Media and messaging | notification channels, the mail server, grouping and daily reports |
+| Devices | device types, the firmware repository |
 | Display | default rows per table: what every list opens with, for everyone (10 until changed) |
 | Backups and jobs | backup profiles, Fleet Commander schedule defaults |
-| Security | HTTPS (administrators) |
+| Security | HTTPS, updates |
+
+Message Center shows the messages only. Configuration Managers still start
+and follow device updates from the router list and the device page.
 
 What each person chooses for themselves - light or dark mode, their own email
 notifications, sign-in security - is in *My Settings*.

@@ -24,8 +24,9 @@ flowchart LR
 
 ## Channels
 
-Channels are configured in **System Settings → Notifications** (Configuration
-Manager and above); the message history stays in Message Center.
+Channels are configured in **System settings → Media and messaging**
+(administrators). Message Center shows the messages only: what was sent, to
+which channel, and what failed.
 
 | Type | Transport | Needs |
 |---|---|---|
@@ -81,15 +82,24 @@ as it is at sending time. Administrators can also set the address in user
 management.
 
 **A shared mailbox** - a team address - is an ordinary channel of type
-*Email* in Message Center, with the address as its destination.
+*Email*, with the address as its destination.
 
-**The mail server** is set once, by an administrator, in *System Settings →
-Notifications → Mail server*: server and port, the connection's security (STARTTLS, SSL/TLS, or none
-- with a warning), an optional username and password, and the sender's address
-and name. The password is encrypted like device passwords and never shown
-again; leaving the field empty keeps it. *Send a test email* sends one to your
-own address. Until the server is set and switched on, users' choices are kept
-and nothing is sent.
+**The mail server** is set once, by an administrator, in *System settings →
+Media and messaging → Mail server*: server and port, the connection's security
+(STARTTLS, SSL/TLS, or none - with a warning), an optional username and
+password, and the sender's address and name. **Check and save** first connects
+and logs in with those settings: only settings the server accepts are saved,
+and then email notifications and [password reset](security.md#password-reset)
+are on; otherwise nothing is saved and the server's answer is shown (the
+password taken out). The password is encrypted like device passwords and never
+shown again; leaving the field empty keeps it. *Send a test email* sends one to
+your own address.
+
+**Until the mail server works**, email is greyed out wherever it appears, with
+the reason: the email switches in My Settings (the choices are kept, and apply
+once it works) and the *Email* type of a channel. The email address in My
+Settings stays editable - it is also where a password reset link goes. A
+server switched on before 0.34.0 counts as checked.
 
 Messages go through the same queue as every channel - grouping, retries and
 the message history included. Subjects are single lines, so a device name can
@@ -162,5 +172,5 @@ property.
 
 | Action | Minimum level |
 |---|---|
-| View channels and message history | 20 — Backup Operator |
-| Create or edit channels and message settings | 40 — Configuration Manager |
+| Message history (Message Center) | 20 — Backup Operator |
+| Channels, grouping and daily reports, mail server (System settings) | 50 — Administrator |

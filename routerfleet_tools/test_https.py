@@ -249,13 +249,12 @@ class SystemSettingsTests(TestCase):
         page = self.client.get('/system/')
         self.assertContains(page, '/system/https/')
         self.assertContains(page, '/system/notifications/')
+        # System settings are for administrators only
         self.client.force_login(make_user(40))
-        page = self.client.get('/system/')
-        self.assertNotContains(page, '/system/https/')
-        self.assertContains(self.client.get('/system/notifications/channel/'), 'Telegram')
-        self.assertContains(self.client.get('/system/notifications/email/'), 'Access Denied')
-        self.client.force_login(make_user(30))
-        self.assertContains(self.client.get('/system/'), 'Access Denied')
+        for path in ('/system/', '/system/notifications/', '/system/notifications/channel/', '/system/notifications/email/',
+                     '/system/display/', '/system/firmware/', '/message_center/manage_settings/'):
+            self.assertContains(self.client.get(path), 'Access Denied', msg_prefix=path)
+        self.assertNotContains(self.client.get('/status/'), 'href="/system/"', msg_prefix='not in the menu')
 
     def test_removed_callmebot_channels_are_listed(self):
         self.Channel.objects.create(name='whatsapp', channel_type='callmebot', destination='+391234', enabled=False)
@@ -289,7 +288,7 @@ class DisplaySettingsTests(TestCase):
     """System Settings, Display: the rows every table opens with."""
 
     def setUp(self):
-        self.client.force_login(make_user(40))
+        self.client.force_login(make_user(50))
 
     def test_tables_open_with_ten_rows_until_changed(self):
         self.assertContains(self.client.get('/system/'), 'Default rows per table')
@@ -310,10 +309,9 @@ class DisplaySettingsTests(TestCase):
 
     def test_hub_sections(self):
         page = self.client.get('/system/').content.decode()
-        for section in ('Messaging', 'Display', 'Backups and jobs'):
+        for section in ('Media and messaging', 'Devices', 'Display', 'Backups and jobs', 'Security'):
             self.assertIn(f'</span>{section}<span class="rf-set-summary-sub">', page)
-        self.assertNotIn('</span>Security<span class="rf-set-summary-sub">', page, 'HTTPS is for administrators')
-        self.client.force_login(make_user(30))
+        self.client.force_login(make_user(40))
         self.assertContains(self.client.get('/system/display/'), 'Access Denied')
 
 

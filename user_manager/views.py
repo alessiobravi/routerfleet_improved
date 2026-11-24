@@ -29,7 +29,12 @@ def view_user_settings(request):
     user_acl, created = UserAcl.objects.get_or_create(user=request.user)
     if request.method == 'POST' and request.POST.get('action') == 'email':
         address = request.POST.get('email', '').strip()
-        events = {field for field, _, _ in email_notifications.PERSONAL_EVENTS if request.POST.get(field) == 'on'}
+        if SmtpSettings.load().ready:
+            events = {field for field, _, _ in email_notifications.PERSONAL_EVENTS if request.POST.get(field) == 'on'}
+        else:
+            # The switches are greyed out (not sent) until email works: the choices are kept
+            channel = email_notifications.personal_channel(request.user)
+            events = {field for field, _, _ in email_notifications.PERSONAL_EVENTS if getattr(channel, field, False)}
         try:
             if address:
                 validate_email(address)

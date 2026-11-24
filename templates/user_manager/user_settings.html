@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% load static %}
+{% load static custom_tags %}
 {% block content %}
 <div class="rf-settings">
     <div class="rf-set-title">Account</div>
@@ -110,13 +110,21 @@
         <div class="rf-set-row">
             <span class="rf-set-icon {% if email_ready %}teal{% else %}amber{% endif %}"><i class="fas fa-envelope"></i></span>
             <div class="rf-set-text"><label class="small mb-0" for="email">Your email address</label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ request.user.email }}" placeholder="you@example.com"></div>
+                <input type="email" class="form-control" id="email" name="email" value="{{ request.user.email }}" placeholder="you@example.com">
+                <div class="rf-set-sub mt-1">Also where a password reset link goes.</div></div>
         </div>
-        {% for field, label, sub, on in email_events %}
+        {% if not email_ready %}
         <div class="rf-set-row">
+            {{ 'warn'|state_icon:'Email not working yet' }}
+            <div class="rf-set-text"><div class="rf-set-sub text-body">Email notifications wait for the mail server: an administrator sets it up in
+                System settings, Media and messaging - it works once the server accepts the connection and the login. Your choices are kept.</div></div>
+        </div>
+        {% endif %}
+        {% for field, label, sub, on in email_events %}
+        <div class="rf-set-row{% if not email_ready %} rf-set-disabled{% endif %}">
             <div class="rf-set-text"><div class="rf-set-label">{{ label }}</div><div class="rf-set-sub">{{ sub }}</div></div>
             <div class="form-check form-switch">
-                <input type="checkbox" class="form-check-input" id="email-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}>
+                <input type="checkbox" class="form-check-input" id="email-{{ field }}" name="{{ field }}" {% if on %}checked{% endif %}{% if not email_ready %} disabled{% endif %}>
                 <label class="form-check-label" for="email-{{ field }}"><span class="visually-hidden">{{ label }}</span></label>
             </div>
         </div>
@@ -131,9 +139,6 @@
         Sent through the installation's mail server.
         {% if request.user.email %}<button type="submit" class="btn btn-link btn-sm p-0 align-baseline">Send me a test email</button>{% endif %}
     </form>
-    {% else %}
-    <div class="rf-set-foot">Email is not set up yet: an administrator configures the mail server in System Settings, Notifications.
-        Your choices are kept and apply once it is.</div>
     {% endif %}
 
     </details>

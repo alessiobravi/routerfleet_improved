@@ -99,6 +99,7 @@ RELEASED = {
     'message_center/migrations/0011_callmebot_removed.py': '47f2a7dbf5288371c5412b857b7712a1d69077b172011d4d54312901f3745e46',
     'message_center/migrations/0012_message_message_queue_message_message_history_and_more.py': 'bdf6157e2774775f9644fe0e7f7d235db075e2172cbfb9f2ee10e3e50d88a7e4',
     'message_center/migrations/0013_firmware_update_event.py': '49f37c7a28ff7b15a1912de43c7968fdd69f7ddafdfc187dae5cae35da03933d',
+    'message_center/migrations/0014_smtpsettings_verified_at.py': 'fb97a6954a34ba19bf244ab5abf14f8ffd03110d625bfe3d677e8db26292a647',
     'monitoring/migrations/0001_initial.py': 'fc2f64d7cc8601fd2296462360ce10b90195c5e42479aeaccc4db94fe07f770b',
     'monitoring/migrations/0002_routerdowntime_downtime_router_start_and_more.py': '6b96bfe065586a19404763e9372181db723a61e69df9f2e49353d16cadd2cef8',
     'monitoring/migrations/0003_close_outages_of_unwatched_hosts.py': '642e28b94b2a61e32206faf6a54d5a92672bd14d96a86a812a43b7a32c5f249a',

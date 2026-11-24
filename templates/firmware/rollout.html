@@ -3,7 +3,7 @@
 {% load custom_tags %}
 {% block content %}
 <div id="rf-live-rollout" data-rf-live="{% if rollout.active %}active{% else %}done{% endif %}" data-rf-live-reason="firmware update running" data-rf-live-interval="5">
-    <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
+    {% if rf_is_admin %}<a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>{% else %}<a href="/router/list/" class="small"><i class="fas fa-chevron-left"></i> Router list</a>{% endif %}
     {% include 'includes/object_hero.html' %}
     <div class="rf-object rf-o-grid rf-o-split">
         <div class="rf-o-card">

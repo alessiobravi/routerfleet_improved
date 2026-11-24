@@ -2,22 +2,6 @@
 
 {% block content %}
 <div class="rf-settings">
-    <div class="rf-set-title">Message Center</div>
-    <div class="rf-set-group">
-        <a class="rf-set-row" href="/system/notifications/">
-            <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Channels</span>
-                <span class="rf-set-sub d-block">Email, ntfy and Telegram - in System settings</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        <a class="rf-set-row" href="/message_center/manage_settings/">
-            <span class="rf-set-icon orange"><i class="fas fa-layer-group"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Grouping and daily reports</span>
-                <span class="rf-set-sub d-block">How long events are collected into one message; when the daily reports go out ({{ message_settings.daily_report_time }})</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-    </div>
-
     <div class="rf-set-title">Messages, last 30 days</div>
     <div class="rf-set-group" id="message-list">
         {% if message_list %}

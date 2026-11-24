@@ -3,7 +3,7 @@
 {% block content %}
 <div class="rf-settings">
     <details class="rf-set-section" data-rf-remember="messaging">
-        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-bell"></i></span>Messaging<span class="rf-set-summary-sub">Channels, mail server, grouping and daily reports</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-bell"></i></span>Media and messaging<span class="rf-set-summary-sub">Notification channels, the mail server, grouping and daily reports</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/system/notifications/">
             <span class="rf-set-icon amber"><i class="fas fa-bell"></i></span>
@@ -16,7 +16,7 @@
         <a class="rf-set-row" href="/system/notifications/email/">
             <span class="rf-set-icon {% if smtp.ready %}teal{% else %}amber{% endif %}"><i class="fas fa-envelope"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">Mail server (SMTP)</span>
-                <span class="rf-set-sub d-block">{% if smtp.ready %}{{ smtp.host }}:{{ smtp.port }}{% else %}Not set up: email is not sent{% endif %}</span></span>
+                <span class="rf-set-sub d-block">{% if smtp.ready %}Working - {{ smtp.host }}:{{ smtp.port }}; email notifications and password reset are on{% else %}Not working yet: no email notifications, no password reset{% endif %}</span></span>
             <span class="rf-set-pill {% if smtp.ready %}on{% endif %}">{% if smtp.ready %}On{% else %}Off{% endif %}</span>
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>

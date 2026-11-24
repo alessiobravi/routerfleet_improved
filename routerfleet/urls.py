@@ -36,6 +36,8 @@ from router_manager.device_type_views import view_device_types, view_device_type
 from firmware import views as firmware_views
 from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_password_change, view_passkey_options, view_passkey_add, view_passkey_delete
 
+from accounts import password_reset  # noqa: E402
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('debug/run_backups/', view_debug_run_backups, name='debug_run_backups'),
@@ -60,6 +62,10 @@ urlpatterns = [
     path('accounts/create_first_user/', view_create_first_user, name='create_first_user'),
     path('accounts/login/', view_login, name='login'),
     path('accounts/login/verify/', view_login_verify, name='login_verify'),
+    path('accounts/password_reset/', password_reset.view_password_reset, name='password_reset'),
+    path('accounts/password_reset/sent/', password_reset.view_password_reset_sent, name='password_reset_sent'),
+    path('accounts/reset/<uidb64>/<token>/', password_reset.ResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('accounts/reset/done/', password_reset.view_password_reset_done, name='password_reset_done'),
     path('accounts/passkey/options/', view_passkey_login_options, name='passkey_login_options'),
     path('accounts/passkey/login/', view_passkey_login, name='passkey_login'),
     path('accounts/logout/', view_logout, name='logout'),
