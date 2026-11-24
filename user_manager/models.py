@@ -24,6 +24,15 @@ class UserAcl(models.Model):
     # A number to reach the person on (shown to administrators only)
     phone = models.CharField(max_length=30, blank=True, default='')
 
+    # How long a sign-in lasts after the last use (hours); pages refreshing by
+    # themselves do not count as use
+    SESSION_HOURS = ((1, '1 hour'), (4, '4 hours'), (8, '8 hours'), (12, '12 hours'), (24, '24 hours'),
+                     (72, '3 days'), (168, '1 week'), (336, '2 weeks'))
+    session_hours = models.PositiveIntegerField(default=24, choices=SESSION_HOURS)
+    # How list pages are drawn: as cards, or in the grouped rows of the settings
+    list_style = models.CharField(max_length=10, default='cards', choices=(
+        ('cards', 'Cards'), ('grouped', 'Grouped')))
+
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     uuid = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)

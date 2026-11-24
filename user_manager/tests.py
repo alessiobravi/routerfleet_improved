@@ -111,3 +111,45 @@ class UserDetailsTests(TestCase):
                 self.client.post('/user/manage/', {'username': f'u{len(phone)}', 'password1': 'Xk2!rT9#pq',
                                                    'password2': 'Xk2!rT9#pq', 'user_level': 10, 'phone': phone})
                 self.assertFalse(UserAcl.objects.filter(user__username=f'u{len(phone)}').exists())
+
+
+class SessionLengthAndListStyleTests(TestCase):
+    """Each user chooses how long a sign-in lasts (24 hours by default, from
+    the last use, self-refreshing pages not counting) and how lists look."""
+
+    def setUp(self):
+        from routerfleet.testing import make_user
+        self.user = make_user(10, username='lena')
+        self.client.force_login(self.user)
+
+    def test_the_default_is_24_hours_from_the_last_use(self):
+        self.client.get('/user/settings/')
+        self.assertEqual(self.client.session.get_expiry_age(), 24 * 3600)
+
+    def test_the_chosen_length_applies(self):
+        self.client.post('/user/settings/', {'action': 'session', 'session_hours': '168'})
+        self.assertEqual(UserAcl.objects.get(user=self.user).session_hours, 168)
+        self.client.get('/user/settings/')
+        self.assertEqual(self.client.session.get_expiry_age(), 168 * 3600)
+
+    def test_a_length_not_offered_is_refused(self):
+        self.client.post('/user/settings/', {'action': 'session', 'session_hours': '99999'})
+        self.assertEqual(UserAcl.objects.get(user=self.user).session_hours, 24)
+
+    def test_pages_refreshing_themselves_do_not_renew_it(self):
+        import time
+        from unittest import mock
+        self.client.get('/user/settings/')
+        renewed = self.client.session['rf_renewed']
+        with mock.patch('time.time', return_value=time.time() + 3600):
+            self.client.get('/status/', HTTP_X_RF_LIVE='1')
+            self.assertEqual(self.client.session['rf_renewed'], renewed, 'a live refresh is not use')
+            self.client.get('/status/')
+            self.assertGreater(self.client.session['rf_renewed'], renewed, 'a page opened is')
+
+    def test_the_list_style_reaches_every_page(self):
+        self.assertNotIn('rf-lists-grouped', self.client.get('/status/').content.decode())
+        self.client.post('/user/settings/', {'action': 'lists', 'list_style': 'grouped'})
+        self.assertIn('rf-lists-grouped', self.client.get('/status/').content.decode())
+        self.client.post('/user/settings/', {'action': 'lists', 'list_style': 'nonsense'})
+        self.assertEqual(UserAcl.objects.get(user=self.user).list_style, 'grouped')

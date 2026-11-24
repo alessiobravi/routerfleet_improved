@@ -158,6 +158,14 @@ which follows the device: dark when the computer or phone is in dark mode, and
 changing with it. The choice is kept by each browser. The page is drawn in its
 theme from the start, without a white flash.
 
+### Lists: cards or grouped
+
+*My Settings → Lists* draws the list pages - the router list, backups, job
+history, the audit log and the others - either as **Cards** (each list in a
+card with its title bar, as before) or **Grouped** (a section title and a
+rounded group, like the settings pages). Each user chooses for themselves;
+the choice follows them to every device.
+
 ### Switches
 
 Every on/off setting is a switch. A real checkbox remains only where it means

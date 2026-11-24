@@ -446,6 +446,15 @@ closes and within seconds of signing out. Each session is in the change log;
 what is typed is not recorded. CI drives a real console session through nginx
 to an SSH server on every push.
 
+### How long a sign-in lasts
+
+Each user chooses in *My Settings → Sign-in*: from 1 hour to 2 weeks, **24 hours**
+unless changed, counted from the last use. Pages refreshing by themselves - the
+live parts of the status page, a rollout or a job - and the scheduler's calls do
+not count as use, so a tab left open does not keep a sign-in alive. The expiry
+is renewed at most every five minutes, so it may run up to five minutes longer.
+Before 0.31.0 every sign-in lasted two weeks from signing in.
+
 ### Cookies
 
 With HTTPS enforced — `HTTPS_REDIRECT_POLICY` is anything but `never` — the

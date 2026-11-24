@@ -25,6 +25,38 @@
     </div>
     <div class="rf-set-foot">Kept by this browser. The moon in the top bar switches it too.</div>
 
+    <div class="rf-set-title">Lists</div>
+    <form method="post" class="rf-set-group" id="list-style-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="lists">
+        {% for value, label, icon, sub in list_style_choices %}
+        <label class="rf-set-row rf-set-choice">
+            <input type="radio" data-rf-autosubmit name="list_style" value="{{ value }}" {% if list_style == value %}checked{% endif %}>
+            <span class="rf-set-icon {% cycle 'blue' 'teal' %}"><i class="fas {{ icon }}"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span><span class="rf-set-sub d-block">{{ sub }}</span></span>
+            <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+        </label>
+        {% endfor %}
+        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+    </form>
+    <div class="rf-set-foot">How the router list, backups, job history, the audit log and other list pages look. Yours only, on every device.</div>
+
+    <div class="rf-set-title">Sign-in</div>
+    <form method="post" class="rf-set-group" id="session-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="session">
+        <div class="rf-set-row">
+            <span class="rf-set-icon purple"><i class="fas fa-hourglass-half"></i></span>
+            <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="session_hours">Stay signed in for</label>
+                <div class="rf-set-sub">After your last use. Pages refreshing by themselves - the status page left open - do not count.</div></div>
+            <select class="form-select w-auto" id="session_hours" name="session_hours" data-rf-autosubmit>
+                {% for value, label in session_choices %}<option value="{{ value }}" {% if value == session_hours %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+    </form>
+    <div class="rf-set-foot">Takes effect on your next page. A screen that should stay signed in, such as a wall display, can use 2 weeks.</div>
+
     <div class="rf-set-title">Router address in the device list</div>
     <form method="post" id="address-link-form" class="rf-set-group">
         {% csrf_token %}

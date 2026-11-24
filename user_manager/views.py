@@ -43,6 +43,23 @@ def view_user_settings(request):
             f'{len(events)} kind{"s" if len(events) != 1 else ""} of notification to {address}.' if address and events
             else 'You receive no email notifications.'))
         return redirect('/user/settings/')
+    if request.method == 'POST' and request.POST.get('action') == 'session':
+        try:
+            hours = int(request.POST.get('session_hours', ''))
+        except ValueError:
+            hours = None
+        if hours in dict(UserAcl.SESSION_HOURS):
+            user_acl.session_hours = hours
+            user_acl.save(update_fields=['session_hours', 'updated'])
+            messages.success(request, f'Sign-in saved|You stay signed in for {dict(UserAcl.SESSION_HOURS)[hours]} after '
+                                      f'your last use.')
+        return redirect('/user/settings/')
+    if request.method == 'POST' and request.POST.get('action') == 'lists':
+        style = request.POST.get('list_style')
+        if style in dict(UserAcl._meta.get_field('list_style').choices):
+            user_acl.list_style = style
+            user_acl.save(update_fields=['list_style', 'updated'])
+        return redirect('/user/settings/')
     if request.method == 'POST' and request.POST.get('action') == 'test_email':
         try:
             email_notifications.send(request.user.email, 'RouterFleet Improved: test email',
@@ -64,6 +81,11 @@ def view_user_settings(request):
         'email_events': [(field, label, sub, bool(getattr(email_notifications.personal_channel(request.user), field, False)))
                          for field, label, sub in email_notifications.PERSONAL_EVENTS],
         'email_ready': SmtpSettings.load().ready,
+        'session_choices': UserAcl.SESSION_HOURS, 'session_hours': user_acl.session_hours,
+        'list_style': user_acl.list_style,
+        'list_style_choices': (('cards', 'Cards', 'fa-table-list', 'Each list in a card with its title bar - as before.'),
+                               ('grouped', 'Grouped', 'fa-layer-group',
+                                'Lists drawn like the settings: a section title and a rounded group.')),
         'theme_choices': (('auto', 'Automatic', 'fa-adjust', 'Follows this device: dark when it is dark.'),
                           ('light', 'Light', 'fa-sun', 'Always light.'),
                           ('dark', 'Dark', 'fa-moon', 'Always dark - for the night.')),

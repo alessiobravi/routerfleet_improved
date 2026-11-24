@@ -150,6 +150,7 @@ RELEASED = {
     'user_manager/migrations/0005_level_label_capitalised.py': '1171873e92fa28879ad0e8e801136552ddc57a044fad78962083af4dd8886b73',
     'user_manager/migrations/0006_address_link_labels.py': '448f1e544274fd034411ac3bd8a12fc7020a67976c9ef87a6f75108fdc832bb7',
     'user_manager/migrations/0007_user_phone.py': '775b63c061a44fc040fc5c23bb9edf46fdeef79e76dcedb950335d857def2905',
+    'user_manager/migrations/0008_session_hours_list_style.py': 'b1d28c0458ce72f018af089cf84336adb9628057f18ff870bccc86bb69c041e8',
 }
 
 

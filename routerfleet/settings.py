@@ -81,6 +81,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # How long a sign-in lasts: each user's choice, from the last use
+    'routerfleet.middleware.SessionLengthMiddleware',
     # After the user is known, so a change can be recorded with who made it
     'audit_log.middleware.AuditContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -217,7 +219,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.30.0'
+ROUTERFLEET_RELEASE = '0.31.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 

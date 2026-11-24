@@ -13,6 +13,18 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.31.0] - 2026-11-24
+
+### Added
+- **How long a sign-in lasts is each user's choice** (*My Settings →
+  Sign-in*): 1 hour to 2 weeks, **24 hours by default**, from the last use.
+  Pages refreshing by themselves and the scheduler's calls do not count, so a
+  tab left open does not keep a sign-in alive. Until now every sign-in lasted
+  two weeks from signing in.
+- **Two styles for the list pages** (*My Settings → Lists*): **Cards**, as
+  before, or **Grouped** - a section title and a rounded group, like the
+  settings pages. Each user chooses; the choice follows them to every device.
+
 ## [0.30.0] - 2026-11-24
 
 ### Added

@@ -77,3 +77,32 @@ def https_mode():
 
 def forget_https_mode():
     _mode_cache['at'] = 0.0
+
+
+class SessionLengthMiddleware:
+    """A sign-in lasts as long as its user chose in My Settings (24 hours by
+    default), counted from the last use. Pages refreshing by themselves (the
+    live parts, X-RF-Live) and the scheduler's calls are not use: a tab left
+    open on the status page does not keep a sign-in alive. The expiry is renewed at most every
+    RENEW_SECONDS, not written at every request."""
+
+    RENEW_SECONDS = 300
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # Cheap checks first: reading the user loads the session
+        if request.headers.get('X-RF-Live') == '1' or request.path.startswith('/cron/'):
+            return self.get_response(request)
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated:
+            import time
+            from user_manager.models import UserAcl
+            hours = UserAcl.objects.filter(user=user).values_list('session_hours', flat=True).first() or 24
+            session = request.session
+            now = time.time()
+            if session.get('rf_hours') != hours or now - session.get('rf_renewed', 0) > self.RENEW_SECONDS:
+                session['rf_hours'], session['rf_renewed'] = hours, now
+                session.set_expiry(hours * 3600)
+        return self.get_response(request)

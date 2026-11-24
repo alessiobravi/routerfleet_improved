@@ -22,7 +22,7 @@
 </head>
 {% load custom_tags %}
 {% tag_webadmin_version as webadmin_version %}
-<body class="layout-fixed sidebar-expand-lg sidebar-mini bg-body-tertiary{% if request.COOKIES.sidebarState == 'collapsed' %} sidebar-collapse{% endif %}"
+<body class="layout-fixed sidebar-expand-lg sidebar-mini bg-body-tertiary{% if request.COOKIES.sidebarState == 'collapsed' %} sidebar-collapse{% endif %}{% if rf_list_style == 'grouped' %} rf-lists-grouped{% endif %}"
       data-page-size="{{ rf_page_size|default:10 }}">
 <div class="app-wrapper">
 
