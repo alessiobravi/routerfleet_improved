@@ -189,8 +189,44 @@ def write_state(https_settings):
         state['domain'] = https_settings.domain
     if https_settings.mode == 'proxy':
         state['trusted_proxies'] = clean_proxies(https_settings.trusted_proxies)
+    state['access'] = access_state(https_settings)
     _write_atomically(os.path.join(cert_dir(), STATE_FILE), json.dumps(state, indent=2).encode())
     return state
+
+
+# --- HTTP access lists ----------------------------------------------------------
+
+def clean_network(value):
+    """An address or a network, IPv4 or IPv6, in its canonical form - or
+    ValueError. A single address becomes /32 or /128."""
+    text = (value or '').strip().strip('[]')
+    if not text or len(text) > 50:
+        raise ValueError('an address or a network, IPv4 or IPv6 - for example 192.0.2.0/24 or 2001:db8::/32')
+    network = ipaddress.ip_network(text, strict=False)
+    return str(network)
+
+
+def access_state(https_settings):
+    from .models import AccessRule
+    return {'rules': [{'action': rule.action, 'network': rule.network} for rule in AccessRule.objects.all()],
+            'default': https_settings.access_default}
+
+
+def access_allows(address, rules, default='allow'):
+    """What the access list decides for an address: the first entry that
+    matches, else the final policy - as nginx does. rules: [(action, network)]."""
+    try:
+        client = ipaddress.ip_address((address or '').strip('[]'))
+    except ValueError:
+        return default == 'allow'
+    client = getattr(client, 'ipv4_mapped', None) or client
+    for action, network in rules:
+        try:
+            if client in ipaddress.ip_network(network, strict=False):
+                return action == 'allow'
+        except (ValueError, TypeError):
+            continue
+    return default == 'allow'
 
 
 def store_custom_certificate(checked):

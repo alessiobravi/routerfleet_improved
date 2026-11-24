@@ -35,9 +35,16 @@ the Zabbix kit reads, says so under **Monitoring**.
   in parallel, every ten minutes and on request); a reachable one is added by
   an administrator with the **Add to hosts** wizard, by its IP address: the
   device, signing in (with *Test connection*), backups and monitoring.
-- **IPv4 and IPv6 everywhere**: nginx, the application and the console server
-  listen on both where the container has IPv6 (IPv4 only where it is switched
-  off); `SERVER_ADDRESS` takes an IPv6 address, bare or in brackets; devices
+- **HTTP access lists** (System settings → Security → HTTP access): allow and
+  deny entries, IPv4 and IPv6, checked in order - the first match decides -
+  then a final policy, Allow unless changed. Enforced by nginx in every HTTPS
+  mode; a change that would shut out its author is refused;
+  `manage.py http_access --reset` opens access again.
+- **IPv4 and IPv6 everywhere, dual stack**: RouterFleet's own network has IPv6
+  beside IPv4 (a private ULA prefix; `IPV6=false` in `.env` only where the
+  host's kernel has IPv6 off), so every container has both; nginx, the
+  application and the console server listen on both, the application's
+  loopback port on 127.0.0.1 and ::1; `SERVER_ADDRESS` takes an IPv6 address, bare or in brackets; devices
   by IPv6 address (brackets optional); links put IPv6 addresses in brackets;
   discovery reads IPv6 management addresses (never link-local ones) and hears
   MNDP over IPv6; the guard on RouterFleet's own networks knows its IPv6

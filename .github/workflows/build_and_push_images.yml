@@ -231,6 +231,23 @@ jobs:
           state = listener_state(); assert state['running'] and not state['listening_left'], state
           print('imported', import_listener_file())"
 
+      - name: Dual stack - every service on IPv4 and IPv6
+        run: |
+          set -eu
+          # The application container has a global (ULA) IPv6 address on RouterFleet's network
+          V6=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.GlobalIPv6Address}}{{end}}' routerfleet)
+          echo "routerfleet IPv6: ${V6}"
+          case "$V6" in fd72:6674:6c74:*) ;; *) echo "::error::no IPv6 address on RouterFleet's network"; exit 1 ;; esac
+          # nginx reaches the application over IPv6 and IPv4 (gunicorn on one dual-stack socket)
+          V4=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' routerfleet)
+          docker exec routerfleet-nginx wget -q -O /dev/null "http://[${V6}]:8001/accounts/login/"
+          docker exec routerfleet-nginx wget -q -O /dev/null "http://${V4}:8001/accounts/login/"
+          # nginx itself listens on [::] too: the site answers on the host's IPv6 loopback
+          curl -fsSk -o /dev/null -g 'https://[::1]/accounts/login/'
+          curl -fsSk -o /dev/null 'https://127.0.0.1/accounts/login/'
+          # The application's loopback port for monitoring, on both
+          curl -fsS -o /dev/null -g 'http://[::1]:8001/accounts/login/'
+
       - name: The installation behaves
         run: |
           set -x
@@ -276,6 +293,38 @@ jobs:
           HOME_HEADERS=$(curl -sSk -D - -o /dev/null https://localhost/)
           if grep -qiE '^server: nginx/[0-9]' <<< "${HOME_HEADERS}"; then
             echo "::error::nginx announces its version"; exit 1
+          fi
+
+      - name: HTTP access lists reach nginx, and the command opens access again
+        run: |
+          set -eu
+          C="docker compose -f docker-compose-dev.yml"
+          code() { curl -sk -o /dev/null -w '%{http_code}' "$1" || true; }
+          wait_code() {
+            for _ in $(seq 1 30); do [ "$(code "$1")" = "$2" ] && return 0; sleep 1; done
+            echo "expected HTTP $2 from $1, got $(code "$1")"; $C logs --tail 30 routerfleet-nginx; return 1
+          }
+          # A file nginx serves itself: 200 when allowed, 403 when refused
+          # Deny as the final policy, no entry: every address refused by nginx
+          docker exec routerfleet python manage.py shell -c "
+          from routerfleet_tools import https
+          from routerfleet_tools.models import HttpsSettings
+          s = HttpsSettings.load(); s.access_default = 'deny'; s.save(); https.write_state(s)"
+          wait_code https://localhost/static/routerfleet/logo.svg 403
+          $C exec -T routerfleet-nginx sh -c "grep -q 'deny all;' /etc/nginx/conf.d/default.conf"
+          # An entry allowing the address nginx sees opens it again, in order
+          docker exec routerfleet python manage.py shell -c "
+          from routerfleet_tools import https
+          from routerfleet_tools.models import AccessRule, HttpsSettings
+          AccessRule.objects.create(action='allow', network='0.0.0.0/0', position=0)
+          AccessRule.objects.create(action='allow', network='::/0', position=1)
+          https.write_state(HttpsSettings.load())"
+          wait_code https://localhost/static/routerfleet/logo.svg 200
+          # The command from the host: no entry, Allow
+          docker exec routerfleet python manage.py http_access --reset
+          wait_code https://localhost/static/routerfleet/logo.svg 200
+          if $C exec -T routerfleet-nginx sh -c "grep -q 'deny all;' /etc/nginx/conf.d/default.conf"; then
+            echo "::error::the reset left a deny in nginx"; exit 1
           fi
 
       - name: HTTPS modes from System settings reach nginx

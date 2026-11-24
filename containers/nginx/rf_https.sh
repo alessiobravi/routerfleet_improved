@@ -168,6 +168,33 @@ with_ipv6() {
     fi
 }
 
+# The HTTP access list (System settings, HTTP access): nginx's allow and deny,
+# checked in order - the first match decides - then the final policy, in every
+# server block. Let's Encrypt's validation path stays open.
+access_lines() {
+    [ -f "$STATE" ] || return 0
+    rules=$(jq -r '.access.rules[]? | "\(.action) \(.network)"' "$STATE" 2>/dev/null)
+    default=$(jq -r '.access.default // "allow"' "$STATE" 2>/dev/null)
+    [ -n "$rules" ] || [ "$default" = "deny" ] || return 0
+    echo "$rules" | while read -r action net; do
+        [ -n "$net" ] || continue
+        case "$action" in allow|deny) ;; *) echo "access list: not an action: $action" >&2; return 1 ;; esac
+        valid_net "$net" || { echo "access list: not an address: $net" >&2; return 1; }
+        echo "    $action $net;"
+    done
+    case "$default" in deny) echo "    deny all;" ;; *) echo "    allow all;" ;; esac
+}
+
+with_access() {
+    RF_ACCESS="$(access_lines)" || return 1
+    if [ -z "$RF_ACCESS" ]; then cat; return 0; fi
+    RF_ACCESS="$RF_ACCESS" awk '
+        { print }
+        /^[ \t]*server[ \t]*\{/ { print ENVIRON["RF_ACCESS"] }
+        /location \/\.well-known\/acme-challenge\/[ \t]*\{/ { print "        allow all;" }
+    '
+}
+
 render() {  # writes the configuration for the current mode to stdout
     m=$(mode)
     case "$m" in
@@ -273,7 +300,13 @@ apply() {
         log "not applied: $(cat /tmp/rf_render_error)"
         return 1
     fi
-    with_ipv6 < "$CONF.raw" > "$CONF.new" && rm -f "$CONF.raw"
+    if ! with_ipv6 < "$CONF.raw" | with_access > "$CONF.new" 2> /tmp/rf_render_error || [ -s /tmp/rf_render_error ]; then
+        rm -f "$CONF.raw" "$CONF.new"
+        write_status false "$(head -c 300 /tmp/rf_render_error)"
+        log "not applied: $(cat /tmp/rf_render_error)"
+        return 1
+    fi
+    rm -f "$CONF.raw"
     [ -f "$CONF" ] && cp "$CONF" "$CONF.bak"
     mv "$CONF.new" "$CONF"
     if nginx -t 2> /tmp/rf_nginx_test; then

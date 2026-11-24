@@ -463,6 +463,29 @@ away for a while (counted per application worker). Without a working mail
 server the page does not exist; an administrator sets a new password in User
 Manager.
 
+### HTTP access lists
+
+*System settings → Security → HTTP access* decides which addresses may reach
+the web interface, over HTTP and HTTPS, in every HTTPS mode: **allow** and
+**deny** entries - a single address or a network, IPv4 or IPv6 - checked **in
+order, the first match deciding**, then a **final policy** for every other
+address: **Allow** unless changed. nginx enforces it with its own `allow` and
+`deny`, which work exactly that way; Let's Encrypt's validation path stays
+open. Behind a reverse proxy the address is the client's, taken from the
+trusted proxies.
+
+A change that would shut out the administrator making it - by their address
+as nginx sees it - is refused. Locked out anyway (a new address, say)? On the
+host:
+
+```bash
+docker compose exec routerfleet python manage.py http_access          # shows the list
+docker compose exec routerfleet python manage.py http_access --reset  # no entry, Allow
+```
+
+The scheduler and monitoring talk to the application directly and are not
+affected; nor is SSH to the host.
+
 ### How long a sign-in lasts
 
 Each user chooses in *My Settings → Security settings → Session expiration time*: from 1 hour to 2 weeks, **24 hours**

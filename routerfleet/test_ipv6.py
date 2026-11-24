@@ -23,7 +23,7 @@ class ServicesListenOnBothTests(SimpleTestCase):
         out = subprocess.run(['awk', rule], input='    listen 80;\n    listen 443 ssl;\n    server_name x;\n',
                              capture_output=True, text=True, check=True).stdout
         self.assertEqual(out, '    listen 80;\n    listen [::]:80;\n    listen 443 ssl;\n    listen [::]:443 ssl;\n    server_name x;\n')
-        self.assertIn('with_ipv6 < "$CONF.raw" > "$CONF.new"', script)
+        self.assertIn('with_ipv6 < "$CONF.raw" | with_access > "$CONF.new"', script)
 
 
 class ServerAddressTests(SimpleTestCase):

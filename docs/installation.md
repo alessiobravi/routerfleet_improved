@@ -251,10 +251,14 @@ host can reach that port.
 
 ## IPv4 and IPv6
 
-Every service listens on IPv4 and IPv6 where the container has IPv6: nginx on
-both (`listen [::]:80` beside `listen 80`), the application and the console
-server on one dual-stack socket. Where IPv6 is switched off they stay on IPv4
-- nothing to configure. Docker publishes nginx's ports on the host's IPv4 and
+RouterFleet runs **dual stack**: its own Docker network has IPv6 beside IPv4
+(the private ULA prefix `fd72:6674:6c74::/64`), so every container has both
+addresses; nginx listens on both (`listen [::]:80` beside `listen 80`), the
+application and the console server on one dual-stack socket, the application's
+loopback port for monitoring on `127.0.0.1` and `::1`. Only on a host whose
+kernel has IPv6 switched off, set `IPV6=false` in `.env`: the network is then
+IPv4 only and the services stay on IPv4. Taking this compose file over an
+earlier one creates the new network on `docker compose up -d`. Docker publishes nginx's ports on the host's IPv4 and
 IPv6 addresses. Devices can be added by IPv6 address (brackets optional);
 monitoring pings both, discovery reads IPv6 management addresses, and links
 put IPv6 addresses in brackets (`ssh://admin@[2001:db8::9]:22`). Outbound

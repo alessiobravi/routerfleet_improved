@@ -50,6 +50,9 @@ class HttpsSettings(models.Model):
     custom_names = models.TextField(blank=True)
     custom_trusted = models.BooleanField(default=False)
     generation = models.PositiveIntegerField(default=0)
+    # HTTP access: what an address no entry of the access list matches gets
+    ACCESS_POLICIES = (('allow', 'Allow'), ('deny', 'Deny'))
+    access_default = models.CharField(max_length=5, choices=ACCESS_POLICIES, default='allow')
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -122,3 +125,23 @@ class UpdateRun(models.Model):
     @property
     def active(self):
         return self.state in self.ACTIVE
+
+
+class AccessRule(models.Model):
+    """One entry of the HTTP access list (System settings, HTTP access):
+    allow or deny an address or a network, IPv4 or IPv6. nginx checks the
+    entries in order and the first that matches decides; an address none
+    matches gets the final policy (HttpsSettings.access_default)."""
+    ACTIONS = (('allow', 'Allow'), ('deny', 'Deny'))
+    position = models.PositiveIntegerField(default=0)
+    action = models.CharField(max_length=5, choices=ACTIONS)
+    network = models.CharField(max_length=50)
+    note = models.CharField(max_length=100, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    class Meta:
+        ordering = ['position', 'id']
+
+    def __str__(self):
+        return f'{self.action} {self.network}'

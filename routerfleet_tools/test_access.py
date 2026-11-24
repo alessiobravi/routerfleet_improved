@@ -1,0 +1,120 @@
+"""HTTP access lists: ordered allow and deny entries, IPv4 and IPv6, the
+first match decides, then the final policy; nginx renders them; a change
+that would shut out its author is refused; a command opens access again."""
+import json
+import pathlib
+import subprocess
+import tempfile
+
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase, override_settings
+
+from routerfleet.testing import make_user
+
+from . import https
+from .models import AccessRule, HttpsSettings
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+class EvaluationTests(SimpleTestCase):
+    def test_first_match_then_the_final_policy(self):
+        rules = [('allow', '192.0.2.10/32'), ('deny', '192.0.2.0/24'), ('deny', '2001:db8:bad::/48'), ('allow', '2001:db8::/32')]
+        self.assertTrue(https.access_allows('192.0.2.10', rules, 'deny'))
+        self.assertFalse(https.access_allows('192.0.2.11', rules, 'allow'))
+        self.assertFalse(https.access_allows('2001:db8:bad::1', rules, 'allow'))
+        self.assertTrue(https.access_allows('2001:db8:1::1', rules, 'deny'))
+        self.assertTrue(https.access_allows('198.51.100.1', rules, 'allow'))
+        self.assertFalse(https.access_allows('198.51.100.1', rules, 'deny'))
+        self.assertTrue(https.access_allows('::ffff:192.0.2.10', rules, 'deny'), 'an IPv4 client on a dual-stack socket')
+
+    def test_entries_are_cleaned(self):
+        self.assertEqual(https.clean_network('192.0.2.7'), '192.0.2.7/32')
+        self.assertEqual(https.clean_network('192.0.2.7/24'), '192.0.2.0/24')
+        self.assertEqual(https.clean_network('[2001:DB8::1]'), '2001:db8::1/128')
+        for bad in ('', 'example.net', '1.2.3.4; include x', '300.1.1.1'):
+            with self.assertRaises(ValueError):
+                https.clean_network(bad)
+
+
+class NginxRenderingTests(SimpleTestCase):
+    def render(self, state):
+        script = ROOT / 'containers/nginx/rf_https.sh'
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / 'state.json'
+            path.write_text(json.dumps(state))
+            driver = pathlib.Path(folder) / 'run.sh'
+            driver.write_text('STATE="$1"\n'
+                              'eval "$(sed -n \'/^valid_net()/p\' "$2")"\n'
+                              'eval "$(awk \'/^access_lines\\(\\) \\{/,/^}/\' "$2")"\n'
+                              'eval "$(awk \'/^with_access\\(\\) \\{/,/^}/\' "$2")"\n'
+                              'printf \'server {\\n    listen 80;\\n    location /.well-known/acme-challenge/ {\\n        root /x;\\n    }\\n}\\n\' | with_access\n')
+            result = subprocess.run(['sh', str(driver), str(path), str(script)], capture_output=True, text=True)
+        return result.stdout, result.stderr
+
+    def test_in_order_then_the_final_policy_acme_open(self):
+        out, err = self.render({'access': {'rules': [{'action': 'allow', 'network': '192.0.2.0/24'},
+                                                     {'action': 'deny', 'network': '2001:db8::/32'}], 'default': 'deny'}})
+        self.assertEqual(err, '')
+        lines = [line.strip() for line in out.splitlines()]
+        self.assertEqual(lines[1:4], ['allow 192.0.2.0/24;', 'deny 2001:db8::/32;', 'deny all;'])
+        self.assertIn('allow all;', lines[lines.index('location /.well-known/acme-challenge/ {') + 1])
+
+    def test_nothing_set_nothing_added_and_a_bad_entry_refused(self):
+        out, _ = self.render({'mode': 'env'})
+        self.assertNotIn('allow', out)
+        _, err = self.render({'access': {'rules': [{'action': 'allow', 'network': '1.2.3.4; include /etc/passwd'}]}})
+        self.assertIn('not an address', err)
+
+
+@override_settings(HTTPS_CERT_DIR=None)
+class PageTests(TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        override = override_settings(HTTPS_CERT_DIR=self.folder.name)
+        override.enable()
+        self.addCleanup(override.disable)
+        self.client.force_login(make_user(50))
+
+    def post(self, **data):
+        return self.client.post('/system/https/access/', data, REMOTE_ADDR='192.0.2.50')
+
+    def state(self):
+        return json.loads((pathlib.Path(self.folder.name) / https.STATE_FILE).read_text())['access']
+
+    def test_add_reorder_remove_and_the_state_nginx_reads(self):
+        self.post(action='add', verdict='allow', network='192.0.2.0/24', place='end', note='office')
+        self.post(action='add', verdict='deny', network='2001:db8::/32', place='start')
+        self.assertEqual([(r.action, r.network) for r in AccessRule.objects.all()],
+                         [('deny', '2001:db8::/32'), ('allow', '192.0.2.0/24')])
+        self.assertEqual(self.state()['rules'][0], {'action': 'deny', 'network': '2001:db8::/32'})
+        deny = AccessRule.objects.get(action='deny')
+        self.post(action='down', uuid=str(deny.uuid))
+        self.assertEqual([r.action for r in AccessRule.objects.all()], ['allow', 'deny'])
+        self.post(action='delete', uuid=str(deny.uuid))
+        self.assertEqual(AccessRule.objects.count(), 1)
+
+    def test_a_change_that_shuts_out_its_author_is_refused(self):
+        page = self.post(action='add', verdict='deny', network='192.0.2.0/24')
+        self.assertContains(page, 'would shut out your own address (192.0.2.50)')
+        self.assertFalse(AccessRule.objects.exists())
+        page = self.post(action='default', default='deny')
+        self.assertContains(page, 'would be shut out')
+        self.assertEqual(HttpsSettings.load().access_default, 'allow')
+        self.post(action='add', verdict='allow', network='192.0.2.50')
+        self.post(action='default', default='deny')
+        self.assertEqual(HttpsSettings.load().access_default, 'deny')
+        self.assertEqual(self.state()['default'], 'deny')
+
+    def test_administrators_only(self):
+        self.client.force_login(make_user(40))
+        self.assertContains(self.client.get('/system/https/access/'), 'Access Denied')
+
+    def test_the_command_opens_access_again(self):
+        AccessRule.objects.create(action='deny', network='0.0.0.0/0')
+        HttpsSettings.objects.filter(pk=HttpsSettings.load().pk).update(access_default='deny')
+        call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
+        self.assertFalse(AccessRule.objects.exists())
+        self.assertEqual(HttpsSettings.load().access_default, 'allow')
+        self.assertEqual(self.state(), {'rules': [], 'default': 'allow'})

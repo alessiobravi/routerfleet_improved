@@ -48,10 +48,11 @@ services:
       - COMPOSE_VERSION=09a
       - COMPOSE_TYPE=with-postgres
 
-    # Reachable from this host only (127.0.0.1), for the monitoring container on
+    # Reachable from this host only (127.0.0.1 and ::1), for the monitoring container on
     # the host's network; never from the network
     ports:
       - "127.0.0.1:${MONITORING_PORT:-8001}:8001"
+      - "[::1]:${MONITORING_PORT:-8001}:8001"
     volumes:
       - sqlite_volume:/var/lib/routerfleet_sqlite/
       - media_root:/var/lib/routerfleet/
@@ -147,6 +148,17 @@ services:
     depends_on:
       routerfleet:
         condition: service_healthy
+
+# Dual stack: RouterFleet's own network has IPv6 beside IPv4 (a fixed private
+# ULA prefix), so every container has both. On a host whose kernel has IPv6
+# switched off, set IPV6=false in .env.
+networks:
+  default:
+    name: routerfleet_dualstack
+    enable_ipv6: ${IPV6:-true}
+    ipam:
+      config:
+        - subnet: fd72:6674:6c74::/64
 
 volumes:
   discovery_data:

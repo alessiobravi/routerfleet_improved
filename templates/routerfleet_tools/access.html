@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<div class="rf-settings">
+    <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
+    {% if error %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endif %}
+    {% if not shared %}<div class="alert alert-warning py-2 mt-3">{{ 'warn'|state_icon }} The certificate volume is not shared with the application: the list is kept, but nginx does not receive it until the current compose file is taken (see HTTPS).</div>{% endif %}
+
+    <div class="rf-set-title">Access list - checked in order, the first match decides</div>
+    <div class="rf-set-group">
+        {% for rule in rules %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon {% if rule.action == 'allow' %}green{% else %}red{% endif %}"><i class="fas {% if rule.action == 'allow' %}fa-check{% else %}fa-ban{% endif %}"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ forloop.counter }}. {{ rule.get_action_display }} {{ rule.network }}</span>
+                {% if rule.note %}<span class="rf-set-sub d-block">{{ rule.note }}</span>{% endif %}</span>
+            <form method="post" class="d-inline-flex gap-1">{% csrf_token %}<input type="hidden" name="uuid" value="{{ rule.uuid }}">
+                <button type="submit" name="action" value="up" class="btn btn-sm btn-outline-secondary" title="Earlier" aria-label="Move {{ rule.network }} earlier" {% if forloop.first %}disabled{% endif %}><i class="fas fa-arrow-up"></i></button>
+                <button type="submit" name="action" value="down" class="btn btn-sm btn-outline-secondary" title="Later" aria-label="Move {{ rule.network }} later" {% if forloop.last %}disabled{% endif %}><i class="fas fa-arrow-down"></i></button>
+                <button type="submit" name="action" value="delete" class="btn btn-sm btn-outline-danger" title="Remove" aria-label="Remove {{ rule.network }}"><i class="fas fa-trash"></i></button>
+            </form>
+        </div>
+        {% empty %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">No entry: every address gets the final policy.</span></div>
+        {% endfor %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon {% if default == 'allow' %}green{% else %}red{% endif %}"><i class="fas fa-flag-checkered"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Finally: {% if default == 'allow' %}allow{% else %}deny{% endif %} every other address</span>
+                <span class="rf-set-sub d-block">What an address no entry matches gets.</span></span>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="default">
+                <select name="default" class="form-select form-select-sm w-auto" data-rf-autosubmit aria-label="Final policy">
+                    <option value="allow" {% if default == 'allow' %}selected{% endif %}>Allow</option>
+                    <option value="deny" {% if default == 'deny' %}selected{% endif %}>Deny</option>
+                </select></form>
+        </div>
+    </div>
+    <div class="rf-set-foot">Your address, as nginx sees it: <b>{{ your_address|default:"unknown" }}</b> - {% if you_allowed %}allowed{% else %}not allowed{% endif %}. A change that would shut it out is refused. Lost access anyway? On the host: <code>docker compose exec routerfleet python manage.py http_access --reset</code></div>
+
+    <div class="rf-set-title">Add an entry</div>
+    <form method="post" class="rf-set-group">
+        {% csrf_token %}<input type="hidden" name="action" value="add">
+        <div class="rf-set-row">
+            <span class="rf-set-icon purple"><i class="fas fa-plus"></i></span>
+            <div class="rf-set-text"><div class="row g-2">
+                <div class="col-md-3"><label class="small mb-0" for="verdict">Action</label>
+                    <select class="form-select" id="verdict" name="verdict"><option value="allow">Allow</option><option value="deny">Deny</option></select></div>
+                <div class="col-md-5"><label class="small mb-0" for="network">Address or network</label>
+                    <input type="text" class="form-control" id="network" name="network" placeholder="192.0.2.0/24 or 2001:db8::/32" spellcheck="false" required></div>
+                <div class="col-md-4"><label class="small mb-0" for="place">Where</label>
+                    <select class="form-select" id="place" name="place"><option value="end">At the end</option><option value="start">At the start</option></select></div>
+                <div class="col-12"><label class="small mb-0" for="note">Note (optional)</label>
+                    <input type="text" class="form-control" id="note" name="note" maxlength="100" placeholder="Office network"></div>
+            </div></div>
+        </div>
+        <button type="submit" class="rf-set-row rf-set-action w-100">
+            <span class="rf-set-icon purple"><i class="fas fa-check"></i></span>
+            <span class="rf-set-text text-start"><span class="rf-set-label d-block">Add the entry</span>
+                <span class="rf-set-sub d-block">IPv4 or IPv6; a single address or a network</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </button>
+    </form>
+    <div class="rf-set-foot">Applies to the web interface over HTTP and HTTPS, every HTTPS mode. Let's Encrypt's validation stays open. The scheduler and monitoring talk to the application directly and are not affected. Behind a reverse proxy, the client's address comes from the trusted proxies (see HTTPS).</div>
+</div>
+{% endblock %}

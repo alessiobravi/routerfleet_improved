@@ -40,6 +40,7 @@ from accounts import password_reset  # noqa: E402
 
 import router_manager.views as router_views  # noqa: E402
 import discovery.views as discovery_views  # noqa: E402
+import routerfleet_tools.access_views as access_views  # noqa: E402
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('debug/run_backups/', view_debug_run_backups, name='debug_run_backups'),
@@ -51,6 +52,7 @@ urlpatterns = [
     path('tools/backup_cleanup/', view_backup_cleanup, name='backup_cleanup'),
     path('tools/backup_export/', view_backup_export, name='backup_export'),
     path('system/https/', view_https, name='system_https'),
+    path('system/https/access/', access_views.view_access, name='http_access'),
     path('router_status_data/', router_status_data, name='router_status_data'),
     path('backup_statistics_data/', backup_statistics_data, name='backup_statistics_data'),
     path('user/list/', view_user_list, name='user_list'),

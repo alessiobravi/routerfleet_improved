@@ -112,7 +112,8 @@ class PageTests(VolumeTestCase):
         self.assertFalse(page.context['passkeys_ok'])
         self.assertEqual(HttpsSettings.load().mode, 'env', 'a review changes nothing')
         self.apply(page)
-        self.assertEqual(self.state(), {'mode': 'selfsigned', 'generation': 1, 'domain': 'rf.example.net'})
+        self.assertEqual(self.state(), {'mode': 'selfsigned', 'generation': 1, 'domain': 'rf.example.net',
+                                        'access': {'rules': [], 'default': 'allow'}})
         self.assertTrue(ChangeRecord.objects.filter(model_label='routerfleet_tools.HttpsSettings').exists())
 
     def test_https_off_needs_the_sum_once(self):

@@ -87,8 +87,14 @@
 
     {% if is_administrator %}
     <details class="rf-set-section" data-rf-remember="security">
-        <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>Security<span class="rf-set-summary-sub">HTTPS and updates</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>Security<span class="rf-set-summary-sub">HTTPS, HTTP access and updates</span></summary>
     <div class="rf-set-group">
+        <a class="rf-set-row" href="/system/https/access/">
+            <span class="rf-set-icon red"><i class="fas fa-shield-halved"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">HTTP access</span>
+                <span class="rf-set-sub d-block">Which addresses may reach the web interface: allow and deny entries in order, then a final policy</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
         <a class="rf-set-row" href="/system/https/">
             <span class="rf-set-icon teal"><i class="fas fa-lock"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block">HTTPS</span>
