@@ -34,7 +34,7 @@ from routerfleet_tools.system_views import view_system, view_notifications, view
 from django.views.generic import RedirectView
 from router_manager.device_type_views import view_device_types, view_device_type, view_device_type_new, view_device_type_try
 from firmware import views as firmware_views
-from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_passkey_options, view_passkey_add, view_passkey_delete
+from user_manager.views import view_manage_user, view_user_list, view_user_settings, view_totp_setup, view_password_change, view_passkey_options, view_passkey_add, view_passkey_delete
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -53,6 +53,7 @@ urlpatterns = [
     path('user/manage/', view_manage_user, name='manage_user'),
     path('user/settings/', view_user_settings, name='user_settings'),
     path('user/settings/totp/', view_totp_setup, name='totp_setup'),
+    path('user/settings/password/', view_password_change, name='password_change'),
     path('user/settings/passkeys/options/', view_passkey_options, name='passkey_options'),
     path('user/settings/passkeys/add/', view_passkey_add, name='passkey_add'),
     path('user/settings/passkeys/delete/', view_passkey_delete, name='passkey_delete'),

@@ -40,9 +40,8 @@ def view_tools(request):
                 logging.getLogger(__name__).warning('Database optimization failed', exc_info=True)
                 messages.error(request, f'Not optimized|The database refused it ({error.__class__.__name__}); see the log.')
             else:
-                def mb(value):
-                    return 'an unknown size' if value is None else f'{value / 1048576:.1f} MB'
-                messages.success(request, f'Database optimized|From {mb(before)} to {mb(after)}.')
+                messages.success(request, 'Database optimized|'
+                                 + database.outcome(before, after, full, connection.vendor).replace('|', '/'))
         return redirect('/tools/')
     from backup_data.models import RouterBackup
     return render(request, 'routerfleet_tools/tools.html', {

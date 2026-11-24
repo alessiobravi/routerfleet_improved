@@ -285,3 +285,19 @@ class DeleteBinariesTests(Base):
         self.client.post('/tools/backup_cleanup/', {'action': 'delete_binaries', 'types': ['no-such-type'],
                                                     'confirmation': 'delete_binaries'})
         self.assertTrue(RouterBackup.objects.exclude(backup_binary='').exclude(backup_binary__isnull=True).exists())
+
+
+class OptimizeOutcomeTests(TestCase):
+    """A plain PostgreSQL VACUUM is not reported as if it shrank the files:
+    it makes space reusable, and its maps of free space may add a little."""
+
+    def test_the_words_for_each_case(self):
+        from routerfleet_tools.database import outcome
+        mb = 1048576
+        plain = outcome(int(17.3 * mb), int(18.2 * mb), False, 'postgresql')
+        self.assertIn('reusable', plain)
+        self.assertIn('Only VACUUM FULL gives space back to the disk', plain)
+        self.assertNotIn('From', plain)
+        self.assertEqual(outcome(20 * mb, 15 * mb, True, 'postgresql'), 'From 20.0 MB to 15.0 MB (5.0 MB given back to the disk).')
+        self.assertIn('nothing to give back', outcome(10 * mb, 10 * mb, False, 'sqlite'))
+        self.assertIn('unknown size', outcome(None, None, True, 'postgresql'))

@@ -240,6 +240,9 @@ def view_router_details(request):
         'live_reason': ', '.join(live_reasons),
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
         'can_edit_routers': UserAcl.objects.filter(user=request.user, user_level__gte=30).exists(),
+        # The update arrows next to the versions start an update where allowed
+        'can_start_update': router.is_managed and router.enabled
+                            and UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
         'page': router_page(router, router_status, router_information, last_week_availability,
                             UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
                             can_console=UserAcl.objects.filter(user=request.user, user_level__gte=settings.CONSOLE_LEVEL).exists(),

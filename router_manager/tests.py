@@ -667,3 +667,32 @@ class DedicatedAccountHintTests(TestCase):
     def test_the_bulk_edit_form_too(self):
         from router_manager.forms import RouterBulkEditForm
         self.assertIn('dedicated account', str(RouterBulkEditForm().fields['username'].help_text))
+
+
+class DetailsUpdateArrowTests(TestCase):
+    """On the device page, the available OS version and the installable
+    bootloader firmware each carry an arrow that starts that update."""
+
+    def setUp(self):
+        from router_manager.models import RouterInformation
+        from routerfleet.testing import make_router, make_user
+        self.router = make_router(name='arrow-r1')
+        RouterInformation.objects.update_or_create(router=self.router, defaults={
+            'os_version': '7.16', 'available_version': '7.19', 'update_available': True,
+            'firmware_version': '7.15', 'firmware_available': '7.16'})
+        self.make_user = make_user
+
+    def page(self, level):
+        self.client.force_login(self.make_user(level))
+        return self.client.get(f'/router/details/?uuid={self.router.uuid}').content.decode()
+
+    def test_a_manager_can_start_both_updates_from_the_versions(self):
+        page = self.page(40)
+        self.assertIn(f'href="/system/firmware/update/?uuid={self.router.uuid}" class="rf-update-mark rf-update-link"', page)
+        self.assertIn(f'href="/system/firmware/update/?kind=bootloader&amp;uuid={self.router.uuid}" class="rf-boot-mark rf-update-link"', page)
+
+    def test_below_that_level_the_arrows_only_show(self):
+        page = self.page(20)
+        self.assertNotIn('rf-update-link', page)
+        self.assertIn('rf-update-mark', page)
+        self.assertIn('rf-boot-mark', page)

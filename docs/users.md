@@ -80,7 +80,7 @@ level. See [Audit log](audit-log.md).
 ## Second factors
 
 Every user can turn on an authenticator app and add passkeys in **My
-Settings → Sign-in security**, whatever their level. An administrator sees on
+Settings → Security settings**, whatever their level. An administrator sees on
 each user's page which second factors the user has, and can **Reset** them -
 for a lost phone or passkey - which leaves the user signing in with their
 password only. How the second factors work, and what passkeys need from the

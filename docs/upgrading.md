@@ -227,7 +227,7 @@ The move to PostgreSQL 18 above works from either.
 
 - **0.31.0: a sign-in lasts 24 hours after the last use** instead of two weeks
   from signing in: everybody signs in again within a day of the upgrade at the
-  latest. Each user can choose up to two weeks in *My Settings → Sign-in*.
+  latest. Each user can choose up to two weeks in *My Settings → Security settings → Session expiration time*.
 - **0.28.0: the move to PostgreSQL 18 happens by itself** at the first start
   of the current compose file ([Moving to PostgreSQL 18](#moving-to-postgresql-18));
   the script stays for a move at a moment you choose.

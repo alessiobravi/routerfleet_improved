@@ -3,6 +3,61 @@
 {% load static %}
 {% block content %}
 <div class="rf-settings">
+    <details class="rf-set-section" data-rf-remember="security">
+        <summary class="rf-set-summary"><i class="fas fa-shield-halved me-2" aria-hidden="true"></i>Security settings<span class="rf-set-summary-sub">{% if totp_enabled %}authenticator on{% else %}authenticator off{% endif %} · {{ passkeys|length }} passkey{{ passkeys|length|pluralize }}</span></summary>
+    <div class="rf-set-group">
+        <a class="rf-set-row" href="/user/settings/totp/">
+            <span class="rf-set-icon {% if totp_enabled %}teal{% else %}amber{% endif %}"><i class="fas fa-mobile-alt"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Authenticator app</span>
+                <span class="rf-set-sub d-block">{% if totp_enabled %}Signing in asks for a code from the app as well.{% else %}Add a 6-digit code from an app on your phone to signing in.{% endif %}</span></span>
+            <span class="rf-set-pill {% if totp_enabled %}on{% endif %}">{% if totp_enabled %}On{% else %}Off{% endif %}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        <a class="rf-set-row" href="/user/settings/password/">
+            <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Password</span>
+                <span class="rf-set-sub d-block">Change your password: the current one first, then the new one twice.</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% for passkey in passkeys %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon purple"><i class="fas fa-fingerprint"></i></span>
+            <div class="rf-set-text"><div class="rf-set-label">{{ passkey.name }}</div>
+                <div class="rf-set-sub">Passkey · added {{ passkey.created|date:"Y-m-d" }} · last used {{ passkey.last_used|date:"Y-m-d H:i"|default:"never" }}</div></div>
+            <a href="#" class="btn btn-link text-danger" title="Remove" aria-label="Remove the passkey {{ passkey.name }}"
+               data-rf-post="/user/settings/passkeys/delete/" data-rf-field-uuid="{{ passkey.uuid }}" data-rf-confirm="Remove the passkey &quot;{{ passkey.name }}&quot;?"><i class="fas fa-trash"></i></a>
+        </div>
+        {% endfor %}
+        <div class="rf-set-row rf-set-disabled" id="passkey-add" aria-disabled="true">
+            <span class="rf-set-icon purple"><i class="fas fa-fingerprint"></i></span>
+            <div class="rf-set-text">
+                <div class="rf-set-label">Passkeys</div>
+                <div class="rf-set-sub" id="passkey-unsupported">Sign in with your device's fingerprint, face or PIN. Not available here:
+                    passkeys need this installation opened by its name (not an IP address) over HTTPS with a certificate
+                    your browser trusts.</div>
+                <div class="input-group input-group-sm mt-2">
+                    <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey" disabled>
+                    <button type="button" id="passkey-add-button" class="btn btn-primary" disabled>Add a passkey</button>
+                </div>
+                <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
+            </div>
+        </div>
+        <form method="post" id="session-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="session">
+            <div class="rf-set-row">
+                <span class="rf-set-icon purple"><i class="fas fa-hourglass-half"></i></span>
+                <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="session_hours">Session expiration time</label>
+                    <div class="rf-set-sub">How long you stay signed in after your last use. Pages refreshing by themselves - the status page left open - do not count. A wall display can use 2 weeks.</div></div>
+                <select class="form-select w-auto" id="session_hours" name="session_hours" data-rf-autosubmit>
+                    {% for value, label in session_choices %}<option value="{{ value }}" {% if value == session_hours %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+        </form>
+    </div>
+
+    </details>
     <div class="rf-set-title">Account</div>
     <div class="rf-set-group">
         <div class="rf-set-row">
@@ -12,7 +67,9 @@
         </div>
     </div>
 
-    <div class="rf-set-title">Appearance</div>
+    <details class="rf-set-section" data-rf-remember="display">
+        <summary class="rf-set-summary"><i class="fas fa-palette me-2" aria-hidden="true"></i>Visualization options<span class="rf-set-summary-sub">Light or dark, and how list pages look</span></summary>
+    <div class="rf-set-subtitle">Light or dark</div>
     <div class="rf-set-group">
         {% for value, label, icon, sub in theme_choices %}
         <label class="rf-set-row rf-set-choice">
@@ -25,39 +82,27 @@
     </div>
     <div class="rf-set-foot">Kept by this browser. The moon in the top bar switches it too.</div>
 
-    <div class="rf-set-title">Lists</div>
+    <div class="rf-set-subtitle">List pages</div>
     <form method="post" class="rf-set-group" id="list-style-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="lists">
-        {% for value, label, icon, sub in list_style_choices %}
+        {% for value, label, sub in list_style_choices %}
         <label class="rf-set-row rf-set-choice">
             <input type="radio" data-rf-autosubmit name="list_style" value="{{ value }}" {% if list_style == value %}checked{% endif %}>
-            <span class="rf-set-icon {% cycle 'blue' 'teal' %}"><i class="fas {{ icon }}"></i></span>
+            {% if value == 'cards' %}<span class="rf-style-preview cards" aria-hidden="true"><span class="bar"></span><span></span><span></span><span></span></span>
+            {% else %}<span class="rf-style-preview grouped" aria-hidden="true"><span class="title"></span><span class="box"><span class="seg"></span><span></span><span></span></span></span>{% endif %}
             <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span><span class="rf-set-sub d-block">{{ sub }}</span></span>
             <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
         </label>
         {% endfor %}
         <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
     </form>
-    <div class="rf-set-foot">How the router list, backups, job history, the audit log and other list pages look. Yours only, on every device.</div>
+    <div class="rf-set-foot">For the list pages - the router list, backups, job history, the audit log and the others; this page stays as it is. Yours only, on every device.</div>
 
-    <div class="rf-set-title">Sign-in</div>
-    <form method="post" class="rf-set-group" id="session-form">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="session">
-        <div class="rf-set-row">
-            <span class="rf-set-icon purple"><i class="fas fa-hourglass-half"></i></span>
-            <div class="rf-set-text"><label class="rf-set-label d-block mb-0" for="session_hours">Stay signed in for</label>
-                <div class="rf-set-sub">After your last use. Pages refreshing by themselves - the status page left open - do not count.</div></div>
-            <select class="form-select w-auto" id="session_hours" name="session_hours" data-rf-autosubmit>
-                {% for value, label in session_choices %}<option value="{{ value }}" {% if value == session_hours %}selected{% endif %}>{{ label }}</option>{% endfor %}
-            </select>
-        </div>
-        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
-    </form>
-    <div class="rf-set-foot">Takes effect on your next page. A screen that should stay signed in, such as a wall display, can use 2 weeks.</div>
 
-    <div class="rf-set-title">Router address in the device list</div>
+    </details>
+    <details class="rf-set-section" data-rf-remember="address-links">
+        <summary class="rf-set-summary"><i class="fas fa-link me-2" aria-hidden="true"></i>Router address links<span class="rf-set-summary-sub">What a click on a device's address in the router list opens: {{ form.instance.get_address_link_display }}</span></summary>
     <form method="post" id="address-link-form" class="rf-set-group">
         {% csrf_token %}
         {% for value, display in form.address_link.field.choices %}
@@ -73,8 +118,9 @@
         <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
     </form>
     <div class="rf-set-foot">Saved as soon as you choose.</div>
-
-    <div class="rf-set-title">Email notifications</div>
+    </details>
+    <details class="rf-set-section" data-rf-remember="email">
+        <summary class="rf-set-summary"><i class="fas fa-envelope me-2" aria-hidden="true"></i>Email notifications</summary>
     <form method="post" class="rf-set-group" id="email-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="email">
@@ -107,38 +153,7 @@
         Your choices are kept and apply once it is.</div>
     {% endif %}
 
-    <div class="rf-set-title">Sign-in security</div>
-    <div class="rf-set-group">
-        <a class="rf-set-row" href="/user/settings/totp/">
-            <span class="rf-set-icon {% if totp_enabled %}teal{% else %}amber{% endif %}"><i class="fas fa-mobile-alt"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Authenticator app</span>
-                <span class="rf-set-sub d-block">{% if totp_enabled %}Signing in asks for a code from the app as well.{% else %}Add a 6-digit code from an app on your phone to signing in.{% endif %}</span></span>
-            <span class="rf-set-pill {% if totp_enabled %}on{% endif %}">{% if totp_enabled %}On{% else %}Off{% endif %}</span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% for passkey in passkeys %}
-        <div class="rf-set-row">
-            <span class="rf-set-icon blue"><i class="fas fa-key"></i></span>
-            <div class="rf-set-text"><div class="rf-set-label">{{ passkey.name }}</div>
-                <div class="rf-set-sub">Passkey · added {{ passkey.created|date:"Y-m-d" }} · last used {{ passkey.last_used|date:"Y-m-d H:i"|default:"never" }}</div></div>
-            <a href="#" class="btn btn-link text-danger" title="Remove" aria-label="Remove the passkey {{ passkey.name }}"
-               data-rf-post="/user/settings/passkeys/delete/" data-rf-field-uuid="{{ passkey.uuid }}" data-rf-confirm="Remove the passkey &quot;{{ passkey.name }}&quot;?"><i class="fas fa-trash"></i></a>
-        </div>
-        {% endfor %}
-        <div class="rf-set-row d-none" id="passkey-add">
-            <span class="rf-set-icon grey"><i class="fas fa-plus"></i></span>
-            <div class="rf-set-text">
-                <div class="input-group input-group-sm">
-                    <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey">
-                    <button type="button" id="passkey-add-button" class="btn btn-primary">Add a passkey</button>
-                </div>
-                <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
-            </div>
-        </div>
-    </div>
-    <div class="rf-set-foot" id="passkey-unsupported">Passkeys sign you in with your device's fingerprint, face or PIN. They are
-        available when this installation is opened by its name (not an IP address) over HTTPS with a certificate your
-        browser trusts.</div>
+    </details>
 </div>
 {% endblock %}
 

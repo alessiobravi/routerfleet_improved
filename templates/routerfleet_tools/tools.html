@@ -32,8 +32,12 @@
             </div>
             {% if database_vendor == 'postgresql' %}
             <div class="rf-set-row">
-                <div class="rf-set-text"><div class="rf-set-label">Give the space back to the disk</div>
-                    <div class="rf-set-sub">VACUUM FULL: rewrites each table and locks it while it does - pages wait for a few seconds to minutes. Off: the space of deleted data becomes reusable, without locking.</div></div>
+                <div class="rf-set-text"><div class="rf-set-label">Also shrink the database on disk (VACUUM FULL)</div>
+                    <div class="rf-set-sub"><b>What it does:</b> rewrites every table into a new, compact copy and removes the old one, so the space left by deleted backups and history goes back to the disk.
+                        <b>Meanwhile:</b> each table is locked in turn - pages and backups wait, from a few seconds to minutes on a large database - and it needs free disk space as large as the biggest table.
+                        <b>Afterwards:</b> the database takes less space on disk; RouterFleet works exactly as before.
+                        <b>When:</b> after deleting a lot (a large backup clean-up, many devices removed) with the disk running short.
+                        <b>Off:</b> the space stays with the database and is reused for new data; nothing waits.</div></div>
                 <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="full" name="full"><label class="form-check-label" for="full"><span class="visually-hidden">VACUUM FULL</span></label></div>
             </div>
             {% endif %}

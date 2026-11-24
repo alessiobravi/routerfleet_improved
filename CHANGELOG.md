@@ -13,17 +13,44 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.32.0] - 2026-11-24
+
+### Added
+- **Change your own password** in *My Settings → Security settings →
+  Password*: the current one first, then the new one twice, checked against
+  the password rules. Other devices signed in with the account sign in again.
+- **Start an update from the device page**: next to the available OS version
+  (orange) and the bootloader firmware that can be installed (purple), an arrow
+  opens that update - for Configuration Managers and Administrators.
+
+### Changed
+- **My Settings in collapsible sections**, closed at first (what you open is
+  remembered while you browse): *Security settings* first - authenticator
+  app, password, passkeys, session expiration time - then the account,
+  *Visualization options* (light or dark, list pages), *Router address links*
+  and *Email notifications*. Passkeys are shown greyed out, with the reason,
+  where the browser can not use them.
+- **The Grouped list style is clearly its own**: tabs as a switch, a tinted
+  header band and airy rows; both styles are shown small where you choose.
+- Fleet Commander's **System commands** are a collapsible section, closed at
+  first, with red locks.
+- **Optimizing the database says what it did**: a plain PostgreSQL VACUUM
+  makes deleted space reusable but does not shrink the files (its first run
+  even adds small maps of free space), so it is no longer reported as "from X
+  to Y". The VACUUM FULL option explains what it does, what waits meanwhile,
+  what follows and when it is worth it.
+
 ## [0.31.0] - 2026-11-24
 
 ### Added
 - **How long a sign-in lasts is each user's choice** (*My Settings →
-  Sign-in*): 1 hour to 2 weeks, **24 hours by default**, from the last use.
+  Security settings → Session expiration time*): 1 hour to 2 weeks, **24 hours by default**, from the last use.
   Pages refreshing by themselves and the scheduler's calls do not count, so a
   tab left open does not keep a sign-in alive. Until now every sign-in lasted
   two weeks from signing in.
-- **Two styles for the list pages** (*My Settings → Lists*): **Cards**, as
-  before, or **Grouped** - a section title and a rounded group, like the
-  settings pages. Each user chooses; the choice follows them to every device.
+- **Two styles for the list pages** (*My Settings → Visualization options*): **Cards** - a
+  title bar on each list - or **Grouped** - a section title and a rounded
+  group, like the settings pages. Each user chooses; the choice follows them to every device.
 
 ## [0.30.0] - 2026-11-24
 

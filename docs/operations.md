@@ -153,17 +153,18 @@ when you click it; several stack. They show text only.
 ### Light and dark
 
 The moon in the top bar switches to **dark mode** - for the night - and the
-sun back. *My Settings → Appearance* also offers **Automatic**, the default,
+sun back. *My Settings → Visualization options* also offers **Automatic**, the default,
 which follows the device: dark when the computer or phone is in dark mode, and
 changing with it. The choice is kept by each browser. The page is drawn in its
 theme from the start, without a white flash.
 
 ### Lists: cards or grouped
 
-*My Settings → Lists* draws the list pages - the router list, backups, job
+*My Settings → Visualization options* draws the list pages - the router list, backups, job
 history, the audit log and the others - either as **Cards** (each list in a
-card with its title bar, as before) or **Grouped** (a section title and a
-rounded group, like the settings pages). Each user chooses for themselves;
+card with a title bar, tabs underlined) or **Grouped** (like the settings
+pages: a small section title, the list in a rounded group, tabs as a switch, a
+tinted header band and airy rows). Each user chooses for themselves;
 the choice follows them to every device.
 
 ### Switches

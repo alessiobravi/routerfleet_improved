@@ -202,8 +202,8 @@ The limits are `LOGIN_LOCKOUT_ATTEMPTS`, `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` and
 
 ## Second factors and passkeys
 
-Each user can add a second step to signing in, in **My Settings → Sign-in
-security**.
+Each user can add a second step to signing in, in **My Settings → Security
+settings**.
 
 ```mermaid
 flowchart TD
@@ -448,7 +448,7 @@ to an SSH server on every push.
 
 ### How long a sign-in lasts
 
-Each user chooses in *My Settings → Sign-in*: from 1 hour to 2 weeks, **24 hours**
+Each user chooses in *My Settings → Security settings → Session expiration time*: from 1 hour to 2 weeks, **24 hours**
 unless changed, counted from the last use. Pages refreshing by themselves - the
 live parts of the status page, a rollout or a job - and the scheduler's calls do
 not count as use, so a tab left open does not keep a sign-in alive. The expiry

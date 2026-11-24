@@ -243,6 +243,8 @@ def settings_form(context, form):
                          'checkbox': isinstance(bound.field.widget, django_forms.CheckboxInput)}])
     if current:
         groups.append({**section, 'rows': current})
+    if not any(item['kind'] == 'button' for item in foot):
+        foot.insert(0, {'kind': 'button', 'value': 'Save', 'name': 'submit', 'css': 'btn btn-primary', 'submit': True})
     return {'form': form, 'groups': groups, 'foot': foot, 'csrf_token': context.get('csrf_token'),
             'action': getattr(helper, 'form_action', '') or '',
             'form_tag': getattr(helper, 'form_tag', True) if helper else True,

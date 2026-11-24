@@ -453,3 +453,49 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 .rf-lists-grouped .card.card-outline .table { margin-bottom: 0; }
 .rf-lists-grouped .card.card-outline .table > thead th { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--rf-muted); border-bottom-width: 1px; }
 .rf-lists-grouped .card.card-outline .table > tbody > tr > td { border-color: var(--rf-line-soft, var(--rf-line)); }
+/* Grouped: tabs as a segmented switch, a tinted header band, airy rows */
+.rf-lists-grouped .card.card-outline .nav-tabs { display: inline-flex; flex-wrap: wrap; gap: 2px; border: 0; background: var(--rf-line-soft); border-radius: 10px; padding: 3px; margin-bottom: 16px; }
+.rf-lists-grouped .card.card-outline .nav-tabs .nav-link { border: 0; border-radius: 8px; padding: 6px 14px; color: var(--rf-muted); font-weight: 600; font-size: 14px; }
+.rf-lists-grouped .card.card-outline .nav-tabs .nav-link:hover { color: var(--rf-text); }
+.rf-lists-grouped .card.card-outline .nav-tabs .nav-link.active { background: var(--rf-surface); color: var(--rf-text); box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+.rf-lists-grouped .card.card-outline .table > thead th { background: var(--rf-line-soft); border: 0; padding-top: 10px; padding-bottom: 10px; }
+.rf-lists-grouped .card.card-outline .table > thead th:first-child { border-radius: 10px 0 0 10px; }
+.rf-lists-grouped .card.card-outline .table > thead th:last-child { border-radius: 0 10px 10px 0; }
+.rf-lists-grouped .card.card-outline .table > tbody > tr > td { padding-top: 14px; padding-bottom: 14px; vertical-align: middle; }
+.rf-lists-grouped .card.card-outline .table-hover > tbody > tr:hover > * { --bs-table-bg-state: rgba(20, 168, 154, .06); }
+.rf-lists-grouped .card.card-outline .card-body > .nav-tabs + * { clear: both; }
+
+/* The two list styles, drawn small in My Settings */
+.rf-style-preview { width: 64px; height: 44px; border-radius: 8px; border: 1px solid var(--rf-line); background: var(--rf-line-soft); padding: 5px; display: flex; flex-direction: column; gap: 3px; flex: none; }
+.rf-style-preview span { display: block; border-radius: 2px; background: var(--rf-line); height: 4px; }
+.rf-style-preview.cards { background: var(--rf-surface); border-top: 3px solid #0d6efd; padding-top: 4px; }
+.rf-style-preview.cards .bar { height: 6px; background: #c9d3de; margin-bottom: 2px; }
+.rf-style-preview.grouped .title { width: 45%; height: 3px; background: #9aa6b3; }
+.rf-style-preview.grouped .box { flex: 1; background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 5px; padding: 3px; display: flex; flex-direction: column; gap: 3px; }
+.rf-style-preview.grouped .seg { width: 55%; height: 5px; border-radius: 3px; background: var(--rf-line-soft); }
+
+/* Collapsible sections of settings pages: <details class="rf-set-section"> */
+.rf-set-section { margin-top: 14px; }
+.rf-set-section > .rf-set-summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 4px;
+  background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 14px; padding: 14px 16px; font-weight: 700; color: var(--rf-text);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04); user-select: none; }
+.rf-set-section > .rf-set-summary::-webkit-details-marker { display: none; }
+.rf-set-section > .rf-set-summary::after { content: "\f078"; font-family: "Font Awesome 7 Free"; font-weight: 900; grid-column: 3; grid-row: 1; color: #b9c1cb; transition: transform .15s; }
+.rf-set-section[open] > .rf-set-summary::after { transform: rotate(180deg); }
+.rf-set-section > .rf-set-summary:focus-visible { outline: 2px solid #14a89a; outline-offset: 2px; }
+.rf-set-section .rf-set-summary-sub { grid-column: 2; grid-row: 2; font-weight: 400; font-size: 13px; color: var(--rf-muted); }
+.rf-set-section[open] > .rf-set-summary { border-radius: 14px 14px 0 0; border-bottom-color: transparent; margin-bottom: 0; }
+.rf-set-section[open] > .rf-set-summary + * { margin-top: 0; }
+.rf-set-section > .rf-set-group, .rf-set-section > form.rf-set-group { border-radius: 0 0 14px 14px; }
+.rf-set-subtitle { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--rf-muted); margin: 16px 16px 7px; }
+.rf-set-section > .rf-set-subtitle:first-of-type { margin-top: 12px; }
+/* A row that can not be used here, shown greyed out with the reason */
+.rf-set-row.rf-set-disabled { opacity: .55; }
+.rf-set-row.rf-set-disabled .rf-set-sub { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .rf-set-section > .rf-set-summary::after { transition: none; } }
+/* A row wrapped in a form inside a group keeps its separator */
+.rf-set-group > form:not(:first-child) > .rf-set-row:first-child { border-top: 1px solid var(--rf-line-soft); }
+/* The update arrow next to a version on the device page: starts the update */
+.rf-update-link { font-size: 1.15em; margin-left: 4px; text-decoration: none; }
+.rf-update-link:hover { filter: brightness(.85); }
+.rf-update-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 50%; }

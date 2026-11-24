@@ -502,3 +502,18 @@
     window.rfInitPanels(document);
   });
 })();
+
+/* Collapsible sections (details[data-rf-remember]): closed at first; what
+   the user opens is remembered per page for the session. */
+(function () {
+  'use strict';
+  function key(section) { return 'rf-section:' + window.location.pathname + ':' + section.dataset.rfRemember; }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('details[data-rf-remember]').forEach(function (section) {
+      try { if (sessionStorage.getItem(key(section)) === 'open') { section.open = true; } } catch (e) {}
+      section.addEventListener('toggle', function () {
+        try { sessionStorage.setItem(key(section), section.open ? 'open' : 'closed'); } catch (e) {}
+      });
+    });
+  });
+})();

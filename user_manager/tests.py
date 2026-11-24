@@ -153,3 +153,40 @@ class SessionLengthAndListStyleTests(TestCase):
         self.assertIn('rf-lists-grouped', self.client.get('/status/').content.decode())
         self.client.post('/user/settings/', {'action': 'lists', 'list_style': 'nonsense'})
         self.assertEqual(UserAcl.objects.get(user=self.user).list_style, 'grouped')
+
+
+class MySettingsSectionsAndPasswordTests(TestCase):
+    """My Settings in collapsible sections, security first; a user changes
+    their own password; passkeys are shown greyed out where they can not work."""
+
+    def setUp(self):
+        self.user = make_user(10, username='mira', password='Old-password-2026!')
+        self.client.force_login(self.user)
+
+    def test_sections_security_first_closed_by_default(self):
+        page = self.client.get('/user/settings/').content.decode()
+        order = [page.index(marker) for marker in ('data-rf-remember="security"', '>Account<',
+                                                   'data-rf-remember="display"', 'data-rf-remember="email"')]
+        self.assertEqual(order, sorted(order), 'security settings first, before the username')
+        self.assertNotIn('<details class="rf-set-section" data-rf-remember="security" open', page)
+        security = page[page.index('data-rf-remember="security"'):page.index('>Account<')]
+        for item in ('Authenticator app', '/user/settings/password/', 'id="passkey-add"', 'Session expiration time'):
+            self.assertIn(item, security)
+        self.assertLess(security.index('/user/settings/password/'), security.index('id="passkey-add"'))
+        self.assertIn('rf-set-disabled', security, 'passkeys greyed out until the browser can use them')
+
+    def test_changing_the_password(self):
+        response = self.client.post('/user/settings/password/', {
+            'old_password': 'Old-password-2026!', 'new_password1': 'New-passphrase-2026!', 'new_password2': 'New-passphrase-2026!'})
+        self.assertRedirects(response, '/user/settings/')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('New-passphrase-2026!'))
+        self.assertEqual(self.client.get('/user/settings/').status_code, 200, 'still signed in')
+
+    def test_the_current_password_is_required(self):
+        response = self.client.post('/user/settings/password/', {
+            'old_password': 'wrong', 'new_password1': 'New-passphrase-2026!', 'new_password2': 'New-passphrase-2026!'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'is-invalid')
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('Old-password-2026!'))

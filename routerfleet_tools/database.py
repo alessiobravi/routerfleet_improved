@@ -37,6 +37,21 @@ def size():
     return None
 
 
+def outcome(before, after, full, vendor):
+    """What an optimization did, in words - a plain PostgreSQL VACUUM does not
+    shrink the files, so it is not reported as if it should."""
+    def mb(value):
+        return 'an unknown size' if value is None else f'{value / 1048576:.1f} MB'
+    if vendor == 'postgresql' and not full:
+        return ('The space of deleted data is reusable for new data and the statistics are fresh. The files '
+                f'keep their size ({mb(after)}; {mb(before)} before - the first run also adds PostgreSQL\'s small '
+                'maps of free space). Only VACUUM FULL gives space back to the disk.')
+    if before is not None and after is not None and after >= before:
+        return f'{mb(after)}: nothing to give back - the database had no unused space.'
+    saved = '' if before is None or after is None else f' ({mb(before - after)} given back to the disk)'
+    return f'From {mb(before)} to {mb(after)}{saved}.'
+
+
 def analyze():
     """Fresh planner statistics; cheap, safe at any time."""
     with connection.cursor() as cursor:

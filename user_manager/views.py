@@ -51,8 +51,8 @@ def view_user_settings(request):
         if hours in dict(UserAcl.SESSION_HOURS):
             user_acl.session_hours = hours
             user_acl.save(update_fields=['session_hours', 'updated'])
-            messages.success(request, f'Sign-in saved|You stay signed in for {dict(UserAcl.SESSION_HOURS)[hours]} after '
-                                      f'your last use.')
+            messages.success(request, f'Session expiration time saved|You stay signed in for {dict(UserAcl.SESSION_HOURS)[hours]} '
+                                      f'after your last use.')
         return redirect('/user/settings/')
     if request.method == 'POST' and request.POST.get('action') == 'lists':
         style = request.POST.get('list_style')
@@ -83,14 +83,31 @@ def view_user_settings(request):
         'email_ready': SmtpSettings.load().ready,
         'session_choices': UserAcl.SESSION_HOURS, 'session_hours': user_acl.session_hours,
         'list_style': user_acl.list_style,
-        'list_style_choices': (('cards', 'Cards', 'fa-table-list', 'Each list in a card with its title bar - as before.'),
-                               ('grouped', 'Grouped', 'fa-layer-group',
-                                'Lists drawn like the settings: a section title and a rounded group.')),
+        'list_style_choices': (('cards', 'Cards', 'Each list in a card: a title bar on top, tabs underlined, the table '
+                                                 'with its column names in bold.'),
+                               ('grouped', 'Grouped', 'Like the settings pages: a small section title, the list in a '
+                                                      'rounded group, tabs as a switch, a tinted header band and airy rows.')),
         'theme_choices': (('auto', 'Automatic', 'fa-adjust', 'Follows this device: dark when it is dark.'),
                           ('light', 'Light', 'fa-sun', 'Always light.'),
                           ('dark', 'Dark', 'fa-moon', 'Always dark - for the night.')),
     }
     return render(request, 'user_manager/user_settings.html', context)
+
+
+@login_required
+def view_password_change(request):
+    """A user changes their own password: the current one first, then the new
+    one twice, checked against the password rules. The other sessions of the
+    account end; this one stays signed in."""
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.forms import PasswordChangeForm
+    form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        messages.success(request, 'Password changed|Other devices signed in with this account have to sign in again.')
+        return redirect('/user/settings/')
+    return render(request, 'user_manager/password_change.html', {'page_title': 'Change password', 'form': form})
 
 
 @login_required
