@@ -39,6 +39,50 @@ another type is rejected with the reason rather than half-working.
 A Cisco device whose account does not land in privileged mode takes an **enable
 password**, stored encrypted and sent only to the stored address.
 
+### A dedicated account
+
+Give RouterFleet **its own account, not the administrator's**, with only the
+rights it uses. A stolen or leaked credential then reaches no further than
+those rights, and the device's own log tells RouterFleet's actions apart.
+
+| What RouterFleet does | What the account needs |
+|---|---|
+| Backups, router information, connection test | Read the whole configuration - secrets included if the backups should hold them |
+| Firmware and bootloader updates | Install software and reboot |
+| Fleet Commander commands | What the commands do |
+| Console | What the person typing needs: the console signs in with this account |
+
+One account serves a device for everything, so a read-only account suits a
+device that is only backed up and watched. Updates and commands then fail with
+the device's own "not permitted" message - nothing else is affected.
+
+**RouterOS** - read-only, with secrets in the export:
+
+```text
+/user group add name=routerfleet-read policy=ssh,read,sensitive
+/user add name=routerfleet group=routerfleet-read password=<a long random password>
+```
+
+Without `sensitive` the export leaves passwords and keys out. For system and
+RouterBOOT updates add `write,reboot` to the group's policies.
+
+**Juniper Junos** - read-only:
+
+```text
+set system login class routerfleet-read permissions [ view view-configuration ]
+set system login user routerfleet class routerfleet-read authentication plain-text-password
+```
+
+`view-configuration` shows the configuration without secrets; add `secret` to
+include them, and `maintenance` for software updates and reboots.
+
+**Others.** Cisco shows the complete `show running-config` only at privilege
+level 15 (or in a parser view that includes it): at a lower level it lists only
+what that level may configure, so the backup would be incomplete. Huawei VRP
+has user levels and command groups to the same end. OpenWrt and airOS
+generally need `root` for complete backups and updates. Check your vendor's
+documentation for a role that can display the full configuration.
+
 The first connection to a device - a test, an inventory read or a backup -
 also stores its **SSH host key**. From then on
 RouterFleet refuses to talk to anything at that address and port presenting a

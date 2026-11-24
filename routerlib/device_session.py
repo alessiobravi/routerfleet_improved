@@ -20,6 +20,12 @@ ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][A-Z0-9]|\r')
 # "<--- More --->"); written with escapes, it is not markup
 MORE = re.compile(r'(--More--|---- More ----|-- More --|\x3c-{3} More -{3}\x3e)\s*$')
 PASSWORD_PROMPT = re.compile(r'(?i)password:\s*$')
+# A question the device asks before going on: "Continue? [Y/N]:" (Huawei),
+# "Proceed with reload? [confirm]" and "Save? [yes/no]:" (Cisco)
+QUESTION = re.compile(r'(?i)[\[(](?:y/n|yes/no|confirm)[\])]\s*[:?]?\s*$')
+# "command <<< y": every question the command asks is answered with y
+ANSWER_MARK = ' <<< '
+MAX_QUESTIONS = 3
 DEFAULT_PROMPT = r'(?m)^[\w.\-@/:()<>\[\]~]{1,63}[>#%$\]]\s*$'
 
 
@@ -113,8 +119,13 @@ class ShellSession:
                 raise SessionError('The enable password was not accepted')
 
     def _send_and_wait(self, command):
+        command, _, answer = command.partition(ANSWER_MARK)
+        answer = answer.strip()
         self.channel.send(command + '\n')
-        text = self._read_until_prompt()
+        if answer:
+            text = self._answering(answer)
+        else:
+            text = self._read_until_prompt()
         lines = text.split('\n')
         # The echo of the command first, the prompt last
         if lines and command.strip() and command.strip() in lines[0]:
@@ -122,6 +133,20 @@ class ShellSession:
         if lines and self._at_prompt(lines[-1]):
             lines = lines[:-1]
         return '\n'.join(lines).strip('\n') + ('\n' if lines else '')
+
+    def _answering(self, answer):
+        """Until the prompt, answering each question with answer (at most
+        MAX_QUESTIONS: a device that keeps asking is not going on)."""
+        text, asked = '', 0
+        while True:
+            chunk = self._read_until(lambda t: self._at_prompt(t) or bool(QUESTION.search(t.rstrip('\n'))))
+            text += chunk
+            if self._at_prompt(chunk):
+                return text
+            asked += 1
+            if asked > MAX_QUESTIONS:
+                raise SessionError(f'The device kept asking: {chunk.strip().splitlines()[-1][:120]}')
+            self.channel.send(answer + '\n')
 
     def exec_command(self, command):
         output = self._send_and_wait(command)
@@ -144,7 +169,18 @@ class ExecSession:
         self.client = client
 
     def exec_command(self, command):
-        return self.client.exec_command(command)
+        # "command <<< y": the answer goes to the command's input, once per
+        # question it may ask
+        command, _, answer = command.partition(ANSWER_MARK)
+        if not answer.strip():
+            return self.client.exec_command(command)
+        stdin, stdout, stderr = self.client.exec_command(command)
+        try:
+            stdin.write((answer.strip() + '\n') * MAX_QUESTIONS)
+            stdin.flush()
+        except Exception:  # the command did not wait for input
+            pass
+        return stdin, stdout, stderr
 
     def get_transport(self):
         return self.client.get_transport()

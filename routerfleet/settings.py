@@ -25,6 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # oldest of them is older than that. 0 attempts turns the limit off.
 LOGIN_LOCKOUT_ATTEMPTS = 5
 LOGIN_LOCKOUT_MINUTES = 15
+# One account from all addresses together (guessing spread over many addresses)
+LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS = 20
 
 # Set in production_settings.py, which the container writes with a fresh random
 # key on every start. Empty here on purpose: start-up is refused without one
@@ -256,6 +258,9 @@ UPDATE_RELEASES_API = 'https://api.github.com/repos/alessiobravi/routerfleet_imp
 # two buttons on the welcome page.
 PROJECT_REPOSITORY_URL = 'https://github.com/alessiobravi/routerfleet_improved'
 PROJECT_SUPPORT_URL = 'https://github.com/alessiobravi/routerfleet_improved/issues'
+
+# manage.py test only: a fast password hasher (routerfleet/test_runner.py)
+TEST_RUNNER = 'routerfleet.test_runner.FastHashingRunner'
 
 from routerfleet.production_settings import *
 

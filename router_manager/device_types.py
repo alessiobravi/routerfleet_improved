@@ -89,6 +89,22 @@ PRESET_COMMANDS = {
         'connection_test': 'display version',
         'inventory': 'display version\ndisplay esn',
         'backup_text': 'current-configuration: display current-configuration',
+        # The .cc file in the root of the default storage; the startup software
+        # is kept apart from the configuration, so nothing needs saving. reboot
+        # fast asks one "Continue? [Y/N]" (answered) and keeps unsaved changes
+        # out - the backup taken before the update holds them
+        'firmware_verify': 'dir {{ firmware_name }}',
+        'firmware_install': 'startup system-software {{ firmware_name }}\nreboot fast <<< y',
+    },
+    'cisco-ios-classic': {
+        'connection_test': 'show version',
+        'inventory': 'show version\nshow inventory',
+        'backup_text': 'running-config: show running-config',
+        'firmware_verify': 'dir flash:{{ firmware_name }}',
+        # Bundle mode: the boot variable, saved (write memory does not ask),
+        # then the reload's one "[confirm]" answered
+        'firmware_install': 'configure terminal\nno boot system\nboot system flash:{{ firmware_name }}\nend\n'
+                            'write memory\nreload <<< y',
     },
 }
 
@@ -166,12 +182,36 @@ PRESETS = {
         'firmware_verify': 'size',
         'name': 'Cisco IOS / IOS-XE', 'vendor': 'Cisco', 'position': 40,
         'description': 'Cisco IOS and IOS-XE through an interactive SSH shell. Text backup: show running-config. '
+                       'Firmware: IOS-XE install mode (classic IOS: the Cisco IOS (classic) preset). '
                        'Set an enable password on the device when the account does not land in privileged mode.',
         'session_mode': 'shell',
         'prompt_pattern': r'(?m)^[\w.\-@/:()]{1,63}[>#]\s*$',
         'session_setup': 'terminal length 0\nterminal width 0',
         'enable_command': 'enable',
         'test_pattern': r'Cisco IOS|IOS-XE|Cisco Internetwork Operating System',
+        'inventory_fields': {
+            'os_version': [r're:Version ([\w.()]+)'],
+            'model_name': [r're:(?mi)^cisco (\S+) .*(?:processor|bytes of memory)'],
+            'serial_number': [r're:Processor board ID (\S+)'],
+            'model_version': [r're:PID: (\S+?)\s*,'],
+            'firmware_version': [r're:(?m)^ROM: (.+)$'],
+        },
+        'text_extension': 'cfg', 'binary_extension': '',
+        'text_ignore_pattern': r'^(! Last configuration change|! NVRAM config last updated|Building configuration'
+                               r'|Current configuration :|ntp clock-period)',
+    },
+    'cisco-ios-classic': {
+        'firmware_upload_path': 'flash:{{ firmware_name }}',
+        'firmware_verify': 'size',
+        'name': 'Cisco IOS (classic)', 'vendor': 'Cisco', 'position': 41,
+        'description': 'Classic Cisco IOS in bundle mode (ISR G2, Catalyst 2960 and the like) through an interactive '
+                       'SSH shell. Firmware: the boot variable and a reload. For IOS-XE use Cisco IOS / IOS-XE.',
+        'session_mode': 'shell',
+        'prompt_pattern': r'(?m)^[\w.\-@/:()]{1,63}[>#]\s*$',
+        'session_setup': 'terminal length 0\nterminal width 0',
+        'enable_command': 'enable',
+        # Classic IOS only: an IOS-XE device says so, and numbers its versions 16.x / 17.x
+        'test_pattern': r'(?s)^(?!.*IOS[ -]?XE).*Cisco IOS Software.*Version \d+\.\d+\(',
         'inventory_fields': {
             'os_version': [r're:Version ([\w.()]+)'],
             'model_name': [r're:(?mi)^cisco (\S+) .*(?:processor|bytes of memory)'],
@@ -203,6 +243,9 @@ PRESETS = {
         'text_ignore_pattern': r'^## Last (commit|changed)',
     },
     'huawei-vrp': {
+        # Firmware (see docs/firmware.md for sources and caveats)
+        'firmware_upload_path': '{{ firmware_name }}',
+        'firmware_verify': 'size',
         'name': 'Huawei VRP', 'vendor': 'Huawei', 'position': 60,
         'description': 'Huawei VRP through an interactive SSH shell. Text backup: display current-configuration.',
         'session_mode': 'shell',
@@ -210,7 +253,8 @@ PRESETS = {
         'session_setup': 'screen-length 0 temporary',
         'test_pattern': r'Huawei Versatile Routing Platform|VRP \(R\) software',
         'inventory_fields': {
-            'os_version': [r're:VRP \(R\) software, Version ([\d.]+(?: \([^)]+\))?)'],
+            'os_version': [r're:VRP \(R\) software, Version [\d.]+ \((?:[\w-]+ )?(V\d{3}R\d{3}\w*)\)',
+                           r're:VRP \(R\) software, Version ([\d.]+(?: \([^)]+\))?)'],
             'model_name': [r're:(?mi)^(?:huawei) (\S+) .*uptime'],
             'serial_number': [r're:ESN of (?:slot \S+|master|device)\s*:\s*(\S+)', r're:(?mi)^ESN\s*:\s*(\S+)'],
         },

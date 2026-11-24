@@ -350,6 +350,13 @@ Each has one variant per [device type](device-types.md). An empty variant means
 nothing is run for that type (airOS creates nothing: its configuration is
 already a file); the connection test and the inventory can not be empty.
 
+**A command that asks a question.** End the line with `<<< ` and the answer:
+`reboot fast <<< y` answers every question that command asks (*Continue?
+[Y/N]*, *[confirm]*, *[yes/no]*) with `y`, at most three times. On a shell
+device type (Cisco, Juniper, Huawei) the answer is typed when the question
+appears; on an exec type it is sent to the command's input. Without it, a
+question stops the command when no prompt follows.
+
 They are **protected**: they can not be deleted, disabled, scheduled or run by
 hand, and their variants can not be added or removed. An upgrade creates them
 without touching anything that exists; a command of the installation's own with

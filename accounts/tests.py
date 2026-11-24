@@ -91,11 +91,25 @@ class LockoutTests(TestCase):
         self.attempt('right-password')
         self.assertTrue(self.signed_in())
 
-    def test_the_account_is_locked_from_every_address(self):
-        for n in range(5):
-            self.attempt('wrong', ip=f'10.0.0.{n + 1}')
+    def test_failing_on_purpose_does_not_lock_the_owner_out(self):
+        for _ in range(5):
+            self.attempt('wrong', ip='10.6.6.6')
+        self.attempt('right-password', ip='10.6.6.6')
+        self.assertFalse(self.signed_in(), 'the failing address is locked')
+        self.attempt('right-password', ip='10.0.0.1')
+        self.assertTrue(self.signed_in(), 'the owner, from elsewhere, is not')
+
+    def test_guessing_spread_over_many_addresses_locks_the_account(self):
+        for n in range(20):
+            self.attempt('wrong', ip=f'10.1.{n // 4}.{n % 4 + 1}')   # 4 per address: none locked
         self.attempt('right-password', ip='10.9.9.9')
         self.assertFalse(self.signed_in())
+
+    def test_below_the_account_limit_the_account_stays_open(self):
+        for n in range(19):
+            self.attempt('wrong', ip=f'10.1.{n // 4}.{n % 4 + 1}')
+        self.attempt('right-password', ip='10.9.9.9')
+        self.assertTrue(self.signed_in())
 
     def test_an_address_trying_many_names_is_locked(self):
         for n in range(5):
@@ -135,8 +149,8 @@ class LockoutTests(TestCase):
         for _ in range(5):
             self.attempt('wrong', username='nobody', ip='10.0.0.7')
             self.attempt('wrong', username='alice', ip='10.0.0.8')
-        a = self.attempt('x', username='nobody', ip='10.0.0.9').content
-        b = self.attempt('x', username='alice', ip='10.0.0.10').content
+        a = self.attempt('x', username='nobody', ip='10.0.0.7').content
+        b = self.attempt('x', username='alice', ip='10.0.0.8').content
         self.assertIn(b'Too many failed sign', a)
         self.assertIn(b'Too many failed sign', b)
 

@@ -41,7 +41,8 @@ class HelperTests(TestCase):
                                           'Huawei Versatile Routing Platform Software\n'
                                           'VRP (R) software, Version 8.220 (NE40E V800R022C00SPC500)\n'
                                           'HUAWEI NE40E-X8A uptime is 10 days\nESN of master: 2102351931P0K1000123\n')
-        self.assertEqual(vrp['os_version'], '8.220 (NE40E V800R022C00SPC500)')
+        # The release, not the VRP number many releases share
+        self.assertEqual(vrp['os_version'], 'V800R022C00SPC500')
         self.assertEqual(vrp['model_name'], 'NE40E-X8A')
         self.assertEqual(vrp['serial_number'], '2102351931P0K1000123')
 
@@ -105,6 +106,20 @@ class FakeChannel:
             self.queue.append(b'\r\nr1#')
         elif line == 'show running-config':
             self.queue.append(b'show running-config\r\nhostname r1\r\n --More-- ')
+        elif line == 'reload':
+            self.queue.append(b'reload\r\nProceed with reload? [confirm]')
+        elif line == 'save':
+            self.queue.append(b'save\r\nAre you sure to continue?[Y/N]:')
+        elif line == 'y' and self.sent[-2].startswith('save'):
+            self.queue.append(b'y\r\nSave the configuration as vrpcfg.zip? [Y/N]:')
+        elif line == 'y' and self.sent[-2].startswith('y'):
+            self.queue.append(b'y\r\nSaved.\r\n' + prompt)
+        elif line == 'y':
+            self.queue.append(b'y\r\nReloading\r\n' + prompt)
+        elif line == 'nag':
+            self.queue.append(b'nag\r\nReally? [y/n]:')
+        elif line == 'n':
+            self.queue.append(b'n\r\nReally? [y/n]:')
         else:
             self.queue.append(data.encode() + b'\r\n\x1b[0m' + prompt)
 
@@ -143,6 +158,41 @@ class ShellSessionTests(SimpleTestCase):
         self.assertNotIn('More', output)
         self.assertNotIn('r1#', output, 'the prompt is not part of the output')
         self.assertEqual(stdout.channel.recv_exit_status(), 0)
+
+    def test_questions_are_answered_after_the_mark(self):
+        channel = FakeChannel()
+        session = device_session.ShellSession(FakeClient(channel), self.cisco())
+        _, stdout, _ = session.exec_command('reload <<< y')
+        self.assertIn('reload\n', channel.sent, 'the mark and the answer are not sent as the command')
+        self.assertIn('y\n', channel.sent)
+        self.assertIn('Reloading', stdout.read().decode())
+        # Two questions in a row, the same answer to both
+        channel.sent.clear()
+        session.exec_command('save <<< y')
+        self.assertEqual(channel.sent, ['save\n', 'y\n', 'y\n'])
+
+    def test_a_device_that_keeps_asking_is_given_up(self):
+        channel = FakeChannel()
+        session = device_session.ShellSession(FakeClient(channel), self.cisco())
+        with self.assertRaises(device_session.SessionError):
+            session.exec_command('nag <<< n')
+        self.assertEqual(channel.sent.count('n\n'), device_session.MAX_QUESTIONS)
+
+    def test_without_the_mark_a_question_is_not_answered(self):
+        channel = FakeChannel()
+        session = device_session.ShellSession(FakeClient(channel), self.cisco())
+        with mock.patch('routerlib.device_session.time.monotonic', side_effect=[0, 0, 0, 100]), \
+                self.assertRaises(device_session.SessionError):
+            session.exec_command('reload')
+        self.assertNotIn('y\n', channel.sent)
+
+    def test_exec_types_get_the_answer_on_their_input(self):
+        client = mock.Mock()
+        stdin = mock.Mock()
+        client.exec_command.return_value = (stdin, mock.Mock(), mock.Mock())
+        device_session.ExecSession(client).exec_command('/system reboot <<< y')
+        client.exec_command.assert_called_once_with('/system reboot')
+        stdin.write.assert_called_once_with('y\n' * device_session.MAX_QUESTIONS)
 
     def test_a_wrong_enable_password_is_refused(self):
         channel = FakeChannel(enable_password='right')
@@ -437,3 +487,113 @@ class ExportWordsByVersionTests(TestCase):
         self.assertTrue(any('Export options' in p for p in problems), problems)
         problems, _ = read_form({**base, 'legacy_before_version': 'seven'}, routeros)
         self.assertTrue(any('version number' in p for p in problems), problems)
+
+
+class HuaweiAndClassicIosFirmwareTests(TestCase):
+    """Firmware procedures for Huawei VRP (shipped type, filled by a migration
+    where still unset) and classic Cisco IOS (a preset), and versions compared
+    the way these vendors number them."""
+
+    def reset_huawei(self):
+        from fleet_commander.models import Command, CommandVariant
+        from router_manager.models import DeviceType
+        huawei = device_types.get('huawei-vrp')
+        old = [r're:VRP \(R\) software, Version ([\d.]+(?: \([^)]+\))?)']
+        DeviceType.objects.filter(pk=huawei.pk).update(firmware_upload_path='', firmware_verify='none',
+                                                       inventory_fields={**huawei.inventory_fields, 'os_version': old})
+        CommandVariant.objects.filter(router_type='huawei-vrp', command__system_key__in=[
+            'firmware_verify', 'firmware_install']).update(payload='')
+        return huawei
+
+    def run_migration(self):
+        import importlib
+        from django.apps import apps
+        importlib.import_module('fleet_commander.migrations.0021_huawei_firmware').fill(apps, None)
+
+    def test_the_migration_fills_an_unedited_huawei_type(self):
+        from fleet_commander import system_commands
+        huawei = self.reset_huawei()
+        self.run_migration()
+        huawei.refresh_from_db()
+        self.assertEqual((huawei.firmware_upload_path, huawei.firmware_verify), ('{{ firmware_name }}', 'size'))
+        self.assertIn('V\\d{3}R\\d{3}', huawei.inventory_fields['os_version'][0])
+        self.assertEqual(system_commands.payload_of('firmware_install', 'huawei-vrp'),
+                         'startup system-software {{ firmware_name }}\nreboot fast <<< y')
+        self.assertEqual(system_commands.payload_of('firmware_verify', 'huawei-vrp'), 'dir {{ firmware_name }}')
+
+    def test_the_migration_leaves_what_was_edited(self):
+        from fleet_commander.models import CommandVariant
+        from fleet_commander import system_commands
+        from router_manager.models import DeviceType
+        huawei = self.reset_huawei()
+        DeviceType.objects.filter(pk=huawei.pk).update(firmware_upload_path='cfcard:/{{ firmware_name }}',
+                                                       inventory_fields={'os_version': ['re:mine (\\S+)']})
+        CommandVariant.objects.filter(router_type='huawei-vrp', command__system_key='firmware_install').update(
+            payload='my own procedure')
+        self.run_migration()
+        huawei.refresh_from_db()
+        self.assertEqual(huawei.firmware_upload_path, 'cfcard:/{{ firmware_name }}')
+        self.assertEqual(huawei.inventory_fields['os_version'], ['re:mine (\\S+)'])
+        self.assertEqual(system_commands.payload_of('firmware_install', 'huawei-vrp'), 'my own procedure')
+
+    def test_the_classic_ios_preset(self):
+        import re
+        preset = device_types.PRESETS['cisco-ios-classic']
+        pattern = re.compile(preset['test_pattern'])
+        self.assertTrue(pattern.search('Cisco IOS Software, C2951 Software (C2951-UNIVERSALK9-M), Version 15.5(2)T1'))
+        self.assertFalse(pattern.search('Cisco IOS XE Software, Version 17.09.04a'))
+        self.assertFalse(pattern.search('Cisco IOS Software [Denali], Catalyst L3 Switch Software, Version Denali 16.2.1'))
+        install = device_types.PRESET_COMMANDS['cisco-ios-classic']['firmware_install']
+        self.assertTrue(install.endswith('write memory\nreload <<< y'))
+        self.assertIn('boot system flash:{{ firmware_name }}', install)
+
+    def test_versions_compare_the_way_these_vendors_number_them(self):
+        from router_manager.templatetags.router_tags import compare_versions
+        self.assertEqual(compare_versions('V200R010C00SPC600', 'V200R010C00SPC700'), -1)
+        self.assertEqual(compare_versions('V200R010C00', 'V200R010C00SPC600'), -1)
+        self.assertEqual(compare_versions('15.5(2)T1', '15.5(3)M'), -1)
+        self.assertEqual(compare_versions('15.2(4)M7', '15.2(4)M7'), 0)
+        self.assertEqual(compare_versions('7.21beta3', '7.21rc1'), -1)
+        self.assertEqual(compare_versions('7.21rc1', '7.21'), -1)
+        self.assertEqual(compare_versions('7.16', '7.16.0'), 0)
+        self.assertEqual(compare_versions('7.16.2 (stable)', '7.16.1'), 1)
+        self.assertEqual(compare_versions('OpenWrt 24.10.3 r28714-00d1fe2b72', '24.10.4'), -1)
+        self.assertIsNone(compare_versions('Unknown', '7.16'))
+
+    def test_a_size_with_thousands_separators_is_recognised(self):
+        from unittest import mock
+        from firmware import rollout
+        target = mock.Mock()
+        target.rollout.image.size = 52434816
+        target.router.device_type.firmware_verify = 'size'
+        with mock.patch('fleet_commander.system_commands.lines', return_value=['dir x.cc']), \
+                mock.patch.object(rollout, 'firmware_values', return_value={}), \
+                mock.patch.object(rollout, '_session'), \
+                mock.patch.object(rollout, '_run', return_value='  0  -rw-  52,434,816  Nov 24 2026 10:00:00  x.cc'), \
+                mock.patch.object(rollout, '_move') as moved:
+            rollout.step_verifying(target)
+        moved.assert_called_once()
+        self.assertEqual(moved.call_args[0][1], 'installing')
+
+    def test_sizes_as_cisco_routeros_and_others_write_them(self):
+        from unittest import mock
+        from firmware import rollout
+        for output in ('1  -rw-  52434816  Nov 24 2026 10:00:00 +00:00  c2900.bin',   # Cisco dir
+                       '52434816', '52 434 816 bytes', '52.434.816'):
+            target = mock.Mock()
+            target.rollout.image.size = 52434816
+            target.router.device_type.firmware_verify = 'size'
+            with mock.patch('fleet_commander.system_commands.lines', return_value=['x']), \
+                    mock.patch.object(rollout, 'firmware_values', return_value={}), \
+                    mock.patch.object(rollout, '_session'), \
+                    mock.patch.object(rollout, '_run', return_value=output), \
+                    mock.patch.object(rollout, '_move') as moved:
+                rollout.step_verifying(target)
+            self.assertEqual(moved.call_args[0][1], 'installing', output)
+        target.rollout.image.size = 52434817
+        with mock.patch('fleet_commander.system_commands.lines', return_value=['x']), \
+                mock.patch.object(rollout, 'firmware_values', return_value={}), \
+                mock.patch.object(rollout, '_session'), \
+                mock.patch.object(rollout, '_run', return_value='52434816'), \
+                self.assertRaises(rollout.StepFailed):
+            rollout.step_verifying(target)

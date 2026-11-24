@@ -1,9 +1,17 @@
 """A limit on failed sign-in attempts.
 
-Counted from the login history the audit log keeps anyway: after
-LOGIN_LOCKOUT_ATTEMPTS refused attempts for one account, or from one address,
-within LOGIN_LOCKOUT_MINUTES, further attempts are turned away without the
-password being checked at all. A successful sign-in starts the count again.
+Counted from the login history the audit log keeps anyway, within
+LOGIN_LOCKOUT_MINUTES, and further attempts are turned away without the
+password being checked at all:
+
+- LOGIN_LOCKOUT_ATTEMPTS refused attempts for one account from one address
+  lock that account from that address - so failing on purpose from elsewhere
+  no longer locks the owner out;
+- as many from one address, whatever the names, lock that address;
+- LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS for one account from all addresses together
+  lock the account everywhere - guessing spread over many addresses.
+
+A successful sign-in starts the count again.
 
 Attempts turned away while locked are recorded too, so they show in the login
 history, but they do not count: someone who keeps trying while locked out would
@@ -23,6 +31,12 @@ def limits():
             timezone.timedelta(minutes=getattr(settings, 'LOGIN_LOCKOUT_MINUTES', 15)))
 
 
+def account_limit():
+    """Refused attempts for one account from all addresses together."""
+    attempts, _ = limits()
+    return getattr(settings, 'LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS', attempts * 4)
+
+
 def _failures(**where):
     _, window = limits()
     since = timezone.now() - window
@@ -38,10 +52,11 @@ def is_locked_out(request, username):
     attempts, _ = limits()
     if attempts <= 0:
         return False
-    if _failures(username__iexact=username) >= attempts:
-        return True
     address, _ = context.client_address(request)
-    return bool(address) and _failures(ip=address) >= attempts
+    if address and (_failures(username__iexact=username, ip=address) >= attempts
+                    or _failures(ip=address) >= attempts):
+        return True
+    return _failures(username__iexact=username) >= account_limit()
 
 
 def address_locked_out(request):

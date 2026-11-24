@@ -504,6 +504,97 @@ jobs:
 
   # An installation of an earlier release - PostgreSQL 16, real data - moved to
   # PostgreSQL 18 by scripts/migrate-database.sh, then RouterFleet started on it
+  # The other ways an installation runs: SQLite (docker-compose-no-postgres.yml,
+  # with this commit's images under the published names) and the whole stack
+  # booting on arm64, where only the build was verified before.
+  stack-variants:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: sqlite
+            runner: ubuntu-latest
+          - variant: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Environment
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          {
+            echo "SERVER_ADDRESS=localhost"
+            echo "DEBUG_MODE=False"
+            echo "TIMEZONE=Etc/UTC"
+            if [ "$VARIANT" = sqlite ]; then
+              echo "DATABASE_ENGINE=sqlite"
+            else
+              echo "DATABASE_ENGINE=postgres"
+            fi
+            echo "POSTGRES_DB=routerfleet"
+            echo "POSTGRES_USER=routerfleet"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "HTTPS_REDIRECT_POLICY=always"
+          } > .env
+
+      - name: Build and start
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -eu
+          if [ "$VARIANT" = sqlite ]; then
+            docker compose -f docker-compose-dev.yml build routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx
+            for NAME in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx; do
+              docker tag "routerfleet-dev/${NAME}:local" "ghcr.io/alessiobravi/${NAME}:latest"
+            done
+            docker compose -f docker-compose-no-postgres.yml up -d --pull never --wait --wait-timeout 300
+          else
+            uname -m | grep -qx aarch64
+            docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 600
+          fi
+
+      - name: The installation behaves
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          set -eu
+          for _ in $(seq 1 15); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' http://localhost/ || true)
+            [ "${CODE}" != "000" ] && break
+            sleep 2
+          done
+          test "${CODE}" = "301"
+          PAGE=$(curl -fsSkL https://localhost/accounts/login/)
+          grep -q 'csrfmiddlewaretoken' <<< "${PAGE}"
+          HASHED=$(grep -oE '/static/vendor/adminlte-[0-9.]+/adminlte\.min\.[0-9a-f]{12}\.css' <<< "${PAGE}" | head -1)
+          test -n "${HASHED}"
+          curl -fsSk -o /dev/null "https://localhost${HASHED}"
+          # The database takes writes and reads them back
+          docker exec routerfleet python manage.py shell -c "
+          from django.contrib.auth.models import User
+          from django.db import connection
+          User.objects.create_user('ci-variant', password=None)
+          assert User.objects.filter(username='ci-variant').exists()
+          print(connection.vendor, 'database verified')"
+          if [ "$VARIANT" = sqlite ]; then
+            docker exec routerfleet python manage.py shell -c "from django.db import connection; assert connection.vendor == 'sqlite'"
+          fi
+
+      - name: Logs
+        if: always()
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          FILE=docker-compose-dev.yml
+          [ "$VARIANT" = sqlite ] && FILE=docker-compose-no-postgres.yml
+          docker compose -f "$FILE" ps -a && docker compose -f "$FILE" logs --tail 60
+
   migration:
     needs: test
     runs-on: ubuntu-latest
@@ -663,7 +754,7 @@ jobs:
         run: docker compose -f docker-compose-dev.yml ps -a && docker compose -f docker-compose-dev.yml logs --tail 60
 
   images:
-    needs: [test, test-postgres, stack, migration]
+    needs: [test, test-postgres, stack, stack-variants, migration]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

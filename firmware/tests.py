@@ -618,8 +618,9 @@ class MorePlatformsTests(TestCase):
                       system_commands.payload_of('firmware_install', 'juniper-junos'))
         self.assertIn('prompt-level none', system_commands.payload_of('firmware_install', 'cisco-ios'))
         self.assertEqual(system_commands.payload_of('firmware_install', 'ubiquiti-airos').strip(), '/sbin/fwupdate -m')
-        self.assertEqual(system_commands.payload_of('firmware_install', 'huawei-vrp').strip(), '',
-                         'VRP asks to confirm a reboot: not shipped')
+        # VRP asks to confirm the reboot: answered (<<< y), its only question
+        self.assertEqual(system_commands.payload_of('firmware_install', 'huawei-vrp').strip(),
+                         'startup system-software {{ firmware_name }}\nreboot fast <<< y')
         self.assertEqual(device_types.get('juniper-junos').firmware_verify, 'sha256')
         self.assertEqual(device_types.get('ubiquiti-airos').firmware_upload_path, '/tmp/fwupdate.bin')
 

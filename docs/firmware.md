@@ -139,16 +139,34 @@ They follow the vendors' documentation; airOS rests on field reports.
 | Juniper Junos | `/var/tmp/{{ firmware_name }}` | SHA-256 (`file checksum sha-256`) | `request system software add … reboot` | none |
 | Cisco IOS-XE | `flash:{{ firmware_name }}` (the device needs `ip scp server enable`) | size (`dir`) - IOS offers MD5 and SHA-512, not SHA-256 | install mode: `install add file … activate commit prompt-level none` - no confirmation, reloads | none |
 | Ubiquiti airOS | `/tmp/fwupdate.bin` | size (`wc -c`) | `/sbin/fwupdate -m` - reboots by itself (field reports, not a vendor document) | none |
-| Huawei VRP | - | - | not shipped | none |
+| Cisco IOS (classic) - a preset | `flash:{{ firmware_name }}` (`ip scp server enable`, and AAA exec authorization for SCP) | size (`dir`) | `configure terminal`, `no boot system`, `boot system flash:…`, `end`, `write memory`, `reload <<< y` | none |
+| Huawei VRP | `{{ firmware_name }}` - the root of the default storage (`sftp server enable` or `scp server enable`) | size (`dir`; `52,434,816` is read too) | `startup system-software {{ firmware_name }}`, `reboot fast <<< y` | none |
 
-Not shipped, and why:
+**Answering the device.** `<<< y` at the end of a command answers every
+question that command asks - *Continue? [Y/N]*, *[confirm]*, *[yes/no]* - with
+`y`, at most three times; without it a question stops the step. Classic IOS and
+Huawei VRP document no reboot that does not ask, so their procedures answer it.
 
-- **Cisco classic IOS (bundle mode)** sets `boot system` and reloads - and
-  `reload` always asks for a confirmation, with no documented way to skip it.
-  The shipped Cisco procedure is IOS-XE install mode; for classic IOS write your
-  own, run through an interactive shell that answers.
-- **Huawei VRP** sets the next startup software with `startup system-software`,
-  but `reboot` always asks *Continue? [Y/N]*, with no documented way to skip it.
+- **Cisco IOS (classic)** is a preset: create a device type from it (Device
+  types, New, start from *Cisco IOS (classic)*) and move bundle-mode devices
+  (ISR G2, Catalyst 2960) to it. The shipped *Cisco IOS / IOS-XE* type keeps
+  the IOS-XE install-mode procedure. `write memory` saves the running
+  configuration with the boot variable - unsaved changes are saved too; the
+  backup taken before the update holds the configuration as it was.
+- **Huawei VRP** keeps the startup software apart from the configuration, so
+  nothing is saved: `reboot fast` restarts without saving, and unsaved changes
+  are gone after the update (the backup taken before it holds them). Devices
+  with two main boards need the software set on both (`startup system-software
+  … all` on the models that take it): adapt the procedure. The OS version is
+  read as the release (`V200R010C00SPC600`), so a repository file is entered
+  with that version.
+
+Sources: Huawei's command references for `startup system-software`, `reboot`
+(`reboot fast` does not ask to save, still asks to confirm), `sftp server
+enable` and `scp server enable`; Cisco's references for `boot system`, `reload`
+(always confirms, also `reload in`) and `ip scp server enable`. Huawei's pages
+could only be read in search excerpts; try the procedure on one device first.
+
 - **airOS, Junos, IOS-XE and VRP have no public address** that publishes the
   newest version, so no online update; MikroTik and OpenWrt have one.
 

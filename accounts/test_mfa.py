@@ -292,3 +292,37 @@ class PasskeyTests(TestCase):
 
     def test_get_is_not_accepted(self):
         self.assertEqual(self.client.get('/accounts/passkey/options/', HTTP_HOST=HOST).status_code, 405)
+
+    def test_asking_for_a_challenge_creates_no_session(self):
+        from django.contrib.sessions.models import Session
+        for _ in range(5):
+            response = self.post('/accounts/passkey/options/')
+            self.assertEqual(response.status_code, 200)
+        self.assertEqual(Session.objects.count(), 0, 'a flood of anonymous calls stores nothing')
+        cookie = response.cookies['rf_passkey_challenge']
+        self.assertTrue(cookie['httponly'])
+        self.assertEqual(cookie['samesite'], 'Strict')
+        self.assertEqual(cookie['path'], '/accounts/passkey/')
+
+    def test_an_answer_replayed_with_its_cookie_is_refused(self):
+        self.register()
+        options = self.post('/accounts/passkey/options/').json()
+        cookie = self.client.cookies['rf_passkey_challenge'].value
+        answer = self.authenticator.get(options, str(self.user.pk).encode())
+        self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 200)
+        self.client.logout()
+        # The attacker has both: the answer and the cookie it was given with,
+        # and a passkey that does not advance its counter
+        UserPasskey.objects.update(sign_count=0)
+        self.client.cookies['rf_passkey_challenge'] = cookie
+        self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 400)
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_a_forged_or_missing_cookie_is_refused(self):
+        self.register()
+        options = self.post('/accounts/passkey/options/').json()
+        answer = self.authenticator.get(options, str(self.user.pk).encode())
+        self.client.cookies['rf_passkey_challenge'] = options['challenge'] + ':1'
+        self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 400)
+        del self.client.cookies['rf_passkey_challenge']
+        self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 400)

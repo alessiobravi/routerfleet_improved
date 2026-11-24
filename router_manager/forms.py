@@ -18,6 +18,20 @@ TEST_CONNECTION_HTML = '''
 '''
 
 
+def _account_hint():
+    from django.conf import settings
+    from django.utils.html import format_html
+    docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/devices.md#a-dedicated-account'
+    return format_html(
+        '<i class="fas fa-shield-halved me-1" aria-hidden="true"></i>Best a dedicated account with only the rights '
+        'RouterFleet needs, not the administrator: reading the configuration is enough for backups and router '
+        'information; updates, commands and the console need more. '
+        '<a href="{}" target="_blank" rel="noopener">Examples per vendor</a>', docs)
+
+
+ACCOUNT_HINT = _account_hint()
+
+
 class RouterForm(forms.ModelForm):
     password = forms.CharField(widget=forms.PasswordInput, required=False)
     enable_password = forms.CharField(widget=forms.PasswordInput, required=False, label='Enable password',
@@ -42,6 +56,7 @@ class RouterForm(forms.ModelForm):
         # Only used by the console's Telnet: empty means the standard port
         self.fields['telnet_port'].required = False
         self.fields['telnet_port'].help_text = 'Used only when the Telnet console is allowed.'
+        self.fields['username'].help_text = ACCOUNT_HINT
         self.fields['console_telnet'].help_text = ('Telnet sends everything, passwords included, unencrypted. '
                                                    'Off unless the device has no SSH.')
         self.helper = FormHelper()
@@ -186,6 +201,7 @@ class RouterBulkEditForm(forms.Form):
             [('', 'Unchanged'), ('clear', 'Clear backup profile')]
             + [(str(backup_profile.uuid), backup_profile.name) for backup_profile in BackupProfile.objects.all().order_by('name')]
         )
+        self.fields['username'].help_text = ACCOUNT_HINT
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.form_tag = False

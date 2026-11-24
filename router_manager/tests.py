@@ -651,3 +651,19 @@ class SourceDataTests(SimpleTestCase):
                                                  ('/system routerboard print', ' model: RB450G')])
         self.assertEqual(source_sections(''), [])
         self.assertEqual(source_sections('not json'), [('', 'not json')])
+
+
+class DedicatedAccountHintTests(TestCase):
+    """The device forms suggest an account with the least rights RouterFleet
+    needs, and link the per-vendor examples."""
+
+    def test_the_device_form_suggests_a_dedicated_account(self):
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(50))
+        page = self.client.get('/router/manage/').content.decode()
+        self.assertIn('Best a dedicated account with only the rights', page)
+        self.assertIn('docs/devices.md#a-dedicated-account', page)
+
+    def test_the_bulk_edit_form_too(self):
+        from router_manager.forms import RouterBulkEditForm
+        self.assertIn('dedicated account', str(RouterBulkEditForm().fields['username'].help_text))

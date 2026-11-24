@@ -10,7 +10,8 @@
 
 Only versions newer than the one the device runs are offered - and only of its
 own major version, unless the device type allows another (OpenWrt: 24.10 to
-25.12 is the usual upgrade; RouterOS 6 to 7 takes a procedure of its own). Nothing here knows a vendor: the channels, the addresses that publish
+25.12 is the usual upgrade; RouterOS 6 to 7 takes a procedure of its own).
+Nothing here knows a vendor: the channels, the addresses that publish
 their newest version and the procedures are configuration of the device type
 and its system commands.
 """
@@ -137,8 +138,8 @@ def options_for(router, fetch=fetch_channel_version):
     if system_commands.payload_of('firmware_install', router.router_type).strip():
         images = [image for image in FirmwareImage.objects.filter(device_type=device_type, enabled=True)
                   if image.matches_router(router) and newer(image.version)]
-        images.sort(key=lambda image: [int(p) if p.isdigit() else 0 for p in re.split(r'[.\-]', plain(image.version))],
-                    reverse=True)
+        from router_manager.templatetags.router_tags import version_key
+        images.sort(key=lambda image: version_key(plain(image.version)) or (), reverse=True)
         for image in images:
             options.append({'key': f'image:{image.uuid}', 'kind': 'image', 'version': image.version,
                             'image': image, 'channel': '',

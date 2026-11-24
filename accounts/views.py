@@ -1,3 +1,4 @@
+import datetime
 import json
 import time
 
@@ -36,6 +37,8 @@ def view_create_first_user(request):
 
 
 BACKEND = 'django.contrib.auth.backends.ModelBackend'
+PASSKEY_COOKIE = 'rf_passkey_challenge'
+PASSKEY_SALT = 'routerfleet.passkey-login'
 
 
 def view_login(request):
@@ -103,16 +106,29 @@ def view_passkey_login_options(request):
     if lockout.address_locked_out(request):
         return JsonResponse({'error': 'Too many failed sign-in attempts. Try again later.'}, status=429)
     options = generate_authentication_options(rp_id=rp_id, user_verification=UserVerificationRequirement.REQUIRED)
-    request.session['passkey_login'] = {'challenge': mfa.b64url(options.challenge), 'at': time.time()}
-    return HttpResponse(options_to_json(options), content_type='application/json')
+    # The challenge travels in a signed cookie that expires with it - not in a
+    # session: every call here is anonymous, and a session row per call let a
+    # flood of them grow the session table
+    response = HttpResponse(options_to_json(options), content_type='application/json')
+    response.set_signed_cookie(PASSKEY_COOKIE, f'{mfa.b64url(options.challenge)}:{time.time():.6f}', salt=PASSKEY_SALT,
+                               max_age=mfa.PENDING_SECONDS, path='/accounts/passkey/', httponly=True,
+                               samesite='Strict', secure=request.is_secure())
+    return response
 
 
 @require_POST
 def view_passkey_login(request):
     """Checks the passkey's answer to the challenge and signs its owner in."""
-    state = request.session.pop('passkey_login', None) or {}
+    challenge = request.get_signed_cookie(PASSKEY_COOKIE, default=None, salt=PASSKEY_SALT,
+                                          max_age=mfa.PENDING_SECONDS)
     refused = JsonResponse({'error': 'The passkey was not accepted.'}, status=400)
-    if time.time() - state.get('at', 0) > mfa.PENDING_SECONDS or lockout.address_locked_out(request):
+    refused.delete_cookie(PASSKEY_COOKIE, path='/accounts/passkey/', samesite='Strict')
+    challenge, _, issued = (challenge or '').partition(':')
+    try:
+        issued_at = datetime.datetime.fromtimestamp(float(issued), tz=datetime.UTC)
+    except ValueError:
+        return refused
+    if not challenge or lockout.address_locked_out(request):
         return refused
     try:
         rp_id, origin = mfa.relying_party(request)
@@ -124,18 +140,25 @@ def view_passkey_login(request):
         if handle and mfa.from_b64url(handle) != str(passkey.user.pk).encode():
             raise ValueError('the passkey belongs to another account')
         verified = verify_authentication_response(
-            credential=credential, expected_challenge=mfa.from_b64url(state['challenge']),
+            credential=credential, expected_challenge=mfa.from_b64url(challenge),
             expected_rp_id=rp_id, expected_origin=origin,
             credential_public_key=mfa.from_b64url(passkey.public_key),
             credential_current_sign_count=passkey.sign_count, require_user_verification=True)
     except Exception:
         user_login_failed.send(sender=__name__, credentials={'username': '(passkey)'}, request=request)
         return refused
-    passkey.sign_count = verified.new_sign_count
-    passkey.last_used = timezone.now()
-    passkey.save(update_fields=['sign_count', 'last_used'])
+    # Single use: a passkey takes only a challenge issued after its last use -
+    # an answer captured with its cookie can not be played again (many
+    # passkeys do not advance their counter). Claimed atomically.
+    if not UserPasskey.objects.filter(pk=passkey.pk).filter(
+            Q(last_used__isnull=True) | Q(last_used__lt=issued_at)).update(
+            sign_count=verified.new_sign_count, last_used=timezone.now()):
+        user_login_failed.send(sender=__name__, credentials={'username': '(passkey)'}, request=request)
+        return refused
     auth.login(request, passkey.user, backend=BACKEND)
-    return JsonResponse({'redirect': '/'})
+    response = JsonResponse({'redirect': '/'})
+    response.delete_cookie(PASSKEY_COOKIE, path='/accounts/passkey/', samesite='Strict')
+    return response
 
 
 def view_logout(request):

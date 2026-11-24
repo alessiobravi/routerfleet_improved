@@ -169,11 +169,18 @@ stored; each device's key is learned on its next connection.
 
 ## Sign-in attempts
 
-After **5 refused sign-in attempts for one account, or from one address, within
-15 minutes**, further attempts are turned away without the password being
-checked — even the right one — until the oldest of those attempts is more than
-15 minutes old. A successful sign-in starts the count again. The answer is the
-same whether the account exists or not.
+Within **15 minutes**, further attempts are turned away without the password
+being checked — even the right one — after:
+
+- **5 refused attempts for one account from one address**: that account, from
+  that address;
+- **5 refused attempts from one address**, whatever the names: that address;
+- **20 refused attempts for one account from all addresses together**: that
+  account, everywhere (guessing spread over many addresses).
+
+The lock lasts until the oldest of those attempts is more than 15 minutes old.
+A successful sign-in starts the count again. The answer is the same whether
+the account exists or not.
 
 Attempts turned away are recorded in the [login history](audit-log.md#login-history)
 with a lock icon. They do not count towards the limit: someone who keeps
@@ -181,15 +188,17 @@ trying while locked out gets back in 15 minutes after their last real attempt.
 
 Two consequences to be aware of:
 
-- Anyone who can reach the sign-in page can lock a known account for 15 minutes
-  by failing on purpose. That is the price of limiting guesses per account.
+- Failing on purpose from one address locks only that address: the owner signs
+  in from their own. Locking a known account everywhere takes 20 failures from
+  at least five addresses within 15 minutes.
 - The address is the one nginx sees (see [Where the address comes
   from](audit-log.md#where-the-address-comes-from)). Behind another reverse
   proxy that does not pass the client's address on, every visitor shares the
   proxy's address and one person's failures lock out everyone.
 
-The limits are `LOGIN_LOCKOUT_ATTEMPTS` and `LOGIN_LOCKOUT_MINUTES` in
-`routerfleet/settings.py`; `LOGIN_LOCKOUT_ATTEMPTS = 0` turns it off.
+The limits are `LOGIN_LOCKOUT_ATTEMPTS`, `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` and
+`LOGIN_LOCKOUT_MINUTES` in `routerfleet/settings.py`;
+`LOGIN_LOCKOUT_ATTEMPTS = 0` turns it off.
 
 ## Second factors and passkeys
 
@@ -232,7 +241,10 @@ by a **name, not an IP address**, over HTTPS with a **certificate the browser
 trusts** (not the self-signed one an installation starts with). Where that is
 not the case, the passkey options are simply not offered; the authenticator app
 works everywhere. Signing in with a passkey checks the origin, the challenge
-(answerable once), the device's signature and its signature counter.
+(answerable once: a passkey takes only a challenge issued after its last use),
+the device's signature and its signature counter. The challenge is kept in a
+signed cookie that expires after five minutes, not in a session, so asking for
+challenges stores nothing on the server.
 
 **Losing a phone or a passkey.** An administrator resets a user's second
 factors on the user's page (**Reset**, confirmed with the username), which

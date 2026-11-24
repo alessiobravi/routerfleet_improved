@@ -236,7 +236,11 @@ def step_verifying(target):
         if image.sha256.lower() not in found:
             raise StepFailed('the uploaded file is not intact: its SHA-256 does not match the repository')
     else:
-        if str(image.size) not in NUMBER.findall(output.replace(' ', '')):
+        # The size as the device writes it: 52434816, 52,434,816 or 52 434 816 -
+        # only separators between groups of three digits go, so the date that
+        # follows in a dir listing does not run into it
+        plain = re.sub(r'(?<=\d)[ ,.\u00a0\u202f](?=\d{3}\b)', '', output)
+        if str(image.size) not in NUMBER.findall(plain):
             raise StepFailed(f'the uploaded file is not intact: its size is not {image.size} bytes')
     _move(target, 'installing', 'Upload verified.')
 

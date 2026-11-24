@@ -6,10 +6,15 @@ from router_manager.models import Router, RouterInformation
 
 register = template.Library()
 
-# The number part of a version. '7.16.2 (stable)' of RouterOS, the kernel
-# '4.14.151' of an airOS device and 'OpenWrt 24.10.3 r28714-00d1fe2b72' all
-# carry it at the beginning, followed by something that is not comparable
-VERSION_PATTERN = re.compile(r'\d+(?:\.\d+)*')
+# The version itself: the first word that starts with a number (or a V and a
+# number). '7.16.2 (stable)' of RouterOS, the kernel '4.14.151' of an airOS
+# device, 'OpenWrt 24.10.3 r28714-00d1fe2b72' (24.10.3: the build after the
+# space is not comparable), Cisco IOS '15.5(2)T1', Huawei 'V200R010C00SPC600'
+VERSION_PATTERN = re.compile(r'(?<![\w.])[Vv]?\d[\w.()\-]*')
+# Its numbers in order; letters separate them. A pre-release word ranks below
+# the release it leads to: 7.21beta3 < 7.21rc1 < 7.21
+VERSION_PART = re.compile(r'(\d+)|(alpha|beta|pre|rc)', re.IGNORECASE)
+PRE_RELEASE = {'alpha': -4, 'beta': -3, 'pre': -2, 'rc': -1}
 
 # Version strings that are only known after the router information was read
 NEUTRAL_STATE = {'css_class': '', 'title': ''}
@@ -21,7 +26,9 @@ def version_key(value):
     match = VERSION_PATTERN.search(value or '')
     if not match:
         return None
-    return tuple(int(part) for part in match.group(0).split('.'))
+    parts = tuple(int(number) if number else PRE_RELEASE[word.lower()]
+                  for number, word in VERSION_PART.findall(match.group(0)))
+    return parts or None
 
 
 def compare_versions(left, right):
