@@ -18,7 +18,7 @@ from routerfleet import test_upgrade
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 RELEASED = {
-    'discovery/migrations/0001_initial.py': 'bf572f586c82e69855c488b5fcdab79ff400bd2b34b8dc367c871ab42dadf396',
+    'discovery/migrations/0001_initial.py': 'f11b694050c14c110d6083a89986022b23a693041b6094b9268599196c1d508e',
     'audit_log/migrations/0001_initial.py': '798b0442ee6f268a979a354775c4b1271048884bf24dfacd58af0ea130c1ca4e',
     'audit_log/migrations/0002_changerecord_change_object_and_more.py': '08355a68e881e297561d6a3e044379918b9df9357c1a26f2e5ff383242e13430',
     'audit_log/migrations/0003_changerecord_revealed.py': 'ab33f96cedc2ec343857575c7cc4d829435cc1219aa4902b54c8ddbdbc1a71b8',

@@ -243,3 +243,57 @@ class ListenerWithoutFolderTests(TestCase):
         module = listener()
         module.FOLDER = '/no/such/folder'
         self.assertIsNone(module.main())   # returns at once instead of failing on its first write
+
+
+class ReachabilityAndWizardTests(TestCase):
+    """A discovered device is checked from RouterFleet's host (its SSH port);
+    reachable, it can be added by its IP address with the wizard - by an
+    administrator."""
+
+    def setUp(self):
+        store(sample('routeros_terse.txt'), seen_by='seer')
+        self.device = DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC')
+
+    def test_the_check_records_what_it_found(self):
+        from unittest import mock
+        from .reach import check
+        with mock.patch('discovery.reach.socket.create_connection', side_effect=ConnectionRefusedError()):
+            check([self.device])
+        self.device.refresh_from_db()
+        self.assertFalse(self.device.reachable)
+        self.assertIn('refused', self.device.reachable_detail)
+        with mock.patch('discovery.reach.socket.create_connection') as connect:
+            check([self.device])
+        connect.assert_called_once_with(('192.168.88.12', 22), timeout=1.5)
+        self.device.refresh_from_db()
+        self.assertTrue(self.device.reachable)
+        self.assertIsNotNone(self.device.checked_at)
+
+    def test_the_wizard_adds_it_by_its_ip_address(self):
+        from router_manager.models import Router
+        DiscoveredDevice.objects.filter(pk=self.device.pk).update(reachable=True, reachable_detail='SSH (port 22) answers')
+        self.client.force_login(make_user(50))
+        url = f'/router/discovered/add/?uuid={self.device.uuid}'
+        page = self.client.get(url).content.decode()
+        self.assertIn('value="AP02-INTSEC-CDC"', page)
+        self.assertIn('Test connection', page)
+        response = self.client.post(url, {'name': 'ap02', 'router_type': 'routeros', 'username': 'rfbackup',
+                                          'password': 'device-secret-1', 'port': '22', 'address': '10.66.66.66',
+                                          'monitoring': 'on', 'enabled': 'on', 'keep_unchanged': 'profile'})
+        router = Router.objects.get(name='ap02')
+        self.assertRedirects(response, f'/router/details/?uuid={router.uuid}', fetch_redirect_response=False)
+        self.assertEqual(router.address, '192.168.88.12', 'the discovered IP address, whatever was posted')
+
+    def test_not_reachable_or_not_an_administrator(self):
+        self.client.force_login(make_user(50))
+        DiscoveredDevice.objects.filter(pk=self.device.pk).update(reachable=False)
+        self.assertRedirects(self.client.get(f'/router/discovered/add/?uuid={self.device.uuid}'), '/router/discovered/',
+                             fetch_redirect_response=False)
+        DiscoveredDevice.objects.filter(pk=self.device.pk).update(reachable=True)
+        self.client.force_login(make_user(40))
+        self.assertContains(self.client.get(f'/router/discovered/add/?uuid={self.device.uuid}'), 'Access Denied')
+        from unittest import mock
+        with mock.patch('discovery.reach.check_stale'):
+            page = self.client.get('/router/discovered/').content.decode()
+        self.assertNotIn('Add to hosts', page)
+        self.assertIn('Reachable from RouterFleet', page)

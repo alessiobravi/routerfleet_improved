@@ -26,6 +26,11 @@ class DiscoveredDevice(models.Model):
     last_seen = models.DateTimeField()
     # Not of interest: kept, but out of the list of devices to add
     dismissed = models.BooleanField(default=False)
+    # Whether RouterFleet's host reaches it: its SSH port answering (None: not
+    # checked yet), what the check found, and when
+    reachable = models.BooleanField(null=True, blank=True)
+    reachable_detail = models.CharField(max_length=120, blank=True)
+    checked_at = models.DateTimeField(null=True, blank=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
 
     class Meta:

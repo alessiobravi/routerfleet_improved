@@ -33,16 +33,22 @@
             <span class="rf-set-icon {% if row.type == 'routeros' %}blue{% elif 'cisco' in row.type %}teal{% elif row.type %}purple{% else %}sky{% endif %}"><i class="fas fa-satellite-dish"></i></span>
             <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ row.device.identity }}">{{ row.device.identity|default:row.device.address|default:row.device.mac }}</span>
                 <span class="rf-set-sub d-block">{% if row.device.address %}{{ row.device.address }} · {% endif %}<span title="{{ row.device.platform }}">{{ row.device.platform|default:"unknown platform"|truncatechars:60 }}</span>{% if row.device.model and row.device.model not in row.device.platform %} {{ row.device.model }}{% endif %}{% if row.device.version and row.device.version not in row.device.platform %} · {{ row.device.version|truncatechars:40 }}{% endif %}</span>
-                <span class="rf-set-sub d-block">{{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %} · {{ row.device.last_seen|timesince }} ago</span></span>
+                <span class="rf-set-sub d-block">{{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %} · {{ row.device.last_seen|timesince }} ago</span>
+                <span class="rf-set-sub d-block">{% if not row.device.address %}{{ 'info'|state_icon }} No IP address announced: can not be added from here{% elif row.device.reachable %}{{ 'ok'|state_icon }} Reachable from RouterFleet's host - {{ row.device.reachable_detail }}{% elif row.device.reachable is None %}{{ 'wait'|state_icon }} Reachability not checked yet{% else %}{{ 'warn'|state_icon }} {{ row.device.reachable_detail|capfirst }}{% endif %}</span></span>
             <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="dismiss"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
                 <button type="submit" class="btn btn-link text-muted" title="Not of interest - hide it" aria-label="Hide {{ row.device.identity }}"><i class="fas fa-eye-slash"></i></button></form>
-            {% if row.device.address %}<a class="btn btn-sm btn-outline-primary" href="/router/manage/?discovered={{ row.device.uuid }}" title="Add it, the form filled in{% if row.type %} (device type guessed){% endif %}"><i class="fas fa-plus me-1"></i>Add</a>{% endif %}
+            {% if row.device.reachable %}
+                {% if can_add %}<a class="btn btn-sm btn-outline-primary" href="/router/discovered/add/?uuid={{ row.device.uuid }}" title="Add it with the wizard, by its IP address"><i class="fas fa-wand-magic-sparkles me-1"></i>Add to hosts</a>{% endif %}
+            {% elif row.device.address %}
+            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="recheck"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Check again whether RouterFleet's host reaches it"><i class="fas fa-rotate me-1"></i>Check again</button></form>
+            {% endif %}
         </div>
         {% empty %}
         <div class="rf-set-row"><span class="rf-set-text text-muted">Nothing new. Devices appear here as managed devices report their neighbours (with each router information update) or the listener on RouterFleet's LAN hears them.</span></div>
         {% endfor %}
     </div>
-    <div class="rf-set-foot">From the LLDP, CDP and MikroTik neighbour tables of managed devices (read with each router information update) and from RouterFleet's LAN when asked. A device without an address can not be added from here.</div>
+    <div class="rf-set-foot">From the LLDP, CDP and MikroTik neighbour tables of managed devices (read with each router information update) and from RouterFleet's LAN when asked. A device is added by its IP address, when RouterFleet's host reaches it on SSH{% if not can_add %} - by an administrator{% endif %}.</div>
 
     {% if known %}
     <div class="rf-set-title">Already in RouterFleet</div>

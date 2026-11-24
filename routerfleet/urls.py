@@ -99,6 +99,7 @@ urlpatterns = [
     path('router/group_list/', view_router_group_list, name='router_group_list'),
     path('router/ssh_keys/', view_ssh_key_list, name='ssh_keys_list'),
     path('router/discovered/', discovery_views.view_discovered, name='discovered'),
+    path('router/discovered/add/', discovery_views.view_add_discovered, name='discovered_add'),
     path('cron/discovery/', discovery_views.view_cron_discovery, name='cron_discovery'),
     path('router/sshkey/reveal/', router_views.view_reveal_sshkey, name='sshkey_reveal'),
     path('router/manage_group/', view_manage_router_group, name='manage_router_group'),

@@ -11,4 +11,6 @@ class FastHashingRunner(DiscoverRunner):
     def setup_test_environment(self, **kwargs):
         from django.conf import settings
         settings.PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+        # No real connections from a test: the discovery page does not check reachability by itself
+        settings.DISCOVERY_CHECK_ON_PAGE = False
         super().setup_test_environment(**kwargs)

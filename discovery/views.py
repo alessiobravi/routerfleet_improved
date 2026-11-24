@@ -13,7 +13,8 @@ from user_manager.models import UserAcl
 from .models import DiscoveredDevice
 from .store import WINDOW_SECONDS, ask_listener, import_listener_file, listener_state
 
-LEVEL = 30   # Host Manager: who adds devices
+LEVEL = 30   # Host Manager: who sees discovered devices
+ADD_LEVEL = 50   # Administrators: who adds them, with the wizard
 
 # What a platform or version text says about the device type (shipped slugs)
 GUESSES = (('mikrotik', 'routeros'), ('routeros', 'routeros'), ('openwrt', 'openwrt'), ('junos', 'juniper-junos'),
@@ -61,12 +62,21 @@ def view_discovered(request):
         else:
             messages.error(request, 'Not started|The shared discovery folder can not be written - check the compose file.')
         return redirect('/router/discovered/')
+    if request.method == 'POST' and request.POST.get('action') == 'recheck':
+        from .reach import check
+        device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
+        check([device])
+        return redirect('/router/discovered/')
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'
         device.save(update_fields=['dismissed'])
         return redirect('/router/discovered/' + ('?dismissed=1' if request.GET.get('dismissed') else ''))
     import_listener_file()   # what the listener heard so far
+    from django.conf import settings
+    if getattr(settings, 'DISCOVERY_CHECK_ON_PAGE', True):
+        from .reach import check_stale
+        check_stale()        # reachability of what was not checked lately (parallel, bounded)
     routers = list(Router.objects.only('uuid', 'name', 'address'))
     new, known, dismissed = [], [], []
     for device in DiscoveredDevice.objects.select_related('seen_by_router'):
@@ -82,6 +92,7 @@ def view_discovered(request):
     return render(request, 'discovery/discovered.html', {
         'page_title': 'Discovered devices', 'new': new, 'known': known, 'dismissed': dismissed,
         'show_dismissed': bool(request.GET.get('dismissed')), 'listener': listener_state(),
+        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists(),
         'window_minutes': WINDOW_SECONDS // 60})
 
 
@@ -99,5 +110,36 @@ def prefill(uuid):
 
 @cron_endpoint
 def view_cron_discovery(request):
-    """Imports what the optional listener heard on RouterFleet's LAN."""
-    return JsonResponse({'imported': import_listener_file()})
+    """Imports what the listener heard, and checks the reachability of what
+    was not checked lately."""
+    from .reach import check_stale
+    return JsonResponse({'imported': import_listener_file(), 'checked': check_stale()})
+
+
+@login_required
+def view_add_discovered(request):
+    """Adding a discovered device, for administrators, when RouterFleet's
+    host reaches it: by its IP address - the device, how to sign in (tested
+    before saving, if wished), backups and monitoring."""
+    from router_manager.forms import RouterForm
+    from .reach import is_ip
+    if not UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists():
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    device = get_object_or_404(DiscoveredDevice, uuid=request.GET.get('uuid'))
+    if not is_ip(device.address) or not device.reachable:
+        messages.warning(request, 'Not added|RouterFleet\'s host does not reach this device by its IP address on SSH - check again first.')
+        return redirect('/router/discovered/')
+    if request.method == 'POST':
+        data = request.POST.copy()
+        data['address'] = device.address   # by its IP address, as discovered
+        form = RouterForm(data)
+        if form.is_valid():
+            router = form.save()
+            from router_manager.views import saved_router_message
+            messages.success(request, saved_router_message(router, True, set(form.changed_data)))
+            return redirect(f'/router/details/?uuid={router.uuid}')
+    else:
+        form = RouterForm(initial=prefill(device.uuid))
+    for name in ('router_type', 'ssh_key', 'backup_profile'):
+        form.fields[name].widget.attrs['class'] = 'form-select'
+    return render(request, 'discovery/add.html', {'page_title': 'Add a discovered device', 'device': device, 'form': form})
