@@ -40,16 +40,16 @@ def _in_update_state(state):
 # The states the status page's cards count, each defined exactly as the card
 # counts it, so the number on the card and the length of the list agree
 ROUTER_STATES = {
-    'online': ('Online routers', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=True)),
-    'offline': ('Offline routers', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=False)),
-    'disabled': ('Disabled routers', lambda qs: qs.filter(enabled=False)),
-    'unmonitored': ('Unmonitored routers', lambda qs: qs.filter(enabled=True, monitoring=False)),
-    'backup_failed': ('Routers with a failed backup in the last 24 hours', lambda qs: qs.filter(
+    'online': ('Online devices', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=True)),
+    'offline': ('Offline devices', lambda qs: qs.filter(monitoring=True, routerstatus__status_online=False)),
+    'disabled': ('Disabled devices', lambda qs: qs.filter(enabled=False)),
+    'unmonitored': ('Unmonitored devices', lambda qs: qs.filter(enabled=True, monitoring=False)),
+    'backup_failed': ('Devices with a failed backup in the last 24 hours', lambda qs: qs.filter(
         id__in=RouterBackup.objects.filter(error=True, created__gte=timezone.now() - timezone.timedelta(days=1))
         .values('router_id'))),
-    'up_to_date': ('Routers up to date', _in_update_state('up_to_date')),
-    'update_waiting': ('Routers missing updates', _in_update_state('update_waiting')),
-    'no_information': ('Routers without version information', _in_update_state('no_information')),
+    'up_to_date': ('Devices up to date', _in_update_state('up_to_date')),
+    'update_waiting': ('Devices missing updates', _in_update_state('update_waiting')),
+    'no_information': ('Devices without version information', _in_update_state('no_information')),
 }
 
 
@@ -119,7 +119,7 @@ def view_router_list(request):
 
     context = {
         'router_list': router_list,
-        'page_title': 'Router List',
+        'page_title': 'Device List',
         'filter_group_list': RouterGroup.objects.all().order_by('name'),
         'filter_group': filter_group,
         'state_label': state_label,
@@ -231,7 +231,7 @@ def view_router_details(request):
         'router_information': router_information,
         'router_status': router_status,
         'router_backup_list': router_backup_list,
-        'page_title': 'Router Details',
+        'page_title': 'Device Details',
         'offline_time_last_week': downtime_last_week,
         'last_week_availability': last_week_availability,
         'command_task_list': router.commandtask_set.all().order_by('-created')[:25],
@@ -256,18 +256,18 @@ def view_router_details(request):
 def saved_router_message(router, created, changed):
     """What the save means for the device, in the words of what was changed:
     monitoring starting is only announced when it will start."""
-    title = 'Router added' if created else 'Router saved'
+    title = 'Device added' if created else 'Device saved'
     watched = router.enabled and router.monitoring
     if not created and 'enabled' in changed:
         if not router.enabled:
-            return 'Router disabled|No backups, information updates or monitoring until it is enabled again.'
-        title = 'Router enabled'
+            return 'Device disabled|No backups, information updates or monitoring until it is enabled again.'
+        title = 'Device enabled'
     if not created and 'monitoring' in changed and not router.monitoring:
-        return f'{title}|Monitoring is off for this router.'
+        return f'{title}|Monitoring is off for this device.'
     if watched and (created or 'monitoring' in changed or 'enabled' in changed or 'address' in changed):
         return f'{title}|Monitoring starts within a few minutes.'
     if created and not watched:
-        return f'{title}|Monitoring is off for this router.'
+        return f'{title}|Monitoring is off for this device.'
     return title
 
 
@@ -282,12 +282,12 @@ def view_manage_router(request):
         if posted_action(request, 'delete'):
             if posted_confirmation(request) == 'delete':
                 router.delete()
-                messages.success(request, 'Router deleted successfully')
+                messages.success(request, 'Device deleted successfully')
                 webadmin_settings.router_config_last_updated = timezone.now()
                 webadmin_settings.save()
                 return redirect('router_list')
             else:
-                messages.warning(request, 'Router not deleted|Invalid confirmation')
+                messages.warning(request, 'Device not deleted|Invalid confirmation')
                 return redirect('router_list')
         elif posted_action(request, 'forget_host_key'):
             if host_keys.forget(router.address, router.port):
@@ -304,11 +304,11 @@ def view_manage_router(request):
             # Run the update right away instead of waiting for the cron task
             success, error_message = update_router_information(router_information)
             if success:
-                messages.success(request, 'Router information updated')
+                messages.success(request, 'Device information updated')
             else:
                 # The message is shown as a "title|body" toast, so the body must not contain a pipe
-                messages.warning(request, 'Router information update failed|' + (
-                    error_message or 'See the router information panel for details.'
+                messages.warning(request, 'Device information update failed|' + (
+                    error_message or 'See the device information panel for details.'
                 ).replace('|', '/'))
             return redirect('/router/details/?uuid=' + str(router.uuid))
     else:
@@ -334,7 +334,7 @@ def view_manage_router(request):
 
     context = {
         'form': form,
-        'page_title': 'Manage Router',
+        'page_title': 'Manage Device',
         'instance': router
     }
     return render(request, 'generic_form.html', context=context)
@@ -344,7 +344,7 @@ def view_manage_router(request):
 def view_router_group_list(request):
     context = {
         'router_group_list': RouterGroup.objects.all().order_by('name'),
-        'page_title': 'Router Group List',
+        'page_title': 'Device Group List',
     }
     return render(request, 'router_manager/router_group_list.html', context=context)
 
@@ -358,10 +358,10 @@ def view_manage_router_group(request):
         if posted_action(request, 'delete'):
             if posted_confirmation(request) == 'delete':
                 router_group.delete()
-                messages.success(request, 'Router Group deleted successfully')
+                messages.success(request, 'Device Group deleted successfully')
                 return redirect('router_group_list')
             else:
-                messages.warning(request, 'Router Group not deleted|Invalid confirmation')
+                messages.warning(request, 'Device Group not deleted|Invalid confirmation')
                 return redirect('router_group_list')
     else:
         router_group = None
@@ -369,12 +369,12 @@ def view_manage_router_group(request):
     form = RouterGroupForm(request.POST or None, instance=router_group)
     if form.is_valid():
         form.save()
-        messages.success(request, 'Router Group saved successfully')
+        messages.success(request, 'Device Group saved successfully')
         return redirect('router_group_list')
 
     context = {
         'form': form,
-        'page_title': 'Manage Router Group',
+        'page_title': 'Manage Device Group',
         'instance': router_group
     }
     return render(request, 'generic_form.html', context=context)
@@ -482,13 +482,13 @@ def view_reveal_sshkey(request):
 
 def create_instant_backup(router):
     if RouterBackup.objects.filter(router=router, success=False, error=False).exists():
-        return 'Active router backup task already exists'
+        return 'Active device backup task already exists'
 
     if router.routerstatus.backup_lock:
-        return 'Router backup is currently locked'
+        return 'Device backup is currently locked'
 
     if not router.backup_profile:
-        return 'Router has no backup profile'
+        return 'Device has no backup profile'
 
     router_backup = RouterBackup.objects.create(
         router=router,
@@ -536,7 +536,7 @@ def view_create_instant_backup_multiple_routers(request):
 
         uuids = request.POST.getlist('routers[]')
         if not uuids:
-            return JsonResponse({'error': 'No routers selected.'}, status=400)
+            return JsonResponse({'error': 'No devices selected.'}, status=400)
 
         results = []
         for uuid in uuids:
@@ -562,7 +562,7 @@ def view_enable_routers_multiple(request):
         return JsonResponse({'error': 'Unknown action.'}, status=400)
     uuids = request.POST.getlist('routers[]')
     if not uuids:
-        return JsonResponse({'error': 'No routers selected.'}, status=400)
+        return JsonResponse({'error': 'No devices selected.'}, status=400)
     enabled = action == 'enable'
     changed = 0
     for router in Router.objects.filter(uuid__in=uuids).exclude(enabled=enabled):
@@ -586,7 +586,7 @@ def view_update_routers_information_multiple(request):
 
         uuids = request.POST.getlist('routers[]')
         if not uuids:
-            return JsonResponse({'error': 'No routers selected.'}, status=400)
+            return JsonResponse({'error': 'No devices selected.'}, status=400)
 
         requested = 0
         for router in Router.objects.filter(uuid__in=uuids):
@@ -616,7 +616,7 @@ def view_edit_routers_multiple(request):
                 uuid__in=request.POST.getlist('routers[]')
             ).values_list('uuid', flat=True)]
             if not router_uuids:
-                messages.warning(request, 'No routers selected')
+                messages.warning(request, 'No devices selected')
                 return redirect('router_list')
             request.session['router_selection'] = router_uuids
             return redirect('edit_router_multiple')
@@ -638,7 +638,7 @@ def view_edit_routers_multiple(request):
             # One entry for the whole edit instead of one per router: the form says
             # what to set, and the number of devices it reached is the interesting
             # part of it
-            with collect('Bulk edit of routers'):
+            with collect('Bulk edit of devices'):
                 for router in routers:
                     if form.cleaned_data.get('port'):
                         router.port = form.cleaned_data['port']
@@ -670,21 +670,21 @@ def view_edit_routers_multiple(request):
             webadmin_settings, webadmin_settings_created = WebadminSettings.objects.get_or_create(name='webadmin_settings')
             webadmin_settings.router_config_last_updated = timezone.now()
             webadmin_settings.save()
-            messages.success(request, f'{updated_count} routers updated successfully')
+            messages.success(request, f'{updated_count} devices updated successfully')
             return redirect('router_list')
     else:
         form = RouterBulkEditForm()
 
     router_uuids = request.session.get('router_selection') or request.GET.getlist('routers[]')
     if not router_uuids:
-        messages.warning(request, 'No routers selected')
+        messages.warning(request, 'No devices selected')
         return redirect('router_list')
 
     routers = Router.objects.filter(uuid__in=router_uuids)
     context = {
         'routers': routers,
         'form': form,
-        'page_title': 'Edit Multiple Routers',
+        'page_title': 'Edit Multiple Devices',
     }
     return render(request, 'router_manager/edit_routers_multiple.html', context=context)
 
@@ -702,7 +702,7 @@ def view_manage_router_groups_multiple(request):
                 uuid__in=request.POST.getlist('routers[]')
             ).values_list('uuid', flat=True)]
             if not router_uuids:
-                messages.warning(request, 'No routers selected')
+                messages.warning(request, 'No devices selected')
                 return redirect('router_list')
             request.session['router_selection'] = router_uuids
             return redirect('manage_router_groups_multiple')
@@ -712,7 +712,7 @@ def view_manage_router_groups_multiple(request):
         remove_group_uuid = request.POST.get('remove_group')
 
         if not router_uuids:
-            messages.warning(request, 'No routers selected')
+            messages.warning(request, 'No devices selected')
             return redirect('router_list')
 
         # Validate that the same group is not selected for both add and remove
@@ -728,10 +728,10 @@ def view_manage_router_groups_multiple(request):
                 group = RouterGroup.objects.get(uuid=add_group_uuid)
                 # One entry naming the group and the number of routers, rather than
                 # one membership line each
-                with collect(f'Added routers to group {group.name}'):
+                with collect(f'Added devices to group {group.name}'):
                     for router in routers:
                         group.routers.add(router)
-                messages.success(request, f'Added {routers.count()} router(s) to group {group.name}')
+                messages.success(request, f'Added {routers.count()} device(s) to group {group.name}')
             except RouterGroup.DoesNotExist:
                 messages.error(request, 'Group not found')
 
@@ -739,10 +739,10 @@ def view_manage_router_groups_multiple(request):
         if remove_group_uuid:
             try:
                 group = RouterGroup.objects.get(uuid=remove_group_uuid)
-                with collect(f'Removed routers from group {group.name}'):
+                with collect(f'Removed devices from group {group.name}'):
                     for router in routers:
                         group.routers.remove(router)
-                messages.success(request, f'Removed {routers.count()} router(s) from group {group.name}')
+                messages.success(request, f'Removed {routers.count()} device(s) from group {group.name}')
             except RouterGroup.DoesNotExist:
                 messages.error(request, 'Group not found')
 
@@ -752,7 +752,7 @@ def view_manage_router_groups_multiple(request):
     # GET request - display form
     router_uuids = request.session.get('router_selection') or request.GET.getlist('routers[]')
     if not router_uuids:
-        messages.warning(request, 'No routers selected')
+        messages.warning(request, 'No devices selected')
         return redirect('router_list')
 
     routers = Router.objects.filter(uuid__in=router_uuids)
@@ -761,7 +761,7 @@ def view_manage_router_groups_multiple(request):
     context = {
         'routers': routers,
         'groups': groups,
-        'page_title': 'Manage Router Groups',
+        'page_title': 'Manage Device Groups',
     }
 
     return render(request, 'router_manager/manage_router_groups.html', context)
@@ -771,7 +771,7 @@ UNCHECKED_RETRY = timezone.timedelta(hours=1)
 
 
 def _router_due_for_information_update(router_list, refresh_interval):
-    """Next router that needs an information update, requested ones first."""
+    """Next device that needs an information update, requested ones first."""
     router = router_list.filter(routerinformation__update_requested=True).first()
     if not router:
         router = router_list.filter(routerinformation__isnull=True).first()
@@ -819,6 +819,6 @@ def view_cron_update_router_information(request):
             data['failed'] += 1
 
     if not data['updated'] and not data['failed']:
-        data['message'] = 'No routers need update'
+        data['message'] = 'No devices need update'
 
     return JsonResponse(data)

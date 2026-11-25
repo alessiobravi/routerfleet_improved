@@ -19,7 +19,7 @@ class UserAcl(models.Model):
         ('ssh', 'Open with SSH'),
         ('winbox', "Open with the device type's own tool (Winbox for RouterOS)"),
         ('both', "Show a menu (SSH and the device type's tools)"),
-    ), help_text='What a click on the address of a router in the router list does.')
+    ), help_text='What a click on the address of a device in the device list does.')
 
     # A number to reach the person on (shown to administrators only)
     phone = models.CharField(max_length=30, blank=True, default='')

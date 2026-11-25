@@ -38,3 +38,33 @@ class DiscoveredDevice(models.Model):
 
     def __str__(self):
         return self.identity or self.address or self.mac
+
+
+class DiscoveryRun(models.Model):
+    """One discovery, and what happened, step by step - shown as a timeline on
+    the discovered devices page (see discovery/runs.py): "Discover adjacent
+    devices" (the listener on RouterFleet's LAN, for a while), or the
+    neighbour tables of the managed devices an operator chose."""
+    KINDS = (('lan', "RouterFleet's LAN"), ('devices', 'Chosen managed devices'))
+    STATES = (('waiting', 'Waiting for the listener'), ('listening', 'Listening'),
+              ('reading', 'Reading neighbour tables'), ('done', 'Finished'), ('failed', 'Not started'))
+    kind = models.CharField(max_length=8, choices=KINDS, default='lan')
+    # For 'devices': the uuids of the chosen managed devices, in order
+    targets = models.JSONField(default=list, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    until = models.DateTimeField()
+    requested_by_name = models.CharField(max_length=150, blank=True)
+    state = models.CharField(max_length=10, choices=STATES, default='waiting')
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    # Keys of the devices heard in this run, and the timeline: [{when, text, state}]
+    heard = models.JSONField(default=list, blank=True)
+    events = models.JSONField(default=list, blank=True)
+    uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)
+
+    class Meta:
+        ordering = ['-created']
+
+    @property
+    def active(self):
+        return self.state in ('waiting', 'listening', 'reading')

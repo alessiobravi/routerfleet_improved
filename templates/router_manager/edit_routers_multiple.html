@@ -6,21 +6,21 @@
     <div class='col-lg-8'>
         <div class="card card-primary card-outline">
             <div class="card-header">
-                <h3 class="card-title">Edit Multiple Routers</h3>
+                <h3 class="card-title">Edit Multiple Devices</h3>
             </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-12">
-                            <h5>Selected Routers ({{ routers|length }}):</h5>
+                            <h5>Selected Devices ({{ routers|length }}):</h5>
                             <ul>
                                 {% for router in routers %}
                                     <li>{{ router.name }}</li>
                                     <input type="hidden" name="router_uuids" value="{{ router.uuid }}">
                                 {% endfor %}
                             </ul>
-                            <p class="text-muted">Leave fields blank to keep each router's current value.</p>
+                            <p class="text-muted">Leave fields blank to keep each device's current value.</p>
                         </div>
                     </div>
                     {% crispy form %}

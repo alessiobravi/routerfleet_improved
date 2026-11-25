@@ -28,11 +28,11 @@ def view_debug_test_messages(request):
     router_backup = None
     if request.GET.get('router_uuid'):
         router = get_object_or_404(Router, uuid=request.GET.get('router_uuid'))
-        data['message'] = f'Sending status update notification for router {router.name}'
+        data['message'] = f'Sending status update notification for device {router.name}'
         notify_router_status_update(router)
     elif request.GET.get('backup_id'):
         router_backup = get_object_or_404(RouterBackup, id=request.GET.get('backup_id'))
-        data['message'] = f'Sending backup fail notification for backup {router_backup.id} of router {router_backup.router.name}'
+        data['message'] = f'Sending backup fail notification for backup {router_backup.id} of device {router_backup.router.name}'
         notify_backup_fail(router_backup)
     else:
         data['message'] = 'No router_uuid or backup_id provided.'

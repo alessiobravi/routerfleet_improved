@@ -114,11 +114,11 @@ class CommandSchedule(models.Model):
     # excluded group, or was excluded itself, is not executed.
     exclude_router = models.ManyToManyField(
         Router, blank=True, related_name="excluded_command_schedules",
-        verbose_name="Excluded routers",
+        verbose_name="Excluded devices",
         help_text="These devices are left out, also when a selected group brings them in.")
     exclude_router_group = models.ManyToManyField(
         RouterGroup, blank=True, related_name="excluded_command_schedules",
-        verbose_name="Excluded router groups",
+        verbose_name="Excluded device groups",
         help_text="Every device of these groups is left out, also when another selected group brings it in.")
     enabled = models.BooleanField(default=True)
 

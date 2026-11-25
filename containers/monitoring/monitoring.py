@@ -62,13 +62,13 @@ def update_router_config_timestamp():
             remote_router_config_timestamp_temp = response.json()['router_config']
             if remote_router_config_timestamp_temp != remote_router_config_timestamp:
                 remote_router_config_timestamp = remote_router_config_timestamp_temp
-                print(f"{datetime.now()} - Router config timestamp updated: {remote_router_config_timestamp}")
+                print(f"{datetime.now()} - Device config timestamp updated: {remote_router_config_timestamp}")
             else:
-                print(f"{datetime.now()} - Router config timestamp unchanged: {remote_router_config_timestamp}")
+                print(f"{datetime.now()} - Device config timestamp unchanged: {remote_router_config_timestamp}")
         else:
-            print(f"{datetime.now()} - Error updating router config timestamp: HTTP {response.status_code}")
+            print(f"{datetime.now()} - Error updating device config timestamp: HTTP {response.status_code}")
     except Exception as e:
-        print(f"{datetime.now()} - Exception updating router config timestamp: {e}")
+        print(f"{datetime.now()} - Exception updating device config timestamp: {e}")
     return
 
 
@@ -155,8 +155,8 @@ def update_and_monitor():
         else:
             print(f"{datetime.now()} - No update required. Skipping host list update.")
             if DEBUG:
-                print(f"{datetime.now()} - Current router config timestamp: {current_router_config_timestamp}")
-                print(f"{datetime.now()} - Remote router config timestamp: {remote_router_config_timestamp}")
+                print(f"{datetime.now()} - Current device config timestamp: {current_router_config_timestamp}")
+                print(f"{datetime.now()} - Remote device config timestamp: {remote_router_config_timestamp}")
 
         if host_list:
             if DEBUG:

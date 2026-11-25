@@ -73,10 +73,20 @@
           var focused = document.activeElement;
           if (focused && focused !== document.body && old.contains(focused) && /INPUT|TEXTAREA|SELECT/.test(focused.tagName)) { return; }
           if (next.outerHTML === old.outerHTML) { return; }
+          // What was typed in a filter stays, and filters the fresh rows too
+          var typed = {};
+          old.querySelectorAll('input[data-rf-filter]').forEach(function (input) { typed[input.dataset.rfFilter] = input.value; });
           var adopted = document.importNode(next, true);
           old.replaceWith(adopted);
           if (window.rfInitPanels) { window.rfInitPanels(adopted); }
           if (window.rfInitTables) { window.rfInitTables(adopted); }
+          if (window.rfInitSelects) { window.rfInitSelects(adopted); }
+          adopted.querySelectorAll('input[data-rf-filter]').forEach(function (input) {
+            if (typed[input.dataset.rfFilter]) {
+              input.value = typed[input.dataset.rfFilter];
+              input.dispatchEvent(new Event('input', {bubbles: true}));
+            }
+          });
         });
         failures = 0;
         schedule();

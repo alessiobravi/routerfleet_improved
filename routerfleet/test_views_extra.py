@@ -180,7 +180,7 @@ class RouterViewBranchTests(TestCase):
         self.client.force_login(make_user(30))
         with mock.patch('router_manager.views.update_router_information', return_value=(True, '')):
             response = self.client.post(f'/router/manage/?uuid={router.uuid}', {'action': 'refresh_information'}, follow=True)
-        self.assertIn('Router information updated', messages_of(response))
+        self.assertIn('Device information updated', messages_of(response))
 
     def test_list_shows_the_last_status_change(self):
         router = make_router()
@@ -192,7 +192,7 @@ class RouterViewBranchTests(TestCase):
         self.client.force_login(make_user(20))
         router = make_router()
         response = self.client.post(f'/router/create_instant_backup/?uuid={router.uuid}', follow=True)
-        self.assertIn('Router has no backup profile', messages_of(response))
+        self.assertIn('Device has no backup profile', messages_of(response))
 
     def test_information_cron_counts_failures(self):
         make_router()

@@ -154,7 +154,7 @@ class PlainExecutionTests(ExecutionFixture):
         cf.execute_command_task(self.task)
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, 'error')
-        self.assertEqual(self.task.error_message, 'Router no longer exists')
+        self.assertEqual(self.task.error_message, 'Device no longer exists')
 
 
 class AbortTests(ExecutionFixture):
@@ -279,7 +279,7 @@ class VerificationTests(ExecutionFixture):
         self.add_verification('{{ current_version }}')
         task = self.run_task(FakeSSHClient())
         self.assertEqual(task.status, 'error')
-        self.assertIn('Update the router information', task.error_message)
+        self.assertIn("Update the device's information", task.error_message)
 
     def test_verification_command_failure_is_reported(self):
         client = self.payload_client()

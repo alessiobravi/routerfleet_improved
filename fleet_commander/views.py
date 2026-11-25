@@ -24,7 +24,7 @@ from .system_commands import SYSTEM_KEYS as SYSTEM_ORDER
 def create_default_commands():
     new_command = Command.objects.create(
         name='Show Version',
-        description = "Collects and displays version information for your routers. This command is commonly used to gather details about the router model, software version, uptime, and hardware.",
+        description = "Collects and displays version information for your devices. This command is commonly used to gather details about the device model, software version, uptime, and hardware.",
         enabled=True,
         capture_output=True,
         max_retry=3,
@@ -45,8 +45,8 @@ def create_default_commands():
     )
 
     new_command = Command.objects.create(
-        name='Update Router Firmware',
-        description = "Updates the router's firmware to the latest version. This command is essential for maintaining security and performance by ensuring that your routers are running the most recent software.",
+        name='Update Device Firmware',
+        description = "Updates the device's firmware to the latest version. This command is essential for maintaining security and performance by ensuring that your devices are running the most recent software.",
         enabled=True,
         capture_output=True,
         max_retry=3,
@@ -168,8 +168,8 @@ def view_manage_command(request):
 
     <strong>Verification</strong>
     <p>The result of a command can be verified instead of trusting its exit code. The verification commands and
-    their expected result are defined per variant (router type). A task is only successful when the device
-    answers what the variant expects. This is the reliable way to check an update: a router that reboots while
+    their expected result are defined per variant (device type). A task is only successful when the device
+    answers what the variant expects. This is the reliable way to check an update: a device that reboots while
     it is being updated never returns an exit code at all.</p>
 
     <strong>Verify Timeout and Verify Interval</strong>
@@ -302,7 +302,7 @@ def view_run_command_multiple(request):
                 uuid__in=request.POST.getlist('routers[]')
             ).values_list('uuid', flat=True)]
             if not router_uuids:
-                messages.warning(request, 'No routers selected')
+                messages.warning(request, 'No devices selected')
                 return redirect('router_list')
             request.session['router_selection'] = router_uuids
             return redirect('fleet_commander_execute_multiple')
@@ -311,7 +311,7 @@ def view_run_command_multiple(request):
         command_uuid = request.POST.get('command')
 
         if not router_uuids:
-            messages.warning(request, 'No routers selected')
+            messages.warning(request, 'No devices selected')
             return redirect('router_list')
 
         if not command_uuid:
@@ -335,7 +335,7 @@ def view_run_command_multiple(request):
     # GET request - display form
     router_uuids = request.session.get('router_selection') or request.GET.getlist('routers[]')
     if not router_uuids:
-        messages.warning(request, 'No routers selected')
+        messages.warning(request, 'No devices selected')
         return redirect('router_list')
 
     routers = Router.objects.filter(uuid__in=router_uuids)
@@ -344,7 +344,7 @@ def view_run_command_multiple(request):
     context = {
         'routers': routers,
         'commands': commands,
-        'page_title': 'Run Command on Multiple Routers',
+        'page_title': 'Run Command on Multiple Devices',
     }
 
     return render(request, 'fleet_commander/run_command_multiple.html', context)
@@ -382,7 +382,7 @@ def view_manage_command_variant(request):
 
     form_description_content = '''
     <strong>Payload</strong>
-    <p>The commands for this router type, one command per line. They are executed in order and the execution
+    <p>The commands for this device type, one command per line. They are executed in order and the execution
     stops at the first command that fails.</p>
 
     <strong>Verification Commands</strong>
@@ -392,19 +392,19 @@ def view_manage_command_variant(request):
 
     <strong>Expected Result</strong>
     <p>One expectation per line. Every line has to be found in the output of the verification commands,
-    otherwise the task fails. This is how an update is checked: for example the version the router reports has
+    otherwise the task fails. This is how an update is checked: for example the version the device reports has
     to be the version that was offered for it. Regular expressions are supported.</p>
     <p>The placeholders <code>{{ available_version }}</code> (the version RouterFleet found as an update for
-    this router) and <code>{{ current_version }}</code> (the version the router was running before the payload)
-    are replaced with the values known for the router.</p>
-    <p><code>{{ expected_version }}</code> is the version the <strong>router</strong> offers. It is taken from
+    this device) and <code>{{ current_version }}</code> (the version the device was running before the payload)
+    are replaced with the values known for the device.</p>
+    <p><code>{{ expected_version }}</code> is the version the <strong>device</strong> offers. It is taken from
     a line the payload has to print, for example
     <code>:put ("expected-version=" . [/system/package/update/get latest-version])</code>. Use it for a payload
     that sets the update channel: which version gets installed depends on that channel, while
-    <code>{{ available_version }}</code> is the version RouterFleet read out on the channel the router had
+    <code>{{ available_version }}</code> is the version RouterFleet read out on the channel the device had
     before, so the two differ as soon as the payload changes the channel.</p>
     <p>While the verification does not match, the task is retried and only the verification runs again, until
-    the verify timeout of the command has passed. That gives a router that reboots during an update the time
+    the verify timeout of the command has passed. That gives a device that reboots during an update the time
     to come back online.</p>
     '''
 
@@ -485,9 +485,9 @@ def view_manage_command_schedule(request):
     <p>Leave it empty or set to <code>0</code> for a one-time execution.</p>
     
     <strong>Target</strong>
-    <p>You must select at least one router or one router group to execute the scheduled command.</p>
+    <p>You must select at least one device or one device group to execute the scheduled command.</p>
 
-    <strong>Excluded Routers and Excluded Router Groups</strong>
+    <strong>Excluded Devices and Excluded Device Groups</strong>
     <p>Devices that are taken out of this schedule again. An exclusion always wins, no matter how a
     device came into the schedule: a device that is selected on its own, or belongs to a selected
     group, is still not executed when it stands in an excluded group or was excluded itself. A

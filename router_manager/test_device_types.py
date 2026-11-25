@@ -451,7 +451,7 @@ class UpdateMarkTests(TestCase):
         self.assertEqual(page.count('rf-update-mark"'), 1)
         mark = page.index('rf-update-mark"')
         self.assertLess(page.rindex('behind', 0, mark), mark)
-        self.assertIn('7.18 is available, the router runs 7.16', page)
+        self.assertIn('7.18 is available, the device runs 7.16', page)
 
 
 

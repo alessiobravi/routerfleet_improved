@@ -15,8 +15,8 @@ from django.core.exceptions import ValidationError
 class CsvDataForm(forms.ModelForm):
     create_missing_groups = forms.BooleanField(
         required=False,
-        label='Create missing Router Groups automatically',
-        help_text='Router Groups used in the CSV that do not exist yet will be created when the CSV is saved.',
+        label='Create missing Device Groups automatically',
+        help_text='Device Groups used in the CSV that do not exist yet will be created when the CSV is saved.',
     )
 
     class Meta:
@@ -135,9 +135,9 @@ class CsvDataForm(forms.ModelForm):
             ]
             if missing_groups and not cleaned_data.get('create_missing_groups'):
                 raise ValidationError(
-                    'The following Router Groups do not exist: '
+                    'The following Device Groups do not exist: '
                     + ', '.join(f"'{router_group}'" for router_group in missing_groups)
-                    + ". Tick 'Create missing Router Groups automatically' if they should be created."
+                    + ". Tick 'Create missing Device Groups automatically' if they should be created."
                 )
             cleaned_data['missing_groups'] = missing_groups
 

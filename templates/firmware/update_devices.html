@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="rf-settings">
-    <a href="{% if single %}/router/details/?uuid={{ routers.0.uuid }}{% else %}/router/list/{% endif %}" class="small"><i class="fas fa-chevron-left"></i> {% if single %}{{ routers.0.name }}{% else %}Router list{% endif %}</a>
+    <a href="{% if single %}/router/details/?uuid={{ routers.0.uuid }}{% else %}/router/list/{% endif %}" class="small"><i class="fas fa-chevron-left"></i> {% if single %}{{ routers.0.name }}{% else %}Device list{% endif %}</a>
     <form method="post" id="update-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="start">

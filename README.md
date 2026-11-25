@@ -91,10 +91,10 @@ encrypted with.
 - **Update check** — the newest release and what it changes, checked hourly
   or on demand; signed release images. RouterFleet never updates itself: no
   container is given Docker access. [More](docs/updating.md)
-- **Discovery** — devices revealed by LLDP, CDP and MikroTik neighbour
-  discovery, from the neighbour tables of managed devices and, on request, a
-  listener on RouterFleet's own LAN; added in one click.
-  [More](docs/discovery.md)
+- **Device Discovery** — adjacent devices on RouterFleet's own LAN (LLDP,
+  CDP, MikroTik and Ubiquiti announcements), or the neighbour tables of the
+  managed devices you choose; followed step by step on a timeline, then added
+  in one click once RouterFleet's host reaches them. [More](docs/discovery.md)
 - **Monitoring** — an independent container pings the fleet and records
   downtime; status changes raise notifications. [More](docs/monitoring.md)
 - **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,

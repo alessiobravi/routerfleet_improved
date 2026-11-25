@@ -22,7 +22,7 @@ is unaffected. RouterFleet documents this as a contract for integrations
 suite enforces it.
 
 It would not hold if a version skipped writing the row instead of blanking its
-content: every router would begin reporting staleness within the alert window,
+content: every device would begin reporting staleness within the alert window,
 and the result would look precisely like a genuine fleet-wide backup failure. If
 you upgrade RouterFleet and every host starts alarming at once, suspect this
 before you suspect your fleet. The check is cheap:
@@ -114,7 +114,7 @@ When no successful backup is on record, the age item returns `999999999`
 An empty value makes the item unsupported, which is easy to miss. A `0` would
 read as "backed up just now" and actively suppress the alarm. A huge number
 trips every staleness threshold immediately, which is the correct behaviour: a
-router with no backup on record is the worst case, not the best one.
+device with no backup on record is the worst case, not the best one.
 
 The counters follow the same rule from the other side. A count that cannot be
 read - a grant that was never applied, a table this installation does not
@@ -162,7 +162,7 @@ explicitly.
 
 ## 6. Why UUIDs are validated in the collector
 
-Router UUIDs arrive as Zabbix item-key parameters and are interpolated into
+Device UUIDs arrive as Zabbix item-key parameters and are interpolated into
 SQL. They are validated against a strict pattern before use, so the integration
 works with `UnsafeUserParameters=0` - the safe default - and an operator who
 can edit item keys still cannot reach the database with arbitrary SQL.
@@ -175,7 +175,7 @@ knowing before deciding whether to keep it.
 
 **Host keys.** RouterFleet learns a device's key on first contact and refuses
 to connect if it later changes. That makes two things visible that were not
-before: a router it has never reached (no key recorded), and a key that was
+before: a device it has never reached (no key recorded), and a key that was
 forgotten and re-learned.
 
 The second is the one that matters. A key change is normal after a deliberate

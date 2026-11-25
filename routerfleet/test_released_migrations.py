@@ -19,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 RELEASED = {
     'discovery/migrations/0001_initial.py': 'f11b694050c14c110d6083a89986022b23a693041b6094b9268599196c1d508e',
+    'discovery/migrations/0002_discovery_run.py': 'ea442a1b9e3f391bb177c094e1fcec8737de7bfaaa4452c64f88cfc60d9787e3',
     'audit_log/migrations/0001_initial.py': '798b0442ee6f268a979a354775c4b1271048884bf24dfacd58af0ea130c1ca4e',
     'audit_log/migrations/0002_changerecord_change_object_and_more.py': '08355a68e881e297561d6a3e044379918b9df9357c1a26f2e5ff383242e13430',
     'audit_log/migrations/0003_changerecord_revealed.py': 'ab33f96cedc2ec343857575c7cc4d829435cc1219aa4902b54c8ddbdbc1a71b8',
@@ -76,6 +77,7 @@ RELEASED = {
     'fleet_commander/migrations/0020_firmware_bootloader_upgrade.py': '852e0890d00a242100bed97c9011dd415b9244dacd7d4d414841eeb03b7ce520',
     'fleet_commander/migrations/0021_huawei_firmware.py': '4a4b18bc744c0bc5e48353d881f1ff6845877c940dd70c4d0a54130d3a3d029c',
     'fleet_commander/migrations/0022_neighbors_command.py': 'd65c506a20b09fc75ea739d785d60fe877a16736521c3abd874f8f73105e7fd6',
+    'fleet_commander/migrations/0023_device_wording.py': '355da976274f995ad1e33fa6d471ad66aaa261f630a48a1444c5b7702184f16f',
     'import_tool/migrations/0001_initial.py': '132a6a583f3366f0e093a1bccdb08d7e5ef6314867c4b0b9dcdea6dbece200db',
     'import_tool/migrations/0002_rename_created_at_csvdata_created_and_more.py': '6a95e115daaa75a092ca33465c961ec8965bad4a7cc76ac694fa0b0cb16d0810',
     'import_tool/migrations/0003_importtask_router_group_name_importtask_ssh_key_name.py': '48dad1e0ba7c9f993bcc8ca28fa3f74a45c2200dffa501fda1aea93d6c5e7a15',
@@ -157,6 +159,7 @@ RELEASED = {
     'user_manager/migrations/0006_address_link_labels.py': '448f1e544274fd034411ac3bd8a12fc7020a67976c9ef87a6f75108fdc832bb7',
     'user_manager/migrations/0007_user_phone.py': '775b63c061a44fc040fc5c23bb9edf46fdeef79e76dcedb950335d857def2905',
     'user_manager/migrations/0008_session_hours_list_style.py': 'b1d28c0458ce72f018af089cf84336adb9628057f18ff870bccc86bb69c041e8',
+    'user_manager/migrations/0009_device_wording.py': '37795bb088a8e4d8f91cb5caccfbf50282a099adf1eb2ad11286d45885df5af2',
 }
 
 

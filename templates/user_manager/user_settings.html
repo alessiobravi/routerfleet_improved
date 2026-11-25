@@ -85,7 +85,7 @@
 
     </details>
     <details class="rf-set-section" data-rf-remember="address-links">
-        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-link"></i></span>Router address links<span class="rf-set-summary-sub">What a click on a device's address in the router list opens: {{ form.instance.get_address_link_display }}</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-link"></i></span>Device address links<span class="rf-set-summary-sub">What a click on a device's address in the device list opens: {{ form.instance.get_address_link_display }}</span></summary>
     <form method="post" id="address-link-form" class="rf-set-group">
         {% csrf_token %}
         {% for value, display in form.address_link.field.choices %}

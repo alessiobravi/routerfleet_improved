@@ -60,7 +60,7 @@ Watched objects:
 
 | Area | Objects |
 |---|---|
-| Devices | Router, RouterGroup (including membership), SSHKey |
+| Devices | Device, RouterGroup (including membership), SSHKey |
 | Backups | BackupProfile |
 | Fleet Commander | Command, CommandVariant, CommandSchedule (including its four membership lists), ScheduleDefaults |
 | Notifications | MessageChannel, MessageSettings |

@@ -266,7 +266,7 @@ def view_cron_housekeeping(request):
         backup.task_lock = None
         backup.save(update_fields=["task_lock"])
         data['backup_task_locks_expired'] += 1
-        append_task_console_output(backup, '### WARNING: Backup task expired. This likely means that the backup task has been running for too long and has been marked as failed. Please check the router and the backup task for more details.')
+        append_task_console_output(backup, '### WARNING: Backup task expired. This likely means that the backup task has been running for too long and has been marked as failed. Please check the device and the backup task for more details.')
         notify_backup_task_lock_expired(backup)
 
     for backup in RouterBackup.objects.filter(created__lt=max_backup_task_age, success=False, error=False, task_lock__isnull=True):

@@ -21,7 +21,7 @@
                                         {% if not command.enabled %}
                                    data-rf-alert="This command is disabled. Please enable it before executing it."
                                         {% elif not command.variants.exists %}
-                                   data-rf-alert="Please add at least one command variant for a router type."
+                                   data-rf-alert="Please add at least one command variant for a device type."
                                         {% else %}
                                    data-rf-alert="This command cannot be executed because some requirements are not met. Please review the command details."
                                         {% endif %}
@@ -199,7 +199,7 @@
                                     {% if variant.has_verification %}
                                         <div class="p-3 border-top">
                                             <b>Verification</b>
-                                            <span class="float-end text-muted">Result is checked on the router</span>
+                                            <span class="float-end text-muted">Result is checked on the device</span>
                                             <pre class="m-0 mt-2 rf-plain-area"><code>{{ variant.verify_payload }}</code></pre>
                                             <div class="mt-2">
                                                 Expected result:

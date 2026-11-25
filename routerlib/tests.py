@@ -498,7 +498,7 @@ class AirOSInformationTests(TestCase):
         with fake_ssh('routerlib.router_functions', FakeSSHClient({})):
             ok, error = router_functions.get_router_information(info)
         self.assertFalse(ok)
-        self.assertIn('Failed to retrieve router information', error)
+        self.assertIn('Failed to retrieve device information', error)
 
 
 class UpdateRouterInformationTests(TestCase):

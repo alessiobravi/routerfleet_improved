@@ -91,7 +91,7 @@
                                         </li>
                                     {% endif %}
                                     <li class="list-group-item">
-                                        <b>Router Type</b>
+                                        <b>Device Type</b>
                                         <span class="float-end">{{ router.get_router_type_display }}</span>
                                     </li>
 
@@ -139,11 +139,11 @@
                     {% if router_information %}
                         <div class="card card-primary card-outline">
                             <div class="card-header">
-                                <h3 class="card-title">Router Information
+                                <h3 class="card-title">Device Information
                                 </h3>
                                 <span class="float-end">
                                     {% if not router_information.success and not router_information.error %}
-                                        <i class="far fa-clock" title="Fetching router information on next cron"></i>
+                                        <i class="far fa-clock" title="Fetching device information on next cron"></i>
 
                                     {% else %}
                                         <a href="#" data-rf-post="/router/manage/?uuid={{ router.uuid }}" data-rf-field-action="refresh_information"><i class="fas fa-sync"></i></a>
@@ -232,7 +232,7 @@
                                                 {% elif router_information.error %}
                                                     <i class="far fa-times-circle text-danger" title="Last update failed: {{ router_information.error_message }}"></i>
                                                 {% else %}
-                                                    <i class="far fa-clock" title="Fetching router information on next cron"></i>
+                                                    <i class="far fa-clock" title="Fetching device information on next cron"></i>
                                                 {% endif %}
                                             </span>
                                         </li>
@@ -410,7 +410,7 @@
                                                     {% endif %}
                                                     {% if task.verified %}
                                                         <i class="fas fa-check-double text-success ms-1"
-                                                           title="Result verified on the router"></i>
+                                                           title="Result verified on the device"></i>
                                                     {% endif %}
                                                 </td>
                                                 <td>{{ task.finished_at|default_if_none:"---" }}</td>

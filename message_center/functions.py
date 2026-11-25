@@ -13,11 +13,11 @@ def concatenate_notifications(notification_type: str):
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
     message_channel_list = MessageChannel.objects.filter(enabled=True)
     if notification_type == 'status_online':
-        notification_text = 'Router status change: Online\n'
+        notification_text = 'Device status change: Online\n'
         notification_list = Notification.objects.filter(notification_type='status_online')
         message_channel_list = message_channel_list.filter(status_change_online=True)
     elif notification_type == 'status_offline':
-        notification_text = 'Router status change: Offline\n'
+        notification_text = 'Device status change: Offline\n'
         notification_list = Notification.objects.filter(notification_type='status_offline')
         message_channel_list = message_channel_list.filter(status_change_offline=True)
     elif notification_type == 'backup_fail':
@@ -35,9 +35,9 @@ def concatenate_notifications(notification_type: str):
     for notification in notification_list:
         notification_text_temp = notification_text
         if notification.router_backup:
-            notification_text_temp += f'\n- Backup: {notification.router_backup.id} for router {notification.router_backup.router.name} '
+            notification_text_temp += f'\n- Backup: {notification.router_backup.id} for device {notification.router_backup.router.name} '
         elif notification.router:
-            notification_text_temp += f'\n- Router {notification.router.name} ({notification.router.address})'
+            notification_text_temp += f'\n- Device {notification.router.name} ({notification.router.address})'
         if len(notification_text_temp) < message_settings.max_length:
             notification_text = notification_text_temp
             notification.delete()
@@ -74,7 +74,7 @@ def generate_backup_report(data):
         message_text_temp = message_text
         truncate_text = 'There are more failed backups, please check the web interface for the full list\n\n'
         for backup in failed_backup_list:
-            message_text_temp += f'- Backup {backup.id} for router {backup.router.name} ({backup.router.address})\n'
+            message_text_temp += f'- Backup {backup.id} for device {backup.router.name} ({backup.router.address})\n'
             if len(message_text_temp + truncate_text) < message_settings.max_length:
                 message_text = message_text_temp
             else:
@@ -100,14 +100,14 @@ def generate_status_report(data):
     else:
         message_text = ''
     message_text += 'Routerfleet Daily status report:\n'
-    message_text += f'Monitored routers: {router_list.count()}\n'
+    message_text += f'Monitored devices: {router_list.count()}\n'
     message_text += f'Online: {router_list.filter(routerstatus__status_online=True).count()}\n'
     message_text += f'Offline: {offline_count}\n'
 
     if offline_count > 0:
-        message_text += '\n=========\n Offline routers:\n'
+        message_text += '\n=========\n Offline devices:\n'
         message_text_temp = message_text
-        truncate_text = 'There are more offline routers, please check the web interface for the full list\n\n'
+        truncate_text = 'There are more offline devices, please check the web interface for the full list\n\n'
         for router in router_list.filter(routerstatus__status_online=False):
             message_text_temp += f'- {router.name} ({router.address})\n'
             if len(message_text_temp + truncate_text) < message_settings.max_length:
@@ -198,15 +198,15 @@ def notify_router_status_update(router: Router):
             for message_channel in message_channel_list.filter(status_change_online=True):
                 Message.objects.create(
                     channel=message_channel,
-                    subject='Router status change: Online',
-                    message=f'Router {router.name} ({router.address}) is now online'
+                    subject='Device status change: Online',
+                    message=f'Device {router.name} ({router.address}) is now online'
                 )
         else:
             for message_channel in message_channel_list.filter(status_change_offline=True):
                 Message.objects.create(
                     channel=message_channel,
-                    subject='Router status change: Offline',
-                    message=f'Router {router.name} ({router.address}) is now offline'
+                    subject='Device status change: Offline',
+                    message=f'Device {router.name} ({router.address}) is now offline'
                 )
     return
 
@@ -221,7 +221,7 @@ def notify_backup_fail(router_backup: RouterBackup):
     if message_settings.concatenate_backup_fails:
         Notification.objects.create(notification_type='backup_fail', router=router_backup.router, router_backup=router_backup)
     else:
-        error_message = f'Backup {router_backup.id} failed for router {router_backup.router.name} ({router_backup.router.address})'
+        error_message = f'Backup {router_backup.id} failed for device {router_backup.router.name} ({router_backup.router.address})'
         if router_backup.error_message:
             error_message += f'\n\nError message: {router_backup.error_message}'
         for message_channel in message_channel_list:
@@ -239,7 +239,7 @@ def notify_backup_task_lock_expired(router_backup: RouterBackup):
     if not message_channel_list:
         return
 
-    error_message = f'TASK LOCK EXPIRED: Backup task lock expired for backup {router_backup.id} of router {router_backup.router.name} ({router_backup.router.address}). This likely means that the backup task has been running for too long and has been marked as failed. Please check the router and the backup task for more details.'
+    error_message = f'TASK LOCK EXPIRED: Backup task lock expired for backup {router_backup.id} of device {router_backup.router.name} ({router_backup.router.address}). This likely means that the backup task has been running for too long and has been marked as failed. Please check the device and the backup task for more details.'
     if router_backup.error_message:
         error_message += f'\n\nError message: {router_backup.error_message}'
     for message_channel in message_channel_list:

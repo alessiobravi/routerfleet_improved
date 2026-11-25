@@ -130,7 +130,7 @@ class ImportFlowTests(TestCase):
             ({'port': 0}, 'Invalid port number'),
             ({'router_type': 'cisco'}, 'Invalid router_type'),
             ({'backup_profile_name': 'ghost'}, 'Backup Profile with name "ghost" not found'),
-            ({'router_group_name': 'ghost'}, 'Router Group with name "ghost" not found'),
+            ({'router_group_name': 'ghost'}, 'Device Group with name "ghost" not found'),
             ({'password': ''}, 'You must provide a password or an SSH Key'),
         ]
         for fields, message in cases:

@@ -1,5 +1,6 @@
 """Neighbours into DiscoveredDevice: merged by MAC address when there is one,
 else by address and name; what is seen again is updated, never duplicated."""
+import datetime
 import json
 import logging
 import os
@@ -29,7 +30,15 @@ def store(records, seen_by='', router=None):
         key = key_of(record)
         if key in ('addr:|',):
             continue
-        device, created = DiscoveredDevice.objects.get_or_create(key=key, defaults={'last_seen': now})
+        # When it was really heard: the listener says so (epoch seconds); a
+        # neighbour table read now is seen now
+        seen_at = now
+        try:
+            if record.get('last_seen'):
+                seen_at = min(now, datetime.datetime.fromtimestamp(float(record['last_seen']), tz=datetime.timezone.utc))
+        except (TypeError, ValueError, OverflowError, OSError):
+            seen_at = now
+        device, created = DiscoveredDevice.objects.get_or_create(key=key, defaults={'last_seen': seen_at})
         for field in ('identity', 'address', 'mac', 'platform', 'model', 'version', 'interface', 'remote_interface'):
             value = (record.get(field) or '').strip()
             if value:
@@ -38,7 +47,8 @@ def store(records, seen_by='', router=None):
         device.protocols = ','.join(sorted(known))[:40]
         device.seen_by = seen_by[:200]
         device.seen_by_router = router
-        device.last_seen = now
+        if created or seen_at >= device.last_seen:
+            device.last_seen = seen_at
         device.save()
         count += 1
     return count

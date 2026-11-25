@@ -210,7 +210,7 @@ def get_router_information(router_information: RouterInformation):
         output = '\n'.join(outputs.values())
         found = device_types.read_inventory(device_type, values, output)
         if not any(found.get(field) for field in device_types.INVENTORY_IDENTITY):
-            return False, 'Failed to retrieve router information'
+            return False, 'Failed to retrieve device information'
         for field, _ in device_types.INVENTORY_FIELDS:
             if field != 'available_version':
                 setattr(router_information, field, fit(found.get(field)))
@@ -231,13 +231,8 @@ def get_router_information(router_information: RouterInformation):
         router_information.last_retrieval = timezone.now()
         router_information.json_data = json.dumps(json_data)
         router_information.save()
-        # Its neighbour tables (LLDP, CDP, MNDP), for Discovered devices - never
-        # a reason for the inventory read to fail
-        try:
-            from discovery.store import read_neighbours
-            read_neighbours(session, router)
-        except Exception as error:   # noqa: BLE001
-            logger.info(f'Neighbour tables of {router.name} not read: {error}')
+        # Neighbour tables are read only on request, from the devices an operator
+        # chooses on the discovered devices page (discovery/runs.py)
 
     except Exception as e:
         success = False
@@ -276,7 +271,7 @@ def update_router_information(router_information: RouterInformation):
         success, error_message = get_router_information(router_information)
     except Exception as e:
         success = False
-        error_message = f"Failed to update router information for {router_information.router.name}. Exception: {e}"
+        error_message = f"Failed to update device information for {router_information.router.name}. Exception: {e}"
 
     if not success:
         router_information.error = True
@@ -287,7 +282,7 @@ def update_router_information(router_information: RouterInformation):
         if error_message:
             router_information.error_message = error_message
         else:
-            router_information.error_message = f"Failed to update router information for {router_information.router.name}"
+            router_information.error_message = f"Failed to update device information for {router_information.router.name}"
         router_information.save()
 
     return success, error_message

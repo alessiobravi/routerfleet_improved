@@ -134,7 +134,7 @@ class InformationQueueTests(TestCase):
         with mock.patch('router_manager.views.update_router_information') as update:
             data = self.client.get('/cron/update_router_information/').json()
         update.assert_not_called()
-        self.assertEqual(data['message'], 'No routers need update')
+        self.assertEqual(data['message'], 'No devices need update')
 
     def test_cron_clears_a_request_before_running(self):
         router = make_router()
@@ -324,7 +324,7 @@ class ManageRouterTests(TestCase):
                                        follow=True)
         # The toast is "title|body", so a pipe in the body is replaced
         messages = [str(m) for m in response.context['messages']]
-        self.assertIn('Router information update failed|a/b', messages)
+        self.assertIn('Device information update failed|a/b', messages)
 
 
 class BulkEditTests(TestCase):
@@ -370,7 +370,7 @@ class BulkEditTests(TestCase):
         self.apply(port='2200')
         new = ChangeRecord.objects.order_by('-created')[:ChangeRecord.objects.count() - before]
         self.assertEqual([(r.action, r.note, r.affected_count) for r in new],
-                         [('bulk', 'Bulk edit of routers', 3)])
+                         [('bulk', 'Bulk edit of devices', 3)])
 
     def test_form_rules(self):
         self.assertFalse(RouterBulkEditForm({}).is_valid())
@@ -414,7 +414,7 @@ class GroupTests(TestCase):
         self.client.post('/router/manage_groups/multiple/', {'router_uuids': uuids, 'remove_group': str(group.uuid)})
         self.assertFalse(group.routers.exists())
         notes = list(ChangeRecord.objects.order_by('created')[before:].values_list('note', flat=True))
-        self.assertEqual(notes, [f'Added routers to group {group.name}', f'Removed routers from group {group.name}'])
+        self.assertEqual(notes, [f'Added devices to group {group.name}', f'Removed devices from group {group.name}'])
 
     def test_same_group_for_add_and_remove_is_refused(self):
         group = make_group()
@@ -454,13 +454,13 @@ class InstantBackupTests(TestCase):
     def test_refused_when_busy_locked_or_without_profile(self):
         from router_manager.views import create_instant_backup
         RouterBackup.objects.create(router=self.router, schedule_type='daily')
-        self.assertEqual(create_instant_backup(self.router), 'Active router backup task already exists')
+        self.assertEqual(create_instant_backup(self.router), 'Active device backup task already exists')
         RouterBackup.objects.all().delete()
         RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
         self.router.refresh_from_db()
-        self.assertEqual(create_instant_backup(self.router), 'Router backup is currently locked')
+        self.assertEqual(create_instant_backup(self.router), 'Device backup is currently locked')
         no_profile = make_router()
-        self.assertEqual(create_instant_backup(no_profile), 'Router has no backup profile')
+        self.assertEqual(create_instant_backup(no_profile), 'Device has no backup profile')
 
     def test_many_at_once(self):
         other = make_router()
@@ -468,7 +468,7 @@ class InstantBackupTests(TestCase):
                                     {'routers[]': [str(self.router.uuid), str(other.uuid)]})
         results = {r['router']: r['status'] for r in response.json()['results']}
         self.assertIsNone(results[self.router.name])
-        self.assertEqual(results[other.name], 'Router has no backup profile')
+        self.assertEqual(results[other.name], 'Device has no backup profile')
 
     def test_many_without_selection(self):
         self.assertEqual(self.client.post('/router/create_instant_backup/multiple/').status_code, 400)
@@ -556,19 +556,19 @@ class SavedRouterMessageTests(TestCase):
         return saved_router_message(Router(enabled=enabled, monitoring=monitoring), created, set(changed))
 
     def test_monitoring_switched_off(self):
-        self.assertEqual(self.message(changed={'monitoring'}, monitoring=False), 'Router saved|Monitoring is off for this router.')
+        self.assertEqual(self.message(changed={'monitoring'}, monitoring=False), 'Device saved|Monitoring is off for this device.')
 
     def test_disabled(self):
-        self.assertIn('Router disabled', self.message(changed={'enabled', 'monitoring'}, enabled=False, monitoring=False))
+        self.assertIn('Device disabled', self.message(changed={'enabled', 'monitoring'}, enabled=False, monitoring=False))
 
     def test_monitoring_switched_on_or_added(self):
         self.assertIn('Monitoring starts', self.message(changed={'monitoring'}))
         self.assertIn('Monitoring starts', self.message(created=True))
-        self.assertIn('Router enabled|Monitoring starts', self.message(changed={'enabled'}))
+        self.assertIn('Device enabled|Monitoring starts', self.message(changed={'enabled'}))
 
     def test_other_changes_say_only_saved(self):
-        self.assertEqual(self.message(changed={'username'}), 'Router saved')
-        self.assertEqual(self.message(created=True, monitoring=False), 'Router added|Monitoring is off for this router.')
+        self.assertEqual(self.message(changed={'username'}), 'Device saved')
+        self.assertEqual(self.message(created=True, monitoring=False), 'Device added|Monitoring is off for this device.')
 
 
 class QuickActionsAndBulkEnableTests(TestCase):

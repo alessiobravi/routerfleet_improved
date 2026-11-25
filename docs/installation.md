@@ -280,7 +280,7 @@ HTTPS_PORT=8443
 then `docker compose up -d`. Users open `https://<SERVER_ADDRESS>:8443`, and
 `http://<SERVER_ADDRESS>:8080` redirects there. `SERVER_ADDRESS` needs no port.
 For [Let's Encrypt](https.md#lets-encrypt), port 80 must still reach
-RouterFleet from the internet: forward it to `HTTP_PORT` on your router or
+RouterFleet from the internet: forward it to `HTTP_PORT` on your device or
 firewall.
 
 A compose file you edited by hand (`"8443:443"` in `ports:`) keeps working;

@@ -40,7 +40,7 @@ class NotifyTests(TestCase):
         router = make_router(name='edge-9', status_online=True)
         functions.notify_router_status_update(router)
         message = Message.objects.get()
-        self.assertEqual(message.subject, 'Router status change: Online')
+        self.assertEqual(message.subject, 'Device status change: Online')
         self.assertIn('edge-9', message.message)
 
         backup = RouterBackup.objects.create(router=router, schedule_type='daily', error_message='boom')
@@ -83,9 +83,9 @@ class ConcatenationTests(TestCase):
         data = self.concatenate()
         self.assertEqual(data['notification_type']['status_offline'], 2)
         message = Message.objects.get()
-        self.assertEqual(message.subject, 'Router status change: Offline')
-        self.assertIn('Router a', message.message)
-        self.assertIn('Router b', message.message)
+        self.assertEqual(message.subject, 'Device status change: Offline')
+        self.assertIn('Device a', message.message)
+        self.assertIn('Device b', message.message)
         self.assertFalse(Notification.objects.exists())
 
     def test_a_flap_inside_the_window_sends_nothing(self):
@@ -309,7 +309,7 @@ class DailyReportTests(TestCase):
         make_router(name='up-1')
         functions.generate_status_report({'report_time_exception': False})
         body = Message.objects.get().message
-        self.assertIn('Monitored routers: 2', body)
+        self.assertIn('Monitored devices: 2', body)
         self.assertIn('Offline: 1', body)
         self.assertIn('down-1', body)
 

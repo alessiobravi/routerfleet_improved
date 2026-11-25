@@ -22,8 +22,8 @@ class CommandViewTests(TestCase):
         # The system commands exist from the migration; the installation's own
         # defaults are still seeded next to them
         names = set(Command.objects.filter(system_key__isnull=True).values_list('name', flat=True))
-        self.assertEqual(names, {'Show Version', 'Update Router Firmware'})
-        update = Command.objects.get(name='Update Router Firmware')
+        self.assertEqual(names, {'Show Version', 'Update Device Firmware'})
+        update = Command.objects.get(name='Update Device Firmware')
         self.assertEqual(update.verify_timeout, 600)
         variant = update.variants.get(router_type='routeros')
         self.assertIn('expected-version=', variant.payload)

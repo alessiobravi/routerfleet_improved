@@ -11,10 +11,12 @@ from routerlib.decorators import cron_endpoint
 from user_manager.models import UserAcl
 
 from .models import DiscoveredDevice
+from . import runs
 from .store import WINDOW_SECONDS, ask_listener, import_listener_file, listener_state
 
 LEVEL = 30   # Host Manager: who sees discovered devices
 ADD_LEVEL = 50   # Administrators: who adds them, with the wizard
+MOST_DEVICES = 10   # neighbour tables read in one discovery
 
 # What a platform or version text says about the device type (shipped slugs)
 GUESSES = (('mikrotik', 'routeros'), ('routeros', 'routeros'), ('openwrt', 'openwrt'), ('junos', 'juniper-junos'),
@@ -49,41 +51,83 @@ def allowed(request):
     return UserAcl.objects.filter(user=request.user, user_level__gte=LEVEL).exists()
 
 
+DISCOVERY_URL = '/discovery/'
+LIST_URL = '/router/discovered/'
+
+
 @login_required
-def view_discovered(request):
+def view_discovery(request):
+    """Device Discovery: discover adjacent devices (RouterFleet's LAN, the
+    default) or read the neighbour tables of chosen managed devices - one at
+    a time, followed step by step."""
     if not allowed(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    busy = runs.current()
+    busy = busy if busy and busy.active else None
+    if request.method == 'POST' and request.POST.get('action') in ('listen', 'read_devices') and busy:
+        messages.warning(request, 'Not started|A discovery is running - follow it below; one at a time.')
+        return redirect(DISCOVERY_URL)
+    if request.method == 'POST' and request.POST.get('action') == 'read_devices':
+        chosen = [r for r in neighbour_capable() if str(r.uuid) in request.POST.getlist('routers')][:MOST_DEVICES]
+        if not chosen:
+            messages.warning(request, 'Not started|Choose at least one device whose type reads neighbour tables.')
+        else:
+            runs.start_devices(request.user.get_full_name() or request.user.username, chosen)
+        return redirect(DISCOVERY_URL)
     if request.method == 'POST' and request.POST.get('action') == 'listen':
         if not listener_state()['running']:
             messages.warning(request, 'Not started|The discovery listener is not running on this host - see Discovery in the documentation.')
         elif ask_listener():
-            messages.success(request, f'Listening|For {WINDOW_SECONDS // 60} minutes on RouterFleet\'s LAN: devices appear '
-                                      'here as they announce themselves (LLDP every 30 s, CDP and MNDP every minute).')
+            runs.start(request.user.get_full_name() or request.user.username)
         else:
             messages.error(request, 'Not started|The shared discovery folder can not be written - check the compose file.')
-        return redirect('/router/discovered/')
+        return redirect(DISCOVERY_URL)
+    run = runs.advance(runs.current())   # also imports what the listener heard so far
+    busy = run if run and run.active else None
+    return render(request, 'discovery/discovery.html', {
+        'page_title': 'Device Discovery', 'listener': listener_state(), 'live': runs.page(run), 'busy': busy,
+        'window_minutes': WINDOW_SECONDS // 60, 'capable': neighbour_capable(), 'most_devices': MOST_DEVICES})
+
+
+@login_required
+def view_discovered(request):
+    """Discovered devices: the list only - new ones (added in one click when
+    reachable), the ones already in RouterFleet, hidden ones. It refreshes
+    itself while a discovery runs."""
+    if not allowed(request):
+        return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     if request.method == 'POST' and request.POST.get('action') == 'recheck':
         from .reach import check
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         check([device])
-        return redirect('/router/discovered/')
+        return redirect(LIST_URL)
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'
         device.save(update_fields=['dismissed'])
-        return redirect('/router/discovered/' + ('?dismissed=1' if request.GET.get('dismissed') else ''))
-    import_listener_file()   # what the listener heard so far
+        if request.headers.get('Accept', '').startswith('application/json'):
+            return JsonResponse({'ok': True, 'dismissed': device.dismissed})   # the row goes at once, no reload
+        return redirect(LIST_URL + ('?dismissed=1' if request.GET.get('dismissed') else ''))
+    run = runs.advance(runs.current())   # what a running discovery found so far
+    busy = run if run and run.active else None
     from django.conf import settings
     if getattr(settings, 'DISCOVERY_CHECK_ON_PAGE', True):
         from .reach import check_stale
         check_stale()        # reachability of what was not checked lately (parallel, bounded)
     routers = list(Router.objects.only('uuid', 'name', 'address'))
     new, known, dismissed = [], [], []
+    known_rows = {}   # one row per device in RouterFleet, however many protocols heard it
     for device in DiscoveredDevice.objects.select_related('seen_by_router'):
         router = known_router(device, routers)
         row = {'device': device, 'router': router, 'type': guess_type(device),
                'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)}
         if router:
+            same = known_rows.get((router.pk, (device.identity or '').lower(), device.address))
+            if same:
+                merged = {p.strip() for p in (same['protocols'] + ', ' + row['protocols']).split(',') if p.strip()}
+                same['protocols'] = ', '.join(sorted(merged))
+                continue
+            known_rows[(router.pk, (device.identity or '').lower(), device.address)] = row
             known.append(row)
         elif device.dismissed:
             dismissed.append(row)
@@ -91,9 +135,21 @@ def view_discovered(request):
             new.append(row)
     return render(request, 'discovery/discovered.html', {
         'page_title': 'Discovered devices', 'new': new, 'known': known, 'dismissed': dismissed,
-        'show_dismissed': bool(request.GET.get('dismissed')), 'listener': listener_state(),
-        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists(),
-        'window_minutes': WINDOW_SECONDS // 60})
+        'show_dismissed': bool(request.GET.get('dismissed')), 'busy': busy,
+        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists()})
+
+
+def neighbour_capable():
+    """The managed devices whose device type has a neighbours command."""
+    from fleet_commander import system_commands
+    capable = {}
+    result = []
+    for router in Router.objects.filter(enabled=True).order_by('name'):
+        if router.router_type not in capable:
+            capable[router.router_type] = bool(system_commands.payload_of('neighbors', router.router_type).strip())
+        if capable[router.router_type]:
+            result.append(router)
+    return result
 
 
 def prefill(uuid):
@@ -113,7 +169,9 @@ def view_cron_discovery(request):
     """Imports what the listener heard, and checks the reachability of what
     was not checked lately."""
     from .reach import check_stale
-    return JsonResponse({'imported': import_listener_file(), 'checked': check_stale()})
+    run = runs.advance(runs.current())
+    return JsonResponse({'imported': import_listener_file(), 'checked': check_stale(),
+                         'run': run.state if run else None})
 
 
 @login_required

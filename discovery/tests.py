@@ -175,21 +175,21 @@ class DiscoverAdjacentTests(TestCase):
             {'alive': time.time(), 'listening_until': time.time() + listening_for if listening_for else 0}))
 
     def test_not_running_the_button_is_greyed_out(self):
-        page = self.client.get('/router/discovered/').content.decode()
+        page = self.client.get('/discovery/').content.decode()
         self.assertIn('Not running on this host', page)
         self.assertRegex(page, r'rf-set-action w-100 rf-set-disabled"\s+disabled')
-        self.client.post('/router/discovered/', {'action': 'listen'})
+        self.client.post('/discovery/', {'action': 'listen'})
         self.assertFalse((pathlib.Path(self.folder.name) / 'request.json').exists())
 
     def test_running_the_button_opens_a_window(self):
         import time
         self.heartbeat()
-        self.assertIn('Ready, dormant', self.client.get('/router/discovered/').content.decode())
-        self.client.post('/router/discovered/', {'action': 'listen'})
+        self.assertIn('Ready, dormant', self.client.get('/discovery/').content.decode())
+        self.client.post('/discovery/', {'action': 'listen'})
         until = json.loads((pathlib.Path(self.folder.name) / 'request.json').read_text())['until']
         self.assertAlmostEqual(until - time.time(), 180, delta=5)
         self.heartbeat(listening_for=120)
-        page = self.client.get('/router/discovered/').content.decode()
+        page = self.client.get('/discovery/').content.decode()
         self.assertIn('Listening -', page)
         self.assertIn('data-rf-live="active"', page)
 
@@ -341,3 +341,234 @@ class IPv6DiscoveryTests(TestCase):
         with mock.patch('discovery.reach.socket.create_connection') as connect:
             check([device])
         connect.assert_called_once_with(('2001:db8::7', 22), timeout=1.5)
+
+
+class DiscoveryRunTests(TestCase):
+    """"Discover adjacent devices" as a run with a timeline: asked, the
+    listener started, every device heard (new or known; new ones checked for
+    SSH), finished with a summary - or the listener did not start."""
+
+    def setUp(self):
+        self.folder = pathlib.Path(tempfile.mkdtemp())
+        override = override_settings(DISCOVERY_FILE=str(self.folder / 'seen.json'))
+        override.enable()
+        self.addCleanup(override.disable)
+        self.client.force_login(make_user(30))
+
+    def heartbeat(self, listening_for=0):
+        import time
+        (self.folder / 'listener.json').write_text(json.dumps(
+            {'alive': time.time(), 'listening_until': time.time() + listening_for if listening_for else 0}))
+
+    def heard(self, devices):
+        (self.folder / 'seen.json').write_text(json.dumps({'devices': devices}))
+
+    def run_events(self):
+        from .models import DiscoveryRun
+        run = DiscoveryRun.objects.get()
+        return run, [e['text'] for e in run.events]
+
+    def test_a_run_step_by_step(self):
+        import time
+        from unittest import mock
+        from django.utils import timezone
+        from . import runs
+        make_router(name='gw', address='192.0.2.254')
+        self.heard({'old': {'identity': 'heard-last-week', 'address': '192.0.2.9', 'protocols': ['mndp'],
+                            'last_seen': int(time.time()) - 7 * 86400}})
+        self.heartbeat()
+        self.client.post('/discovery/', {'action': 'listen'})
+        run, events = self.run_events()
+        self.assertEqual(run.state, 'waiting')
+        self.assertIn('listen 3 minutes', events[0])
+        page = self.client.get('/discovery/').content.decode()
+        self.assertIn('data-rf-live="active"', page, 'refreshes itself from the click on')
+        self.assertIn('Waiting for the listener', page)
+        # The listener starts; two devices announce themselves
+        self.heartbeat(listening_for=170)
+        now = int(time.time())
+        self.heard({'old': {'identity': 'heard-last-week', 'address': '192.0.2.9', 'protocols': ['mndp'],
+                            'last_seen': now - 7 * 86400},
+                    'gw': {'identity': 'gw', 'address': '192.0.2.254', 'protocols': ['lldp'], 'last_seen': now},
+                    'sta': {'identity': 'STA01', 'address': '192.0.2.249', 'mac': '00:11:22:33:44:55',
+                            'protocols': ['mndp'], 'last_seen': now}})
+
+        def reachable(devices, port=22):
+            for device in devices:
+                device.reachable, device.reachable_detail = True, 'SSH (port 22) answers'
+                device.save()
+            return len(devices)
+        with mock.patch('discovery.reach.check', side_effect=reachable):
+            page = self.client.get('/discovery/').content.decode()
+        run, events = self.run_events()
+        self.assertEqual(run.state, 'listening')
+        self.assertTrue(any('started listening' in e for e in events))
+        self.assertTrue(any('Heard gw' in e and 'already in RouterFleet as gw' in e for e in events), events)
+        self.assertTrue(any('Heard STA01 (192.0.2.249) over MNDP - new' in e for e in events))
+        self.assertTrue(any('STA01: SSH answers' in e for e in events))
+        self.assertFalse(any('heard-last-week' in e for e in events), 'heard before this run: not in it')
+        self.assertIn('2 devices heard so far', page)
+        # The window ends: finished, with a summary; the page stops refreshing
+        from .models import DiscoveryRun
+        DiscoveryRun.objects.update(until=timezone.now() - timezone.timedelta(seconds=1))
+        self.heartbeat()
+        page = self.client.get('/discovery/').content.decode()
+        run, events = self.run_events()
+        self.assertEqual(run.state, 'done')
+        self.assertIn('Finished: 2 devices heard, 1 new', events[-1])
+        self.assertIn('data-rf-live="done"', page)
+        self.assertIn('Last discovery', page)
+        self.assertEqual(runs.advance(run), run, 'a finished run stays as it is')
+
+    def test_the_listener_does_not_start(self):
+        from django.utils import timezone
+        from .models import DiscoveryRun
+        self.heartbeat()
+        self.client.post('/discovery/', {'action': 'listen'})
+        DiscoveryRun.objects.update(created=timezone.now() - timezone.timedelta(seconds=40))
+        self.client.get('/discovery/')
+        run, events = self.run_events()
+        self.assertEqual(run.state, 'failed')
+        self.assertIn('did not start within 30 seconds', events[-1])
+
+    def test_nothing_heard_says_why_it_may_be(self):
+        from django.utils import timezone
+        from . import runs
+        from .models import DiscoveryRun
+        run = runs.start('admin')
+        DiscoveryRun.objects.filter(pk=run.pk).update(state='listening', until=timezone.now() - timezone.timedelta(seconds=90))
+        run = runs.advance(DiscoveryRun.objects.get(pk=run.pk), check_reach=False)
+        self.assertEqual(run.state, 'done')
+        self.assertIn('nothing heard', run.events[-1]['text'])
+
+    def test_one_known_device_heard_over_two_protocols_is_one_row(self):
+        make_router(name='gw', address='192.0.2.254')
+        store([{'identity': 'GW', 'address': '192.0.2.254', 'mac': '00:aa:bb:cc:dd:01', 'protocols': {'mndp'}}])
+        store([{'identity': 'GW', 'address': '192.0.2.254', 'protocols': {'lldp'}}])
+        page = self.client.get('/router/discovered/')
+        self.assertEqual(len(page.context['known']), 1)
+        self.assertEqual(page.context['known'][0]['protocols'], 'LLDP, MNDP')
+
+    def test_the_scheduler_moves_a_run_on(self):
+        from . import runs
+        runs.start('admin')
+        self.heartbeat(listening_for=100)
+        from django.test import Client
+        answer = Client().get('/cron/discovery/', REMOTE_ADDR='127.0.0.1')
+        self.assertEqual(answer.status_code, 200)
+        self.assertEqual(answer.json()['run'], 'listening')
+
+
+class DeviceDiscoveryTests(TestCase):
+    """Neighbour tables are read only from the managed devices chosen, one
+    after the other, followed in the run's timeline; one discovery at a time;
+    the eye hides a row in the background."""
+
+    def setUp(self):
+        self.client.force_login(make_user(30))
+        self.mt1 = make_router(name='mt1', router_type='routeros', address='192.0.2.1')
+        self.mt2 = make_router(name='mt2', router_type='routeros', address='192.0.2.2')
+
+    def session(self, output):
+        from unittest import mock
+        session = mock.Mock()
+        session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(return_value=output)), None)
+        return session
+
+    def test_only_the_chosen_devices_are_read_and_the_timeline_says_so(self):
+        from unittest import mock
+        from .models import DiscoveryRun
+        page = self.client.get('/discovery/')
+        self.assertEqual([r.name for r in page.context['capable']], ['mt1', 'mt2'])
+        output = (SAMPLES / 'routeros_terse.txt').read_bytes()
+        with mock.patch('routerlib.device_session.connect_router', return_value=self.session(output)) as connect, \
+                mock.patch('discovery.reach.check', return_value=0):
+            self.client.post('/discovery/', {'action': 'read_devices', 'routers': [str(self.mt2.uuid)]})
+        self.assertEqual([c.args[0] for c in connect.call_args_list], [self.mt2], 'mt1 was not chosen: not read')
+        run = DiscoveryRun.objects.get()
+        texts = [e['text'] for e in run.events]
+        self.assertEqual((run.kind, run.state), ('devices', 'done'))
+        self.assertIn('read the neighbour tables (LLDP, CDP, MNDP) of mt2', texts[0])
+        self.assertIn('Connecting to mt2 (192.0.2.2)', texts[1])
+        self.assertTrue(any(t.startswith('mt2 reports AP02-INTSEC-CDC') for t in texts), texts)
+        self.assertIn('Finished: 2 neighbours reported', texts[-1])
+        page = self.client.get('/discovery/').content.decode()
+        self.assertIn('Last discovery - neighbour tables', page)
+
+    def test_a_device_that_does_not_answer_is_in_the_timeline_and_the_others_go_on(self):
+        from unittest import mock
+        from .models import DiscoveryRun
+        output = (SAMPLES / 'routeros_terse.txt').read_bytes()
+        with mock.patch('routerlib.device_session.connect_router',
+                        side_effect=[OSError('timed out'), self.session(output)]), \
+                mock.patch('discovery.reach.check', return_value=0):
+            self.client.post('/discovery/', {'action': 'read_devices',
+                                                     'routers': [str(self.mt1.uuid), str(self.mt2.uuid)]})
+        texts = [e['text'] for e in DiscoveryRun.objects.get().events]
+        self.assertIn('mt1: not read - timed out.', texts)
+        self.assertTrue(any(t.startswith('mt2 reports') for t in texts))
+
+    def test_one_discovery_at_a_time_and_nothing_chosen(self):
+        from . import runs
+        from .models import DiscoveryRun
+        self.client.post('/discovery/', {'action': 'read_devices'})
+        self.assertFalse(DiscoveryRun.objects.exists())
+        runs.start('someone')
+        page = self.client.post('/discovery/', {'action': 'read_devices', 'routers': [str(self.mt1.uuid)]}, follow=True)
+        self.assertContains(page, 'A discovery is running')
+        self.assertEqual(DiscoveryRun.objects.count(), 1)
+
+    def test_a_devices_run_cut_short_by_a_restart_ends(self):
+        from django.utils import timezone
+        from . import runs
+        from .models import DiscoveryRun
+        run = DiscoveryRun.objects.create(kind='devices', state='reading', until=timezone.now(), targets=[])
+        DiscoveryRun.objects.filter(pk=run.pk).update(created=timezone.now() - timezone.timedelta(hours=1))
+        run = runs.advance(DiscoveryRun.objects.get(pk=run.pk))
+        self.assertEqual(run.state, 'failed')
+
+    def test_the_eye_hides_in_the_background(self):
+        device = DiscoveredDevice.objects.create(key='addr:198.51.100.5|x', identity='x', address='198.51.100.5',
+                                                 last_seen=__import__('django.utils.timezone', fromlist=['now']).now())
+        answer = self.client.post('/router/discovered/', {'action': 'dismiss', 'uuid': str(device.uuid)},
+                                  HTTP_ACCEPT='application/json')
+        self.assertEqual(answer.json(), {'ok': True, 'dismissed': True})
+        device.refresh_from_db()
+        self.assertTrue(device.dismissed)
+
+    def test_inventory_no_longer_reads_every_neighbour_table(self):
+        source = (pathlib.Path(__file__).resolve().parent.parent / 'routerlib/router_functions.py').read_text()
+        self.assertNotIn('read_neighbours(', source)
+
+
+class PagesTests(TestCase):
+    """Device Discovery holds the actions and the run; the Discovered tab
+    only the devices - an unreachable one explained, with Check again."""
+
+    def setUp(self):
+        self.client.force_login(make_user(30))
+
+    def test_the_menu_the_actions_page_and_the_list_without_actions(self):
+        page = self.client.get('/discovery/').content.decode()
+        self.assertIn('href="/discovery/"', page, 'Device Discovery in the menu')
+        self.assertIn('Device Discovery', page)
+        self.assertIn('Adjacent devices', page)
+        self.assertIn('From managed devices', page)
+        listing = self.client.get('/router/discovered/').content.decode()
+        for action in ('Discover adjacent devices', 'Read their neighbours', 'Discovery listener'):
+            self.assertNotIn(action, listing)
+
+    def test_an_unreachable_device_is_explained_with_check_again_and_hidden_ones_shown_centrally(self):
+        from django.utils import timezone
+        DiscoveredDevice.objects.create(key='addr:198.51.100.7|far', identity='far', address='198.51.100.7',
+                                        last_seen=timezone.now(), reachable=False,
+                                        reachable_detail='no answer on SSH (port 22)')
+        DiscoveredDevice.objects.create(key='addr:198.51.100.8|gone', identity='gone', address='198.51.100.8',
+                                        last_seen=timezone.now(), dismissed=True)
+        listing = self.client.get('/router/discovered/').content.decode()
+        self.assertIn('class="rf-unreachable"', listing)
+        self.assertIn("Not reachable from RouterFleet's host</b> - no answer on SSH (port 22).", listing)
+        self.assertIn('Check again', listing)
+        self.assertIn('Show 1 hidden device', listing)
+        shown = self.client.get('/router/discovered/?dismissed=1').content.decode()
+        self.assertIn('Show again', shown)

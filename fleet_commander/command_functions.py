@@ -13,9 +13,9 @@ PLACEHOLDER_PATTERN = re.compile(r'\{\{\s*([a-z_]+)\s*\}\}')
 EXPECTED_VERSION_PATTERN = re.compile(r'expected-version=([^\s]+)')
 # What to do when a placeholder of a verification has no value for a router
 PLACEHOLDER_HINTS = {
-    'available_version': 'Update the router information of the device to know the version it offers.',
-    'current_version': 'Update the router information of the device to know the version it runs.',
-    'expected_version': 'The payload has to report the version the router offers, for example with: '
+    'available_version': "Update the device's information to know the version it offers.",
+    'current_version': "Update the device's information to know the version it runs.",
+    'expected_version': 'The payload has to report the version the device offers, for example with: '
                         ':put ("expected-version=" . [/system/package/update/get latest-version])',
 }
 # Upper limit for the recorded verification output of a single task
@@ -31,7 +31,7 @@ def run_fleet_ssh_command(ssh_client, command):
 
 
 def get_verification_context(router):
-    """Versions that are known for a router, used to resolve the placeholders."""
+    """Versions that are known for a device, used to resolve the placeholders."""
     router_information = RouterInformation.objects.filter(router=router).first()
     if not router_information:
         return {'available_version': '', 'current_version': ''}
@@ -70,7 +70,7 @@ def build_verification_expectations(variant, context):
 
 
 def missing_placeholder_values(variant, context):
-    """Placeholders used in the expectations that have no value for this router."""
+    """Placeholders used in the expectations that have no value for this device."""
     missing = []
     for line in (variant.verify_expect or '').splitlines():
         for name in PLACEHOLDER_PATTERN.findall(line):
@@ -143,7 +143,7 @@ def verify_command_task(task, variant, command):
         if hints:
             message += '. ' + ' '.join(dict.fromkeys(hints))
         else:
-            message += '. Update the router information of the device first.'
+            message += ". Update the device's information first."
         return 'failed', message
 
     if not task.verify_deadline:
@@ -251,7 +251,7 @@ def execute_command_task(task):
 
     if not router:
         task.status = 'error'
-        task.error_message = 'Router no longer exists'
+        task.error_message = 'Device no longer exists'
         task.finished_at = timezone.now()
         task.save()
         return
@@ -275,7 +275,7 @@ def execute_command_task(task):
                 task.command_variant = variant
             except CommandVariant.DoesNotExist:
                 task.status = 'error'
-                task.error_message = f'No enabled variant for router type: {router.router_type}'
+                task.error_message = f'No enabled variant for device type: {router.router_type}'
                 task.finished_at = timezone.now()
                 return
 

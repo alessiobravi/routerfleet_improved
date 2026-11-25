@@ -25,6 +25,35 @@ the Zabbix kit reads, says so under **Monitoring**.
   Informational notes ("no backup schedule", "the two choices must differ")
   are inline too.
 - SSH key page: once revealed, the key's button reads **Hide / Protect**.
+- **"Device" instead of "router"**, everywhere it is shown - pages, buttons,
+  messages, notifications, the documentation and the Zabbix template's names
+  (its keys, tags and macros are unchanged): *Router Manager* is now **Devices
+  Manager**, *Add Router* **Add device**, the router list the **device list**.
+  Only the name RouterFleet stays. Addresses and internal names are unchanged,
+  so links and bookmarks keep working.
+- **Device Discovery**, its own menu item: **adjacent devices** (the listener
+  on RouterFleet's LAN, the default) or **from managed devices** - the
+  neighbour tables of the devices you choose, up to 10, read one after the
+  other over SSH. Neighbour tables are no longer read from every device with
+  each inventory update. One discovery at a time, followed step by step: the
+  steps, a countdown or the device being read, a progress bar, and a timeline
+  of what happened when - every device heard or reported, over which protocol,
+  new or already in RouterFleet, SSH reachability for a new one, a device that
+  could not be read, then a summary. The page refreshes itself from the click
+  on; a listener that does not start is reported; the scheduler moves a
+  discovery on too.
+- **Devices Manager → Discovered** lists the devices only, updating by itself
+  while a discovery runs. An unreachable device is framed in yellow, saying
+  why, with **Check again** for it alone; the eye hides a device at once,
+  without reloading; **Show hidden devices** sits right under the list. One
+  row per known device, however many protocols heard it.
+- Pages that refresh themselves keep what was typed in a filter.
+
+### Fixed
+- A device in the listener's file counted as heard at every import: it is now
+  timed by when the listener really heard it.
+- Forms sent in the background posted to a wrong address when they had a
+  field named "action".
 
 ## [0.36.2] - 2026-11-25
 

@@ -328,7 +328,7 @@ def clean_up_backup_files(router_backup: RouterBackup):
     """After a successful backup: "backup - clean leftovers"."""
     from fleet_commander import system_commands
     from routerlib import device_session
-    append_task_console_output(router_backup, '=== Cleaning up leftover backup files on the router ===')
+    append_task_console_output(router_backup, '=== Cleaning up leftover backup files on the device ===')
     router = router_backup.router
     session = None
     try:

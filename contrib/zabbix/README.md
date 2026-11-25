@@ -1,6 +1,6 @@
 # Zabbix monitoring for RouterFleet
 
-Monitor a RouterFleet installation with Zabbix: per-router backup health,
+Monitor a RouterFleet installation with Zabbix: per-device backup health,
 fleet-wide counters, and a collector that reports its own failures.
 
 Everything here is self-contained - a template, a collector script, an agent
@@ -13,10 +13,10 @@ agent patches, no network access from Zabbix to the database.
 
 | Item | Key | Meaning |
 |---|---|---|
-| Backup age (per router) | `routerfleet.backup.age[<uuid>]` | Seconds since the last **successful** backup |
-| Backup result (per router) | `routerfleet.backup.result[<uuid>]` | 1 if the most recent **attempt** succeeded |
-| Monitored routers | `routerfleet.routers` | Enabled routers that have a backup profile |
-| Failing routers | `routerfleet.failing` | Fleet-wide count of routers whose last attempt failed |
+| Backup age (per device) | `routerfleet.backup.age[<uuid>]` | Seconds since the last **successful** backup |
+| Backup result (per device) | `routerfleet.backup.result[<uuid>]` | 1 if the most recent **attempt** succeeded |
+| Monitored devices | `routerfleet.routers` | Enabled devices that have a backup profile |
+| Failing devices | `routerfleet.failing` | Fleet-wide count of devices whose last attempt failed |
 | Collector probe | `routerfleet.probe` | 1 when the collector reached the database |
 
 **Security and operations** — read from RouterFleet Improved's SSH host-key
@@ -26,13 +26,13 @@ a reassuring `0`.
 
 | Item | Key | Meaning |
 |---|---|---|
-| Routers without a host key | `routerfleet.hostkeys.missing` | Enabled routers RouterFleet has never completed a connection to |
+| Devices without a host key | `routerfleet.hostkeys.missing` | Enabled devices RouterFleet has never completed a connection to |
 | Host keys learned recently | `routerfleet.hostkeys.new` | Keys first seen in the last hour — a device was rebuilt, replaced, or is not the one previously trusted |
 | Failed sign-ins | `routerfleet.logins.failed` | Failed sign-ins in the last 15 minutes, all accounts and addresses |
 | Audited changes | `routerfleet.changes.recent` | Configuration changes recorded in the last hour |
 | Failed command jobs | `routerfleet.commands.failed` | Fleet Commander jobs with a failed or aborted task, last 24h |
 
-Routers are discovered automatically. Adding a device to RouterFleet puts it
+Devices are discovered automatically. Adding a device to RouterFleet puts it
 under monitoring within the discovery interval; removing one retires its items
 after the discovery lifetime.
 
@@ -185,26 +185,26 @@ zabbix_get -s <docker-host> -k routerfleet.backup.discovery
 ```
 
 In the frontend, **Monitoring → Latest data** filtered to the host should show
-one age item and one result item per router within an hour of linking.
+one age item and one result item per device within an hour of linking.
 
 ## What alarms, and what deliberately does not
 
 **Alarms**
 
-- a router with no successful backup inside `MAX_AGE` (warning) or
+- a device with no successful backup inside `MAX_AGE` (warning) or
   `MAX_AGE.CRIT` (high)
-- a router whose most recent attempt failed (average)
+- a device whose most recent attempt failed (average)
 - the collector unable to reach the database (high)
 - no data from the agent for 30 minutes (average)
 - an SSH host key newly accepted (warning) — see below
 - failed sign-ins sustained above the threshold for 15 minutes (average)
-- a router with no host key recorded for 24 hours (warning)
+- a device with no host key recorded for 24 hours (warning)
 - a Fleet Commander job that completed with a failed task (warning)
 - a counter the collector cannot read, reported as `-1` (average)
 
 **Deliberately silent**
 
-- *Routers without a backup profile.* They are not meant to be backed up, so a
+- *Devices without a backup profile.* They are not meant to be backed up, so a
   permanent staleness alarm would be noise. They are not discovered at all.
 - *A single failed attempt that a retry then fixes.* The result item records
   it, and it is visible in history, but the staleness triggers are what
@@ -250,8 +250,8 @@ after an upgrade.
 |---|---|
 | All items unsupported | Agent cannot run `docker exec`; check the sudoers rule |
 | `probe` returns 0 | Role missing, wrong password, or container name differs |
-| Discovery returns `{"data":[]}` | No enabled router has a backup profile assigned |
-| Age is `999999999` | No successful backup on record for that router - see [design note 3](docs/design-notes.md) |
+| Discovery returns `{"data":[]}` | No enabled device has a backup profile assigned |
+| Age is `999999999` | No successful backup on record for that device - see [design note 3](docs/design-notes.md) |
 | Result always `1`, never `0` | You are running the old query - see [design note 2](docs/design-notes.md) |
 | A counter shows `-1` | The collector could not read it: a grant from `sql/zbx_monitor.sql` is missing, or the table does not exist on this installation |
 

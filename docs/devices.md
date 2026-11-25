@@ -64,7 +64,7 @@ those rights, and the device's own log tells RouterFleet's actions apart.
 
 | What RouterFleet does | What the account needs |
 |---|---|
-| Backups, router information, connection test | Read the whole configuration - secrets included if the backups should hold them |
+| Backups, device information, connection test | Read the whole configuration - secrets included if the backups should hold them |
 | Firmware and bootloader updates | Install software and reboot |
 | Fleet Commander commands | What the commands do |
 | Console | What the person typing needs: the console signs in with this account |
@@ -189,7 +189,7 @@ Where the version a device could run comes from is set per device type - see
   repository](firmware.md).
 
 Versions are read when a device is added, every 24 hours after that (online,
-enabled devices), and on request with *Update router information* in the
+enabled devices), and on request with *Update device information* in the
 device list.
 
 A failed update check never fails the inventory read — the device facts are
@@ -197,7 +197,7 @@ stored and the version is left unknown: *update not checked*. What the device
 said is kept and shown - for RouterOS the status of its own check, such as
 `ERROR: could not resolve dns name` or `finding out latest version...` (no
 answer within 15 seconds) - in the version's tooltip and on the device page.
-Such a device is read again **after an hour**, not a day; *Update router
+Such a device is read again **after an hour**, not a day; *Update device
 information* reads it at once.
 
 ## Version colours

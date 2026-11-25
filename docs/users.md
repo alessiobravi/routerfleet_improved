@@ -44,7 +44,7 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | Tools | Backup clean-up, export of the latest backups | 50 |
 | System settings | All of System settings - administrators only: Media and messaging, Devices, Display (default rows per table), Backups and jobs, Security | 50 |
 | | [Firmware repository](firmware.md): upload, switch off, delete | 50 |
-| Firmware updates | Start and follow updates of devices (the arrows in the router list and on the device page), abort a rollout | 40 |
+| Firmware updates | Start and follow updates of devices (the arrows in the device list and on the device page), abort a rollout | 40 |
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
 | | HTTPS, [HTTP access and banning](security.md#http-access-lists-and-banning), [Updates](updating.md) (the update check) | 50 |
 
@@ -70,7 +70,7 @@ email address. Below, in collapsible sections:
   them) and the **session expiration time**: how long a sign-in lasts without
   use, 24 hours unless changed. See [Security](security.md#second-factors-and-passkeys).
 - **Visualization options** — light, dark or automatic.
-- **Router address links** — what clicking a device's address does: nothing,
+- **Device address links** — what clicking a device's address does: nothing,
   SSH, Winbox, or a hover menu with both. See
   [Devices](devices.md#address-links).
 - **Email notifications** — the email address (also where a password reset

@@ -24,10 +24,10 @@
                             </span>
                             </li>
                             <li class="list-group-item">
-                                <b>Router</b>
+                                <b>Device</b>
                                 <span class="float-end">
                                 {% comment %}
-                                    The same place the router list leads to: the settings of the
+                                    The same place the device list leads to: the settings of the
                                     device, with its address on them
                                 {% endcomment %}
                                 {% if task.router %}
@@ -60,7 +60,7 @@
                                 <span class="float-end">
                                 {% if task.verified %}
                                     <i class="far fa-check-circle text-success"
-                                       title="The router answered as expected"></i>
+                                       title="The device answered as expected"></i>
                                 {% elif task.verify_deadline %}
                                     <i class="fas fa-search text-info"
                                        title="Waiting for the verification to match"></i>
@@ -185,7 +185,7 @@
             {% if task.status == 'pending' %}
                 <a href="#" class="btn btn-outline-danger"
                    data-rf-post="/fleet_commander/task/abort/?uuid={{ task.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this task?"
-                   title="Stops this task. A command that is already running on the router is not interrupted, the task stops before its next command.">
+                   title="Stops this task. A command that is already running on the device is not interrupted, the task stops before its next command.">
                     <i class="fas fa-hand-paper"></i> Abort Task
                 </a>
             {% endif %}

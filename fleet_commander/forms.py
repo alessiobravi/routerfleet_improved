@@ -150,8 +150,8 @@ class CommandVariantForm(forms.ModelForm):
         self.fields['verify_expect'].widget.attrs['rows'] = 4
         self.fields['verify_expect'].help_text = (
             'One expectation per line. Every line has to be found in the output of the verification commands. '
-            '{{ available_version }} and {{ current_version }} are replaced with the versions known for the router. '
-            '{{ expected_version }} is the version the router offers on the channel the payload set, taken from a '
+            '{{ available_version }} and {{ current_version }} are replaced with the versions known for the device. '
+            '{{ expected_version }} is the version the device offers on the channel the payload set, taken from a '
             'line the payload prints as "expected-version=...". Use it when the payload changes the update channel, '
             'the version known to RouterFleet belongs to the channel from before.'
         )
@@ -207,7 +207,7 @@ class CommandVariantForm(forms.ModelForm):
             if self.instance.pk:
                 query = query.exclude(pk=self.instance.pk)
             if query.exists():
-                self.add_error('router_type', 'A variant for this router type already exists for this command.')
+                self.add_error('router_type', 'A variant for this device type already exists for this command.')
 
         verify_payload = (cleaned_data.get('verify_payload') or '').strip()
         verify_expect = (cleaned_data.get('verify_expect') or '').strip()
@@ -322,7 +322,7 @@ class CommandScheduleForm(forms.ModelForm):
         routers = set(cleaned_data.get('router') or [])
         router_group = cleaned_data.get('router_group') or []
         if not routers and not router_group:
-            raise forms.ValidationError("You must select at least one router or one router group.")
+            raise forms.ValidationError("You must select at least one device or one device group.")
 
         # An exclusion wins over everything, so a schedule whose every device is
         # excluded would never run anything - that is worth saying before it is

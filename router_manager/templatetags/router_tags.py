@@ -93,8 +93,8 @@ def os_version_state(router_information):
         status = (getattr(router_information, 'update_status', '') or '').strip()
         said = f' The device said: "{status}".' if status else ''
         return {'css_class': 'text-warning',
-                'title': f'No version known the router could update to.{said} Checked again within the hour, '
-                         f'or now with Update router information.'}
+                'title': f'No version known the device could update to.{said} Checked again within the hour, '
+                         f'or now with Update device information.'}
 
     comparison = compare_versions(os_version, available_version)
     if comparison is None:
@@ -104,7 +104,7 @@ def os_version_state(router_information):
         return {'css_class': 'text-success', 'title': f'Up to date with {available_version}'}
     if comparison < 0:
         return {'css_class': 'text-danger',
-                'title': f'{available_version} is available, the router runs {os_version}'}
+                'title': f'{available_version} is available, the device runs {os_version}'}
     # Ahead of what the channel offers, there is nothing to update
     return NEUTRAL_STATE
 

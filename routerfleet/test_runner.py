@@ -13,4 +13,5 @@ class FastHashingRunner(DiscoverRunner):
         settings.PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
         # No real connections from a test: the discovery page does not check reachability by itself
         settings.DISCOVERY_CHECK_ON_PAGE = False
+        settings.DISCOVERY_BACKGROUND = False   # a devices discovery runs inline, not in a thread
         super().setup_test_environment(**kwargs)

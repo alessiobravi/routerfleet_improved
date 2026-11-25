@@ -193,9 +193,9 @@ def status_cards():
         cards.append(_card('Devices up to date', versions['up_to_date'], 'ok', 'OK',
                            '/router/list/?state=up_to_date', 'running the version they could update to'))
     cards.append(_card('Without version info', versions['no_information'],
-                       *(('info', 'Update their router information') if versions['no_information'] else ('ok', 'OK')),
+                       *(('info', 'Update their device information') if versions['no_information'] else ('ok', 'OK')),
                        '/router/list/?state=no_information',
-                       'update their router information' if versions['no_information'] else 'every device read'))
+                       'update their device information' if versions['no_information'] else 'every device read'))
     cards.insert(4, _scheduler_card(now))
     return cards
 

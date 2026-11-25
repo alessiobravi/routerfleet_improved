@@ -1,6 +1,6 @@
 # Device console
 
-**A terminal on any device, in the browser.** Open the console of a router and
+**A terminal on any device, in the browser.** Open the console of a device and
 work on its command line - over SSH, or Telnet where a device has nothing else
 - with its backup account or any other account, without leaving RouterFleet
 Improved and without an SSH client on your computer. It works on a phone too,

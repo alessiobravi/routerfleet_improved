@@ -31,7 +31,7 @@ def run_import_task(request):
     name = import_task.name.strip()
 
     if Router.objects.filter(name=name).exists():
-        error_message = f'Router with name "{name}" already exists.'
+        error_message = f'Device with name "{name}" already exists.'
         import_task.import_error = True
         import_task.import_error_message = error_message
         import_task.save()
@@ -84,7 +84,7 @@ def run_import_task(request):
     if import_task.router_group_name:
         router_group = RouterGroup.objects.filter(name=import_task.router_group_name).first()
         if not router_group:
-            error_message = f'Router Group with name "{import_task.router_group_name}" not found.'
+            error_message = f'Device Group with name "{import_task.router_group_name}" not found.'
             import_task.import_error = True
             import_task.import_error_message = error_message
             import_task.save()
@@ -246,7 +246,7 @@ def view_import_csv_file(request):
     <p>After importing, you will be able to review the data and create the import tasks.</p>
     
     <strong>Delete CSV</strong>
-    <p>If you want to delete the CSV data and all tasks, you can do so from the details page. Successfully imported routers will not be removed.</p>
+    <p>If you want to delete the CSV data and all tasks, you can do so from the details page. Successfully imported devices will not be removed.</p>
     '''
 
     form = CsvDataForm(request.POST or None)
@@ -257,7 +257,7 @@ def view_import_csv_file(request):
             if router_group_created:
                 created_groups.append(group_name)
         if created_groups:
-            messages.success(request, 'Router Groups created: ' + ', '.join(created_groups))
+            messages.success(request, 'Device Groups created: ' + ', '.join(created_groups))
 
         csv_data_instance = form.save(commit=False)
         import_data = form.cleaned_data['import_data']

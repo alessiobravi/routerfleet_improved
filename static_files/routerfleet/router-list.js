@@ -16,7 +16,7 @@
     {name: 'next_daily_backup', label: 'Next Daily Backup', default: false},
     {name: 'next_weekly_backup', label: 'Next Weekly Backup', default: false},
     {name: 'next_monthly_backup', label: 'Next Monthly Backup', default: false},
-    {name: 'lock_information', label: 'Router Lock Information', default: false},
+    {name: 'lock_information', label: 'Device Lock Information', default: false},
     {name: 'groups', label: 'Groups', default: true},
     {name: 'auth', label: 'Auth', default: false},
     {name: 'os_version', label: 'OS Version', default: false},
@@ -255,7 +255,7 @@
     var blob = new Blob(['﻿' + lines.join('\r\n') + '\r\n'], {type: 'text/csv;charset=utf-8'});
     var link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'router-list-' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.download = 'device-list-' + new Date().toISOString().slice(0, 10) + '.csv';
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -330,7 +330,7 @@
       if (!routers.length) { return; }
       postJson('/router/update_information/multiple/', routers).then(function (response) {
         rfNotify('success', 'Information update started', 'Updating information for ' + response.requested +
-                 ' router(s). The list will show the new values shortly.');
+                 ' device(s). The list will show the new values shortly.');
       }).catch(function (error) { rfNotify('danger', 'Error', error.message); })
         .then(function () { setAll(table, false); });
     });

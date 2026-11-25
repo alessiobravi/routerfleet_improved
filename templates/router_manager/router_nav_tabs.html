@@ -1,12 +1,13 @@
+{% load custom_tags %}
 <ul class="nav nav-tabs d-flex" role="tablist">
     <li class="nav-item">
         <a class="nav-link {% if request.path == '/router/list/' %}active{% endif %}" href="/router/list/" role="tab">
-            Routers
+            Devices
         </a>
     </li>
     <li class="nav-item">
         <a class="nav-link {% if request.path == '/router/group_list/' %}active{% endif %}" href="/router/group_list/" role="tab">
-            Router Groups
+            Device Groups
         </a>
     </li>
     <li class="nav-item">
@@ -15,7 +16,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" href="/router/discovered/" role="tab">
+        <a class="nav-link {% if request.path|startswith:'/router/discovered/' %}active{% endif %}" href="/router/discovered/" role="tab">
             Discovered
         </a>
     </li>
@@ -36,10 +37,10 @@
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown"
                    aria-haspopup="true" aria-expanded="false">
-                    {% if filter_group %}{{ filter_group }}{% else %}All Routers{% endif %}
+                    {% if filter_group %}{{ filter_group }}{% else %}All Devices{% endif %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarDropdown">
-                    <a class="dropdown-item" href="?filter_group=all">All Routers</a>
+                    <a class="dropdown-item" href="?filter_group=all">All Devices</a>
                     {% for group_temp in filter_group_list %}
                         <a class="dropdown-item" href="?filter_group={{ group_temp.uuid }}">{{ group_temp.name }}</a>
                     {% endfor %}

@@ -39,40 +39,40 @@ zabbix_export:
             - tag: component
               value: routerfleet
         - uuid: bece741102f84e03a84da6bfccc14256
-          name: 'RouterFleet: monitored routers'
+          name: 'RouterFleet: monitored devices'
           key: routerfleet.routers
           delay: 10m
           history: 31d
           trends: 365d
-          description: 'Enabled routers that have a backup profile assigned.'
+          description: 'Enabled devices that have a backup profile assigned.'
           tags:
             - tag: component
               value: routerfleet
         - uuid: cd9169b3c6394a26995e845055f402d3
-          name: 'RouterFleet: routers with a failing backup'
+          name: 'RouterFleet: devices with a failing backup'
           key: routerfleet.failing
           delay: 10m
           history: 31d
           trends: 365d
           description: |
-            Routers whose most recent backup ATTEMPT failed, counted fleet-wide.
-            Useful as a single number for a dashboard; the per-router triggers
+            Devices whose most recent backup ATTEMPT failed, counted fleet-wide.
+            Useful as a single number for a dashboard; the per-device triggers
             say which device is affected.
           tags:
             - tag: component
               value: routerfleet
         - uuid: 52d9a1cb10b04c499ed454cf3cb2f67c
-          name: 'RouterFleet: routers without a recorded SSH host key'
+          name: 'RouterFleet: devices without a recorded SSH host key'
           key: routerfleet.hostkeys.missing
           delay: 10m
           history: 31d
           trends: 365d
           description: |
-            Enabled routers with a backup profile that have no host key on
+            Enabled devices with a backup profile that have no host key on
             record. RouterFleet Improved learns each device's key on first
             contact and refuses to connect if it later changes.
 
-            A router here has either never been reached, or had its key
+            A device here has either never been reached, or had its key
             forgotten by an administrator. The first is a connectivity problem
             the backup-age triggers will also show; the second is deliberate
             and should match a planned replacement.
@@ -140,12 +140,12 @@ zabbix_export:
               value: routerfleet
       discovery_rules:
         - uuid: 86d2fdb8c6ea47e6a70d1100913668a8
-          name: 'RouterFleet routers'
+          name: 'RouterFleet devices'
           key: routerfleet.backup.discovery
           delay: 1h
           lifetime: 7d
           description: |
-            Discovers enabled routers that have a backup profile. A router
+            Discovers enabled devices that have a backup profile. A device
             without a profile is not meant to be backed up, so discovering it
             would create an item that is permanently and correctly stale.
           item_prototypes:
@@ -157,7 +157,7 @@ zabbix_export:
               trends: 365d
               units: s
               description: |
-                Seconds since the last SUCCESSFUL backup of this router.
+                Seconds since the last SUCCESSFUL backup of this device.
                 999999999 means no successful backup is on record.
               tags:
                 - tag: component
@@ -239,7 +239,7 @@ zabbix_export:
           description: 'Sustained failed sign-ins over 15 minutes that counts as an attack rather than a forgotten password.'
         - macro: '{$ROUTERFLEET.BACKUP.MAX_AGE}'
           value: 48h
-          description: 'Age beyond which a router backup counts as stale.'
+          description: 'Age beyond which a device backup counts as stale.'
         - macro: '{$ROUTERFLEET.BACKUP.MAX_AGE.CRIT}'
           value: 7d
           description: 'Age beyond which the stored configuration is no longer a usable recovery point.'
@@ -272,11 +272,11 @@ zabbix_export:
           value: security
     - uuid: 6fc5b82494814c3b83b60d605db8c9b5
       expression: 'min(/RouterFleet by Zabbix agent/routerfleet.hostkeys.missing,24h)>0'
-      name: 'RouterFleet: a router has had no SSH host key for 24h on {HOST.NAME}'
+      name: 'RouterFleet: a device has had no SSH host key for 24h on {HOST.NAME}'
       priority: WARNING
       manual_close: 'YES'
       description: |
-        A router with a backup profile has gone a full day without a host key
+        A device with a backup profile has gone a full day without a host key
         being recorded, so RouterFleet has not completed a connection to it in
         that time. Expect the backup-age triggers to be firing for the same
         device; this says specifically that the connection, not the backup, is

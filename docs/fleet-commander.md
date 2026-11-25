@@ -135,10 +135,10 @@ verification gives up.
 
 A command runs by hand from three places, for operators (level 40):
 
-- **one device** - the terminal icon next to edit in the router list, or
+- **one device** - the terminal icon next to edit in the device list, or
   *Execute command* on the device's page; only commands with a variant for its
   type are offered;
-- **a selection** from the router list;
+- **a selection** from the device list;
 - **devices and groups** from a command's page.
 
 Each goes through a **confirmation page** first: per device type, the exact

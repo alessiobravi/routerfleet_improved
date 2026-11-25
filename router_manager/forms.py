@@ -24,7 +24,7 @@ def _account_hint():
     docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/devices.md#a-dedicated-account'
     return format_html(
         '<i class="fas fa-shield-halved me-1" aria-hidden="true"></i>Best a dedicated account with only the rights '
-        'RouterFleet needs, not the administrator: reading the configuration is enough for backups and router '
+        'RouterFleet needs, not the administrator: reading the configuration is enough for backups and device '
         'information; updates, commands and the console need more. '
         '<a href="{}" target="_blank" rel="noopener">Examples per vendor</a>', docs)
 
@@ -183,7 +183,7 @@ class RouterForm(forms.ModelForm):
 
 
 class RouterBulkEditForm(forms.Form):
-    # Every field is optional: a blank field means "leave this router's value unchanged"
+    # Every field is optional: a blank field means "leave this device's value unchanged"
     port = forms.IntegerField(required=False, min_value=1, max_value=65535)
     username = forms.CharField(required=False, max_length=100)
     password = forms.CharField(required=False, widget=forms.PasswordInput)
@@ -249,7 +249,7 @@ class RouterBulkEditForm(forms.Form):
         if cleaned_data.get('password') and ssh_key and ssh_key != 'clear':
             raise forms.ValidationError('You must provide a password or an SSH Key, not both')
         if ssh_key == 'clear' and not cleaned_data.get('password'):
-            raise forms.ValidationError('Clearing the SSH key without setting a password would leave the routers without authentication')
+            raise forms.ValidationError('Clearing the SSH key without setting a password would leave the devices without authentication')
         return cleaned_data
 
 

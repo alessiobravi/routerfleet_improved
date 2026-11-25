@@ -25,7 +25,7 @@ With the device type's **firmware repository** update check on, a device is
 ## Updating a device that has an update
 
 A device with a system update available carries the **amber arrow** in the
-router list. For the Configuration Manager the arrow opens the update page - so
+device list. For the Configuration Manager the arrow opens the update page - so
 does *Update system* on the device page, and **Update system** for the devices
 selected in the list. (The bootloader firmware has its own purple arrow and
 process - below.)
@@ -54,7 +54,7 @@ alone; the rest a few at a time; any failure stops the others.
 A MikroTik keeps its bootloader, RouterBOOT, apart from RouterOS:
 `current-firmware` is what it boots with, `upgrade-firmware` what the installed
 RouterOS brings. The inventory reads both. Upgrading it is **independent of
-system updates**: its own **purple arrow** in the router list (the amber one is
+system updates**: its own **purple arrow** in the device list (the amber one is
 the system), **Update bootloader** on the device page and for selected hosts,
 its own page and its own rollout - a backup, the upgrade, a reboot, and the
 device must come back reporting the new bootloader firmware. A system update

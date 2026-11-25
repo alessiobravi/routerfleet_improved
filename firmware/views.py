@@ -243,7 +243,7 @@ def _choices(routers, kind='system'):
 
 @login_required
 def view_update_devices(request):
-    """Update the firmware of one device (?uuid=) or of a selection (routers[])."""
+    """Update the firmware of one device (?uuid=) or of a selection (devices[])."""
     if not allowed(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     # Two independent processes: the system (OS) and the bootloader firmware
@@ -252,7 +252,7 @@ def view_update_devices(request):
     routers = list(Router.objects.filter(uuid__in=uuids, enabled=True).select_related('routerinformation')
                    .order_by('name')) if uuids else []
     if not routers:
-        messages.warning(request, 'Nothing to update|Choose enabled devices in the router list.')
+        messages.warning(request, 'Nothing to update|Choose enabled devices in the device list.')
         return redirect('/router/list/')
     choices, without = _choices(routers, kind)
     busy = set(RolloutTarget.objects.filter(rollout__state='running', router__in=routers)

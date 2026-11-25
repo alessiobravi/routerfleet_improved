@@ -424,6 +424,23 @@
     if (word) { fields.confirmation = word; }
     window.postAction(data.rfPost || (window.location.pathname + window.location.search), fields);
   }
+  // A form sent in the background (data-rf-inline-submit="<row selector>"):
+  // its row goes at once, without reloading the page; a failure reloads it
+  document.addEventListener('submit', function (event) {
+    var form = event.target;
+    if (!form.matches || !form.matches('form[data-rf-inline-submit]')) { return; }
+    event.preventDefault();
+    var row = form.closest(form.dataset.rfInlineSubmit) || form;
+    row.classList.add('rf-row-leaving');
+    // getAttribute: a field named "action" hides form.action
+    fetch(form.getAttribute('action') || window.location.href, {method: 'POST', body: new FormData(form), credentials: 'same-origin',
+                                                headers: {'Accept': 'application/json'}})
+      .then(function (response) {
+        if (!response.ok) { throw new Error(response.status); }
+        setTimeout(function () { row.remove(); }, 200);
+      })
+      .catch(function () { window.location.reload(); });
+  });
   // A choice that saves itself: the form is sent when it changes
   document.addEventListener('change', function (event) {
     var input = event.target;

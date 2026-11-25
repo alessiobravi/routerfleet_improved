@@ -43,7 +43,7 @@ chosen from the version the device last reported. RouterOS needs that:
 
 A device whose version has not been read yet gets the RouterOS 7 words; if it
 is a RouterOS 6 device, that first backup fails and is retried once the version
-is known (*Update router information* reads it at once).
+is known (*Update device information* reads it at once).
 
 A device that refuses a backup command - an unknown word, a syntax error -
 makes the backup fail with the device's message, and it is retried. What the

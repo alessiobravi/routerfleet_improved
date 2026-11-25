@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load custom_tags %}
+
+{% block content %}
+<div class="rf-settings" id="rf-live-discovery" data-rf-live="{% if busy or listener.listening_left %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5">
+    <div class="rf-set-title">Adjacent devices - RouterFleet's LAN</div>
+    <form method="post" class="rf-set-group">
+        {% csrf_token %}<input type="hidden" name="action" value="listen">
+        <div class="rf-set-row">
+            <span class="rf-set-icon {% if listener.listening_left %}blue{% elif listener.running %}green{% else %}amber{% endif %}"><i class="fas fa-satellite-dish"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Discovery listener</span>
+                <span class="rf-set-sub d-block">{% if listener.listening_left %}{{ 'run'|state_icon }} Listening - {{ listener.listening_left }} s left.{% elif live.run.state == 'waiting' %}{{ 'wait'|state_icon }} Asked - starting within seconds.{% elif listener.running %}{{ 'ok'|state_icon }} Ready, dormant: it hears nothing until asked.{% else %}{{ 'warn'|state_icon }} Not running on this host - it is part of the compose file; <code>docker compose up -d</code> starts it.{% endif %}</span></span>
+        </div>
+        {% if busy %}
+        <div class="rf-set-row rf-set-disabled">
+            <span class="rf-set-icon blue"><i class="fas fa-tower-broadcast"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{% if busy.kind == 'lan' %}Discovering adjacent devices…{% else %}Discover adjacent devices{% endif %}</span>
+                <span class="rf-set-sub d-block">{% if busy.kind == 'lan' %}Follow it below; this page updates itself.{% else %}After the discovery running below - one at a time.{% endif %}</span></span>
+        </div>
+        {% else %}
+        <button type="submit" class="rf-set-row rf-set-action w-100{% if not listener.running %} rf-set-disabled{% endif %}" {% if not listener.running %}disabled{% endif %}>
+            <span class="rf-set-icon blue"><i class="fas fa-tower-broadcast"></i></span>
+            <span class="rf-set-text text-start"><span class="rf-set-label d-block">Discover adjacent devices</span>
+                <span class="rf-set-sub d-block">Listens {{ window_minutes }} minutes for LLDP, CDP and MikroTik MNDP on this host's LAN segment, then goes quiet again</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </button>
+        {% endif %}
+    </form>
+
+    <div class="rf-set-title">From managed devices</div>
+    <form method="post" class="rf-set-group">
+        {% csrf_token %}<input type="hidden" name="action" value="read_devices">
+        {% if capable %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon teal"><i class="fas fa-diagram-project"></i></span>
+            <div class="rf-set-text"><label class="rf-set-label d-block mb-1" for="discovery-routers">Devices whose neighbours to read</label>
+                <select class="selectmultiple form-select" id="discovery-routers" name="routers" multiple {% if busy %}disabled{% endif %} data-placeholder="Choose up to {{ most_devices }} devices">
+                    {% for router in capable %}<option value="{{ router.uuid }}">{{ router.name }} ({{ router.address }})</option>{% endfor %}
+                </select>
+                <span class="rf-set-sub d-block mt-1">Each is asked for its LLDP, CDP and MNDP neighbour table over SSH - only the ones chosen, one after the other.</span></div>
+        </div>
+        <button type="submit" class="rf-set-row rf-set-action w-100{% if busy %} rf-set-disabled{% endif %}" {% if busy %}disabled{% endif %}>
+            <span class="rf-set-icon teal"><i class="fas fa-magnifying-glass-location"></i></span>
+            <span class="rf-set-text text-start"><span class="rf-set-label d-block">Read their neighbours</span>
+                <span class="rf-set-sub d-block">{% if busy %}After the discovery running below - one at a time.{% else %}Followed step by step below{% endif %}</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </button>
+        {% else %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">No managed device's type has a neighbours command (System settings → Devices → device types).</span></div>
+        {% endif %}
+    </form>
+
+    {% if live %}
+    <div class="rf-set-title">{% if live.run.active %}This discovery{% else %}Last discovery{% endif %} - {% if live.run.kind == 'devices' %}neighbour tables{% else %}RouterFleet's LAN{% endif %}, {{ live.run.created|date:"H:i" }}, by {{ live.run.requested_by_name|default:"unknown" }}</div>
+    <div class="rf-set-group rf-discovery-run">
+        <div class="rf-set-row d-block">
+            <ol class="rf-run-steps" aria-label="Steps">
+                {% for label, done in live.steps %}<li class="{% if done %}done{% elif forloop.counter0 == 1 and live.run.state == 'waiting' or forloop.counter0 == 2 and live.run.state == 'listening' %}now{% endif %}">{{ label }}</li>{% endfor %}
+            </ol>
+            <progress class="rf-run-progress mt-2{% if live.run.state == 'failed' %} failed{% elif not live.run.active %} finished{% endif %}" value="{{ live.percent }}" max="100" aria-label="Discovery progress">{{ live.percent }}%</progress>
+            <div class="rf-set-sub mt-2">{% if live.run.state == 'waiting' %}Waiting for the listener to start - a few seconds.{% elif live.run.state == 'listening' %}{{ live.left }} s left · {{ live.heard }} device{{ live.heard|pluralize }} heard so far. Devices announce themselves on their own clock, so some appear only after a minute or two: new ones land under "Not in RouterFleet yet" below.{% elif live.run.state == 'reading' %}Reading the chosen devices one after the other · {{ live.heard }} neighbour{{ live.heard|pluralize }} so far - new ones land under "Not in RouterFleet yet" below.{% elif live.run.state == 'done' %}Finished {{ live.run.finished_at|date:"H:i" }} · {{ live.heard }} device{{ live.heard|pluralize }} heard.{% else %}Not started.{% endif %}</div>
+        </div>
+        <div class="rf-set-row d-block">
+            <div class="rf-o-timeline rf-run-timeline">
+                {% for event in live.timeline %}
+                <div class="rf-o-t rf-o-{{ event.state }}"><div>{{ event.text }}</div><small>{{ event.when|date:"H:i:s" }}</small></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <div class="rf-set-foot">What is found is listed in <a href="/router/discovered/">Devices Manager → Discovered</a>, where a reachable device is added in one click.</div>
+</div>
+{% endblock %}

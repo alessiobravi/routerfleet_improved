@@ -83,7 +83,7 @@ gathers what belongs to the whole installation, in collapsible sections:
 | Security | HTTPS, HTTP access (access list and banning after failed sign-ins), updates |
 
 Message Center shows the messages only. Configuration Managers still start
-and follow device updates from the router list and the device page.
+and follow device updates from the device list and the device page.
 
 What each person chooses for themselves - light or dark mode, their own email
 notifications, sign-in security - is in *My Settings*.
@@ -188,7 +188,7 @@ theme from the start, without a white flash.
 ### Colours
 
 Every section of the menu has a tone, and the icons of its pages carry it:
-Status sky, Router Manager blue, Backup teal, Fleet Commander green, User
+Status sky, Devices Manager blue, Device Discovery sky, Backup teal, Fleet Commander green, User
 Manager rose, Message Center orange, Tools indigo, System settings purple,
 Audit Log amber, My Settings cyan. Where an icon tells a state, the state
 decides: green up to date, amber to be set up, red locked or failing.

@@ -70,13 +70,13 @@ Every line is checked before anything is stored:
 
 Blank lines are skipped. Errors name the line number.
 
-## Missing router groups
+## Missing device groups
 
 A group named in the CSV that does not exist used to abort the whole import with
 a single `Router Group 'x' does not exist`. The form now collects **every**
 missing group and asks about all of them at once:
 
-- leave **Create missing Router Groups automatically** unticked, and the error
+- leave **Create missing Device Groups automatically** unticked, and the error
   lists each unknown group;
 - tick it, and the groups are created as the CSV is saved.
 
