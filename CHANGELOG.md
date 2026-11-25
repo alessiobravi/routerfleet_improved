@@ -13,6 +13,13 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.39.1] - 2026-11-25
+
+### Fixed
+- The release no longer fails on a passing error of GitHub's attestation
+  service: the build provenance is tried a second time. 0.39.0 stopped there,
+  so it got no GitHub Release; its changes ship in this one.
+
 ## [0.39.0] - 2026-11-25
 
 ### Added

@@ -1124,7 +1124,21 @@ jobs:
             --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/build_and_push_images.yml@refs/heads/main" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
 
+      # GitHub's attestation service can answer a passing "Server Error": a
+      # second try, a minute later, before the release fails on it
       - name: Build provenance
+        id: provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/alessiobravi/${{ matrix.image }}
+          subject-digest: ${{ steps.tag.outputs.digest }}
+          push-to-registry: false
+      - name: Wait before trying the provenance again
+        if: steps.provenance.outcome == 'failure'
+        run: sleep 60
+      - name: Build provenance (second try)
+        if: steps.provenance.outcome == 'failure'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ghcr.io/alessiobravi/${{ matrix.image }}
