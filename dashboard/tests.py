@@ -55,7 +55,10 @@ class StatusPageTests(TestCase):
         # Full width, and the buttons centred
         self.assertIn('<div class="col-12">', page)
         self.assertIn('<div class="text-center my-3">', page)
-        self.assertIn('RouterFleet Improved by Alessio Bravi', self.client.get('/status/').content.decode())
+        # Credited on the About page; the bottom bar is the status bar (live state, version)
+        status = self.client.get('/status/').content.decode()
+        self.assertNotIn('RouterFleet Improved by Alessio Bravi', status)
+        self.assertIn('id="rf-status"', status)
 
     def test_the_home_page_is_the_status_page(self):
         self.assertRedirects(self.client.get('/'), '/status/', fetch_redirect_response=False)

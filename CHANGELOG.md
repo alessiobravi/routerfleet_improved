@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.38.2] - 2026-11-25
+
+### Changed
+- Device Discovery: the managed devices to read neighbours from are chosen in
+  a scrollable list with a tick per device - its address, device type,
+  version and model under the name - with a filter and a count of the chosen
+  ones; past 10, the others are greyed out.
+- The bottom bar is the status bar: on the left what the page is doing
+  ("Ready", or "Live: …" in green while it updates itself), on the right the
+  version. The floating "Live" box is gone; the credit line moved to the About
+  page alone.
+- Device Discovery shows what a discovery found above its timeline, for both
+  kinds, one row per known device however many protocols heard it.
+
 ## [0.38.1] - 2026-11-25
 
 ### Fixed

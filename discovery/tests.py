@@ -411,7 +411,7 @@ class DiscoveryRunTests(TestCase):
         # What it found is on this page too: new first, then the known one
         found = [r['device'].identity for r in self.client.get('/discovery/').context['live']['found']]
         self.assertEqual(found, ['STA01', 'gw'])
-        self.assertIn('Found in this discovery - 2', page)
+        self.assertIn('Found so far - 2', page)
         # The window ends: finished, with a summary; the page stops refreshing
         from .models import DiscoveryRun
         DiscoveryRun.objects.update(until=timezone.now() - timezone.timedelta(seconds=1))
@@ -500,7 +500,7 @@ class DeviceDiscoveryTests(TestCase):
         self.assertIn('Last discovery - neighbour tables', page.content.decode())
         self.assertEqual(sorted(r['device'].identity for r in page.context['live']['found']),
                          ['AP02-EXAMPLE', 'core-sw-01'], 'what was found is on the page')
-        self.assertIn('Found in this discovery - 2', page.content.decode())
+        self.assertIn('Found in the last discovery - 2', page.content.decode())
 
     def test_a_device_that_does_not_answer_is_in_the_timeline_and_the_others_go_on(self):
         from unittest import mock
@@ -607,3 +607,28 @@ class ListenerBoundsTests(TestCase):
             path = pathlib.Path(folder) / 'seen.json'
             path.write_bytes(b' ' * (8 * 1024 * 1024 + 1))
             self.assertEqual(import_listener_file(str(path)), 0)
+
+
+class FoundFirstTests(TestCase):
+    """What a discovery found comes before its timeline, one row per known
+    device however many protocols heard it."""
+
+    def test_found_above_the_timeline_and_merged(self):
+        from django.utils import timezone
+        from . import runs
+        from .models import DiscoveryRun
+        self.client.force_login(make_user(30))
+        gw = make_router(name='gw', address='192.0.2.254')
+        a = DiscoveredDevice.objects.create(key='mac:00:00:5e:00:53:01', identity='gw', address='192.0.2.254',
+                                            protocols='lldp', seen_by='RouterFleet LAN', last_seen=timezone.now())
+        b = DiscoveredDevice.objects.create(key='addr:192.0.2.254|gw', identity='gw', address='192.0.2.254',
+                                            protocols='cdp,mndp', seen_by='RouterFleet LAN', last_seen=timezone.now())
+        run = runs.start('admin')
+        DiscoveryRun.objects.filter(pk=run.pk).update(state='done', heard=[a.key, b.key], finished_at=timezone.now())
+        page = self.client.get('/discovery/')
+        found = page.context['live']['found']
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['router'], gw)
+        self.assertEqual(found[0]['protocols'], 'CDP, LLDP, MNDP')
+        html = page.content.decode()
+        self.assertLess(html.index('Found in the last discovery'), html.index('rf-run-timeline'))

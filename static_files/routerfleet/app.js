@@ -441,6 +441,25 @@
       })
       .catch(function () { window.location.reload(); });
   });
+  // A list of checkboxes with a limit (data-rf-pick-limit="<n>"): the count of
+  // chosen ones shown, the others greyed out once the limit is reached
+  function updatePick(box) {
+    var limit = Number(box.dataset.rfPickLimit) || 0;
+    var boxes = box.querySelectorAll('input[type=checkbox]');
+    var chosen = box.querySelectorAll('input[type=checkbox]:checked').length;
+    boxes.forEach(function (input) {
+      if (input.dataset.rfLocked === undefined) { input.dataset.rfLocked = input.disabled ? '1' : '0'; }
+      if (input.dataset.rfLocked === '1') { return; }
+      input.disabled = !input.checked && limit > 0 && chosen >= limit;
+    });
+    var count = box.querySelector('[data-rf-pick-count]');
+    if (count) { count.textContent = chosen + ' of ' + limit + ' chosen'; }
+  }
+  document.addEventListener('change', function (event) {
+    var box = event.target.closest && event.target.closest('[data-rf-pick-limit]');
+    if (box) { updatePick(box); }
+  });
+  document.querySelectorAll('[data-rf-pick-limit]').forEach(updatePick);
   // A choice that saves itself: the form is sent when it changes
   document.addEventListener('change', function (event) {
     var input = event.target;

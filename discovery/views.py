@@ -145,7 +145,7 @@ def neighbour_capable():
     from fleet_commander import system_commands
     capable = {}
     result = []
-    for router in Router.objects.filter(enabled=True).order_by('name'):
+    for router in Router.objects.filter(enabled=True).select_related('routerinformation').order_by('name'):
         if router.router_type not in capable:
             capable[router.router_type] = bool(system_commands.payload_of('neighbors', router.router_type).strip())
         if capable[router.router_type]:

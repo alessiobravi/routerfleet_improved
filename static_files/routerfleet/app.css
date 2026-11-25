@@ -553,3 +553,24 @@ td .rf-confirm-inline { min-width: 260px; }
 /* A discovered device RouterFleet's host can not reach: said plainly, centred, framed in yellow */
 .rf-unreachable { display: block; margin: 8px auto 2px; padding: 10px 14px; max-width: 640px; text-align: center; font-size: .875rem;
   border: 1px solid var(--bs-warning); border-radius: 12px; background: rgba(255, 193, 7, .08); color: var(--bs-body-color); }
+/* A scrollable list of choices with a check each (Device Discovery's devices) */
+.rf-pick-box { max-height: 320px; overflow-y: auto; border: 1px solid var(--rf-line); border-radius: 10px; }
+.rf-pick { position: relative; display: flex; align-items: center; gap: 12px; padding: 8px 14px; margin: 0; cursor: pointer;
+  border-bottom: 1px solid var(--rf-line-soft); }
+.rf-pick:last-child { border-bottom: 0; }
+.rf-pick:hover { background: var(--rf-line-soft); }
+.rf-pick .rf-set-text { flex: 1; min-width: 0; }
+.rf-pick .rf-set-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-pick:has(input:checked) { background: rgba(20, 168, 154, .10); }
+.rf-pick:has(input:disabled:not(:checked)) { opacity: .55; cursor: default; }
+/* The status bar (the footer): live state on the left, the version on the right */
+.rf-statusbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 8px; padding-bottom: 8px; }
+.rf-status { display: flex; align-items: center; gap: 8px; font-size: .85rem; font-weight: 600; min-width: 0; }
+.rf-status .rf-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-status .rf-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--bs-secondary-color); flex: none; }
+.rf-status.rf-live { color: #14a89a; }
+.rf-status.rf-live .rf-dot { background: #14a89a; animation: rf-pulse 1.4s ease-in-out infinite; }
+.rf-status.rf-paused { color: #f2a93b; }
+.rf-status.rf-paused .rf-dot { background: #f2a93b; }
+.rf-status-right { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .rf-status .rf-dot { animation: none; } }

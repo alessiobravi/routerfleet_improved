@@ -26,9 +26,10 @@ flowchart LR
 ## Neighbour tables of managed devices
 
 Every managed device already hears these protocols on all its ports. In
-**Device Discovery → From managed devices**, choose the devices to ask - up
-to 10, among those whose device type has a neighbours command - and **Read
-their neighbours**: RouterFleet connects to each in turn over SSH, runs the
+**Device Discovery → From managed devices**, tick the devices to ask in the
+list - each with its address, device type, version and model; a filter
+narrows it - up to 10, among those whose device type has a neighbours
+command, and **Read their neighbours**: RouterFleet connects to each in turn over SSH, runs the
 [system command](fleet-commander.md#system-commands) **neighbours** of its
 device type and reads the table it prints. Nothing is read unless asked, and
 only from the devices chosen. This reaches every network a managed device
@@ -79,8 +80,9 @@ one, whether SSH answers from RouterFleet's host, so it can be added. A
 listener that does not start within 30 seconds, or a window in which nothing
 was heard, is said so, with the likely reason.
 
-Under the timeline, **Found in this discovery** lists what this discovery
-found, new devices first: a reachable one is added right there with **Add
+Above the timeline, **what the discovery found** - so far, while it runs - is
+listed first, new devices first, one row per device however many protocols
+heard it: a reachable one is added right there with **Add
 device**; an unreachable one says why. Devices Manager → Discovered keeps
 everything found by every discovery. The last discovery stays on the page for
 an hour. The

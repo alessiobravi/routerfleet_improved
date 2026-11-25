@@ -23,7 +23,18 @@
     return loud.map(function (p) { return p.getAttribute('data-rf-live-reason'); }).filter(Boolean)[0] || 'updating';
   }
 
+  // The status bar's left side where the page has one (every page of the
+  // application); a floating pill elsewhere
   function showPill(state) {
+    var bar = document.getElementById('rf-status');
+    if (bar) {
+      bar.classList.remove('rf-live', 'rf-paused');
+      if (state) { bar.classList.add(state === 'live' ? 'rf-live' : 'rf-paused'); }
+      bar.querySelector('.rf-label').textContent = !state ? 'Ready'
+        : state === 'live' ? 'Live: ' + (reason() || 'updating')
+        : state === 'retry' ? 'Live: reconnecting' : 'Live updates stopped - reload the page';
+      return;
+    }
     if (!pill) {
       pill = document.createElement('div');
       pill.id = 'rf-live-pill';

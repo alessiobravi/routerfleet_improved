@@ -151,8 +151,10 @@ A Fleet Commander job, a task, a device and a backup open the same way:
 While something on a page is still running, the page keeps itself current: a
 job and its tasks, the job list, a backup and the backup list, and a device's
 page while a backup, a command or an information read is under way. A
-**Live** pill in the corner shows it is updating; it disappears, and the page
-stops asking the server, once everything has finished. It pauses while the
+**status bar** at the bottom of every page says so - "Live: …" with what is
+running, in green; it goes back to "Ready", and the page stops asking the
+server, once everything has finished. The version is on its right, with
+"Update available" when there is one. It pauses while the
 browser tab is hidden, never replaces a field you are typing in, backs off when
 the server does not answer, and stops on an expired session ("Live updates
 stopped - reload the page"). The status page's cards refresh every 30 seconds.

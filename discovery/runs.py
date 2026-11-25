@@ -67,7 +67,7 @@ def _heard(run, device, routers, check_reach=True, via=''):
     if router:
         _event(run, f'{how} - already in RouterFleet as {router.name}.', 'info')
         return
-    _event(run, f'{how} - new: see "Found in this discovery" below.', 'ok')
+    _event(run, f'{how} - new: listed above, under what was found.', 'ok')
     if check_reach and is_ip(device.address):
         check([device])
         device.refresh_from_db()
@@ -230,13 +230,24 @@ def page(run):
 
 def found(run):
     """The devices this discovery found, new ones first: what the page shows
-    under "Found in this discovery"."""
+    above its timeline."""
     from router_manager.models import Router
     from .views import guess_type, known_router
     routers = list(Router.objects.only('uuid', 'name', 'address'))
-    rows = []
+    rows, known = [], {}
     for device in DiscoveredDevice.objects.filter(key__in=run.heard):
-        rows.append({'device': device, 'router': known_router(device, routers), 'type': guess_type(device),
-                     'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)})
+        router = known_router(device, routers)
+        protocols = ', '.join(p.upper() for p in device.protocols.split(',') if p)
+        if router:
+            # One row per device in RouterFleet, however many protocols heard it
+            same = known.get(router.pk)
+            if same:
+                merged = {p.strip() for p in (same['protocols'] + ', ' + protocols).split(',') if p.strip()}
+                same['protocols'] = ', '.join(sorted(merged))
+                continue
+        row = {'device': device, 'router': router, 'type': guess_type(device), 'protocols': protocols}
+        if router:
+            known[router.pk] = row
+        rows.append(row)
     rows.sort(key=lambda r: (r['router'] is not None, (r['device'].identity or r['device'].address).lower()))
     return rows
