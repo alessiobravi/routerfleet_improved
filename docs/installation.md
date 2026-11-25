@@ -130,7 +130,7 @@ commented out with their defaults. The minimum is:
 ```env
 SERVER_ADDRESS=routerfleet.example.com
 POSTGRES_PASSWORD=a-long-random-password
-TIMEZONE=Europe/Rome
+TIMEZONE=Etc/UTC
 ```
 
 Start it:
@@ -160,7 +160,7 @@ wget -O docker-compose.yml https://raw.githubusercontent.com/alessiobravi/router
 ```env
 DATABASE_ENGINE=sqlite
 SERVER_ADDRESS=routerfleet.example.com
-TIMEZONE=Europe/Rome
+TIMEZONE=Etc/UTC
 ```
 
 The `POSTGRES_*` variables are ignored.

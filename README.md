@@ -36,7 +36,7 @@ Set at least these three in `.env`:
 ```env
 SERVER_ADDRESS=routerfleet.example.com
 POSTGRES_PASSWORD=a-long-random-password
-TIMEZONE=Europe/Rome
+TIMEZONE=Etc/UTC
 ```
 
 ```bash
