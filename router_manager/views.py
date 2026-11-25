@@ -390,7 +390,7 @@ def view_manage_router_group(request):
 def view_ssh_key_list(request):
     context = {
         'sshkey_list': SSHKey.objects.all().order_by('name'),
-        'page_title': 'SSH Key List',
+        'page_title': 'SSH Keys',
     }
     return render(request, 'router_manager/sshkey_list.html', context=context)
 
@@ -454,7 +454,7 @@ def view_manage_sshkey(request):
             if form.generated:
                 # Its page shows the public key, to copy to the devices
                 messages.success(request, 'SSH key generated|Copy its public key to the devices that should accept it.')
-                return redirect(f'/router/manage_sshkey/?uuid={saved.uuid}')
+                return redirect(f'/ssh_keys/manage/?uuid={saved.uuid}')
             messages.success(request, 'SSH Key saved successfully')
             return redirect('ssh_keys_list')
 

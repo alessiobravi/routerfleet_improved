@@ -3,9 +3,9 @@
 
 {% block content %}
 <div class="rf-settings">
-    <a href="/router/ssh_keys/" class="small"><i class="fas fa-chevron-left"></i> SSH keys</a>
+    <a href="/ssh_keys/" class="small"><i class="fas fa-chevron-left"></i> SSH keys</a>
     <div class="rf-set-title">{% if instance %}SSH key {{ instance.name }}{% else %}New SSH key{% endif %}</div>
-    <form method="post" id="sshkey-form" autocomplete="off"{% if instance and admin %} data-reveal-url="/router/sshkey/reveal/?uuid={{ instance.uuid }}"{% endif %}>
+    <form method="post" id="sshkey-form" autocomplete="off"{% if instance and admin %} data-reveal-url="/ssh_keys/reveal/?uuid={{ instance.uuid }}"{% endif %}>
         {% csrf_token %}
         <input type="hidden" name="confirm_answer" id="confirm-answer">
         {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
@@ -109,7 +109,7 @@
 
         <div class="rf-set-actions">
             <button type="submit" class="btn btn-success" id="sshkey-save">Save</button>
-            <a class="btn btn-secondary" href="/router/ssh_keys/">Back</a>
+            <a class="btn btn-secondary" href="/ssh_keys/">Back</a>
             {% if instance %}<a href="#" class="btn btn-outline-danger" data-command="delete" data-rf-call="openCommandDialog">Delete</a>{% endif %}
         </div>
     </form>

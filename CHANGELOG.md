@@ -15,6 +15,11 @@ the Zabbix kit reads, says so under **Monitoring**.
 
 ## [0.42.0] - 2026-11-25
 
+### Changed
+- **SSH Keys have a menu item of their own**, with a key icon, below User
+  Manager - no longer a tab of Devices Manager. Same features, key
+  generation included; the old addresses lead to the new ones.
+
 ### Added
 - **Generate an SSH key in RouterFleet.** A new SSH key is generated here or
   pasted as before. The type is yours to choose, by algorithm and size:

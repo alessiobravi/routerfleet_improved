@@ -36,7 +36,7 @@ class DeleteConfirmationTests(TestCase):
         group = make_group()
         self.check(f'/router/manage_group/?uuid={group.uuid}', RouterGroup, group.pk)
         key = make_sshkey()
-        self.check(f'/router/manage_sshkey/?uuid={key.uuid}', SSHKey, key.pk)
+        self.check(f'/ssh_keys/manage/?uuid={key.uuid}', SSHKey, key.pk)
         command = Command.objects.create(name='Deletable')
         self.check(f'/fleet_commander/command/manage/?uuid={command.uuid}', Command, command.pk)
         command = Command.objects.create(name='Parent')

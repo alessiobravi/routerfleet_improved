@@ -437,15 +437,15 @@ class GroupTests(TestCase):
         response = self.client.post('/router/manage_group/', {'name': ' spaced '})
         self.assertRedirects(response, '/router/group_list/', fetch_redirect_response=False)
         self.assertTrue(RouterGroup.objects.filter(name='spaced').exists())
-        response = self.client.post('/router/manage_sshkey/', {'name': 'k', 'public_key': '', 'private_key': new_private_key()})
-        self.assertRedirects(response, '/router/ssh_keys/', fetch_redirect_response=False)
+        response = self.client.post('/ssh_keys/manage/', {'name': 'k', 'public_key': '', 'private_key': new_private_key()})
+        self.assertRedirects(response, '/ssh_keys/', fetch_redirect_response=False)
         self.assertTrue(SSHKey.objects.get(name='k').public_key.startswith('ssh-ed25519 '), 'derived when left empty')
-        self.assertContains(self.client.post('/router/manage_sshkey/', {'name': 'bad', 'private_key': 'not a key'}),
+        self.assertContains(self.client.post('/ssh_keys/manage/', {'name': 'bad', 'private_key': 'not a key'}),
                             'not a private key RouterFleet can use')
 
     def test_ssh_key_list_never_shows_the_private_key(self):
         make_sshkey()
-        response = self.client.get('/router/ssh_keys/')
+        response = self.client.get('/ssh_keys/')
         self.assertNotContains(response, 'FAKE-TEST-PRIVATE-KEY-MATERIAL')
 
 
@@ -731,14 +731,14 @@ class SSHKeySecretTests(TestCase):
         self.client.force_login(make_user(50))
 
     def save(self, **data):
-        return self.client.post('/router/manage_sshkey/' + (f"?uuid={data.pop('uuid')}" if 'uuid' in data else ''),
+        return self.client.post('/ssh_keys/manage/' + (f"?uuid={data.pop('uuid')}" if 'uuid' in data else ''),
                                 {'name': 'k1', **data})
 
     def test_the_edit_form_never_carries_the_private_key(self):
         key = new_private_key()
         self.save(private_key=key)
         stored = SSHKey.objects.get(name='k1')
-        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        page = self.client.get(f'/ssh_keys/manage/?uuid={stored.uuid}').content.decode()
         self.assertNotIn(key.splitlines()[1], page)
         self.assertIn('Stored and hidden', page)
         self.save(uuid=stored.uuid, private_key='', name='k1-renamed')   # empty keeps it, no sum needed
@@ -764,11 +764,11 @@ class SSHKeySecretTests(TestCase):
         key = new_private_key()
         self.save(private_key=key)
         stored = SSHKey.objects.get(name='k1')
-        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        page = self.client.get(f'/ssh_keys/manage/?uuid={stored.uuid}').content.decode()
         self.assertNotIn(key.splitlines()[1], page)
         self.assertIn('Reveal / edit', page)
         first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
-        url = f'/router/sshkey/reveal/?uuid={stored.uuid}'
+        url = f'/ssh_keys/reveal/?uuid={stored.uuid}'
         wrong = self.client.post(url, {'answer': str(first + second + 1)})
         self.assertEqual(wrong.status_code, 400)
         self.assertFalse(ChangeRecord.objects.filter(action='revealed').exists())
@@ -784,7 +784,7 @@ class SSHKeySecretTests(TestCase):
         refused = self.save(uuid=stored.uuid, private_key=replacement, confirm_answer='0')
         self.assertContains(refused, 'the private key was not changed')
         self.assertEqual(SSHKey.objects.get(pk=stored.pk).private_key.strip(), key.strip())
-        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        page = self.client.get(f'/ssh_keys/manage/?uuid={stored.uuid}').content.decode()
         first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
         shown = self.client.post(url, {'answer': str(first + second)}).json()
         self.save(uuid=stored.uuid, private_key=replacement, confirm_answer=str(shown['save_first'] + shown['save_second']))
@@ -795,10 +795,10 @@ class SSHKeySecretTests(TestCase):
         self.save(private_key=key)
         stored = SSHKey.objects.get(name='k1')
         self.client.force_login(make_user(40))
-        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        page = self.client.get(f'/ssh_keys/manage/?uuid={stored.uuid}').content.decode()
         self.assertIn('only administrators can see or replace it', page)
         self.assertNotIn('Reveal / edit', page)
-        self.assertEqual(self.client.post(f'/router/sshkey/reveal/?uuid={stored.uuid}', {'answer': '1'}).status_code, 403)
+        self.assertEqual(self.client.post(f'/ssh_keys/reveal/?uuid={stored.uuid}', {'answer': '1'}).status_code, 403)
         self.save(uuid=stored.uuid, name='renamed', private_key=new_private_key(), passphrase='x-pass')
         after = SSHKey.objects.get(pk=stored.pk)
         self.assertEqual((after.name, after.private_key.strip(), after.passphrase), ('renamed', key.strip(), None))
@@ -813,17 +813,17 @@ class SSHKeyPassphraseChangeTests(TestCase):
 
     def reveal(self, stored):
         import re
-        page = self.client.get(f'/router/manage_sshkey/?uuid={stored.uuid}').content.decode()
+        page = self.client.get(f'/ssh_keys/manage/?uuid={stored.uuid}').content.decode()
         first, second = (int(n) for n in re.search(r'id="reveal-first">(\d+)</span> \+ <span id="reveal-second">(\d+)', page).groups())
-        shown = self.client.post(f'/router/sshkey/reveal/?uuid={stored.uuid}', {'answer': str(first + second)}).json()
+        shown = self.client.post(f'/ssh_keys/reveal/?uuid={stored.uuid}', {'answer': str(first + second)}).json()
         return str(shown['save_first'] + shown['save_second'])
 
     def test_change_then_remove(self):
         from routerlib.functions import KeyPassphraseError, load_private_key_from_string as load
-        self.client.post('/router/manage_sshkey/', {'name': 'p1', 'private_key': new_private_key(), 'passphrase': 'first-pass'})
+        self.client.post('/ssh_keys/manage/', {'name': 'p1', 'private_key': new_private_key(), 'passphrase': 'first-pass'})
         stored = SSHKey.objects.get(name='p1')
         answer = self.reveal(stored)
-        self.client.post(f'/router/manage_sshkey/?uuid={stored.uuid}', {'name': 'p1', 'passphrase': 'second-pass',
+        self.client.post(f'/ssh_keys/manage/?uuid={stored.uuid}', {'name': 'p1', 'passphrase': 'second-pass',
                                                                      'confirm_answer': answer})
         stored.refresh_from_db()
         self.assertEqual(stored.passphrase, 'second-pass')
@@ -831,7 +831,7 @@ class SSHKeyPassphraseChangeTests(TestCase):
         with self.assertRaises(KeyPassphraseError):
             load(stored.private_key, 'first-pass')
         answer = self.reveal(stored)
-        self.client.post(f'/router/manage_sshkey/?uuid={stored.uuid}', {'name': 'p1', 'remove_passphrase': 'on',
+        self.client.post(f'/ssh_keys/manage/?uuid={stored.uuid}', {'name': 'p1', 'remove_passphrase': 'on',
                                                                      'confirm_answer': answer})
         stored.refresh_from_db()
         self.assertIsNone(stored.passphrase)
@@ -891,7 +891,7 @@ class SSHKeyGenerationTests(TestCase):
         self.client.force_login(make_user(40))
 
     def generate(self, **data):
-        return self.client.post('/router/manage_sshkey/', {'name': 'gen key', 'source': 'generate', **data})
+        return self.client.post('/ssh_keys/manage/', {'name': 'gen key', 'source': 'generate', **data})
 
     def test_every_type_offered_is_a_working_key(self):
         import paramiko
@@ -926,7 +926,7 @@ class SSHKeyGenerationTests(TestCase):
     def test_generating_stores_it_and_opens_its_page_with_the_public_key(self):
         response = self.generate(key_type='ecdsa-384', passphrase='secret words')
         key = SSHKey.objects.get(name='gen key')
-        self.assertRedirects(response, f'/router/manage_sshkey/?uuid={key.uuid}', fetch_redirect_response=False)
+        self.assertRedirects(response, f'/ssh_keys/manage/?uuid={key.uuid}', fetch_redirect_response=False)
         self.assertTrue(key.public_key.startswith('ecdsa-sha2-nistp384 '))
         self.assertTrue(key.public_key.endswith(' gen-key'), 'named after the key, so devices list it recognisably')
         self.assertEqual(key.passphrase, 'secret words')
@@ -934,7 +934,7 @@ class SSHKeyGenerationTests(TestCase):
         with self.assertRaises(KeyPassphraseError):
             load_private_key_from_string(key.private_key, None)
         self.assertIsNotNone(load_private_key_from_string(key.private_key, 'secret words'))
-        page = self.client.get(f'/router/manage_sshkey/?uuid={key.uuid}')
+        page = self.client.get(f'/ssh_keys/manage/?uuid={key.uuid}')
         self.assertContains(page, key.public_key)
         self.assertContains(page, 'id="copy-public-key"')
         self.assertNotContains(page, key.private_key.splitlines()[1])
@@ -948,22 +948,22 @@ class SSHKeyGenerationTests(TestCase):
         self.assertNotEqual(key.private_key.strip(), pasted.strip())
 
     def test_pasting_still_works_and_the_new_key_page_offers_both(self):
-        page = self.client.get('/router/manage_sshkey/')
+        page = self.client.get('/ssh_keys/manage/')
         for text in ('Generate a new key', 'Paste an existing key', 'Ed25519', 'ECDSA P-521', 'RSA 4096'):
             self.assertContains(page, text)
-        response = self.client.post('/router/manage_sshkey/', {'name': 'pasted', 'source': 'paste',
+        response = self.client.post('/ssh_keys/manage/', {'name': 'pasted', 'source': 'paste',
                                                                'private_key': new_private_key()})
-        self.assertRedirects(response, '/router/ssh_keys/', fetch_redirect_response=False)
+        self.assertRedirects(response, '/ssh_keys/', fetch_redirect_response=False)
         self.assertFalse(SSHKey.objects.get(name='pasted').public_key.endswith(' pasted'), 'as given, no comment added')
-        self.assertContains(self.client.post('/router/manage_sshkey/', {'name': 'empty', 'source': 'paste'}),
+        self.assertContains(self.client.post('/ssh_keys/manage/', {'name': 'empty', 'source': 'paste'}),
                             'Paste the private key.')
 
     def test_an_existing_key_is_never_regenerated(self):
-        self.client.post('/router/manage_sshkey/', {'name': 'kept', 'private_key': new_private_key()})
+        self.client.post('/ssh_keys/manage/', {'name': 'kept', 'private_key': new_private_key()})
         key = SSHKey.objects.get(name='kept')
         before = key.private_key
         self.client.force_login(make_user(50))
-        self.client.post(f'/router/manage_sshkey/?uuid={key.uuid}', {'name': 'kept', 'source': 'generate', 'key_type': 'rsa-2048'})
+        self.client.post(f'/ssh_keys/manage/?uuid={key.uuid}', {'name': 'kept', 'source': 'generate', 'key_type': 'rsa-2048'})
         key.refresh_from_db()
         self.assertEqual(key.private_key, before)
 
@@ -971,3 +971,31 @@ class SSHKeyGenerationTests(TestCase):
         self.client.force_login(make_user(30))
         self.generate()
         self.assertFalse(SSHKey.objects.exists())
+
+
+class SSHKeyMenuTests(TestCase):
+    """SSH keys have a menu item of their own, below User Manager, with a
+    key icon; the old addresses under /router/ lead there."""
+
+    def setUp(self):
+        self.client.force_login(make_user(40))
+
+    def test_the_old_addresses_lead_to_the_new_ones(self):
+        key = make_sshkey()
+        self.assertRedirects(self.client.get('/router/ssh_keys/'), '/ssh_keys/', status_code=301, fetch_redirect_response=False)
+        self.assertRedirects(self.client.get(f'/router/manage_sshkey/?uuid={key.uuid}'),
+                             f'/ssh_keys/manage/?uuid={key.uuid}', status_code=301, fetch_redirect_response=False)
+        self.assertRedirects(self.client.get('/router/manage_sshkey/'), '/ssh_keys/manage/', status_code=301,
+                             fetch_redirect_response=False)
+
+    def test_the_menu_item_and_no_devices_tab(self):
+        page = self.client.get('/ssh_keys/')
+        self.assertContains(page, '<a href="/ssh_keys/" class="nav-link active">', html=False)
+        self.assertContains(page, 'fa-key nav-icon')
+        menu = page.content.decode()
+        self.assertLess(menu.index('href="/user/list/"'), menu.index('href="/ssh_keys/"'), 'below User Manager')
+        self.assertNotContains(page, 'href="/router/group_list/" role="tab"', msg_prefix='its own page, not a Devices tab')
+        self.assertContains(self.client.get('/ssh_keys/manage/'), '<a href="/ssh_keys/" class="nav-link active">')
+        devices = self.client.get('/router/list/')
+        self.assertNotContains(devices, 'href="/ssh_keys/" role="tab"')
+        self.assertNotContains(devices, '<a href="/ssh_keys/" class="nav-link active">')

@@ -68,7 +68,7 @@ class Fixture(TestCase):
 
             (f'/backup/manage_profile/?uuid={self.profile.uuid}', 40, 'page'),
             (f'/router/manage_group/?uuid={self.group.uuid}', 40, 'page'),
-            (f'/router/manage_sshkey/?uuid={self.sshkey.uuid}', 40, 'page'),
+            (f'/ssh_keys/manage/?uuid={self.sshkey.uuid}', 40, 'page'),
             (f'/fleet_commander/command/manage/?uuid={c}', 40, 'page'),
             (f'/fleet_commander/command/execute/?command_uuid={c}', 40, 'page'),
             ('/fleet_commander/command/execute_multiple/', 40, 'page'),
@@ -116,7 +116,7 @@ class Fixture(TestCase):
     # Pages behind a sign-in and nothing else
     login_only = [
         '/status/', '/about/', '/router_status_data/', '/backup_statistics_data/',
-        '/router/list/', '/router/group_list/', '/router/ssh_keys/',
+        '/router/list/', '/router/group_list/', '/ssh_keys/',
         '/backup/profile_list/', '/backup/backup_list/', '/backup/backup_list/?type=queue',
         '/backup/backup_list/?type=errors', '/user/settings/',
     ]
@@ -454,7 +454,7 @@ class CsrfTests(Fixture):
              lambda: not Router.objects.filter(pk=self.router.pk).exists()),
             (f'/router/manage_group/?uuid={self.group.uuid}', {'action': 'delete', 'confirmation': 'delete'},
              lambda: not RouterGroup.objects.filter(pk=self.group.pk).exists()),
-            (f'/router/manage_sshkey/?uuid={self.sshkey.uuid}', {'action': 'delete', 'confirmation': 'delete'},
+            (f'/ssh_keys/manage/?uuid={self.sshkey.uuid}', {'action': 'delete', 'confirmation': 'delete'},
              lambda: not SSHKey.objects.filter(pk=self.sshkey.pk).exists()),
             (f'/backup/delete/?uuid={self.backup.uuid}', {'confirmation': f'delete{self.backup.id}'},
              lambda: not RouterBackup.objects.filter(pk=self.backup.pk).exists()),

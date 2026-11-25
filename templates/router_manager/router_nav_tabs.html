@@ -11,11 +11,6 @@
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link {% if request.path == '/router/ssh_keys/' %}active{% endif %}" href="/router/ssh_keys/" role="tab">
-            SSH Keys
-        </a>
-    </li>
-    <li class="nav-item">
         <a class="nav-link {% if request.path|startswith:'/router/discovered/' %}active{% endif %}" href="/router/discovered/" role="tab">
             Discovered
         </a>

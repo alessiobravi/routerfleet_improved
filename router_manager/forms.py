@@ -383,7 +383,7 @@ class SSHKeyForm(forms.ModelForm):
             rows.append(Row(Column('remove_passphrase', css_class='col-md-12 mb-0')))
         rows += [Row(Column('public_key', css_class='col-md-12 mb-0')),
                  Row(Column(Submit('submit', 'Save', css_class='btn btn-success'),
-                            HTML(' <a class="btn btn-secondary" href="/router/ssh_keys/">Back</a> '),
+                            HTML(' <a class="btn btn-secondary" href="/ssh_keys/">Back</a> '),
                             HTML(delete_html), css_class='col-md-12'), css_class='form-row')]
         self.helper.layout = Layout(*rows)
 

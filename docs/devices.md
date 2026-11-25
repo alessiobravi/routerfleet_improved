@@ -18,7 +18,9 @@ credentials and never appears in version statistics.
 A device authenticates with either a **password** or an **SSH key**, on a
 configurable port (22 by default). Passwords are encrypted at rest — see
 [Security](security.md). SSH keys are stored once under a name and shared by as
-many devices as you like; RSA, ECDSA and Ed25519 keys are accepted.
+many devices as you like; RSA, ECDSA and Ed25519 keys are accepted. They have
+a menu item of their own, **SSH Keys** (the key icon, below User Manager);
+the addresses they had under Devices Manager lead there.
 
 **A new SSH key is generated or pasted.** *Generate a new key* makes the key
 pair on the server, as the type you choose:

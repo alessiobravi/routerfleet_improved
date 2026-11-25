@@ -26,7 +26,10 @@ sees only *My Settings* (see [Accounts without an access level](#accounts-withou
 | | Instant backup, group membership | 20 |
 | | Create/edit a device, bulk edit, refresh inventory, test connection | 30 |
 | | [Device console](console.md) (SSH or Telnet) | 30 |
-| | Groups, SSH keys | 40 |
+| | Groups | 40 |
+| SSH Keys | View the key names | signed in |
+| | Add, generate, edit or delete a key | 40 |
+| | Show or replace a stored private key, change its passphrase | 50 |
 | Backups | Backup list, profile list | signed in |
 | | Details, compare, download | 20 |
 | | Delete a backup | 30 |
