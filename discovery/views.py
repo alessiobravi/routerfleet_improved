@@ -6,7 +6,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from router_manager.models import DeviceType, Router
+from router_manager.models import DeviceType, Router, RouterGroup
 from routerlib.decorators import cron_endpoint
 from user_manager.models import UserAcl
 
@@ -192,13 +192,33 @@ def view_add_discovered(request):
         data = request.POST.copy()
         data['address'] = device.address   # by its IP address, as discovered
         form = RouterForm(data)
+        new_group = (request.POST.get('new_group') or '').strip()[:100]
         if form.is_valid():
-            router = form.save()
+            from django.db import transaction
+            with transaction.atomic():
+                router = form.save()
+                groups = list(RouterGroup.objects.filter(uuid__in=request.POST.getlist('groups')))
+                if new_group:
+                    # An existing name (whatever its case) is that group, not a second one
+                    group = RouterGroup.objects.filter(name__iexact=new_group).first() \
+                        or RouterGroup.objects.create(name=new_group)
+                    groups.append(group)
+                for group in groups:
+                    group.routers.add(router)
             from router_manager.views import saved_router_message
-            messages.success(request, saved_router_message(router, True, set(form.changed_data)))
+            text = saved_router_message(router, True, set(form.changed_data))
+            if groups:
+                text += f' In {", ".join(sorted({g.name for g in groups}))}.'
+            messages.success(request, text)
             return redirect(f'/router/details/?uuid={router.uuid}')
+        chosen = set(request.POST.getlist('groups'))
     else:
         form = RouterForm(initial=prefill(device.uuid))
+        new_group = ''
+        # The device list opens on the default group: a new device is shown there
+        chosen = {str(u) for u in RouterGroup.objects.filter(default_group=True).values_list('uuid', flat=True)}
     for name in ('router_type', 'ssh_key', 'backup_profile'):
         form.fields[name].widget.attrs['class'] = 'form-select'
-    return render(request, 'discovery/add.html', {'page_title': 'Add a discovered device', 'device': device, 'form': form})
+    return render(request, 'discovery/add.html', {
+        'page_title': 'Add a discovered device', 'device': device, 'form': form,
+        'groups': RouterGroup.objects.order_by('name'), 'chosen_groups': chosen, 'new_group': new_group})

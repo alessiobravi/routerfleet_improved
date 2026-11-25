@@ -4,7 +4,7 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/router/discovered/" class="small"><i class="fas fa-chevron-left"></i> Discovered devices</a>
-    <div class="rf-set-title">Add {{ device.identity|default:device.address }} to the hosts</div>
+    <div class="rf-set-title">Add {{ device.identity|default:device.address }} as a device</div>
     <form method="post" id="discovered-add-form" autocomplete="off">
         {% csrf_token %}
         {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
@@ -71,8 +71,35 @@
             <input type="hidden" name="keep_unchanged" value="profile">
         </div>
 
+        <div class="rf-set-subtitle">4 · Groups</div>
+        <div class="rf-set-group">
+            <div class="rf-set-row d-block">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <span class="rf-set-icon blue"><i class="fas fa-layer-group"></i></span>
+                    <span class="rf-set-text"><span class="rf-set-label d-block">Device groups</span>
+                        <span class="rf-set-sub d-block">The groups the device joins - commands, schedules and filters work by group. Optional.</span></span>
+                </div>
+                {% if groups %}
+                {% if groups|length > 6 %}<input type="search" class="form-control form-control-sm mb-2" data-rf-filter=".rf-group-pick" placeholder="Filter the groups" aria-label="Filter the groups">{% endif %}
+                <div class="rf-pick-box" role="group" aria-label="Device groups">
+                    {% for group in groups %}
+                    <label class="rf-set-choice rf-pick rf-group-pick">
+                        <input type="checkbox" name="groups" value="{{ group.uuid }}" {% if group.uuid|stringformat:"s" in chosen_groups %}checked{% endif %}>
+                        <span class="rf-set-text"><span class="rf-set-label d-block">{{ group.name }}</span>
+                            <span class="rf-set-sub d-block">{{ group.routers.count }} device{{ group.routers.count|pluralize }}{% if group.default_group %} · the device list's default{% endif %}</span></span>
+                        <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <label class="small mb-0 mt-2" for="new_group">{% if groups %}Or a new group{% else %}A new group (optional){% endif %}</label>
+                <input type="text" class="form-control" id="new_group" name="new_group" maxlength="100" value="{{ new_group }}" placeholder="For example: Branch offices">
+                <div class="rf-set-sub mt-1">Created with the device; a name that exists already is that group.</div>
+            </div>
+        </div>
+
         <div class="rf-set-actions">
-            <button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Add to hosts</button>
+            <button type="submit" class="btn btn-success"><i class="fas fa-plus me-1"></i>Add device</button>
             <a class="btn btn-secondary" href="/router/discovered/">Cancel</a>
         </div>
     </form>

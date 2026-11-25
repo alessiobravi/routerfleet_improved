@@ -295,7 +295,7 @@ class ReachabilityAndWizardTests(TestCase):
         from unittest import mock
         with mock.patch('discovery.reach.check_stale'):
             page = self.client.get('/router/discovered/').content.decode()
-        self.assertNotIn('Add to hosts', page)
+        self.assertNotIn('/router/discovered/add/', page, 'no add button below administrator')
         self.assertIn('Reachable from RouterFleet', page)
 
 
@@ -632,3 +632,42 @@ class FoundFirstTests(TestCase):
         self.assertEqual(found[0]['protocols'], 'CDP, LLDP, MNDP')
         html = page.content.decode()
         self.assertLess(html.index('Found in the last discovery'), html.index('rf-run-timeline'))
+
+
+
+class WizardGroupsTests(TestCase):
+    """The wizard puts the new device in the groups ticked, and creates a new
+    group on the way - an existing name, whatever its case, is that group."""
+
+    def setUp(self):
+        from django.utils import timezone
+        from router_manager.models import RouterGroup
+        self.client.force_login(make_user(50))
+        self.device = DiscoveredDevice.objects.create(key='addr:192.0.2.77|edge', identity='edge', address='192.0.2.77',
+                                                      platform='MikroTik', last_seen=timezone.now(), reachable=True)
+        self.office = RouterGroup.objects.create(name='Office', default_group=True)
+        self.lab = RouterGroup.objects.create(name='Lab')
+
+    def post(self, **extra):
+        data = {'name': 'edge', 'router_type': 'routeros', 'username': 'admin', 'password': 'pw', 'port': 22,
+                'monitoring': 'on', 'enabled': 'on', 'keep_unchanged': 'profile', 'telnet_port': 23}
+        data.update(extra)
+        return self.client.post(f'/router/discovered/add/?uuid={self.device.uuid}', data)
+
+    def test_the_default_group_is_ticked_to_begin_with(self):
+        page = self.client.get(f'/router/discovered/add/?uuid={self.device.uuid}')
+        self.assertEqual(page.context['chosen_groups'], {str(self.office.uuid)})
+        self.assertContains(page, '4 · Groups')
+
+    def test_ticked_groups_and_a_new_one(self):
+        from router_manager.models import Router, RouterGroup
+        self.post(groups=[str(self.lab.uuid)], new_group='Branch offices')
+        router = Router.objects.get(name='edge')
+        self.assertEqual(sorted(g.name for g in router.routergroup_set.all()), ['Branch offices', 'Lab'])
+        self.assertTrue(RouterGroup.objects.filter(name='Branch offices').exists())
+
+    def test_an_existing_name_is_that_group(self):
+        from router_manager.models import Router, RouterGroup
+        self.post(new_group='lab')
+        self.assertEqual(RouterGroup.objects.filter(name__iexact='lab').count(), 1)
+        self.assertIn(self.lab, Router.objects.get(name='edge').routergroup_set.all())

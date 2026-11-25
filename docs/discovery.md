@@ -119,8 +119,11 @@ Device Discovery. While a discovery runs, it updates by itself.
 
 - **Not in RouterFleet yet**: name, address, platform, model and version as
   announced, the protocols, and which device (and port) saw it. **Add device** opens
-  the device form filled in - name, address, the device type guessed (RouterOS,
-  Cisco, Junos, Huawei, OpenWrt, airOS) - to be completed with the credentials.
+  a wizard filled in - name, address, the device type guessed (RouterOS,
+  Cisco, Junos, Huawei, OpenWrt, airOS) - to be completed with the credentials,
+  the backup profile and monitoring, and the **groups** it joins: tick existing
+  ones (the device list's default group is ticked to begin with) or name a new
+  one, created with the device.
   A device without a management address can not be added from here. One that
   RouterFleet's host can not reach on SSH is framed in yellow, saying why,
   with **Check again** for that device alone. The eye hides a device of no

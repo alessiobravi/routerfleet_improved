@@ -13,6 +13,17 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.39.0] - 2026-11-25
+
+### Added
+- **Groups in the add-device wizard** (Device Discovery): tick the device
+  groups the new device joins - the device list's default group is ticked to
+  begin with - or name a new group, created with the device. An existing name,
+  whatever its case, is that group.
+
+### Changed
+- The wizard says "device": *Add … as a device*, **Add device**.
+
 ## [0.38.3] - 2026-11-25
 
 ### Fixed
