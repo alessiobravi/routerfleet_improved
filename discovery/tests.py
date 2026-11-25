@@ -390,7 +390,7 @@ class DiscoveryRunTests(TestCase):
         self.heard({'old': {'identity': 'heard-last-week', 'address': '192.0.2.9', 'protocols': ['mndp'],
                             'last_seen': now - 7 * 86400},
                     'gw': {'identity': 'gw', 'address': '192.0.2.254', 'protocols': ['lldp'], 'last_seen': now},
-                    'sta': {'identity': 'STA01', 'address': '192.0.2.249', 'mac': '00:11:22:33:44:55',
+                    'sta': {'identity': 'station-example', 'address': '192.0.2.249', 'mac': '00:11:22:33:44:55',
                             'protocols': ['mndp'], 'last_seen': now}})
 
         def reachable(devices, port=22):
@@ -404,13 +404,13 @@ class DiscoveryRunTests(TestCase):
         self.assertEqual(run.state, 'listening')
         self.assertTrue(any('started listening' in e for e in events))
         self.assertTrue(any('Heard gw' in e and 'already in RouterFleet as gw' in e for e in events), events)
-        self.assertTrue(any('Heard STA01 (192.0.2.249) over MNDP - new' in e for e in events))
-        self.assertTrue(any('STA01: SSH answers' in e for e in events))
+        self.assertTrue(any('Heard station-example (192.0.2.249) over MNDP - new' in e for e in events))
+        self.assertTrue(any('station-example: SSH answers' in e for e in events))
         self.assertFalse(any('heard-last-week' in e for e in events), 'heard before this run: not in it')
         self.assertIn('2 devices heard so far', page)
         # What it found is on this page too: new first, then the known one
         found = [r['device'].identity for r in self.client.get('/discovery/').context['live']['found']]
-        self.assertEqual(found, ['STA01', 'gw'])
+        self.assertEqual(found, ['station-example', 'gw'])
         self.assertIn('Found so far - 2', page)
         # The window ends: finished, with a summary; the page stops refreshing
         from .models import DiscoveryRun
