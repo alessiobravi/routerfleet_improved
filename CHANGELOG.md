@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.36.2] - 2026-11-25
+
+### Fixed
+- CI's dual-stack check reached the application by its raw IPv6 and IPv4
+  addresses without a host name, which Django rightly refuses (400); it now
+  sends the host name nginx forwards. No change to the application: 0.36.0
+  and 0.36.1 were not published, as their checks did not pass, and their
+  changes ship in this release.
+
 ## [0.36.1] - 2026-11-25
 
 ### Fixed
