@@ -64,17 +64,36 @@ def view_discovery(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     busy = runs.current()
     busy = busy if busy and busy.active else None
-    if request.method == 'POST' and request.POST.get('action') in ('listen', 'read_devices') and busy:
-        messages.warning(request, 'Not started|A discovery is running - follow it below; one at a time.')
-        return redirect(DISCOVERY_URL)
-    if request.method == 'POST' and request.POST.get('action') == 'read_devices':
+    if request.method == 'POST' and request.POST.get('action') in ('listen', 'read_devices'):
+        # Two clicks at the same moment must not start two discoveries: a lock
+        # shared by every worker for the time it takes to start one
+        from django.core.cache import caches
+        if busy or not caches['limits'].add('rf-discovery-start', 1, 30):
+            messages.warning(request, 'Not started|A discovery is running - follow it below; one at a time.')
+            return redirect(DISCOVERY_URL)
+        try:
+            return _start_discovery(request)
+        finally:
+            caches['limits'].delete('rf-discovery-start')
+    run = runs.advance(runs.current())   # also imports what the listener heard so far
+    busy = run if run and run.active else None
+    return render(request, 'discovery/discovery.html', {
+        'page_title': 'Device Discovery', 'listener': listener_state(), 'live': runs.page(run), 'busy': busy,
+        'window_minutes': WINDOW_SECONDS // 60, 'capable': neighbour_capable(), 'most_devices': MOST_DEVICES,
+        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists()})
+
+
+
+def _start_discovery(request):
+    """Starts the discovery asked for (the caller holds the start lock)."""
+    if request.POST.get('action') == 'read_devices':
         chosen = [r for r in neighbour_capable() if str(r.uuid) in request.POST.getlist('routers')][:MOST_DEVICES]
         if not chosen:
             messages.warning(request, 'Not started|Choose at least one device whose type reads neighbour tables.')
         else:
             runs.start_devices(request.user.get_full_name() or request.user.username, chosen)
         return redirect(DISCOVERY_URL)
-    if request.method == 'POST' and request.POST.get('action') == 'listen':
+    if request.POST.get('action') == 'listen':
         if not listener_state()['running']:
             messages.warning(request, 'Not started|The discovery listener is not running on this host - see Discovery in the documentation.')
         elif ask_listener():
@@ -82,12 +101,7 @@ def view_discovery(request):
         else:
             messages.error(request, 'Not started|The shared discovery folder can not be written - check the compose file.')
         return redirect(DISCOVERY_URL)
-    run = runs.advance(runs.current())   # also imports what the listener heard so far
-    busy = run if run and run.active else None
-    return render(request, 'discovery/discovery.html', {
-        'page_title': 'Device Discovery', 'listener': listener_state(), 'live': runs.page(run), 'busy': busy,
-        'window_minutes': WINDOW_SECONDS // 60, 'capable': neighbour_capable(), 'most_devices': MOST_DEVICES,
-        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists()})
+    return redirect(DISCOVERY_URL)
 
 
 @login_required

@@ -130,3 +130,25 @@ class NoAccessLevelMiddleware:
                 from django.shortcuts import render
                 return render(request, 'access_denied.html', {'page_title': 'Access Denied'}, status=403)
         return self.get_response(request)
+
+
+class NoStoreMiddleware:
+    """A page shown to a signed-in user is never stored by the browser: no
+    TOTP secret, backup text or HTTPS detail is brought back from the disk
+    cache (or Back) after signing out on a shared workstation. Static files
+    (served by nginx) keep their caching."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    MACHINE = ('/cron/', '/monitoring/', '/static/')
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        # The scheduler's and monitoring's calls never load a session
+        if request.path.startswith(self.MACHINE):
+            return response
+        user = getattr(request, 'user', None)
+        if user is not None and getattr(user, 'is_authenticated', False) and not response.has_header('Cache-Control'):
+            response['Cache-Control'] = 'no-store, private'
+        return response

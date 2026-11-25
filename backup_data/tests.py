@@ -854,3 +854,26 @@ class BinaryFileGoesWithItsBackupTests(TestCase):
             self.assertEqual(sum(os.path.exists(path) for path in backups), 1)
             router.delete()                                                          # its backups go with it
             self.assertFalse(any(os.path.exists(path) for path in backups))
+
+
+class HousekeepingPrunesTests(TestCase):
+    """Housekeeping removes old discovery runs, devices not heard for 90 days
+    (hidden ones kept) and long-ended bans."""
+
+    def test_old_rows_go(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from discovery.models import DiscoveredDevice, DiscoveryRun
+        from routerfleet_tools.models import AddressBan
+        now = timezone.now()
+        old_run = DiscoveryRun.objects.create(until=now)
+        DiscoveryRun.objects.filter(pk=old_run.pk).update(created=now - timedelta(days=40))
+        DiscoveryRun.objects.create(until=now)
+        DiscoveredDevice.objects.create(key='a', identity='gone', last_seen=now - timedelta(days=100))
+        DiscoveredDevice.objects.create(key='b', identity='hidden', last_seen=now - timedelta(days=100), dismissed=True)
+        DiscoveredDevice.objects.create(key='c', identity='recent', last_seen=now)
+        AddressBan.objects.create(address='198.51.100.1', until=now - timedelta(days=40))
+        AddressBan.objects.create(address='198.51.100.2', until=now + timedelta(minutes=5))
+        data = self.client.get('/cron/housekeeping/').json()
+        self.assertEqual((data['discovery_runs_removed'], data['discovered_devices_removed'], data['bans_removed']), (1, 1, 1))
+        self.assertEqual(sorted(DiscoveredDevice.objects.values_list('identity', flat=True)), ['hidden', 'recent'])

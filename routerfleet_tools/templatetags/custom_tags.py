@@ -231,7 +231,10 @@ def settings_form(context, form):
                     row[0]['cols'] = block['cols']
                 current.append(row)
         elif block['kind'] == 'html':
-            html = Template(block['html']).render(Context(context.flatten())).strip()
+            # Rendered with an empty context: a layout's HTML() is static text
+            # (values are filled in, escaped, in Python before it gets here), so
+            # nothing a template could reach - an object's name - ever runs here
+            html = Template(block['html']).render(Context({})).strip()
             if html:
                 foot.append({'kind': 'html', 'html': html})
         else:

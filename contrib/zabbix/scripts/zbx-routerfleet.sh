@@ -118,13 +118,14 @@ case "${1:-}" in
     # "finish_time DESC NULLS LAST" therefore sorts every failure behind every
     # success, so the newest SUCCESS is always selected and this item can never
     # report 0. Order by the identity column instead: it reflects insertion
-    # order, so it genuinely returns the latest attempt.
+    # order, so it genuinely returns the latest attempt - among the finished
+    # ones: a backup still queued or running is neither a success nor a failure.
     valid_uuid "${2:-}" || { echo 0; exit 0; }
     val=$(psql_q "SELECT CASE WHEN b.success AND NOT b.error THEN 1 ELSE 0 END
                   FROM router_manager_router r
                   JOIN LATERAL (
                     SELECT success, error FROM backup_data_routerbackup
-                    WHERE router_id = r.id
+                    WHERE router_id = r.id AND (success OR error)   -- finished attempts only:
                     ORDER BY id DESC LIMIT 1) b ON TRUE
                   WHERE r.uuid = '$2';")
     echo "${val:-0}"

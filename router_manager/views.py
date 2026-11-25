@@ -214,7 +214,7 @@ def view_router_details(request):
     if router_status.backup_lock:
         if not router_backup_list.filter(success=False, error=False).exists():
             router_status.backup_lock = None
-            router_status.save()
+            router_status.save(update_fields=['backup_lock', 'updated'])
             messages.warning(request, 'Backup lock removed|Backup lock was removed as there are no active backup tasks')
 
     live_reasons = []
@@ -293,6 +293,9 @@ def view_manage_router(request):
             # Forgetting makes the next key trusted unseen: administrators only
             if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
                 return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+            if posted_confirmation(request) != 'forget':
+                messages.warning(request, 'Host key kept|Invalid confirmation')
+                return redirect('/router/details/?uuid=' + str(router.uuid))
             if host_keys.forget(router.address, router.port):
                 messages.success(request, 'Host key forgotten|The key the device presents on the next connection will be trusted')
             return redirect('/router/details/?uuid=' + str(router.uuid))
@@ -500,7 +503,7 @@ def create_instant_backup(router):
     )
 
     router.routerstatus.backup_lock = router_backup.schedule_time
-    router.routerstatus.save()
+    router.routerstatus.save(update_fields=['backup_lock', 'updated'])
 
     return None
 

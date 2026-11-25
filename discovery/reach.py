@@ -20,7 +20,14 @@ def is_ip(value):
     except ValueError:
         return False
     # Loopback would probe RouterFleet's own container, not a device
-    return not (address.is_link_local or address.is_multicast or address.is_unspecified or address.is_loopback)
+    if address.is_link_local or address.is_multicast or address.is_unspecified or address.is_loopback:
+        return False
+    # ... nor RouterFleet's own Docker networks: an address announced on the LAN
+    # never sends the probe into the stack itself
+    from console.network import attached_networks, gateways
+    if str(address) in gateways():
+        return False
+    return not any(address in network for network in attached_networks() if network.version == address.version)
 
 
 def _probe(address, port=SSH_PORT):

@@ -171,7 +171,7 @@ def create_backup_tasks_from_schedule_list(schedule_list, schedule_type):
         tasks_created += 1
         backup.save()
         backup.router.routerstatus.backup_lock = backup.schedule_time
-        backup.router.routerstatus.save()
+        backup.router.routerstatus.save(update_fields=['backup_lock', 'updated'])
 
     return tasks_created
 
@@ -274,24 +274,24 @@ def view_cron_housekeeping(request):
         backup.error_message = 'Backup task expired'
         backup.save()
         backup.router.routerstatus.last_backup_failed = timezone.now()
-        backup.router.routerstatus.save()
+        backup.router.routerstatus.save(update_fields=['last_backup_failed', 'updated'])
         notify_backup_fail(backup)
 
         if not RouterBackup.objects.filter(router=backup.router, success=False, error=False).exists():
             backup.router.routerstatus.backup_lock = None
-            backup.router.routerstatus.save()
+            backup.router.routerstatus.save(update_fields=['backup_lock', 'updated'])
         data['backup_tasks_expired'] += 1  # Do not count locks removed for expired tasks
 
     for router_status in RouterStatus.objects.filter(backup_lock__lt=max_backup_task_age):
         if not RouterBackup.objects.filter(router=router_status.router, success=False, error=False).exists():
             router_status.backup_lock = None
             router_status.last_backup_failed = timezone.now()
-            router_status.save()
+            router_status.save(update_fields=['backup_lock', 'last_backup_failed', 'updated'])
             data['backup_locks_removed'] += 1
 
     for router_status in RouterStatus.objects.filter(command_lock__lt=max_command_lock_age):
         router_status.command_lock = None
-        router_status.save()
+        router_status.save(update_fields=['command_lock', 'updated'])
         data['command_locks_removed'] += 1
 
     # The whole sweep is one entry in the change log, with what it removed. Nothing
@@ -342,4 +342,16 @@ def view_cron_housekeeping(request):
     # Console sessions: closed if a restart left them open, unused tickets pruned
     from console.models import tidy_sessions
     data['console_sessions_closed'], data['console_tickets_removed'] = tidy_sessions()
+
+    # What only grows otherwise: discovery runs after 30 days; discovered
+    # devices not heard for 90 days (hidden ones kept, so they stay hidden if
+    # they come back); bans 30 days after they ended. The login history and the
+    # command history stay until pruned on purpose (manage.py prune_audit_log).
+    from discovery.models import DiscoveredDevice, DiscoveryRun
+    from routerfleet_tools.models import AddressBan
+    now = timezone.now()
+    data['discovery_runs_removed'] = DiscoveryRun.objects.filter(created__lt=now - timedelta(days=30)).delete()[0]
+    data['discovered_devices_removed'] = DiscoveredDevice.objects.filter(
+        last_seen__lt=now - timedelta(days=90), dismissed=False).delete()[0]
+    data['bans_removed'] = AddressBan.objects.filter(until__lt=now - timedelta(days=30)).delete()[0]
     return JsonResponse(data)

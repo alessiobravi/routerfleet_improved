@@ -106,7 +106,7 @@ def view_update_router_status(request):
         router.routerstatus.status_online = True
     else:
         router.routerstatus.status_online = False
-    router.routerstatus.save()
+    router.routerstatus.save(update_fields=['status_online', 'updated'])
 
     if current_status != new_status:
         if new_status == 'online':
@@ -119,7 +119,7 @@ def view_update_router_status(request):
             router.routerstatus.status_online = False
             downtime = RouterDownTime.objects.create(router=router, start_time=timezone.now())
         router.routerstatus.last_status_change = timezone.now()
-        router.routerstatus.save()
+        router.routerstatus.save(update_fields=['status_online', 'last_status_change', 'updated'])
         if downtime:
             RouterDownTime.objects.filter(router=router, end_time=None).exclude(uuid=downtime.uuid).delete()
         notify_router_status_update(router)

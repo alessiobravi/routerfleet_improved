@@ -142,7 +142,7 @@ class ForgetHostKeyViewTests(TestCase):
     def test_details_show_the_fingerprint(self):
         self.assertContains(self.client.get(f'/router/details/?uuid={self.router.uuid}'), 'SHA256:abc')
 
-    def test_forget_needs_post_and_level_30(self):
+    def test_forget_needs_post_an_administrator_and_the_confirmation(self):
         url = f'/router/manage/?uuid={self.router.uuid}'
         self.client.get(url + '&action=forget_host_key')
         self.assertTrue(SSHHostKey.objects.exists())
@@ -153,5 +153,7 @@ class ForgetHostKeyViewTests(TestCase):
         self.assertTrue(SSHHostKey.objects.exists())
         self.client.force_login(self.user)
         self.client.post(url, {'action': 'forget_host_key'})
+        self.assertTrue(SSHHostKey.objects.exists(), 'without the confirmation the key stays')
+        self.client.post(url, {'action': 'forget_host_key', 'confirmation': 'forget'})
         self.assertFalse(SSHHostKey.objects.exists())
         self.assertNotContains(self.client.get(f'/router/details/?uuid={self.router.uuid}'), 'SHA256:abc')

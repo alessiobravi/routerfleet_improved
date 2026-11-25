@@ -733,3 +733,28 @@ class SharedFolderTests(TestCase):
         self.assertTrue(ask_listener())
         self.assertEqual(victim.read_text(), 'precious')
         self.assertIn('until', json.loads((self.folder / 'request.json').read_text()))
+
+
+class StartAndProbeTests(TestCase):
+    """Two clicks at the same moment start one discovery; the reachability
+    probe never reaches RouterFleet's own networks."""
+
+    def test_a_second_click_while_one_starts(self):
+        from unittest import mock
+        from .models import DiscoveryRun
+        self.client.force_login(make_user(30))
+        make_router(name='mt', router_type='routeros', address='192.0.2.1')
+        with mock.patch('django.core.cache.backends.filebased.FileBasedCache.add', return_value=False):
+            page = self.client.post('/discovery/', {'action': 'listen'}, follow=True)
+        self.assertContains(page, 'A discovery is running')
+        self.assertFalse(DiscoveryRun.objects.exists())
+
+    def test_the_probe_keeps_out_of_the_stack(self):
+        import ipaddress
+        from unittest import mock
+        from .reach import is_ip
+        with mock.patch('console.network.attached_networks', return_value=[ipaddress.ip_network('172.30.0.0/16')]), \
+                mock.patch('console.network.gateways', return_value={'172.30.0.1'}):
+            self.assertFalse(is_ip('172.30.0.5'))
+            self.assertFalse(is_ip('172.30.0.1'))
+            self.assertTrue(is_ip('192.0.2.5'))

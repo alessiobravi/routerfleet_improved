@@ -453,3 +453,13 @@ class StatusBarStylesTests(TestCase):
             classes = {c for value in used for c in value.split()}
             with self.subTest(template=str(template.relative_to(root))):
                 self.assertFalse(names & classes, f"{names & classes} belongs to the status bar")
+
+
+class NoStoreTests(TestCase):
+    """A page shown to a signed-in user is not stored by the browser."""
+
+    def test_signed_in_pages_are_no_store(self):
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(50))
+        self.assertIn('no-store', self.client.get('/status/')['Cache-Control'])
+        self.assertIn('no-store', self.client.get('/user/settings/')['Cache-Control'])

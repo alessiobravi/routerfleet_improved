@@ -24,7 +24,8 @@
         <label for="console-password" class="mb-0">Password for <strong>{{ session.username }}</strong></label>
         <input type="password" id="console-password" class="form-control form-control-sm" autocomplete="off" required autofocus>
         <button type="submit" class="btn btn-sm btn-primary">Connect</button>
-        <small class="text-muted">Sent once over the encrypted connection to the device login; not stored.</small>
+        {% if request.is_secure %}<small class="text-muted">Sent once, over HTTPS and then SSH, to the device login; not stored.</small>
+        {% else %}<small class="text-danger"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>This page is not HTTPS: the password and the whole session cross the network to RouterFleet unencrypted.</small>{% endif %}
     </form>
     {% endif %}
 

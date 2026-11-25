@@ -253,14 +253,17 @@ def view_device_type_new(request):
     if request.method == 'POST':
         problems, commands = read_form(request.POST, device_type, new=True)
         if not problems:
+            from django.db import transaction
             from fleet_commander.models import Command, CommandVariant
-            device_type.preset = ''
-            device_type.save()
-            for key, payload in commands.items():
-                command = Command.objects.filter(system_key=key).first()
-                if command is not None:
-                    CommandVariant.objects.create(command=command, router_type=device_type.slug, payload=payload,
-                                                  enabled=True)
+            # The type and its commands together, or neither
+            with transaction.atomic():
+                device_type.preset = ''
+                device_type.save()
+                for key, payload in commands.items():
+                    command = Command.objects.filter(system_key=key).first()
+                    if command is not None:
+                        CommandVariant.objects.create(command=command, router_type=device_type.slug, payload=payload,
+                                                      enabled=True)
             messages.success(request, f'Device type created|{device_type.name} can be chosen for devices now.')
             return redirect(f'/system/device-types/edit/?uuid={device_type.uuid}')
         for problem in problems:

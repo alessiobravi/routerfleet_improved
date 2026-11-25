@@ -150,21 +150,21 @@ def _download_by_cat(session, device_type, remote_path, local_path, router_backu
 def perform_backup(router_backup: RouterBackup):
     if router_backup.success or router_backup.error:
         router_backup.router.routerstatus.backup_lock = None
-        router_backup.router.routerstatus.save()
+        router_backup.router.routerstatus.save(update_fields=['backup_lock', 'updated'])
         return
     if not router_backup.router.backup_profile:
         router_backup.error = True
         router_backup.error_message = "No backup profile assigned"
         router_backup.save()
         router_backup.router.routerstatus.backup_lock = None
-        router_backup.router.routerstatus.save()
+        router_backup.router.routerstatus.save(update_fields=['backup_lock', 'updated'])
         notify_backup_fail(router_backup)
         return
     if router_backup.retry_count > router_backup.router.backup_profile.max_retry:
         router_backup.error = True
         router_backup.save()
         router_backup.router.routerstatus.backup_lock = None
-        router_backup.router.routerstatus.save()
+        router_backup.router.routerstatus.save(update_fields=['backup_lock', 'updated'])
         notify_backup_fail(router_backup)
         return
 
@@ -193,7 +193,7 @@ def perform_backup(router_backup: RouterBackup):
             router_backup.router.routerstatus.last_backup = timezone.now()
             router_backup.router.routerstatus.last_backup_failed = None
             router_backup.router.routerstatus.backup_lock = None
-            router_backup.router.routerstatus.save()
+            router_backup.router.routerstatus.save(update_fields=['last_backup', 'last_backup_failed', 'backup_lock', 'updated'])
         else:
             handle_backup_failure(router_backup, error_message)
     else:

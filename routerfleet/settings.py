@@ -91,6 +91,7 @@ MIDDLEWARE = [
     # How long a sign-in lasts: each user's choice, from the last use
     'routerfleet.middleware.SessionLengthMiddleware',
     'routerfleet.middleware.NoAccessLevelMiddleware',
+    'routerfleet.middleware.NoStoreMiddleware',
     # After the user is known, so a change can be recorded with who made it
     'audit_log.middleware.AuditContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
