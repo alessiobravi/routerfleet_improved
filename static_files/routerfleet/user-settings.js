@@ -12,13 +12,16 @@
     document.getElementById('passkey-unsupported').textContent =
       "Sign in with your device's fingerprint, face or PIN. Name the new passkey after the device it is on.";
     document.getElementById('passkey-name').disabled = false;
+    document.getElementById('passkey-password').disabled = false;
     document.getElementById('passkey-add-button').disabled = false;
     document.getElementById('passkey-add-button').addEventListener('click', function () {
       var error = document.getElementById('passkey-error');
       error.textContent = '';
-      RouterFleetPasskeys.register(document.getElementById('passkey-name').value).then(function (result) {
+      var password = document.getElementById('passkey-password');
+      RouterFleetPasskeys.register(document.getElementById('passkey-name').value, password.value).then(function (result) {
         window.location = result.redirect || '/user/settings/';
       }).catch(function (reason) {
+        password.value = '';
         if (reason && reason.name !== 'NotAllowedError') {
           error.textContent = reason.message || 'The passkey could not be added.';
         }

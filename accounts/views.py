@@ -28,8 +28,22 @@ def view_create_first_user(request):
         if form.is_valid():
             username = form.cleaned_data['username']
             password = form.cleaned_data['password']
-            new_user = User.objects.create_superuser(username=username, password=password)
-            UserAcl.objects.create(user=new_user, user_level=50)
+            # Two requests at the same moment must not both create an
+            # administrator: one at a time (a locked row), checked again inside
+            from django.db import IntegrityError, transaction
+            from routerfleet_tools.models import WebadminSettings
+            try:
+                with transaction.atomic():
+                    WebadminSettings.objects.get_or_create(name='webadmin_settings')
+                    WebadminSettings.objects.select_for_update().get(name='webadmin_settings')
+                    if User.objects.exists():
+                        raise Http404('Superuser already exists')
+                    new_user = User.objects.create_superuser(username=username, password=password)
+                    UserAcl.objects.create(user=new_user, user_level=50)
+                    if User.objects.count() != 1:
+                        raise IntegrityError('another first user was created meanwhile')
+            except IntegrityError:
+                raise Http404('Superuser already exists') from None
             return render(request, 'accounts/superuser_created.html')
     else:
         form = CreateUserForm()

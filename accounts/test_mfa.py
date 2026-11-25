@@ -221,7 +221,7 @@ class PasskeyTests(TestCase):
 
     def register(self, name='Laptop'):
         self.client.force_login(self.user)
-        options = self.post('/user/settings/passkeys/options/').json()
+        options = self.post('/user/settings/passkeys/options/', {'password': 'pw'}).json()
         response = self.post('/user/settings/passkeys/add/', {'name': name, 'credential': self.authenticator.create(options)})
         self.client.logout()
         return response
@@ -257,7 +257,7 @@ class PasskeyTests(TestCase):
 
     def test_a_port_in_the_origin_is_the_same_relying_party(self):
         self.client.force_login(self.user)
-        options = self.post('/user/settings/passkeys/options/', origin=f'{ORIGIN}:8443').json()
+        options = self.post('/user/settings/passkeys/options/', {'password': 'pw'}, origin=f'{ORIGIN}:8443').json()
         response = self.post('/user/settings/passkeys/add/', {'credential': self.authenticator.create(options, origin=f'{ORIGIN}:8443')},
                              origin=f'{ORIGIN}:8443')
         self.assertEqual(response.status_code, 200)
@@ -326,3 +326,17 @@ class PasskeyTests(TestCase):
         self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 400)
         del self.client.cookies['rf_passkey_challenge']
         self.assertEqual(self.post('/accounts/passkey/login/', answer).status_code, 400)
+
+
+@override_settings(ALLOWED_HOSTS=[HOST, 'testserver'])
+class PasskeyNeedsThePasswordTests(TestCase):
+    """A session left open is not enough to add a passkey: the password is."""
+
+    def test_without_or_with_a_wrong_password_no_registration_starts(self):
+        user = make_user(30, username='erin', password='pw')
+        self.client.force_login(user)
+        for body in ({}, {'password': 'wrong'}):
+            answer = self.client.post('/user/settings/passkeys/options/', json.dumps(body),
+                                      content_type='application/json', HTTP_HOST=HOST, HTTP_ORIGIN=ORIGIN)
+            self.assertEqual(answer.status_code, 403)
+            self.assertNotIn('passkey_register', self.client.session)

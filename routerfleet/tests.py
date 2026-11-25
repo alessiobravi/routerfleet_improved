@@ -176,13 +176,25 @@ class LevelGateTests(Fixture):
                 self.assertEqual(self.client.post(path, {'routers[]': [str(self.router.uuid)]}).status_code, 200)
                 self.assertEqual(self.client.get(path).status_code, 405)
 
-    def test_login_only_pages_need_no_level(self):
+    def test_login_only_pages_need_a_level_from_viewer_up(self):
+        # Since 0.38: an account without an access level (made outside the User
+        # Manager) sees none of them; a Viewer sees them all; a superuser too
+        from django.contrib.auth.models import User
+        for user, allowed in ((make_user(None), False), (make_user(10), True),
+                              (User.objects.create_superuser('root-cli', password='x'), True)):
+            self.client.force_login(user)
+            for path in self.login_only + self.login_only_with_objects():
+                with self.subTest(path=path, user=user.username):
+                    response = self.client.get(path)
+                    if allowed or path.startswith('/user/settings/'):   # own settings: always
+                        self.assertEqual(response.status_code, 200, path)
+                        self.assertNotIn(DENIED_TEMPLATE, [t.name for t in response.templates])
+                    else:
+                        self.assertIn(DENIED_TEMPLATE, [t.name for t in response.templates])
+
+    def test_without_a_level_my_settings_still_open(self):
         self.client.force_login(make_user(None))
-        for path in self.login_only + self.login_only_with_objects():
-            with self.subTest(path=path):
-                response = self.client.get(path)
-                self.assertEqual(response.status_code, 200, path)
-                self.assertNotIn(DENIED_TEMPLATE, [t.name for t in response.templates])
+        self.assertEqual(self.client.get('/user/settings/').status_code, 200)
 
 
 # The update check is off here: these tests are about who may call the

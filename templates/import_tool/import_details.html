@@ -57,6 +57,10 @@
 
 
     {% if action == 'start_import' %}
+        <div class="text-center my-3">
+            <button type="button" class="btn btn-primary btn-lg" id="rf-start-import"><i class="fas fa-play me-1"></i>Start the import of the pending rows</button>
+            <div class="small text-muted mt-1">Each pending row is added as a device, one after the other; the table shows how each went.</div>
+        </div>
         <script src="{% static 'routerfleet/import-details.js' %}"></script>
     {% endif %}
 

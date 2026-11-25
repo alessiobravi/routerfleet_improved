@@ -134,7 +134,7 @@ class PageTests(VolumeTestCase):
         self.assertTrue(page.context['needs_sum'])
         self.apply(page)
         self.assertEqual(self.state()['trusted_proxies'], ['192.0.2.5/32'])
-        self.assertContains(self.review(mode='proxy', trusted_proxies='0.0.0.0/0'), 'Trusting every address')
+        self.assertContains(self.review(mode='proxy', trusted_proxies='0.0.0.0/0'), 'is too wide')
 
     def test_passkey_users_are_warned(self):
         UserPasskey.objects.create(user=make_user(10), name='k', credential_id='c', public_key='p', rp_id='rf.example.net')

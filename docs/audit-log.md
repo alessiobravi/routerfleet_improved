@@ -99,9 +99,9 @@ changed without holding a second copy of it.
 | `actor_kind` | Meaning |
 |---|---|
 | user | A signed-in person, recorded with their account, level, address and user agent |
-| cron | A request with no user — the scheduler container calling a `/cron/` endpoint |
+| cron | The scheduler container calling a `/cron/` endpoint |
 | command line | No request at all — a management command or a shell |
-| anonymous | A refused sign-in, in the login history |
+| anonymous | No account: a refused sign-in (in the login history), creating the first user, a password reset |
 | locked-out | A sign-in turned away without checking the password, because of too many refused attempts |
 
 The distinction is explicit: no request is not the same as a request without a

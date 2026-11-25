@@ -136,7 +136,15 @@ def view_totp_setup(request):
 @login_required
 @require_POST
 def view_passkey_options(request):
-    """The options for creating a new passkey."""
+    """The options for creating a new passkey - after the account's password:
+    a passkey signs in on its own, so a session left open must not be enough to
+    add one."""
+    try:
+        password = str(json.loads(request.body or b'{}').get('password') or '')
+    except (ValueError, AttributeError):
+        password = ''
+    if not password or not request.user.check_password(password):
+        return JsonResponse({'error': 'Type your password to add a passkey.'}, status=403)
     try:
         rp_id, _ = mfa.relying_party(request)
     except mfa.PasskeyUnavailable:

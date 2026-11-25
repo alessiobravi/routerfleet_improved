@@ -93,8 +93,13 @@ def clean_proxies(value):
             raise ValidationError(f'"{line}" is not an IP address or network.') from None
     if not networks:
         raise ValidationError('List the address of the reverse proxy, or its network (one per line).')
-    if any(network in ('0.0.0.0/0', '::/0') for network in networks):
-        raise ValidationError('Trusting every address would let any client claim to be the proxy.')
+    # Not only "everything" (0.0.0.0/0): two halves (0.0.0.0/1 and 128.0.0.0/1)
+    # trust every address too. A proxy is a host or a network, never a sizable
+    # part of the internet
+    too_wide = [n for n in networks if ipaddress.ip_network(n).prefixlen < (8 if ':' not in n else 16)]
+    if too_wide:
+        raise ValidationError(f'{too_wide[0]} is too wide: list the reverse proxy\'s address or network. Trusting '
+                              'that much would let almost any client claim to be the proxy.')
     return networks
 
 
@@ -200,7 +205,9 @@ def clean_network(value):
     """An address or a network, IPv4 or IPv6, in its canonical form - or
     ValueError. A single address becomes /32 or /128."""
     text = (value or '').strip().strip('[]')
-    if not text or len(text) > 50:
+    # An IPv6 scope (fe80::1%eth0) means nothing to nginx: refused here rather
+    # than stopping every later update of the list from reaching nginx
+    if not text or len(text) > 50 or '%' in text:
         raise ValueError('an address or a network, IPv4 or IPv6 - for example 192.0.2.0/24 or 2001:db8::/32')
     network = ipaddress.ip_network(text, strict=False)
     return str(network)

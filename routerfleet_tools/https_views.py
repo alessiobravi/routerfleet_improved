@@ -79,6 +79,10 @@ def _consequences(request, current, proposal):
                      'certificate is issued, the current certificate is served.')
     if current.mode in https.TLS_MODES + ('env',) and proposal['mode'] in https.HTTPS_OFF_MODES:
         notes.append('HTTPS is being switched off.')
+    if current.mode in ('letsencrypt', 'custom') and proposal['mode'] == 'plain':
+        notes.append('Browsers that used this installation over HTTPS were told to keep to HTTPS for a year (HSTS): '
+                     'they will refuse plain HTTP at this address until then. Reach it by another name or address, '
+                     'or clear the HSTS entry in those browsers.')
     return requirements, notes
 
 

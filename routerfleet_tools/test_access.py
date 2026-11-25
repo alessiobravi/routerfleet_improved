@@ -275,3 +275,38 @@ class ConsoleForwardedForTests(SimpleTestCase):
                     self.assertIn('X-Forwarded-For', block)
                     self.assertNotIn('proxy_add_x_forwarded_for', block)
                 position = start + 1
+
+
+class HstsAndEntryValidationTests(SimpleTestCase):
+    """HSTS only with a certificate browsers trust; a scoped IPv6 entry and a
+    proxy range that trusts (almost) everyone are refused."""
+
+    def render(self, mode, files=()):
+        with tempfile.TemporaryDirectory() as folder:
+            base = pathlib.Path(folder)
+            for name in files:
+                (base / name).parent.mkdir(parents=True, exist_ok=True)
+                (base / name).write_text('x')
+            (base / https.STATE_FILE).write_text(json.dumps({'mode': mode, 'generation': 1}))
+            result = subprocess.run(['sh', str(ROOT / 'containers/nginx/rf_https.sh'), 'render'], capture_output=True,
+                                    text=True, env={'RF_CERT_DIR': folder, 'PATH': '/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin'})
+        return result.stdout
+
+    def test_hsts_only_with_a_trusted_certificate(self):
+        custom = self.render('custom', ['custom/fullchain.pem', 'custom/privkey.pem'])
+        self.assertEqual(custom.count('Strict-Transport-Security'), 1)
+        self.assertNotIn('Strict-Transport-Security', self.render('selfsigned'))
+        self.assertNotIn('Strict-Transport-Security', self.render('plain'))
+        # Let's Encrypt before its certificate is issued serves the self-signed one: no HSTS yet
+        self.assertNotIn('Strict-Transport-Security', self.render('letsencrypt'))
+
+    def test_a_scoped_ipv6_entry_is_refused(self):
+        with self.assertRaises(ValueError):
+            https.clean_network('fe80::1%eth0')
+
+    def test_proxy_ranges_that_trust_almost_everyone_are_refused(self):
+        from django.core.exceptions import ValidationError
+        for value in ('0.0.0.0/1\n128.0.0.0/1', '10.0.0.0/7', '::/1', '2000::/3'):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                https.clean_proxies(value)
+        self.assertEqual(https.clean_proxies('10.0.0.0/8\n2001:db8::/32'), ['10.0.0.0/8', '2001:db8::/32'])

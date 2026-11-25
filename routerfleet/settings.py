@@ -1,3 +1,5 @@
+import os
+import tempfile
 """
 Django settings for routerfleet project.
 
@@ -88,6 +90,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # How long a sign-in lasts: each user's choice, from the last use
     'routerfleet.middleware.SessionLengthMiddleware',
+    'routerfleet.middleware.NoAccessLevelMiddleware',
     # After the user is known, so a change can be recorded with who made it
     'audit_log.middleware.AuditContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -278,3 +281,13 @@ if not SECRET_KEY:  # noqa: F405 - comes from production_settings
     from django.core.exceptions import ImproperlyConfigured
     raise ImproperlyConfigured('SECRET_KEY is empty: routerfleet/production_settings.py must set it '
                                '(the container entrypoint writes one on every start).')
+
+
+# The default cache is each worker's own memory; 'limits' is shared by every
+# worker in the container (a folder under /tmp) - for counts that must hold
+# across workers, such as the password reset limit
+CACHES = {
+    'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'},
+    'limits': {'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+               'LOCATION': os.path.join(tempfile.gettempdir(), 'routerfleet-limits')},
+}

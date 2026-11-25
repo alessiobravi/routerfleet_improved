@@ -106,3 +106,27 @@ class SessionLengthMiddleware:
                 session['rf_hours'], session['rf_renewed'] = hours, now
                 session.set_expiry(hours * 3600)
         return self.get_response(request)
+
+
+class NoAccessLevelMiddleware:
+    """An account without an access level ("No access level": no UserAcl, or
+    level 0 - an account made outside the User Manager) sees no page but its
+    own settings and signing out. Superusers keep their access, as before.
+    The levels themselves are checked by each page."""
+
+    OPEN = ('/accounts/', '/user/settings/', '/static/', '/cron/', '/monitoring/', '/console/ws/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        # The path first: the scheduler's and monitoring's calls never load a session
+        if request.path.startswith(self.OPEN):
+            return self.get_response(request)
+        user = getattr(request, 'user', None)
+        if user is not None and user.is_authenticated and not user.is_superuser:
+            from user_manager.models import UserAcl
+            if not UserAcl.objects.filter(user=user, user_level__gte=10).exists():
+                from django.shortcuts import render
+                return render(request, 'access_denied.html', {'page_title': 'Access Denied'}, status=403)
+        return self.get_response(request)

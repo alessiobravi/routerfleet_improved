@@ -47,7 +47,8 @@ class UserAclForm(UserCreationForm):
 
     def clean_username(self):
         username = self.cleaned_data.get('username')
-        if User.objects.filter(username=username).exclude(pk=self.user_id).exists():
+        # Case-insensitive: sign-in limits and lockouts match names that way
+        if User.objects.filter(username__iexact=username).exclude(pk=self.user_id).exists():
             raise ValidationError("A user with that username already exists.")
         return username
 

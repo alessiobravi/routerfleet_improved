@@ -1,5 +1,6 @@
 /* An import: the rows still pending are run one after the other, each
-   showing how it went. */
+   showing how it went - when the Start button on this page is clicked, never
+   by merely opening the page (a link from elsewhere could do that). */
 document.addEventListener('DOMContentLoaded', function () {
   'use strict';
   var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
@@ -28,7 +29,10 @@ document.addEventListener('DOMContentLoaded', function () {
       messageCell.textContent = 'Request failed.';
     }
   }
-  (async function () {
+  var start = document.getElementById('rf-start-import');
+  if (!start) { return; }
+  start.addEventListener('click', async function () {
+    start.disabled = true;
     for (var row of document.querySelectorAll('table tbody tr')) {
       var uuidCell = row.querySelector('td:nth-child(2)');
       if (!uuidCell) { continue; }
@@ -37,5 +41,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var current = statusCell && statusCell.querySelector('.badge');
       if (current && current.textContent.trim() === 'Pending') { await run(uuid); }
     }
-  })();
+    start.textContent = 'Import finished';
+  });
 });

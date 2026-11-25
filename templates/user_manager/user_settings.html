@@ -46,8 +46,10 @@
                     your browser trusts.</div>
                 <div class="input-group input-group-sm mt-2">
                     <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey" disabled>
+                    <input type="password" id="passkey-password" class="form-control" autocomplete="current-password" placeholder="Your password" aria-label="Your password, to add a passkey" disabled>
                     <button type="button" id="passkey-add-button" class="btn btn-primary" disabled>Add a passkey</button>
                 </div>
+                <div class="rf-set-sub mt-1">Your password confirms it is you: a passkey signs in on its own.</div>
                 <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
             </div>
         </div>

@@ -16,7 +16,7 @@ _state = threading.local()
 # Who - or what - made a change
 ACTOR_USER = 'user'            # somebody signed in
 ACTOR_CRON = 'cron'            # a request without a user, the housekeeping itself
-ACTOR_ANONYMOUS = 'anonymous'  # a sign-in that was refused
+ACTOR_ANONYMOUS = 'anonymous'  # no account: a refused sign-in, the first user, a password reset
 ACTOR_COMMAND = 'command'      # manage.py: not a person, and not the cron either
 
 # A header is written by whoever sends it. An address that does not fit is cut,
@@ -112,7 +112,12 @@ def actor(request=None):
     user = current_user(request)
     if user is not None:
         return user, ACTOR_USER
-    return None, ACTOR_CRON
+    # Only the scheduler's own URLs are the scheduler: a page asked without
+    # an account (creating the first user, a password reset) is somebody
+    # anonymous, and recorded as such
+    if (getattr(request, 'path', '') or '').startswith('/cron/'):
+        return None, ACTOR_CRON
+    return None, ACTOR_ANONYMOUS
 
 
 def user_name(user):

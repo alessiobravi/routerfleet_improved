@@ -123,7 +123,14 @@ locations() {
 EOF
 }
 
-tls_server() {  # $1 certificate, $2 key
+# Browsers keep to HTTPS for the name for a year: only with a certificate they
+# trust (Let's Encrypt once issued, an uploaded one) - never self-signed
+hsts_line() {
+    [ "$1" = "hsts" ] && echo '    add_header Strict-Transport-Security "max-age=31536000" always;'
+    return 0
+}
+
+tls_server() {  # $1 certificate, $2 key, $3 "hsts" for a certificate browsers trust
     cat <<EOF
 server {
     server_tokens off;
@@ -142,6 +149,7 @@ server {
     ssl_certificate     $1;
     ssl_certificate_key $2;
     ssl_protocols       TLSv1.2 TLSv1.3;
+$(hsts_line "$3")
 
 $(locations https)
 }
@@ -224,12 +232,12 @@ render() {  # writes the configuration for the current mode to stdout
         custom)
             [ -f "$CERT_DIR/custom/fullchain.pem" ] && [ -f "$CERT_DIR/custom/privkey.pem" ] || {
                 echo "no uploaded certificate on the volume" >&2; return 1; }
-            tls_server "$CERT_DIR/custom/fullchain.pem" "$CERT_DIR/custom/privkey.pem"
+            tls_server "$CERT_DIR/custom/fullchain.pem" "$CERT_DIR/custom/privkey.pem" hsts
             ;;
         letsencrypt)
             # Until the certificate is issued, the self-signed one keeps HTTPS up
             if [ -f "$LE_LIVE/fullchain.pem" ] && [ -f "$LE_LIVE/privkey.pem" ]; then
-                tls_server "$LE_LIVE/fullchain.pem" "$LE_LIVE/privkey.pem"
+                tls_server "$LE_LIVE/fullchain.pem" "$LE_LIVE/privkey.pem" hsts
             else
                 tls_server "$CERT_DIR/nginx.pem" "$CERT_DIR/nginx.key"
             fi

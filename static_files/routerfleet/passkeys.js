@@ -52,8 +52,9 @@
         return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
     }
 
-    function register(name) {
-        return post('/user/settings/passkeys/options/').then(function (options) {
+    function register(name, password) {
+        // The password confirms it is the account's owner (a passkey signs in alone)
+        return post('/user/settings/passkeys/options/', {password: password || ''}).then(function (options) {
             options.challenge = toBuffer(options.challenge);
             options.user.id = toBuffer(options.user.id);
             (options.excludeCredentials || []).forEach(function (item) { item.id = toBuffer(item.id); });
