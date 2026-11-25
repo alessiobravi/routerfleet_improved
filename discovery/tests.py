@@ -26,7 +26,7 @@ class NeighbourParserTests(TestCase):
     def test_routeros(self):
         first, second = sample('routeros_terse.txt')
         self.assertEqual((first['identity'], first['address'], first['mac'], first['model'], first['version']),
-                         ('AP02-INTSEC-CDC', '192.168.88.12', '48:a9:8a:01:02:03', 'cAP ax', '7.16.2 (stable)'))
+                         ('AP02-EXAMPLE', '192.168.88.12', '48:a9:8a:01:02:03', 'cAP ax', '7.16.2 (stable)'))
         self.assertEqual(first['protocols'], {'cdp', 'lldp', 'mndp'})
         self.assertEqual((second['identity'], second['remote_interface']), ('core-sw-01', 'GigabitEthernet0/24'))
 
@@ -45,7 +45,7 @@ class NeighbourParserTests(TestCase):
                          ('S5735-core', '10.30.0.2', '00:e0:fc:12:34:56', 'GigabitEthernet0/0/1'))
         self.assertEqual([r['identity'] for r in sample('junos_lldp.txt')], ['branch-hap', 'core-sw-02'])
         lldpd, = sample('lldpcli.txt')
-        self.assertEqual((lldpd['identity'], lldpd['address']), ('AP02-INTSEC-CDC', '192.168.88.12'))
+        self.assertEqual((lldpd['identity'], lldpd['address']), ('AP02-EXAMPLE', '192.168.88.12'))
 
     def test_nothing_recognised_finds_nothing(self):
         self.assertEqual(parsers.parse('bash: lldpcli: not found'), [])
@@ -81,19 +81,19 @@ class DiscoveredPageTests(TestCase):
     def test_new_and_known_and_one_click_add(self):
         self.client.force_login(make_user(30))
         page = self.client.get('/router/discovered/').content.decode()
-        self.assertIn('AP02-INTSEC-CDC', page)
+        self.assertIn('AP02-EXAMPLE', page)
         self.assertIn('Already in RouterFleet', page)
-        device = DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC')
+        device = DiscoveredDevice.objects.get(identity='AP02-EXAMPLE')
         form = self.client.get(f'/router/manage/?discovered={device.uuid}').content.decode()
-        self.assertIn('value="AP02-INTSEC-CDC"', form)
+        self.assertIn('value="AP02-EXAMPLE"', form)
         self.assertIn('value="192.168.88.12"', form)
         self.assertRegex(form, r'<option value="routeros"[^>]*selected')
 
     def test_dismissed_and_restored(self):
         self.client.force_login(make_user(30))
-        device = DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC')
+        device = DiscoveredDevice.objects.get(identity='AP02-EXAMPLE')
         self.client.post('/router/discovered/', {'action': 'dismiss', 'uuid': str(device.uuid)})
-        self.assertNotIn('AP02-INTSEC-CDC', self.client.get('/router/discovered/').content.decode().split('Already in RouterFleet')[0])
+        self.assertNotIn('AP02-EXAMPLE', self.client.get('/router/discovered/').content.decode().split('Already in RouterFleet')[0])
         self.client.post('/router/discovered/', {'action': 'restore', 'uuid': str(device.uuid)})
         self.assertFalse(DiscoveredDevice.objects.get(pk=device.pk).dismissed)
 
@@ -154,7 +154,7 @@ class ReadNeighboursTests(TestCase):
         session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(return_value=output)), None)
         self.assertEqual(read_neighbours(session, router), 2)
         session.exec_command.assert_called_once_with('/ip neighbor print terse')
-        self.assertEqual(DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC').seen_by_router, router)
+        self.assertEqual(DiscoveredDevice.objects.get(identity='AP02-EXAMPLE').seen_by_router, router)
 
 
 class DiscoverAdjacentTests(TestCase):
@@ -217,7 +217,7 @@ class MoreVendorsTests(TestCase):
     def test_junos_detail(self):
         record, = sample('junos_detail.txt')
         self.assertEqual((record['identity'], record['address'], record['mac'], record['interface']),
-                         ('bng-nw6moj.juniper.net', '10.204.39.232', '88:e0:f3:1f:14:e0', 'ge-0/0/8'))
+                         ('edge-junos-01.example.net', '192.0.2.232', '00:00:5e:00:53:e0', 'ge-0/0/8'))
 
     def test_junos_old_mac_spelling(self):
         self.assertEqual(parsers.normal_mac('00 19 bb 20 de 80'), '00:19:bb:20:de:80')
@@ -252,7 +252,7 @@ class ReachabilityAndWizardTests(TestCase):
 
     def setUp(self):
         store(sample('routeros_terse.txt'), seen_by='seer')
-        self.device = DiscoveredDevice.objects.get(identity='AP02-INTSEC-CDC')
+        self.device = DiscoveredDevice.objects.get(identity='AP02-EXAMPLE')
 
     def test_the_check_records_what_it_found(self):
         from unittest import mock
@@ -275,7 +275,7 @@ class ReachabilityAndWizardTests(TestCase):
         self.client.force_login(make_user(50))
         url = f'/router/discovered/add/?uuid={self.device.uuid}'
         page = self.client.get(url).content.decode()
-        self.assertIn('value="AP02-INTSEC-CDC"', page)
+        self.assertIn('value="AP02-EXAMPLE"', page)
         self.assertIn('Test connection', page)
         response = self.client.post(url, {'name': 'ap02', 'router_type': 'routeros', 'username': 'rfbackup',
                                           'password': 'device-secret-1', 'port': '22', 'address': '10.66.66.66',
@@ -494,12 +494,12 @@ class DeviceDiscoveryTests(TestCase):
         self.assertEqual((run.kind, run.state), ('devices', 'done'))
         self.assertIn('read the neighbour tables (LLDP, CDP, MNDP) of mt2', texts[0])
         self.assertIn('Connecting to mt2 (192.0.2.2)', texts[1])
-        self.assertTrue(any(t.startswith('mt2 reports AP02-INTSEC-CDC') for t in texts), texts)
+        self.assertTrue(any(t.startswith('mt2 reports AP02-EXAMPLE') for t in texts), texts)
         self.assertIn('Finished: 2 neighbours reported', texts[-1])
         page = self.client.get('/discovery/')
         self.assertIn('Last discovery - neighbour tables', page.content.decode())
         self.assertEqual(sorted(r['device'].identity for r in page.context['live']['found']),
-                         ['AP02-INTSEC-CDC', 'core-sw-01'], 'what was found is on the page')
+                         ['AP02-EXAMPLE', 'core-sw-01'], 'what was found is on the page')
         self.assertIn('Found in this discovery - 2', page.content.decode())
 
     def test_a_device_that_does_not_answer_is_in_the_timeline_and_the_others_go_on(self):

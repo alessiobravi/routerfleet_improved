@@ -13,6 +13,13 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.37.2] - 2026-11-25
+
+### Changed
+- The discovery test samples use documentation values only: neutral device
+  names, addresses from 192.0.2.0/24 and MAC addresses from the range reserved
+  for documentation.
+
 ## [0.37.1] - 2026-11-25
 
 ### Fixed
