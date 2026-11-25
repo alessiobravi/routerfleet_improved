@@ -29,7 +29,7 @@ if [[ "${DATABASE_ENGINE,,}" == "sqlite" ]]; then
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': '/var/lib/routerfleet_sqlite/routerfleet-db.sqlite3',
             # A write waits for another to finish instead of failing at once
-            # ("database is locked"): five workers, the scheduler and monitoring
+            # with database-is-locked: five workers, the scheduler and monitoring
             'OPTIONS': {'timeout': 20},
         }
     }"

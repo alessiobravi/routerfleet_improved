@@ -88,3 +88,48 @@ class OwnNetworksGuardTests(SimpleTestCase):
             handle.write('fe800000000000000000000000000000 40 00000000000000000000000000000000 00 00000000000000000000000000000000 00000100 00000001 00000000 00000001 eth0\n')
         networks = network.attached_networks(route_table='/no/such/route', ipv6_route_table=handle.name)
         self.assertEqual([str(n) for n in networks], ['fd00:dead:beef::/64'])
+
+
+
+PYSTR = r"""pystr() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"; }"""
+
+
+class EntrypointSettingsTests(SimpleTestCase):
+    """The database settings entrypoint.sh writes are valid Python, for SQLite
+    and PostgreSQL - a stray quote in a comment inside the shell string once
+    broke every SQLite start (0.40.0, caught by CI)."""
+
+    def test_the_generated_database_settings_are_python(self):
+        import os
+        import subprocess
+        script = (ROOT / 'entrypoint.sh').read_text()
+        start = script.index('if [[ "${DATABASE_ENGINE,,}" == "sqlite" ]]; then')
+        end = script.index('DEBUG_VALUE="False"')
+        program = PYSTR + '\n' + script[start:end] + '\nprintf "%s" "$DATABASES_CONFIG"'
+        # The image runs bash 5 (lowercase expansion); an old macOS bash can not
+        bash = next((path for path in ('/opt/homebrew/bin/bash', '/usr/local/bin/bash', '/bin/bash', '/usr/bin/bash')
+                     if os.path.exists(path) and subprocess.run([path, '-c', 'x=A; : ${x,,}'],
+                                                                 capture_output=True).returncode == 0), None)
+        if bash is None:
+            self.skipTest('no bash 4 or later here')
+        for engine, compose in (('sqlite', 'no-postgres'), ('postgres', 'with-postgres')):
+            env = dict(os.environ, DATABASE_ENGINE=engine, COMPOSE_TYPE=compose, POSTGRES_DB='rf',
+                       POSTGRES_USER='rf', POSTGRES_PASSWORD="p'w\"x")
+            env.pop('POSTGRES_HOST', None)
+            result = subprocess.run([bash, '-c', program], capture_output=True, text=True, env=env)
+            with self.subTest(engine=engine):
+                self.assertEqual(result.stderr, '')
+                namespace = {}
+                exec(compile(result.stdout, 'settings', 'exec'), namespace)   # nosec - our own generated settings
+                self.assertIn('default', namespace['DATABASES'])
+
+    def test_no_stray_double_quote_inside_a_settings_block(self):
+        # Checked without bash too: a double quote inside DATABASES_CONFIG="..."
+        # ends the shell string early, and bash runs the rest as a command
+        import re
+        script = (ROOT / 'entrypoint.sh').read_text()
+        blocks = re.findall(r'DATABASES_CONFIG="(.*?)\n    }"', script, re.S)
+        self.assertEqual(len(blocks), 2, 'the SQLite and the PostgreSQL block')
+        for block in blocks:
+            outside_substitutions = re.sub(r'\$\([^)]*\)', '', block)
+            self.assertNotIn('"', outside_substitutions, block)

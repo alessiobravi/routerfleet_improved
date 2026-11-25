@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.40.1] - 2026-11-25
+
+### Fixed
+- **SQLite installations did not start**: a comment added in 0.40.0 inside
+  the SQLite settings of the start-up script held a double quote, which ended
+  the shell string. Caught by the release checks - 0.40.0 was not published;
+  its changes ship in this release. Two tests now check the settings the
+  script writes.
+
 ## [0.40.0] - 2026-11-25
 
 The findings of a second full review, fixed. Upgrading needs nothing; the
