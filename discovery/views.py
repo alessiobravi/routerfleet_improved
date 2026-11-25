@@ -86,7 +86,8 @@ def view_discovery(request):
     busy = run if run and run.active else None
     return render(request, 'discovery/discovery.html', {
         'page_title': 'Device Discovery', 'listener': listener_state(), 'live': runs.page(run), 'busy': busy,
-        'window_minutes': WINDOW_SECONDS // 60, 'capable': neighbour_capable(), 'most_devices': MOST_DEVICES})
+        'window_minutes': WINDOW_SECONDS // 60, 'capable': neighbour_capable(), 'most_devices': MOST_DEVICES,
+        'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists()})
 
 
 @login_required

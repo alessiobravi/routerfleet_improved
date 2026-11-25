@@ -74,11 +74,16 @@ and refreshes itself every few seconds - there is nothing to click again:
 
 The timeline below the steps says what happened when: the request, the
 listener starting, **every device heard** - over which protocol, and whether
-it is *already in RouterFleet* (as which device) or **new**, listed under
-*Not in RouterFleet yet* - and, for a new one, whether SSH answers from
-RouterFleet's host, so it can be added. A listener that does not start within
-30 seconds, or a window in which nothing was heard, is said so, with the
-likely reason. The last discovery stays on the page for an hour. The
+it is *already in RouterFleet* (as which device) or **new** - and, for a new
+one, whether SSH answers from RouterFleet's host, so it can be added. A
+listener that does not start within 30 seconds, or a window in which nothing
+was heard, is said so, with the likely reason.
+
+Under the timeline, **Found in this discovery** lists what this discovery
+found, new devices first: a reachable one is added right there with **Add
+device**; an unreachable one says why. Devices Manager → Discovered keeps
+everything found by every discovery. The last discovery stays on the page for
+an hour. The
 scheduler moves a discovery on too, so its timeline is complete even when
 nobody watched.
 

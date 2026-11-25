@@ -13,6 +13,16 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.37.1] - 2026-11-25
+
+### Fixed
+- **Device Discovery showed what a discovery found only on another page**: the
+  timeline said a device was "listed under Not in RouterFleet yet", a section
+  of Devices Manager → Discovered, so the devices seemed missing. Under the
+  timeline, **Found in this discovery** now lists them - new ones first, with
+  their reachability and **Add device** for a reachable one - and the timeline
+  points there.
+
 ## [0.37.0] - 2026-11-25
 
 ### Changed

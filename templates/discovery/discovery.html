@@ -71,6 +71,32 @@
     {% endif %}
 
 
-    <div class="rf-set-foot">What is found is listed in <a href="/router/discovered/">Devices Manager → Discovered</a>, where a reachable device is added in one click.</div>
+    {% if live.found %}
+    <div class="rf-set-title">Found in this discovery - {{ live.found|length }}</div>
+    <div class="rf-set-group">
+        {% for row in live.found %}
+        {% if row.router %}
+        <a class="rf-set-row" href="/router/details/?uuid={{ row.router.uuid }}">
+            <span class="rf-set-icon green"><i class="fas fa-check"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.router.name }} <span class="rf-set-pill">in RouterFleet</span></span>
+                <span class="rf-set-sub d-block">{{ row.device.address }} · {{ row.protocols }} · seen by {{ row.device.seen_by }}</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% else %}
+        <div class="rf-set-row">
+            <span class="rf-set-icon blue"><i class="fas fa-satellite-dish"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.device.identity|default:row.device.address|default:row.device.mac }} <span class="rf-set-pill on">new</span></span>
+                <span class="rf-set-sub d-block">{% if row.device.address %}{{ row.device.address }} · {% endif %}{{ row.device.platform|default:"unknown platform"|truncatechars:50 }} · {{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %}</span>
+                {% if row.device.reachable %}<span class="rf-set-sub d-block">{{ 'ok'|state_icon }} Reachable from RouterFleet's host - {{ row.device.reachable_detail }}</span>
+                {% elif not row.device.address %}<span class="rf-set-sub d-block">{{ 'info'|state_icon }} No IP address announced: can not be added from here</span>
+                {% elif row.device.reachable is False %}<span class="rf-unreachable"><span class="d-block"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i><b>Not reachable from RouterFleet's host</b> - {{ row.device.reachable_detail }}.</span><span class="d-block">It can be added once SSH answers from RouterFleet's host - <a href="/router/discovered/">check again from the list</a>.</span></span>
+                {% else %}<span class="rf-set-sub d-block">{{ 'wait'|state_icon }} Reachability being checked</span>{% endif %}</span>
+            {% if row.device.reachable and can_add %}<a class="btn btn-sm btn-outline-primary" href="/router/discovered/add/?uuid={{ row.device.uuid }}"><i class="fas fa-wand-magic-sparkles me-1"></i>Add device</a>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="rf-set-foot">Everything discovered so far, from every discovery, is in <a href="/router/discovered/">Devices Manager → Discovered</a>: add, check again or hide devices there.</div>
 </div>
 {% endblock %}

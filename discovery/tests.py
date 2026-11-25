@@ -408,6 +408,10 @@ class DiscoveryRunTests(TestCase):
         self.assertTrue(any('STA01: SSH answers' in e for e in events))
         self.assertFalse(any('heard-last-week' in e for e in events), 'heard before this run: not in it')
         self.assertIn('2 devices heard so far', page)
+        # What it found is on this page too: new first, then the known one
+        found = [r['device'].identity for r in self.client.get('/discovery/').context['live']['found']]
+        self.assertEqual(found, ['STA01', 'gw'])
+        self.assertIn('Found in this discovery - 2', page)
         # The window ends: finished, with a summary; the page stops refreshing
         from .models import DiscoveryRun
         DiscoveryRun.objects.update(until=timezone.now() - timezone.timedelta(seconds=1))
@@ -492,8 +496,11 @@ class DeviceDiscoveryTests(TestCase):
         self.assertIn('Connecting to mt2 (192.0.2.2)', texts[1])
         self.assertTrue(any(t.startswith('mt2 reports AP02-INTSEC-CDC') for t in texts), texts)
         self.assertIn('Finished: 2 neighbours reported', texts[-1])
-        page = self.client.get('/discovery/').content.decode()
-        self.assertIn('Last discovery - neighbour tables', page)
+        page = self.client.get('/discovery/')
+        self.assertIn('Last discovery - neighbour tables', page.content.decode())
+        self.assertEqual(sorted(r['device'].identity for r in page.context['live']['found']),
+                         ['AP02-INTSEC-CDC', 'core-sw-01'], 'what was found is on the page')
+        self.assertIn('Found in this discovery - 2', page.content.decode())
 
     def test_a_device_that_does_not_answer_is_in_the_timeline_and_the_others_go_on(self):
         from unittest import mock

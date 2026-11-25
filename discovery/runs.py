@@ -67,7 +67,7 @@ def _heard(run, device, routers, check_reach=True, via=''):
     if router:
         _event(run, f'{how} - already in RouterFleet as {router.name}.', 'info')
         return
-    _event(run, f'{how} - new: listed under "Not in RouterFleet yet".', 'ok')
+    _event(run, f'{how} - new: see "Found in this discovery" below.', 'ok')
     if check_reach and is_ip(device.address):
         check([device])
         device.refresh_from_db()
@@ -225,4 +225,18 @@ def page(run):
     timeline = [{'when': parse_datetime(e['when']), 'text': e['text'], 'state': e.get('state', 'info')}
                 for e in reversed(run.events)]
     return {'run': run, 'left': left, 'percent': percent, 'steps': steps, 'timeline': timeline,
-            'heard': len(run.heard)}
+            'heard': len(run.heard), 'found': found(run)}
+
+
+def found(run):
+    """The devices this discovery found, new ones first: what the page shows
+    under "Found in this discovery"."""
+    from router_manager.models import Router
+    from .views import guess_type, known_router
+    routers = list(Router.objects.only('uuid', 'name', 'address'))
+    rows = []
+    for device in DiscoveredDevice.objects.filter(key__in=run.heard):
+        rows.append({'device': device, 'router': known_router(device, routers), 'type': guess_type(device),
+                     'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)})
+    rows.sort(key=lambda r: (r['router'] is not None, (r['device'].identity or r['device'].address).lower()))
+    return rows
