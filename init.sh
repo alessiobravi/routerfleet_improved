@@ -9,7 +9,8 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 # IPv4 and IPv6: where the container has IPv6, one socket on [::] serves both
 # (Linux accepts IPv4 on it, as ::ffff:a.b.c.d); without IPv6, 0.0.0.0
-if [ -s /proc/net/if_inet6 ]; then LISTEN_HOST='::'; BIND='[::]:8001'; else LISTEN_HOST='0.0.0.0'; BIND='0.0.0.0:8001'; fi
+# (/proc files report size 0, so -s would never be true: read it)
+if grep -q . /proc/net/if_inet6 2>/dev/null; then LISTEN_HOST='::'; BIND='[::]:8001'; else LISTEN_HOST='0.0.0.0'; BIND='0.0.0.0:8001'; fi
 
 # The device console's WebSocket (routerfleet/asgi.py), behind nginx on
 # /console/ws/. A browser that disappears without closing the connection

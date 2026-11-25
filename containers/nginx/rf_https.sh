@@ -161,7 +161,8 @@ selfsigned_for() {  # a self-signed certificate for a domain, made once
 # IPv6 beside IPv4, where the container has it: every listen line gets its
 # [::] twin (nginx would refuse to start on [::] without IPv6)
 with_ipv6() {
-    if [ -s /proc/net/if_inet6 ]; then
+    # /proc files report size 0, so -s would never be true: read it
+    if grep -q . /proc/net/if_inet6 2>/dev/null; then
         awk '{ print } /^[ \t]*listen [0-9]+/ { line = $0; sub(/listen /, "listen [::]:", line); print line }'
     else
         cat

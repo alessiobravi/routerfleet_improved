@@ -13,7 +13,12 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 class ServicesListenOnBothTests(SimpleTestCase):
     def test_gunicorn_and_uvicorn_take_ipv6_where_there_is_some(self):
         init = (ROOT / 'init.sh').read_text()
-        self.assertIn("if [ -s /proc/net/if_inet6 ]; then LISTEN_HOST='::'; BIND='[::]:8001'", init)
+        self.assertIn("if grep -q . /proc/net/if_inet6 2>/dev/null; then LISTEN_HOST='::'; BIND='[::]:8001'", init)
+        # /proc files report size 0: a size test would never see IPv6
+        for path in ('init.sh', 'containers/nginx/rf_https.sh', 'containers/monitoring/listener.py'):
+            text = (ROOT / path).read_text()
+            self.assertNotIn('-s /proc/net/if_inet6', text, path)
+            self.assertNotIn("getsize('/proc/net/if_inet6')", text, path)
         self.assertIn('--bind "$BIND"', init)
         self.assertIn('--host "$LISTEN_HOST"', init)
 

@@ -13,6 +13,24 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.36.1] - 2026-11-25
+
+### Fixed
+- **IPv6 was never switched on inside the containers**: the check read the
+  size of `/proc/net/if_inet6`, and files under `/proc` always report size 0.
+  The application, the console server, nginx and the discovery listener now
+  read the file, so they listen on IPv6 beside IPv4 as 0.36.0 described. CI
+  now checks on the running stack that gunicorn is on `[::]` and nginx has its
+  `[::]` listens.
+
+### Documentation
+- Aligned with the features: HTTP access lists and banning in their own
+  section of Security (with the `http_access` command in Operations, a pointer
+  from HTTPS, the access check in the Architecture request path), dual stack
+  and the loopback port in Architecture and Monitoring, My Settings as it is
+  now (Security settings, Visualization options, Router address links, Email
+  notifications), System settings sections in Users, the README feature list.
+
 ## [0.36.0] - 2026-11-25
 
 ### Added

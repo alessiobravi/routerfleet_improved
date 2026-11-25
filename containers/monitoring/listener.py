@@ -192,12 +192,21 @@ def parse_frame(frame):
     return None
 
 
+def has_ipv6():
+    """Whether the host has IPv6 - read, not sized: /proc files report size 0."""
+    try:
+        with open('/proc/net/if_inet6') as source:
+            return bool(source.read(1))
+    except OSError:
+        return False
+
+
 def udp_sockets(port):
     """UDP sockets on this port: IPv4, and IPv6 (IPv6 only, beside it) where
     the host has IPv6."""
     socks = []
     families = [(socket.AF_INET, '')]
-    if os.path.isfile('/proc/net/if_inet6') and os.path.getsize('/proc/net/if_inet6') > 0:
+    if has_ipv6():
         families.append((socket.AF_INET6, '::'))
     for family, host in families:
         sock = socket.socket(family, socket.SOCK_DGRAM)

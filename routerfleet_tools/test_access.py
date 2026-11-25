@@ -176,3 +176,61 @@ class BanTests(TestCase):
         AddressBan.objects.create(address='203.0.113.9', until=row.updated + __import__('datetime').timedelta(hours=1))
         call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
         self.assertFalse(AddressBan.objects.exists())
+
+
+class EdgeTests(TestCase):
+    """The paths around the main ones: refused input, an unshared volume, the
+    command's listing, unusual addresses."""
+
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def post(self, **data):
+        return self.client.post('/system/https/access/', data, REMOTE_ADDR='192.0.2.50')
+
+    @override_settings(HTTPS_CERT_DIR='/nonexistent/routerfleet-test')
+    def test_refused_entries_unshared_volume_and_edges_of_the_order(self):
+        page = self.post(action='add', verdict='allow', network='example.net')
+        self.assertContains(page, 'Not added')
+        page = self.client.post('/system/https/access/', {'action': 'add', 'verdict': 'allow', 'network': '192.0.2.0/24'},
+                                REMOTE_ADDR='192.0.2.50', follow=True)
+        self.assertContains(page, 'Saved, not applied')
+        self.assertContains(page, 'The certificate volume is not shared')
+        first = AccessRule.objects.get()
+        self.post(action='up', uuid=str(first.uuid))       # already first: stays
+        self.post(action='down', uuid=str(first.uuid))     # already last: stays
+        self.assertEqual(AccessRule.objects.count(), 1)
+        # removing the only entry that allows me while the final policy denies: refused
+        HttpsSettings.objects.update(access_default='deny')
+        self.assertContains(self.post(action='delete', uuid=str(first.uuid)), 'Not changed')
+        self.post(action='bans', ban_failures='many', ban_window_minutes='0', ban_minutes='99999999')
+        row = HttpsSettings.load()
+        self.assertEqual((row.ban_failures, row.ban_window_minutes, row.ban_minutes, row.ban_enabled), (5, 1, 43200, False))
+
+    def test_the_command_lists_and_resets_without_a_shared_volume(self):
+        import io
+        from datetime import timedelta
+        from django.utils import timezone
+        AccessRule.objects.create(action='allow', network='192.0.2.0/24', note='office')
+        AddressBan.objects.create(address='203.0.113.9', failures=7, until=timezone.now() + timedelta(hours=1))
+        out = io.StringIO()
+        call_command('http_access', stdout=out)
+        self.assertIn('1. allow 192.0.2.0/24  (office)', out.getvalue())
+        self.assertIn('Banned: 203.0.113.9', out.getvalue())
+        with override_settings(HTTPS_CERT_DIR='/nonexistent/routerfleet-test'):
+            out = io.StringIO()
+            call_command('http_access', '--reset', stdout=out)
+        self.assertIn('not shared', out.getvalue())
+
+    def test_unusual_addresses(self):
+        from . import bans
+        settings_row = HttpsSettings.load()
+        self.assertTrue(bans.never_banned('not an address', settings_row))
+        self.assertTrue(bans.never_banned('::', settings_row))
+        settings_row.mode, settings_row.trusted_proxies = 'proxy', '198.51.100.0/24'
+        self.assertTrue(bans.never_banned('198.51.100.3', settings_row))
+        self.assertFalse(bans.never_banned('203.0.113.1', settings_row))
+        self.assertFalse(bans.is_banned('garbage'))
+        self.assertIsNone(bans.consider('garbage'))
+        self.assertTrue(https.access_allows('garbage', [('deny', '0.0.0.0/0')], 'allow'))
+        self.assertFalse(https.access_allows('192.0.2.1', [('allow', 'bad net'), ('deny', '0.0.0.0/0')], 'allow'))

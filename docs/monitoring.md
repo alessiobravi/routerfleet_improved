@@ -46,6 +46,10 @@ sequenceDiagram
   every 10 minutes regardless.
 - **It monitors enabled devices with monitoring switched on.** Everything else
   is absent from the exported list.
+- **IPv4 and IPv6.** Devices are pinged at whichever address they have. The
+  container runs on the host's network - every right dropped but the raw
+  socket, for the [discovery listener](discovery.md) beside the pinger - and
+  reaches the application on the host's loopback, port 8001 (`MONITORING_PORT`).
 - **No key, no monitoring.** If `/app_secrets/monitoring_key` is missing or is
   not a valid UUID, the container logs the reason and exits rather than running
   blind.

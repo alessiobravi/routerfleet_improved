@@ -1,7 +1,10 @@
 # Architecture
 
-RouterFleet runs as five containers. Only nginx is published; everything else
-talks over the internal Compose network.
+RouterFleet runs as five containers. Only nginx is published to the network;
+the application's port 8001 is published on the host's loopback only
+(`127.0.0.1` and `::1`), for the monitoring container. Everything else talks
+over RouterFleet's own Compose network, which is dual stack: every container
+has an IPv4 and an IPv6 address, and every service listens on both.
 
 ```mermaid
 flowchart TB
@@ -39,11 +42,15 @@ flowchart TB
 
 ## The request path
 
-nginx does three distinct things with an incoming request:
+nginx first checks the address against the bans and the
+[HTTP access list](security.md#http-access-lists-and-banning), then does three
+distinct things with an incoming request:
 
 ```mermaid
 flowchart LR
-    req["Request"] --> dec{"Path"}
+    req["Request"] --> acl{"HTTP access list<br/>and bans"}
+    acl -->|"denied"| refused["403<br/>nothing served"]
+    acl -->|"allowed"| dec{"Path"}
     dec -->|"/static/*"| stat["Served from the<br/>static_volume"]
     dec -->|"/cron/*"| blocked["404<br/>never proxied"]
     dec -->|"everything else"| proxy["proxy_pass to<br/>routerfleet:8001"]

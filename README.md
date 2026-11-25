@@ -96,7 +96,7 @@ encrypted with.
   listener on RouterFleet's own LAN; added in one click.
   [More](docs/discovery.md)
 - **Monitoring** — an independent container pings the fleet and records
-  downtime; status changes raise notifications.
+  downtime; status changes raise notifications. [More](docs/monitoring.md)
 - **HTTPS** — Let's Encrypt with automatic renewal, your own certificate,
   self-signed, or behind a reverse proxy, chosen in System settings, with a
   live check of what passkeys need.
@@ -113,6 +113,12 @@ encrypted with.
   by field, in an append-only trail.
 - **Secrets encrypted at rest** — device passwords are stored with Fernet
   symmetric encryption, never in cleartext.
+- **HTTP access lists and banning** — allow and deny entries (IPv4 and IPv6),
+  checked in order, then a final policy; addresses that keep failing to sign
+  in are banned at nginx for a while, fail2ban-style, with the access list's
+  Allow entries never banned. [More](docs/security.md#http-access-lists-and-banning)
+- **Dual stack** — every container on IPv4 and IPv6, every service listening
+  on both; devices by IPv6 address too. [More](docs/installation.md#ipv4-and-ipv6)
 - **Hardened** — device SSH host keys are trusted on first use and checked on
   every connection, sign-in attempts are limited, and every action needs a POST
   with the CSRF token.

@@ -95,6 +95,17 @@ Or set `HTTPS_MODE_OVERRIDE=env` (or `selfsigned`) in `.env` and restart nginx
 (`docker compose up -d`): the override wins over System settings until it is
 removed.
 
+Shut out by the HTTP access list or a ban rather than by HTTPS?
+`docker compose exec routerfleet python manage.py http_access --reset` opens
+access again.
+
+## HTTP access
+
+Which addresses may reach the site at all - allow and deny entries, a final
+policy, and bans after failed sign-ins - is on its own page beside this one,
+*System settings → Security → HTTP access*, and applies in every mode above.
+See [HTTP access lists and banning](security.md#http-access-lists-and-banning).
+
 ## Compose files from before this page
 
 The page needs the certificate volume shared with the application. A compose

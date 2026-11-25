@@ -23,6 +23,18 @@ python manage.py schedule_defaults --reset                   # back to 03:00 / 7
 Intervals are written as `7d`, `24h` or `30m`; empty, `0`, `none`, `off` and
 `one time` all mean a single run.
 
+### `http_access`
+
+Shows the [HTTP access list](security.md#http-access-lists-and-banning), its
+final policy and the current bans; `--reset` removes every entry and every
+ban and sets the final policy to Allow - for when the web interface shut you
+out.
+
+```bash
+python manage.py http_access            # the list, the final policy, the bans
+python manage.py http_access --reset    # no entry, no ban, every address allowed
+```
+
 ### `prune_audit_log`
 
 The only way to remove audit entries. `--older-than` is a number of days and is
@@ -68,7 +80,7 @@ gathers what belongs to the whole installation, in collapsible sections:
 | Devices | device types, the firmware repository |
 | Display | default rows per table: what every list opens with, for everyone (10 until changed) |
 | Backups and jobs | backup profiles, Fleet Commander schedule defaults |
-| Security | HTTPS, updates |
+| Security | HTTPS, HTTP access (access list and banning after failed sign-ins), updates |
 
 Message Center shows the messages only. Configuration Managers still start
 and follow device updates from the router list and the device page.

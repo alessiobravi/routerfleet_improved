@@ -200,6 +200,63 @@ The limits are `LOGIN_LOCKOUT_ATTEMPTS`, `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` and
 `LOGIN_LOCKOUT_MINUTES` in `routerfleet/settings.py`;
 `LOGIN_LOCKOUT_ATTEMPTS = 0` turns it off.
 
+The lockout turns attempts away; it does not ban. Addresses that keep
+failing are also [banned at nginx](#banning-after-failed-sign-ins) - 5
+failures in 10 minutes by default - and then get nothing at all.
+
+### Password reset
+
+When the [mail server](notifications.md#email) works, the sign-in page offers
+**Forgot your password?**: the user gives their username or email address and
+receives a link at the account's email address. The page answers the same
+whether an account matches or not, so it tells nobody which names or addresses
+exist. The link is valid for an hour and works once - it is bound to the
+current password - and using it does not sign anybody in: a second factor
+still applies at the next sign-in, and devices signed in with the old password
+sign in again. An address asking more than five times in 15 minutes is turned
+away for a while (counted per application worker). Without a working mail
+server the page does not exist; an administrator sets a new password in User
+Manager.
+
+## HTTP access lists and banning
+
+*System settings → Security → HTTP access* decides which addresses may reach
+the web interface, over HTTP and HTTPS, in every HTTPS mode: **allow** and
+**deny** entries - a single address or a network, IPv4 or IPv6 - checked **in
+order, the first match deciding**, then a **final policy** for every other
+address: **Allow** unless changed. nginx enforces it with its own `allow` and
+`deny`, which work exactly that way; Let's Encrypt's validation path stays
+open. Behind a reverse proxy the address is the client's, taken from the
+trusted proxies.
+
+A change that would shut out the administrator making it - by their address
+as nginx sees it - is refused. Locked out anyway (a new address, say)? On the
+host:
+
+```bash
+docker compose exec routerfleet python manage.py http_access          # shows the list
+docker compose exec routerfleet python manage.py http_access --reset  # no entry, Allow
+```
+
+The scheduler and monitoring talk to the application directly and are not
+affected; nor is SSH to the host.
+
+### Banning after failed sign-ins
+
+fail2ban's idea, built in - nothing to install on the host. On the same page:
+when one address fails to sign in **5 times within 10 minutes** (since its
+last successful sign-in; all three numbers can be changed), it is **banned for
+60 minutes**: nginx serves it nothing at all - the ban is checked before the
+access list - and the application refuses its sign-ins too. The ban ends by
+itself; *Banned now* lists the current ones with **Unban**, and
+`manage.py http_access --reset` lifts every ban.
+
+**Never banned:** an address an **Allow** entry of the access list matches -
+that is the whitelist - and loopback and the trusted proxies, since banning
+those would shut out everybody behind them. Banning can be switched off; the
+sign-in lockout (above) works beside it either way: it turns away the
+attempts, the ban shuts the address out of everything.
+
 ## Second factors and passkeys
 
 Each user can add a second step to signing in, in **My Settings → Security
@@ -448,58 +505,6 @@ switched on; idle, length and per-user limits; closed at once when the page
 closes and within seconds of signing out. Each session is in the change log;
 what is typed is not recorded. CI drives a real console session through nginx
 to an SSH server on every push.
-
-### Password reset
-
-When the [mail server](notifications.md#email) works, the sign-in page offers
-**Forgot your password?**: the user gives their username or email address and
-receives a link at the account's email address. The page answers the same
-whether an account matches or not, so it tells nobody which names or addresses
-exist. The link is valid for an hour and works once - it is bound to the
-current password - and using it does not sign anybody in: a second factor
-still applies at the next sign-in, and devices signed in with the old password
-sign in again. An address asking more than five times in 15 minutes is turned
-away for a while (counted per application worker). Without a working mail
-server the page does not exist; an administrator sets a new password in User
-Manager.
-
-### HTTP access lists
-
-*System settings → Security → HTTP access* decides which addresses may reach
-the web interface, over HTTP and HTTPS, in every HTTPS mode: **allow** and
-**deny** entries - a single address or a network, IPv4 or IPv6 - checked **in
-order, the first match deciding**, then a **final policy** for every other
-address: **Allow** unless changed. nginx enforces it with its own `allow` and
-`deny`, which work exactly that way; Let's Encrypt's validation path stays
-open. Behind a reverse proxy the address is the client's, taken from the
-trusted proxies.
-
-A change that would shut out the administrator making it - by their address
-as nginx sees it - is refused. Locked out anyway (a new address, say)? On the
-host:
-
-```bash
-docker compose exec routerfleet python manage.py http_access          # shows the list
-docker compose exec routerfleet python manage.py http_access --reset  # no entry, Allow
-```
-
-The scheduler and monitoring talk to the application directly and are not
-affected; nor is SSH to the host.
-
-### Banning after failed sign-ins
-
-fail2ban's idea, built in - nothing to install on the host. On the same page:
-when one address fails to sign in **5 times within 10 minutes** (since its
-last successful sign-in; all three numbers can be changed), it is **banned for
-60 minutes**: nginx serves it nothing at all - the ban is checked before the
-access list - and the application refuses its sign-ins too. The ban ends by
-itself; *Banned now* lists the current ones with **Unban**, and
-`manage.py http_access --reset` lifts every ban.
-
-**Never banned:** an address an **Allow** entry of the access list matches -
-that is the whitelist - and loopback and the trusted proxies, since banning
-those would shut out everybody behind them. Banning can be switched off; the
-sign-in lockout (below) works beside it either way.
 
 ### How long a sign-in lasts
 

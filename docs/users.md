@@ -42,11 +42,11 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | Users | List, create, edit | 50 |
 | Import tool | All of it | 50 |
 | Tools | Backup clean-up, export of the latest backups | 50 |
-| System settings | All of System settings - administrators only: Media and messaging, Display (default rows per table) | 50 |
+| System settings | All of System settings - administrators only: Media and messaging, Devices, Display (default rows per table), Backups and jobs, Security | 50 |
 | | [Firmware repository](firmware.md): upload, switch off, delete | 50 |
 | Firmware updates | Start and follow updates of devices (the arrows in the router list and on the device page), abort a rollout | 40 |
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
-| | HTTPS, [Updates](updating.md) (the update check) | 50 |
+| | HTTPS, [HTTP access and banning](security.md#http-access-lists-and-banning), [Updates](updating.md) (the update check) | 50 |
 
 ## User details
 
@@ -61,15 +61,25 @@ is given level **50**. After that, accounts are created from the User Manager.
 
 ## Per-user settings
 
-**My Settings** (the gear icon, top right) holds preferences a person sets for
-themselves rather than permissions:
+**My Settings** (the gear icon, top right) holds what a person sets for
+themselves rather than permissions. At the top: their username, level and
+email address. Below, in collapsible sections:
 
-- **Address link behaviour** — what clicking a device's address does: nothing,
+- **Security settings** — the authenticator app, their own password, passkeys
+  (greyed out, with the reason, where the installation's HTTPS does not allow
+  them) and the **session expiration time**: how long a sign-in lasts without
+  use, 24 hours unless changed. See [Security](security.md#second-factors-and-passkeys).
+- **Visualization options** — light, dark or automatic.
+- **Router address links** — what clicking a device's address does: nothing,
   SSH, Winbox, or a hover menu with both. See
   [Devices](devices.md#address-links).
+- **Email notifications** — the email address (also where a password reset
+  link goes) and which notifications to receive; greyed out until an
+  administrator has set up a working mail server.
 
-This setting is deliberately excluded from the audit log, since it grants
-nothing.
+The audit log records the password, the email address and second factors
+changing; the address-link and session-length choices are deliberately left
+out, since they grant nothing.
 
 ## Accounts in the audit log
 
