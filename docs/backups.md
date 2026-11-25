@@ -82,6 +82,16 @@ all*; a day or *the last 24 hours* from the status page stays applied while
 you choose devices. It reads only the fields it shows, so it stays fast with
 any number of backups.
 
+## Backup profiles
+
+*Backup Profiles* lists the profiles on the left - how many devices use each,
+which schedules it runs, a warning sign when it needs attention. The chosen
+profile on the right says it in words: daily on which days and at what hour,
+weekly, monthly, each with how long it is kept; how long a *Back up now* is
+kept; the retries; whether unchanged backups are stored again; whether
+anything is deleted while a device keeps failing; the export options; and the
+devices using it. *Edit* opens the profile's settings.
+
 ## From a profile to a stored backup
 
 ```mermaid

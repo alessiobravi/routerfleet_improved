@@ -1,26 +1,20 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 {% load static %}
 {% load router_tags %}
 
-{% block content %}
-<div id="router-list-page" class="rf-pane-page" data-last-status-change="{{ last_status_change_timestamp }}"
-     data-group="{{ filter_group.uuid|default_if_none:'' }}">
-    <div class="rf-page-head">
-        <div><h1>Devices</h1>
-            <div class="rf-page-sub">{{ router_list|length }} device{{ router_list|length|pluralize }}{% if state_label %} · {{ state_label }}{% elif filter_group %} in {{ filter_group.name }}{% endif %}</div></div>
-        <div class="rf-page-actions">
-            {% if can_edit %}<a href="/router/import_tool/" class="btn btn-outline-secondary btn-sm">Import</a>{% endif %}
-            <button type="button" id="export-csv" class="btn btn-outline-secondary btn-sm" title="The devices the list shows, every field">Export CSV</button>
-            {% if can_edit %}<a href="/router/manage/" class="btn btn-primary btn-sm">Add device</a>{% endif %}
-        </div>
-    </div>
-    {% include 'router_manager/router_nav_tabs.html' %}
-    {% if state_label %}
+{% block pane_attrs %}id="router-list-page" data-last-status-change="{{ last_status_change_timestamp }}" data-group="{{ filter_group.uuid|default_if_none:'' }}"{% endblock %}
+{% block pane_sub %}{{ router_list|length }} device{{ router_list|length|pluralize }}{% if state_label %} · {{ state_label }}{% elif filter_group %} in {{ filter_group.name }}{% endif %}{% endblock %}
+{% block pane_actions %}
+    {% if can_edit %}<a href="/router/import_tool/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-import me-1" aria-hidden="true"></i>Import</a>{% endif %}
+    <button type="button" id="export-csv" class="btn btn-outline-secondary btn-sm" title="The devices the list shows, every field"><i class="fas fa-file-csv me-1" aria-hidden="true"></i>Export CSV</button>
+    {% if can_edit %}<a href="/router/manage/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add device</a>{% endif %}
+{% endblock %}
+{% block pane_tabs %}{% include 'router_manager/router_nav_tabs.html' %}{% endblock %}
+{% block pane_notices %}{% if state_label %}
     <div class="rf-notice"><span>Showing only: <b>{{ state_label }}</b>, from the status page</span><a href="/router/list/?filter_group=all">Show all</a></div>
-    {% endif %}
+{% endif %}{% endblock %}
 
-    <div class="rf-split">
-        <div class="rf-split-list">
+{% block pane_list %}
             <div class="rf-search"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
                 <input type="search" id="device-search" placeholder="Search name, address, type, version, group" aria-label="Search the devices"
                        title="text finds it, !text leaves it out, ^pattern is a regular expression"></div>
@@ -61,10 +55,10 @@
             </div>
             <div class="rf-list" id="device-list" role="list">
                 {% for router in router_list %}
-                {% with info=router.routerinformation status=router.routerstatus version=router.routerinformation|os_version_state %}
+                {% with info=router.routerinformation status=router.routerstatus version=router.routerinformation|os_version_state state=router|device_state %}
                 <div class="rf-li{% if inspector and inspector.router.pk == router.pk %} on{% endif %}{% if not router.enabled %} rf-li-off{% endif %}" role="listitem"
                      data-uuid="{{ router.uuid }}"
-                     data-state="{% if not router.enabled %}disabled{% elif not router.monitoring %}unmonitored{% elif status.status_online %}online{% else %}offline{% endif %}"
+                     data-state="{{ state.key }}"
                      data-flags="{% if router.is_managed and status.last_backup_failed %} backup-failed{% endif %}{% if router.is_managed and version.css_class == 'text-danger' %} update{% endif %}"
                      data-search="{{ router.name }} {{ router.address }} {{ router.get_router_type_display }} {{ info.os_version|default_if_none:'' }} {{ info.model_name|default_if_none:'' }}{% for group in router.routergroup_set.all %} {{ group.name }}{% endfor %}"
                      data-csv-type="{{ router.get_router_type_display }}" data-csv-address="{{ router.address }}"
@@ -81,8 +75,7 @@
                         <span class="rf-li-sub"><span class="rf-mono">{{ router.address }}</span> · {{ router.get_router_type_display }}</span>
                     </a>
                     <span class="rf-li-marks">{% if router.is_managed and version.css_class == 'text-danger' %}<i class="fas fa-arrow-alt-circle-up rf-up-os" role="img" title="{{ version.title }}" aria-label="System update available"></i>{% endif %}{% if router.is_managed and info|bootloader_behind %}<i class="fas fa-arrow-alt-circle-up rf-up-boot" role="img" title="Bootloader firmware {{ info.firmware_version }} - {{ info.firmware_available }} can be installed" aria-label="Bootloader update available"></i>{% endif %}</span>
-                    <span class="rf-dot {% if not router.enabled or not router.monitoring %}off{% elif status.status_online %}ok{% else %}bad{% endif %}" id="status-{{ router.uuid }}"
-                          title="{% if not router.enabled %}Disabled{% elif not router.monitoring %}Not monitored{% elif status.status_online %}Online{% else %}Offline{% endif %}"
+                    <span class="rf-dot {{ state.css }}" id="status-{{ router.uuid }}" title="{{ state.label }}"
                           data-monitored="{% if router.enabled and router.monitoring %}1{% endif %}"></span>
                 </div>
                 {% endwith %}
@@ -91,13 +84,11 @@
                 {% endfor %}
                 <div class="rf-empty d-none" id="device-none">No device matches.</div>
             </div>
-        </div>
-        <div class="rf-split-detail" id="rf-inspector">
-            {% if inspector %}{% include 'router_manager/router_inspector.html' %}{% endif %}
-        </div>
-    </div>
-</div>
 {% endblock %}
+
+{% block pane_detail_class %}{% endblock %}
+{% block pane_detail_attrs %}id="rf-inspector"{% endblock %}
+{% block pane_detail %}{% if inspector %}{% include 'router_manager/router_inspector.html' %}{% endif %}{% endblock %}
 
 {% block custom_page_scripts %}
     <script src="{% static 'routerfleet/router-list.js' %}"></script>

@@ -1,12 +1,11 @@
 """Device types as data: helpers, the shell session, the pages."""
-import json
 from unittest import mock
 
 from django.test import SimpleTestCase, TestCase
 
 from router_manager import device_types
-from router_manager.models import DeviceType, Router
-from routerfleet.testing import edit_type, make_router, make_user
+from router_manager.models import DeviceType
+from routerfleet.testing import make_router, make_user
 from routerlib import device_session
 
 
@@ -494,7 +493,7 @@ class HuaweiAndClassicIosFirmwareTests(TestCase):
     the way these vendors number them."""
 
     def reset_huawei(self):
-        from fleet_commander.models import Command, CommandVariant
+        from fleet_commander.models import CommandVariant
         from router_manager.models import DeviceType
         huawei = device_types.get('huawei-vrp')
         old = [r're:VRP \(R\) software, Version ([\d.]+(?: \([^)]+\))?)']

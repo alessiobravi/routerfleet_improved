@@ -13,7 +13,7 @@
     </div>
     <dl class="rf-facts">
         <dt>State</dt>
-        <dd>{% if not r.enabled %}<span class="rf-st off"><i></i>Disabled</span>{% elif not r.monitoring %}<span class="rf-st off"><i></i>Not monitored</span>{% elif status.status_online %}<span class="rf-st ok"><i></i>Online</span>{% else %}<span class="rf-st bad"><i></i>Offline</span>{% endif %}</dd>
+        <dd>{% with state=r|device_state %}<span class="rf-st {{ state.css }}"><i></i>{{ state.label }}</span>{% endwith %}</dd>
         <dt>Address</dt>
         <dd class="rf-mono">{% device_links r as links %}{% if inspector.address_link == 'none' or not r.username or not r.is_managed %}{{ r.address }}{% elif inspector.address_link == 'winbox' and links %}<a href="{{ links.0.1 }}">{{ r.address }}</a>{% else %}<a href="ssh://{{ r.username }}@{{ r.address|url_host }}:{{ r.port }}">{{ r.address }}</a>{% if inspector.address_link != 'ssh' %}{% for label, url in links %} <a class="rf-addr-link" href="{{ url }}">{{ label }}</a>{% endfor %}{% endif %}{% endif %}{% if r.port and r.port != 22 %}<span class="text-muted">:{{ r.port }}</span>{% endif %}</dd>
         {% if r.is_managed %}

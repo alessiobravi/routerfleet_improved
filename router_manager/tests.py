@@ -204,7 +204,7 @@ class ListAndDetailTests(TestCase):
         self.assertEqual(self.client.get('/router/inspect/?uuid=00000000-0000-0000-0000-000000000000').status_code, 404)
 
     def test_the_list_opens_on_the_default_group_as_documented(self):
-        inside, outside = make_router(name='inside'), make_router(name='outside')
+        inside, _outside = make_router(name="inside"), make_router(name="outside")
         make_group(routers=[inside], default_group=True)
         self.assertEqual(list(self.client.get('/router/list/').context['router_list']), [inside])
         self.assertEqual(len(self.client.get('/router/list/?filter_group=all').context['router_list']), 2)
@@ -1057,3 +1057,54 @@ class SSHKeyListTests(TestCase):
         viewer = self.client.get('/ssh_keys/')
         self.assertContains(viewer, 'fleet key')
         self.assertNotContains(viewer, 'Add an SSH key')
+
+
+class DeviceStateFilterTests(TestCase):
+    """One rule for a device's state, used by every list-and-detail page."""
+
+    def test_the_four_states(self):
+        from router_manager.templatetags.router_tags import device_state
+        router = make_router(name='st1')
+        RouterStatus.objects.filter(router=router).update(status_online=True)
+        router.refresh_from_db()
+        self.assertEqual(device_state(router)['key'], 'online')
+        RouterStatus.objects.filter(router=router).update(status_online=False)
+        router.refresh_from_db()
+        self.assertEqual(device_state(router), {'key': 'offline', 'css': 'bad', 'label': 'Offline'})
+        router.monitoring = False
+        self.assertEqual(device_state(router)['key'], 'unmonitored')
+        router.enabled = False
+        self.assertEqual(device_state(router)['key'], 'disabled', 'disabled wins over everything')
+        bare = make_router(name='st2', with_status=False)
+        self.assertEqual(device_state(Router.objects.get(pk=bare.pk))['key'], 'offline', 'no status row yet: offline')
+
+
+class GroupAndProfilePaneTests(TestCase):
+    """Device Groups and Backup Profiles as list and detail."""
+
+    def setUp(self):
+        self.client.force_login(make_user(40))
+
+    def test_groups(self):
+        a, b = make_router(name='g-a'), make_router(name='g-b')
+        first = make_group(name='Alpha', routers=[a, b])
+        second = make_group(name='Beta', routers=[a])
+        page = self.client.get('/router/group_list/')
+        self.assertEqual(page.context['chosen'], first, 'the first group, unless another is named')
+        self.assertEqual([r.name for r in page.context['members']], ['g-a', 'g-b'])
+        self.assertContains(page, f'/router/list/?filter_group={first.uuid}&amp;device={a.uuid}')
+        self.assertContains(page, 'Add group')
+        chosen = self.client.get(f'/router/group_list/?group={second.uuid}')
+        self.assertEqual(chosen.context['chosen'], second)
+        self.client.force_login(make_user(10))
+        self.assertNotContains(self.client.get('/router/group_list/'), 'Add group')
+
+    def test_profiles(self):
+        profile = make_profile(name='Nightly')
+        make_router(name='p-a', backup_profile=profile)
+        page = self.client.get(f'/backup/profile_list/?profile={profile.uuid}')
+        self.assertEqual(page.context['chosen'], profile)
+        self.assertEqual([r.name for r in page.context['members']], ['p-a'])
+        self.assertContains(page, 'every day at')
+        self.assertContains(page, 'Add profile')
+        self.assertContains(self.client.get('/backup/profile_list/'), 'default', msg_prefix='the default profile exists')

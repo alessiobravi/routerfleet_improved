@@ -21,10 +21,24 @@ from routerlib.actions import posted_action, posted_confirmation
 
 @login_required()
 def view_backup_profile_list(request):
-    default_backup_profile, _ = BackupProfile.objects.get_or_create(name='default')
+    """The profiles on the left, the chosen one on the right: when it backs
+    up, how long it keeps, its export options and the devices using it."""
+    from django.db.models import Count
+    BackupProfile.objects.get_or_create(name='default')
+    profiles = list(BackupProfile.objects.annotate(device_count=Count('router')).order_by('name'))
+    chosen = next((p for p in profiles if str(p.uuid) == request.GET.get('profile', '')), profiles[0] if profiles else None)
+    days = []
+    if chosen:
+        days = [label for field, label in (('monday', 'Mon'), ('tuesday', 'Tue'), ('wednesday', 'Wed'), ('thursday', 'Thu'),
+                                           ('friday', 'Fri'), ('saturday', 'Sat'), ('sunday', 'Sun'))
+                if getattr(chosen, f'daily_day_{field}')]
     context = {
-        'backup_profile_list': BackupProfile.objects.all().order_by('name'),
-        'page_title': 'Backup Profiles'
+        'backup_profile_list': profiles,
+        'chosen': chosen,
+        'daily_days': 'every day' if len(days) == 7 else ', '.join(days) or 'no day',
+        'members': list(chosen.router_set.select_related('routerstatus').order_by('name')) if chosen else [],
+        'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'page_title': 'Backup Profiles',
     }
     return render(request, 'backup/backup_profile_list.html', context)
 

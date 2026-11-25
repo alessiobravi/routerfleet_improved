@@ -1,54 +1,52 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 
+{% block pane_sub %}{{ router_group_list|length }} group{{ router_group_list|length|pluralize }}{% endblock %}
+{% block pane_actions %}{% if can_manage %}<a href="/router/manage_group/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add group</a>{% endif %}{% endblock %}
+{% block pane_tabs %}{% include 'router_manager/router_nav_tabs.html' %}{% endblock %}
 
-{% block content %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    {% include 'router_manager/router_nav_tabs.html' %}
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                <th>Name</th>
-                                <th>Default</th>
-                                <th>Internal Notes</th>
-                                <th>Devices</th>
-                                <th></th>
-                                </thead>
+{% block pane_list %}
+<div class="rf-list" role="list">
+    {% for group in router_group_list %}
+    <a class="rf-li{% if chosen and chosen.pk == group.pk %} on{% endif %}" role="listitem" href="?group={{ group.uuid }}">
+        <span class="rf-li-main"><span class="rf-li-name">{{ group.name }}</span>
+            <span class="rf-li-sub">{{ group.device_count }} device{{ group.device_count|pluralize }}{% if group.default_group %} · default{% endif %}</span></span>
+        {% if group.default_group %}<i class="fas fa-star rf-li-default" role="img" aria-label="Default group" title="The device list opens on this group"></i>{% endif %}
+    </a>
+    {% empty %}
+    <div class="rf-empty">No group yet.{% if can_manage %} <a href="/router/manage_group/">Add one</a>.{% endif %}</div>
+    {% endfor %}
+</div>
+{% endblock %}
 
-                                <tbody>
-                                {% for router_group in router_group_list %}
-                                    <tr>
-                                        <td>{{ router_group.name }}</td>
-                                        <td>{% if router_group.default_group %}<i class="fas fa-check"></i>{% endif %}
-                                        </td>
-                                        <td>{{ router_group.internal_notes }}</td>
-                                        <td>{{ router_group.routers.count }}</td>
-                                        <td class="min-width">
-                                            <a href="/router/manage_group/?uuid={{ router_group.uuid }}"><i
-                                                    class="fas fa-edit"></i></a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <a href="/router/manage_group/" class="btn btn-primary">Add Device Group</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+{% block pane_detail %}
+{% if chosen %}
+<div class="rf-insp-head">
+    <div class="rf-insp-title"><h2>{{ chosen.name }}</h2>
+        <div class="rf-page-sub">{% if chosen.default_group %}Default group - the device list opens on it{% else %}Device group{% endif %}</div></div>
+    <div class="rf-insp-actions">
+        <a class="btn btn-sm btn-outline-secondary" href="/router/list/?filter_group={{ chosen.uuid }}"><i class="fas fa-list me-1" aria-hidden="true"></i>Show in the device list</a>
+        {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="/router/manage_group/?uuid={{ chosen.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
     </div>
+</div>
+<dl class="rf-facts">
+    <dt>Devices</dt>
+    <dd>{{ members|length }}{% if members %} <span class="text-muted">· {{ online }} online{% if offline %}, <span class="text-danger">{{ offline }} offline</span>{% endif %}</span>{% endif %}</dd>
+    <dt>Schedules</dt>
+    <dd>{% for schedule in schedules %}<a href="/fleet_commander/schedule/manage/?uuid={{ schedule.uuid }}">{{ schedule.command.name }}</a>{% if not schedule.enabled %} <span class="text-muted">(off)</span>{% endif %}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-muted">None</span>{% endfor %}</dd>
+    {% if excluded_by %}<dt>Left out of</dt>
+    <dd>{% for schedule in excluded_by %}<a href="/fleet_commander/schedule/manage/?uuid={{ schedule.uuid }}">{{ schedule.command.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+    {% if chosen.internal_notes %}<dt>Notes</dt>
+    <dd class="rf-notes">{{ chosen.internal_notes|linebreaksbr }}</dd>{% endif %}
+</dl>
+<div class="rf-insp-section">Devices in this group</div>
+<div class="rf-member-list">
+    {% for router in members %}
+    {% with group_id=chosen.uuid|stringformat:"s" device_id=router.uuid|stringformat:"s" %}{% with href='/router/list/?filter_group='|add:group_id|add:'&device='|add:device_id %}{% include 'includes/device_row.html' %}{% endwith %}{% endwith %}
+    {% empty %}
+    <div class="rf-empty">No device in this group yet. Add devices from the device list: tick them, then Actions → Groups.</div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="rf-empty p-4">A group is a named set of devices: the device list filters by it, and command schedules run on it.{% if can_manage %} <a href="/router/manage_group/">Add the first group</a>.{% endif %}</div>
+{% endif %}
 {% endblock %}

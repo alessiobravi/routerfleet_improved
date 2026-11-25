@@ -13,6 +13,21 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.44.0] - 2026-11-26
+
+Includes 0.43.1, which was not released on its own.
+
+### Changed
+- **Device Groups and Backup Profiles in the list-and-detail style** of the
+  device and backup lists. Groups: the default one starred; the chosen group
+  with its devices online/offline, the command schedules using or excluding
+  it, its notes and its devices. Profiles: the chosen profile in words -
+  daily on which days and at what hour, weekly, monthly, retention, retries,
+  unchanged backups, export options - and the devices using it.
+- The four list-and-detail pages share one layout and one rule for a
+  device's state; their styles are one section of the stylesheet; unused
+  imports removed.
+
 ## [0.43.1] - 2026-11-26
 
 ### Changed

@@ -1,7 +1,5 @@
 from django.conf import settings
-import json
 import time
-from urllib.parse import unquote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -377,9 +375,24 @@ def view_manage_router(request):
 
 @login_required()
 def view_router_group_list(request):
+    """The groups on the left, the chosen one on the right: its notes, its
+    devices and the command schedules that use it."""
+    from django.db.models import Count
+    groups = list(RouterGroup.objects.annotate(device_count=Count('routers')).order_by('name'))
+    chosen = next((g for g in groups if str(g.uuid) == request.GET.get('group', '')), groups[0] if groups else None)
+    members = []
+    if chosen:
+        members = list(chosen.routers.select_related('routerstatus').order_by('name'))
     context = {
-        'router_group_list': RouterGroup.objects.all().order_by('name'),
-        'page_title': 'Device Group List',
+        'router_group_list': groups,
+        'chosen': chosen,
+        'members': members,
+        'online': sum(1 for r in members if r.enabled and r.monitoring and getattr(getattr(r, 'routerstatus', None), 'status_online', False)),
+        'offline': sum(1 for r in members if r.enabled and r.monitoring and not getattr(getattr(r, 'routerstatus', None), 'status_online', False)),
+        'schedules': list(chosen.command_schedules.select_related('command').order_by('command__name')) if chosen else [],
+        'excluded_by': list(chosen.excluded_command_schedules.select_related('command').order_by('command__name')) if chosen else [],
+        'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'page_title': 'Device Groups',
     }
     return render(request, 'router_manager/router_group_list.html', context=context)
 

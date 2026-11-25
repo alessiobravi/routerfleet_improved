@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% comment %}
+A list-and-detail page (Devices, Device Groups, Backup list, Backup Profiles):
+a header with the page's actions, its tabs, the list on the left and the
+chosen item on the right. A page fills the blocks it needs.
+{% endcomment %}
+{% block content %}
+<div class="rf-pane-page" {% block pane_attrs %}{% endblock %}>
+    <div class="rf-page-head">
+        <div><h1>{% block pane_title %}{{ page_title }}{% endblock %}</h1>
+            <div class="rf-page-sub">{% block pane_sub %}{% endblock %}</div></div>
+        <div class="rf-page-actions">{% block pane_actions %}{% endblock %}</div>
+    </div>
+    {% block pane_tabs %}{% endblock %}
+    {% block pane_notices %}{% endblock %}
+    <div class="rf-split">
+        <div class="rf-split-list">{% block pane_list %}{% endblock %}</div>
+        <div class="rf-split-detail {% block pane_detail_class %}rf-split-detail-always{% endblock %}" {% block pane_detail_attrs %}{% endblock %}>{% block pane_detail %}{% endblock %}</div>
+    </div>
+</div>
+{% endblock %}

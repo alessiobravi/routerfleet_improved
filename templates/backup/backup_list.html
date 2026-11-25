@@ -1,20 +1,17 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 {% load static %}
 
-{% block content %}
-<div id="rf-live-backups" class="rf-pane-page" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="backups in progress" data-rf-live-interval="5">
-    <div class="rf-page-head">
-        <div><h1>Backups</h1>
-            <div class="rf-page-sub">{% if view_type == 'queue' %}Waiting to be taken or retrieved{% elif view_type == 'errors' %}Backups that failed{% else %}Backups taken{% endif %}{% if chosen %} · {{ chosen.name }}{% endif %} · {{ total }}</div></div>
-    </div>
-    {% include 'backup/backup_nav_tabs.html' %}
+{% block pane_attrs %}id="rf-live-backups" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="backups in progress" data-rf-live-interval="5"{% endblock %}
+{% block pane_sub %}{% if view_type == 'queue' %}Waiting to be taken or retrieved{% elif view_type == 'errors' %}Backups that failed{% else %}Backups taken{% endif %}{% if chosen %} · {{ chosen.name }}{% endif %} · {{ total }}{% endblock %}
+{% block pane_tabs %}{% include 'backup/backup_nav_tabs.html' %}{% endblock %}
+{% block pane_notices %}
     {% if day %}<div class="rf-notice"><span>Showing only: <b>{{ day|date:"Y-m-d" }}</b>, from the status page</span><a href="?type={{ view_type }}">Show all</a></div>{% endif %}
     {% if recent %}<div class="rf-notice"><span>Showing only: <b>the last 24 hours</b>, from the status page</span><a href="?type={{ view_type }}">Show all</a></div>{% endif %}
     {% if limited %}<div class="rf-notice"><span>The newest {{ list_limit }} of {{ total }} backups. Older ones: pick a day on the status page chart, or show them all (slower).</span>
         <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}all=1">Show all {{ total }}</a></div>{% endif %}
+{% endblock %}
 
-    <div class="rf-split">
-        <div class="rf-split-list">
+{% block pane_list %}
             <div class="rf-search"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
                 <input type="search" id="backup-device-search" placeholder="Search devices" aria-label="Search the devices"></div>
             <div class="rf-list mt-2" id="backup-devices" role="list">
@@ -32,9 +29,9 @@
                 <div class="rf-empty">No backup here.</div>
                 {% endfor %}
             </div>
-        </div>
+{% endblock %}
 
-        <div class="rf-split-detail rf-split-detail-always">
+{% block pane_detail %}
             <div class="rf-insp-head">
                 <div class="rf-insp-title">
                     {% if chosen %}
@@ -93,9 +90,6 @@
                 </tbody>
             </table>
             </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block custom_page_scripts %}

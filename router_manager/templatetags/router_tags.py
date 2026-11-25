@@ -1,6 +1,7 @@
 import re
 
 from django import template
+from django.core.exceptions import ObjectDoesNotExist
 
 from router_manager.models import Router, RouterInformation
 
@@ -202,3 +203,18 @@ def url_host(address):
     """An address as a URL needs it: an IPv6 address in brackets."""
     address = str(address or '')
     return f'[{address}]' if ':' in address and not address.startswith('[') else address
+
+
+@register.filter
+def device_state(router):
+    """A device's state, worded and coloured the same on every page:
+    {'key': online|offline|disabled|unmonitored, 'css': ok|bad|off, 'label'}."""
+    if not router.enabled:
+        return {'key': 'disabled', 'css': 'off', 'label': 'Disabled'}
+    if not router.monitoring:
+        return {'key': 'unmonitored', 'css': 'off', 'label': 'Not monitored'}
+    try:
+        online = router.routerstatus.status_online
+    except ObjectDoesNotExist:
+        online = False
+    return {'key': 'online', 'css': 'ok', 'label': 'Online'} if online else {'key': 'offline', 'css': 'bad', 'label': 'Offline'}

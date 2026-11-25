@@ -1,84 +1,56 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 
+{% block pane_sub %}{{ backup_profile_list|length }} profile{{ backup_profile_list|length|pluralize }}{% endblock %}
+{% block pane_actions %}{% if can_manage %}<a href="/backup/manage_profile/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add profile</a>{% endif %}{% endblock %}
+{% block pane_tabs %}{% include 'backup/backup_nav_tabs.html' %}{% endblock %}
 
-{% block content %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    {% include 'backup/backup_nav_tabs.html' %}
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Devices</th>
-                                        <th>Daily</th>
-                                        <th>Weekly</th>
-                                        <th>Monthly</th>
-                                        <th></th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                
-                                <tbody>
-                                {% for backup_profile in backup_profile_list %}
-                                    <tr>
-                                        <td>{{ backup_profile.name }}</td>
+{% block pane_list %}
+<div class="rf-list" role="list">
+    {% for profile in backup_profile_list %}
+    <a class="rf-li{% if chosen and chosen.pk == profile.pk %} on{% endif %}" role="listitem" href="?profile={{ profile.uuid }}">
+        <span class="rf-li-main"><span class="rf-li-name">{{ profile.name }}</span>
+            <span class="rf-li-sub">{{ profile.device_count }} device{{ profile.device_count|pluralize }} · {% if profile.daily_backup %}daily{% endif %}{% if profile.weekly_backup %}{% if profile.daily_backup %}, {% endif %}weekly{% endif %}{% if profile.monthly_backup %}{% if profile.daily_backup or profile.weekly_backup %}, {% endif %}monthly{% endif %}{% if not profile.daily_backup and not profile.weekly_backup and not profile.monthly_backup %}no schedule{% endif %}</span></span>
+        {% if profile.profile_error_information %}<i class="fas fa-triangle-exclamation text-warning" role="img" aria-label="Needs attention" title="{{ profile.profile_error_information }}"></i>{% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% endblock %}
 
-                                        <td>
-                                            {{ backup_profile.router_set.count }}
-                                        </td>
-
-                                        <td>
-                                            {% if backup_profile.daily_backup %}
-                                                <i class="far fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if backup_profile.weekly_backup %}
-                                                <i class="far fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </td>
-
-                                        <td>
-                                            {% if backup_profile.monthly_backup %}
-                                                <i class="far fa-check-circle text-success"></i>
-                                            {% endif %}
-                                        </td>
-                                    
-                                        <td>
-                                            {% if backup_profile.profile_error_information %}
-                                            <i class="fas fa-exclamation-triangle text-warning"></i> {{ backup_profile.profile_error_information }}
-                                            
-                                            {% endif %}
-                                        </td>
-
-                                        <td class="min-width">
-                                            <a href="/backup/manage_profile/?uuid={{ backup_profile.uuid }}"><i class="fas fa-edit"></i></a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <a href="/backup/manage_profile/" class="btn btn-primary">Add Backup Profile</a>
-                        </div>
-
-                    </div>
-
-                </div>
-            </div>
-        </div>
+{% block pane_detail %}
+{% if chosen %}
+<div class="rf-insp-head">
+    <div class="rf-insp-title"><h2>{{ chosen.name }}</h2>
+        <div class="rf-page-sub">Backup profile · {{ members|length }} device{{ members|length|pluralize }}</div></div>
+    <div class="rf-insp-actions">
+        {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="/backup/manage_profile/?uuid={{ chosen.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
     </div>
+</div>
+{% if chosen.profile_error_information %}<div class="rf-notice m-3 mb-0 text-warning"><span><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>{{ chosen.profile_error_information }}</span></div>{% endif %}
+<dl class="rf-facts">
+    <dt>Daily</dt>
+    <dd>{% if chosen.daily_backup %}{{ daily_days }} at <span class="rf-mono">{{ chosen.get_daily_hour_display }}</span> <span class="text-muted">· kept {{ chosen.daily_retention }} days</span>{% else %}<span class="text-muted">Off</span>{% endif %}</dd>
+    <dt>Weekly</dt>
+    <dd>{% if chosen.weekly_backup %}{{ chosen.get_weekly_day_display }} at <span class="rf-mono">{{ chosen.get_weekly_hour_display }}</span> <span class="text-muted">· kept {{ chosen.weekly_retention }} days</span>{% else %}<span class="text-muted">Off</span>{% endif %}</dd>
+    <dt>Monthly</dt>
+    <dd>{% if chosen.monthly_backup %}the {{ chosen.get_monthly_day_display }} at <span class="rf-mono">{{ chosen.get_monthly_hour_display }}</span> <span class="text-muted">· kept {{ chosen.monthly_retention }} days</span>{% else %}<span class="text-muted">Off</span>{% endif %}</dd>
+    <dt>Back up now</dt>
+    <dd>kept {{ chosen.instant_retention }} days</dd>
+    <dt>Retries</dt>
+    <dd>{{ chosen.max_retry }}, every {{ chosen.get_retry_interval_display|lower }}</dd>
+    <dt>Unchanged</dt>
+    <dd>{% if chosen.keep_unchanged %}stored in full{% else %}recorded, not stored again{% endif %}</dd>
+    <dt>While failing</dt>
+    <dd>{% if chosen.retain_backups_on_error %}nothing is deleted{% else %}retention applies{% endif %}</dd>
+    <dt>Export</dt>
+    <dd>{% if chosen.parameter_sensitive %}with passwords and keys{% else %}without passwords and keys{% endif %}{% if chosen.parameter_terse %} · one line per item{% endif %}</dd>
+</dl>
+<div class="rf-insp-section">Devices using it</div>
+<div class="rf-member-list">
+    {% for router in members %}
+    {% with device_id=router.uuid|stringformat:"s" %}{% with href='/router/list/?filter_group=all&device='|add:device_id %}{% include 'includes/device_row.html' %}{% endwith %}{% endwith %}
+    {% empty %}
+    <div class="rf-empty">No device uses this profile. A device's profile is chosen in its settings, or for several at once with Edit in the device list.</div>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

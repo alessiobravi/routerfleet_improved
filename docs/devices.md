@@ -348,7 +348,11 @@ both back; the change log records each change and its time.
 ## Groups
 
 A group is a named set of devices, used by command schedules and to filter the
-list. One group may be marked as the **default group**: it is the group the
+list. *Device Groups* lists them on the left (a star marks the default group);
+the chosen group on the right shows how many of its devices are online, the
+command schedules that run on it or leave it out, its notes and its devices -
+a click opens one in the device list - with *Show in the device list* and
+*Edit*. One group may be marked as the **default group**: it is the group the
 device list is filtered to when you open it (pick *All* to see every device).
 Marking a group as the default takes the mark off whichever group had it. It
 does not add new devices to the group. Groups are also what schedule exclusions

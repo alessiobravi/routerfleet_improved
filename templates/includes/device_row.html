@@ -1,0 +1,6 @@
+{% load router_tags %}{% with state=router|device_state %}
+<a class="rf-li{% if not router.enabled %} rf-li-off{% endif %}" href="{{ href }}">
+    <span class="rf-li-main"><span class="rf-li-name">{{ router.name }}</span>
+        <span class="rf-li-sub"><span class="rf-mono">{{ router.address }}</span> · {{ router.get_router_type_display }}</span></span>
+    <span class="rf-dot {{ state.css }}" title="{{ state.label }}"></span>
+</a>{% endwith %}
