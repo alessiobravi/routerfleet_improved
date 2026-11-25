@@ -13,6 +13,14 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.40.2] - 2026-11-25
+
+### Fixed
+- The release checks: the new test of the start-up script's settings ran
+  them as code, which the coverage report then looked for as a source file;
+  it now reads them as the plain value they are. 0.40.0 and 0.40.1 were not
+  published; their changes ship in this release.
+
 ## [0.40.1] - 2026-11-25
 
 ### Fixed

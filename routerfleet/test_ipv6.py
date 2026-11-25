@@ -119,9 +119,12 @@ class EntrypointSettingsTests(SimpleTestCase):
             result = subprocess.run([bash, '-c', program], capture_output=True, text=True, env=env)
             with self.subTest(engine=engine):
                 self.assertEqual(result.stderr, '')
-                namespace = {}
-                exec(compile(result.stdout, 'settings', 'exec'), namespace)   # nosec - our own generated settings
-                self.assertIn('default', namespace['DATABASES'])
+                # Read, not run: the block must be one plain Python dictionary
+                import ast
+                tree = ast.parse(result.stdout)
+                self.assertEqual(len(tree.body), 1)
+                databases = ast.literal_eval(tree.body[0].value)
+                self.assertIn('default', databases)
 
     def test_no_stray_double_quote_inside_a_settings_block(self):
         # Checked without bash too: a double quote inside DATABASES_CONFIG="..."
