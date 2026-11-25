@@ -144,6 +144,19 @@ class RouterForm(forms.ModelForm):
 
         from router_manager import device_types
         chosen_type = device_types.get(router_type)
+        # A stored password is only ever sent to the address it was given for:
+        # moving a device to another address needs it typed again. Otherwise
+        # whoever may edit a device (and can never see its password) could
+        # point it at a host of their own and receive the password there.
+        moved = bool(self.instance.pk and address and (self.instance.address or '').lower() != address)
+        if moved and chosen_type is not None and chosen_type.managed:
+            if not password and not ssh_key and self.instance.password:
+                self.add_error('password', 'The address changed: type the password again - the stored one is only '
+                                           'sent to the address it was set for.')
+            if self._stored_enable_password and not cleaned_data.get('enable_password'):
+                self.add_error('enable_password', 'The address changed: type the enable password again.')
+            if self.errors:
+                return cleaned_data
         # Empty keeps the stored enable password
         if not cleaned_data.get('enable_password'):
             cleaned_data['enable_password'] = self._stored_enable_password

@@ -3,6 +3,10 @@ PRODUCTION_SETTINGS_FILE="/app/routerfleet/production_settings.py"
 
 set -e
 
+# A value from the environment as a Python string literal: a quote or a
+# backslash in a password can neither break the settings nor run as code
+pystr() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$1"; }
+
 # 09a: PostgreSQL 18 (0.24); 08a: the compose files before it, still valid -
 # their PostgreSQL 16 image keeps being published until they move
 if [[ "$COMPOSE_VERSION" != "09a" && "$COMPOSE_VERSION" != "08a" ]]; then
@@ -51,11 +55,11 @@ elif [[ "${DATABASE_ENGINE,,}" == "postgres" ]]; then
     DATABASES_CONFIG="DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': '$POSTGRES_DB',
-            'USER': '$POSTGRES_USER',
-            'PASSWORD': '$POSTGRES_PASSWORD',
-            'HOST': '$POSTGRES_HOST',
-            'PORT': '$POSTGRES_PORT',
+            'NAME': $(pystr "$POSTGRES_DB"),
+            'USER': $(pystr "$POSTGRES_USER"),
+            'PASSWORD': $(pystr "$POSTGRES_PASSWORD"),
+            'HOST': $(pystr "$POSTGRES_HOST"),
+            'PORT': $(pystr "$POSTGRES_PORT"),
         }
     }"
 else
@@ -85,14 +89,14 @@ DEBUG = $DEBUG_VALUE
 # always allowed, and the address the installation is used at comes on top -
 # otherwise only the one written in SERVER_ADDRESS answers and the other one is
 # refused with 400, which reads like the application being down.
-ALLOWED_HOSTS = ['routerfleet', 'localhost', '127.0.0.1', '[::1]', '$SERVER_HOSTNAME']
-CSRF_TRUSTED_ORIGINS = ['http://routerfleet', 'https://$SERVER_ADDRESS', 'http://$SERVER_ADDRESS', 'https://localhost', 'http://localhost', 'https://127.0.0.1', 'http://127.0.0.1', 'https://[::1]', 'http://[::1]']
+ALLOWED_HOSTS = ['routerfleet', 'localhost', '127.0.0.1', '[::1]', $(pystr "$SERVER_HOSTNAME")]
+CSRF_TRUSTED_ORIGINS = ['http://routerfleet', $(pystr "https://$SERVER_ADDRESS"), $(pystr "http://$SERVER_ADDRESS"), 'https://localhost', 'http://localhost', 'https://127.0.0.1', 'http://127.0.0.1', 'https://[::1]', 'http://[::1]']
 SECRET_KEY = '$(openssl rand -base64 32)'
 $DATABASES_CONFIG
 EOL
 
 if [ -n "$TZ" ]; then
-    echo "TIME_ZONE = '$TZ'" >> $PRODUCTION_SETTINGS_FILE
+    echo "TIME_ZONE = $(pystr "$TZ")" >> $PRODUCTION_SETTINGS_FILE
 fi
 
 # The session and CSRF cookies only travel over HTTPS when the installation
@@ -110,17 +114,62 @@ if [ "${HTTPS_REDIRECT_POLICY+set}" = "set" ] && [[ "${HTTPS_REDIRECT_POLICY,,}"
     echo "CSRF_COOKIE_SECURE = True" >> $PRODUCTION_SETTINGS_FILE
 fi
 
-if [ ! -f /app_secrets/monitoring_key ]; then
-    cat /proc/sys/kernel/random/uuid > /app_secrets/monitoring_key
+# A key file is written whole or not at all: generated into a temporary file,
+# checked, then moved into place. An empty file - a start that failed halfway,
+# before this was so - is replaced: with it the application fell back to a key
+# that changed at every start, so nothing saved with it was readable after a
+# restart anyway; from now on what is saved stays readable.
+make_key() {  # $1 file, $2 command printing a new key
+    if [ -s "$1" ]; then return 0; fi
+    if [ -e "$1" ]; then
+        echo "WARNING: $1 was empty - creating it now. Device passwords saved before this start may"
+        echo "need to be entered again (they were stored with a key that changed at every start)."
+    fi
+    sh -c "$2" > "$1.tmp"
+    [ -s "$1.tmp" ] || { echo "ERROR: could not create $1"; rm -f "$1.tmp"; exit 1; }
+    chmod 600 "$1.tmp"
+    mv "$1.tmp" "$1"
+}
+
+make_key /app_secrets/monitoring_key "cat /proc/sys/kernel/random/uuid"
+echo "MONITORING_KEY = $(pystr "$(cat /app_secrets/monitoring_key)")" >> $PRODUCTION_SETTINGS_FILE
+
+make_key /app_secrets/encryption_key "python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+echo "ENCRYPTION_KEY = $(pystr "$(cat /app_secrets/encryption_key)")" >> $PRODUCTION_SETTINGS_FILE
+
+# The keys other containers need - and only those - on a volume of their own
+# (compose files from 0.38): monitoring reads the monitoring key there instead
+# of the whole secrets volume, which holds the key to every device password;
+# the scheduler sends its key with every call, and only then is it required.
+# A compose file without this volume keeps working exactly as before.
+if [ -d /service_keys ]; then
+    if [ ! -s /service_keys/monitoring_key ] || ! cmp -s /app_secrets/monitoring_key /service_keys/monitoring_key; then
+        cp /app_secrets/monitoring_key /service_keys/monitoring_key.tmp && chmod 600 /service_keys/monitoring_key.tmp \
+            && mv /service_keys/monitoring_key.tmp /service_keys/monitoring_key
+    fi
+    make_key /service_keys/cron_key "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    echo "CRON_KEY = $(pystr "$(cat /service_keys/cron_key)")" >> $PRODUCTION_SETTINGS_FILE
 fi
-echo "MONITORING_KEY = '$(cat /app_secrets/monitoring_key)'" >> $PRODUCTION_SETTINGS_FILE
 
-if [ ! -f /app_secrets/encryption_key ]; then
-    python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > /app_secrets/encryption_key
+# The Django admin is not served in production (a setting, the code untouched)
+echo "DJANGO_ADMIN_ENABLED = False" >> $PRODUCTION_SETTINGS_FILE
+
+# The application runs as the unprivileged user "routerfleet". Its settings
+# hold the keys: readable by it, by nobody else. The folders it writes are
+# handed over once (a later start finds them its own already); APP_USER=root
+# in .env runs it as before, should anything need it.
+APP_UID=$(id -u routerfleet 2>/dev/null || echo "")
+if [ -n "$APP_UID" ] && [ "${APP_USER:-routerfleet}" != "root" ]; then
+    chown root:routerfleet "$PRODUCTION_SETTINGS_FILE" && chmod 640 "$PRODUCTION_SETTINGS_FILE"
+    for dir in /var/lib/routerfleet /var/lib/routerfleet_sqlite /app_static_files /certificate /discovery; do
+        [ -d "$dir" ] || continue
+        if [ "$(stat -c %u "$dir")" != "$APP_UID" ]; then
+            echo "Handing $dir to the application user (once)"
+            chown -R routerfleet:routerfleet "$dir"
+        fi
+    done
+    export HOME=/home/routerfleet
+    exec su-exec routerfleet "$@"
 fi
-echo "ENCRYPTION_KEY = '$(cat /app_secrets/encryption_key)'" >> $PRODUCTION_SETTINGS_FILE
-
-
-sed -i "/^    path('admin\/', admin.site.urls),/s/^    /    # /" /app/routerfleet/urls.py
 
 exec "$@"

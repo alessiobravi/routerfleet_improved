@@ -15,18 +15,27 @@ KEY = 'b6f0f0a8-1111-4222-8333-444455556666'
 @override_settings(MONITORING_KEY=KEY)
 class MonitoringApiTests(TestCase):
     def get(self, path, **params):
-        params.setdefault('key', KEY)
-        return self.client.get(path, params)
+        # As the monitoring container sends it: in a header, never in the URL
+        return self.client.get(path, params, HTTP_X_MONITORING_KEY=KEY)
 
     def test_every_endpoint_refuses_without_the_key(self):
         for path in ('/monitoring/export_router_list/', '/monitoring/update_router_status/',
                      '/monitoring/router_config_timestamp/', '/monitoring/last_status_change/'):
             with self.subTest(path=path):
-                self.assertEqual(self.client.get(path, {'key': 'wrong'}).status_code, 403)
+                self.assertEqual(self.client.get(path, HTTP_X_MONITORING_KEY='wrong').status_code, 403)
 
-    def test_a_signed_in_user_needs_no_key(self):
+    def test_a_signed_in_user_needs_no_key_to_read_but_can_not_report_a_status(self):
         self.client.force_login(make_user(None))
         self.assertEqual(self.client.get('/monitoring/export_router_list/').status_code, 200)
+        router = make_router()
+        answer = self.client.get('/monitoring/update_router_status/', {'uuid': str(router.uuid), 'status': 'offline'})
+        self.assertEqual(answer.status_code, 403)
+        self.assertFalse(RouterDownTime.objects.filter(router=router).exists())
+
+    def test_an_unknown_device_is_not_found(self):
+        import uuid
+        answer = self.get('/monitoring/update_router_status/', uuid=str(uuid.uuid4()), status='offline')
+        self.assertEqual(answer.status_code, 404)
 
     def test_export_lists_enabled_monitored_devices_only(self):
         watched = make_router(name='w', address='192.0.2.1')
@@ -105,8 +114,8 @@ class MonitoringKeyTransportTests(TestCase):
         self.assertEqual(self.client.get(self.PATH, HTTP_X_MONITORING_KEY=KEY).status_code, 200)
         self.assertEqual(self.client.get(self.PATH, HTTP_X_MONITORING_KEY='wrong').status_code, 403)
 
-    def test_the_query_parameter_still_works_for_older_containers(self):
-        self.assertEqual(self.client.get(self.PATH, {'key': KEY}).status_code, 200)
+    def test_a_key_in_the_url_is_not_accepted(self):
+        self.assertEqual(self.client.get(self.PATH, {'key': KEY}).status_code, 403)
 
     @override_settings(MONITORING_KEY='')
     def test_an_unset_key_admits_nobody(self):

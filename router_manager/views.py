@@ -290,6 +290,9 @@ def view_manage_router(request):
                 messages.warning(request, 'Device not deleted|Invalid confirmation')
                 return redirect('router_list')
         elif posted_action(request, 'forget_host_key'):
+            # Forgetting makes the next key trusted unseen: administrators only
+            if not UserAcl.objects.filter(user=request.user, user_level__gte=50).exists():
+                return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
             if host_keys.forget(router.address, router.port):
                 messages.success(request, 'Host key forgotten|The key the device presents on the next connection will be trusted')
             return redirect('/router/details/?uuid=' + str(router.uuid))

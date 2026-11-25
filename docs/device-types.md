@@ -11,7 +11,7 @@ A device type says:
 | **Connection** | one SSH command per channel (RouterOS, OpenWrt, Linux) or an **interactive shell** with a prompt (Cisco, Juniper, Huawei); what is sent once after login (paging off); an optional enable step |
 | **Recognition** | the connection test commands and the pattern their output must match |
 | **Inventory** | the commands, and where each value - model, serial number, OS version, firmware, architecture, CPU, the version offered - is found |
-| **Backups** | named text backups from command output; optional files made on the device and downloaded by SCP; lines to ignore (timestamps); export options, with other words for OS versions below a given one (RouterOS 6) |
+| **Backups** | named text backups from command output; optional files made on the device and downloaded (over the command channel, SCP only where that is impossible); lines to ignore (timestamps); export options, with other words for OS versions below a given one (RouterOS 6) |
 | **Update checks** | which of the device itself, the vendor's release list and the firmware repository say which version it could run |
 | **Firmware** | where a firmware file is uploaded, how the upload is verified, how it is installed; the release channels of online updates - `<major or *> <channel>: https://… [| pattern]` - and whether a newer major version is offered |
 | **Links** | what the address in the device list opens besides SSH (Winbox for RouterOS) |
@@ -25,7 +25,7 @@ Devices, Fleet Commander variants and CSV imports refer to a type by its
 |---|---|---|---|---|
 | `routeros` — Mikrotik (RouterOS) | channel | `configuration: /export` | - | the device |
 | `openwrt` — OpenWrt | channel | `configuration: uci export` | sysupgrade archive | vendor release list |
-| `ubiquiti-airos` — Ubiquiti airOS | channel | `/tmp/system.cfg` (downloaded) | - | none |
+| `ubiquiti-airos` — Ubiquiti airOS | channel | `cat /tmp/system.cfg` | - | none |
 | `cisco-ios` — Cisco IOS / IOS-XE | shell | `running-config: show running-config` | - | none |
 | `juniper-junos` — Juniper Junos | shell | `configuration: show configuration`, `set: show configuration \| display set` | - | none |
 | `huawei-vrp` — Huawei VRP | shell | `current-configuration: display current-configuration` | - | none |

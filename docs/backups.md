@@ -11,7 +11,7 @@ retention.
 |---|---|---|
 | RouterOS | `/export` output → `.rsc` | none (until 0.22: `/system backup save` → `.backup`) |
 | OpenWrt | `uci export` output → `.txt` | `sysupgrade --create-backup` → `.tar.gz` |
-| Ubiquiti airOS | `/tmp/system.cfg` downloaded → `.cfg` | none |
+| Ubiquiti airOS | `cat /tmp/system.cfg` output → `.cfg` (until 0.37.2: the file downloaded) | none |
 | Cisco IOS | `show running-config` → `.cfg` | none |
 | Juniper Junos | `show configuration` and `show configuration \| display set` → `.conf` | none |
 | Huawei VRP | `display current-configuration` → `.cfg` | none |
@@ -22,8 +22,24 @@ The **text** comes from command output (*backup - text*), nothing written on
 the device; a device type can have several **named texts** (Juniper: the
 configuration and its set format), each shown, compared and downloaded on its
 own, all counted for change detection. Files made on the device (*backup -
-create*) are downloaded by SCP (*files to download*) and removed. All of it is
-set per [device type](device-types.md).
+create*) are downloaded (*files to download*) and removed. All of it is set
+per [device type](device-types.md).
+
+### How files are downloaded
+
+A file is read over the **command channel** first (`cat`), byte for byte:
+that works on OpenWrt, airOS and any device with a shell. Only where that is
+impossible - a device without `cat` (RouterOS) or one driven through an
+interactive shell (Cisco and the like) - is **SCP** used. Success needs a
+marker that only a real shell prints after `cat` worked, so a device's error
+message is never stored as a backup.
+
+Either way a download is **one file, at the path RouterFleet chose**: an SCP
+sender can not create directories, send more files, or name a path - all
+refused - and a file over 256 MB (`BACKUP_DOWNLOAD_MAX_BYTES`) is refused. A
+backup keeps one binary file; a second binary download is skipped, not
+stored over the first. Command output is read before its exit status and
+limited to 64 MB, so a large export can not stall a backup.
 
 The configuration **text** is stored in the database, which is what makes
 diffing and change detection possible. The **binary** image is stored as a file
@@ -111,15 +127,14 @@ backup file before it can be fetched:
 1. **Execute** — the device is told to write its configuration. On success the
    row is marked `backup_pending_retrieval` and `next_retry` is set to
    `retrieve_interval` seconds ahead (default 60 s).
-2. **Retrieve** — the files are fetched over SCP, the text is stored, the binary
+2. **Retrieve** — the files are fetched (see above), the text is stored, the binary
    is saved, local temporary files are removed and the leftovers on the device
    are deleted. Only then is the backup `success`.
 
 For OpenWrt the configuration text is captured from `uci export` in phase 1
-(it comes back on stdout), while the binary is still fetched in phase 2. For
-airOS phase 1 does nothing at all — the device already keeps
-`/tmp/system.cfg` — and phase 2 fetches that file, decoding UTF-8 with a
-latin-1 fallback.
+(it comes back on stdout), while the binary archive is fetched in phase 2
+(by `cat`). airOS too takes its text in phase 1, from `cat /tmp/system.cfg`
+- nothing to download. Text is decoded as UTF-8, with a Latin-1 fallback.
 
 Each pass works for up to **45 seconds** and then stops, leaving the rest for
 the next minute. `backup_interval` inserts a pause between devices: at `60`

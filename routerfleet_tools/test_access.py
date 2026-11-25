@@ -234,3 +234,27 @@ class EdgeTests(TestCase):
         self.assertIsNone(bans.consider('garbage'))
         self.assertTrue(https.access_allows('garbage', [('deny', '0.0.0.0/0')], 'allow'))
         self.assertFalse(https.access_allows('192.0.2.1', [('allow', 'bad net'), ('deny', '0.0.0.0/0')], 'allow'))
+
+
+class SharedAddressTests(TestCase):
+    """The container's gateway - every client's address when Docker hands
+    connections over itself - is never banned nor locked address-wide."""
+
+    def test_the_gateway_is_never_banned(self):
+        from unittest import mock
+        from . import bans
+        with mock.patch('console.network.gateways', return_value={'172.30.0.1'}):
+            self.assertTrue(bans.never_banned('172.30.0.1', HttpsSettings.load()))
+            self.assertFalse(bans.never_banned('172.30.0.9', HttpsSettings.load()))
+
+    def test_gateways_are_read_from_the_route_tables(self):
+        from console.network import gateways
+        with tempfile.TemporaryDirectory() as folder:
+            v4 = pathlib.Path(folder) / 'route'
+            v4.write_text('Iface\tDestination\tGateway\tFlags\n'
+                          'eth0\t00000000\t01001EAC\t0003\n'
+                          'eth0\t00001EAC\t00000000\t0001\n')
+            v6 = pathlib.Path(folder) / 'ipv6_route'
+            v6.write_text('00000000000000000000000000000000 00 00000000000000000000000000000000 00 '
+                          'fd7266746c7400000000000000000001 00000400 00000000 00000000 00000003 eth0\n')
+            self.assertEqual(gateways(str(v4), str(v6)), {'172.30.0.1', 'fd72:6674:6c74::1'})

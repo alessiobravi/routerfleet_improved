@@ -201,7 +201,9 @@ start. The `routerfleet` container must be able to reach the host and port.
 | `POSTGRES_PORT` | no | `5432` | port | External server's port |
 | `HTTP_PORT` | no | `80` | port | The host port for HTTP, which redirects to HTTPS - see [Ports](#ports) |
 | `HTTPS_PORT` | no | `443` | port | The host port for HTTPS; HTTP requests are redirected to it - see [Ports](#ports) |
-| `MONITORING_PORT` | no | `8001` | a port | The application's port on the host's loopback (127.0.0.1 only), for the monitoring container on the host's network |
+| `MONITORING_PORT` | no | `8001` | a port | The application's port on the host's loopback (127.0.0.1 and ::1 only), for the monitoring container on the host's network |
+| `APP_USER` | no | `routerfleet` | `routerfleet` or `root` | The user the application runs as: unprivileged since 0.38. `root` runs it as before, should anything need it. |
+| `IPV6` | no | `true` | `true` or `false` | IPv6 beside IPv4 on RouterFleet's own network. `false` only on a host whose kernel has IPv6 switched off. |
 | `HTTPS_REDIRECT_POLICY` | no | `always` | `always`, `never` | `always` redirects HTTP to HTTPS and marks the session and CSRF cookies `Secure`. `never` serves the application on plain HTTP as well — passwords then cross the network in cleartext. Applies while [System settings → HTTPS](https.md) is *As configured in .env*, the default |
 | `HTTPS_MODE_OVERRIDE` | no | empty | `env`, `selfsigned` | Emergency override for nginx: wins over [System settings → HTTPS](https.md) until removed |
 | `LETSENCRYPT_STAGING` | no | empty | `1` | Let's Encrypt's test service, for trying a setup |

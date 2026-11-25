@@ -37,15 +37,42 @@ def account_limit():
     return getattr(settings, 'LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS', attempts * 4)
 
 
+def counted_failures(records):
+    """The failed attempts among these records that still count: a successful
+    sign-in clears the failures of that same account (from the same address,
+    when records span addresses) before it - never anybody else's. Otherwise
+    whoever holds any account could sign in between guesses at other
+    accounts and never be locked out or banned."""
+    rows = list(records.values_list('created', 'username', 'ip', 'successful'))
+    last_success = {}
+    for created, username, ip, successful in rows:
+        if successful:
+            key = ((username or '').lower(), ip)
+            if created > last_success.get(key, created.min.replace(tzinfo=created.tzinfo)):
+                last_success[key] = created
+    count = 0
+    for created, username, ip, successful in rows:
+        if successful:
+            continue
+        cleared = last_success.get(((username or '').lower(), ip))
+        if cleared is None or created > cleared:
+            count += 1
+    return count
+
+
 def _failures(**where):
     _, window = limits()
     since = timezone.now() - window
-    records = LoginRecord.objects.filter(created__gte=since, **where)
-    last_success = records.filter(successful=True).order_by('-created').values_list('created', flat=True).first()
-    failures = records.filter(successful=False).exclude(actor_kind=ACTOR_LOCKED_OUT)
-    if last_success:
-        failures = failures.filter(created__gt=last_success)
-    return failures.count()
+    records = LoginRecord.objects.filter(created__gte=since, **where).exclude(actor_kind=ACTOR_LOCKED_OUT, successful=False)
+    return counted_failures(records)
+
+
+def _shared(address):
+    """Every client's address at once (the container's gateway): no address-
+    wide lock there - one person would lock out everybody."""
+    from routerfleet_tools.bans import _address, shared
+    parsed = _address(address)
+    return parsed is not None and shared(parsed)
 
 
 def _banned(request):
@@ -61,7 +88,7 @@ def is_locked_out(request, username):
         return False
     address, _ = context.client_address(request)
     if address and (_failures(username__iexact=username, ip=address) >= attempts
-                    or _failures(ip=address) >= attempts):
+                    or (not _shared(address) and _failures(ip=address) >= attempts)):
         return True
     return _failures(username__iexact=username) >= account_limit()
 
@@ -74,7 +101,7 @@ def address_locked_out(request):
     if attempts <= 0:
         return False
     address, _ = context.client_address(request)
-    return bool(address) and _failures(ip=address) >= attempts
+    return bool(address) and not _shared(address) and _failures(ip=address) >= attempts
 
 
 def record_turned_away(request, username):

@@ -43,7 +43,7 @@
                                             <span class="float-end">
                                                 {% if host_key %}
                                                     <code title="{{ host_key.key_type }}, trusted since {{ host_key.first_seen }}">{{ host_key.fingerprint }}</code>
-                                                        <a href="#" title="Forget host key" data-rf-post="/router/manage/?uuid={{ router.uuid }}" data-rf-field-action="forget_host_key" data-rf-confirm="Forget the stored host key? The key the device presents on the next connection will be trusted. Only do this after resetting or replacing the device."><i class="fas fa-eraser"></i></a>
+                                                        {% if rf_is_admin %}<a href="#" title="Forget host key" data-rf-post="/router/manage/?uuid={{ router.uuid }}" data-rf-field-action="forget_host_key" data-rf-confirm="Forget the stored host key? The key the device presents on the next connection will be trusted. Only do this after resetting or replacing the device."><i class="fas fa-eraser"></i></a>{% endif %}
                                                 {% else %}
                                                     <span class="text-muted">trusted on the next connection</span>
                                                 {% endif %}

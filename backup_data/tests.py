@@ -200,7 +200,7 @@ class PipelineTests(TestCase):
 
     def run_phase(self, backup, client):
         with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), \
-                mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
+                mock.patch(f'{SSH}.SafeSCPClient', FakeSCPClient):
             backup_functions.perform_backup(backup)
         backup.refresh_from_db()
         return backup
@@ -360,16 +360,57 @@ class PipelineTests(TestCase):
         self.assertEqual(backup.retry_count, 1)
         self.assertIn("the text backup 'configuration' is empty", backup.error_message)
 
-    def test_airos_fetches_system_cfg_with_latin1_fallback(self):
+    def test_airos_reads_system_cfg_over_the_terminal_with_latin1_fallback(self):
+        # Since 0.37.3 airOS takes its text from command output, like RouterOS:
+        # no SCP; a configuration written in Latin-1 keeps its characters
         backup = self.make_backup('ubiquiti-airos')
-        client = FakeSSHClient()
+        client = FakeSSHClient({'cat /tmp/system.cfg': (0, 'wireless.1.ssid=caf\xe9\n'.encode('latin-1'), '')})
         backup = self.run_phase(backup, client)
-        self.assertEqual(client.commands, [], 'phase one does nothing on airOS')
-        FakeSCPClient.files = {'/tmp/system.cfg': 'wireless.1.ssid=caf\xe9'.encode('latin-1')}
+        self.assertEqual(client.commands, ['cat /tmp/system.cfg'])
+        FakeSCPClient.files = {}
         backup = self.run_phase(backup, client)
         self.assertTrue(backup.success)
         self.assertIn('caf\xe9', backup.backup_text)
         self.assertIn('[decode=latin-1 fallback]', backup.task_console_output)
+        self.assertEqual(FakeSCPClient.fetched, [], 'nothing downloaded over SCP')
+
+    def test_a_binary_file_comes_over_the_command_channel_and_scp_only_when_it_must(self):
+        from routerlib.backup_functions import CAT_MARKER
+        backup = self.make_backup('openwrt')
+        name = backup_functions.gen_backup_name(backup)
+        archive = bytes(range(256)) * 4   # binary, every byte value
+        client = FakeSSHClient({'uci export': 'config system\n',
+                                f"cat -- /tmp/{name}.tar.gz && echo {CAT_MARKER} >&2": (0, archive, CAT_MARKER + '\n')})
+        FakeSCPClient.files, FakeSCPClient.fetched = {}, []
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+            backup = self.run_phase(backup, client)
+            self.assertTrue(backup.success, backup.error_message)
+            with backup.backup_binary.open('rb') as stored:
+                self.assertEqual(stored.read(), archive, 'byte for byte')
+        self.assertEqual(FakeSCPClient.fetched, [], 'cat worked: no SCP')
+
+    def test_a_device_without_a_shell_falls_back_to_scp_and_its_error_is_never_the_backup(self):
+        # RouterOS has no cat and may answer with exit status 0 - no marker, so SCP
+        from fleet_commander.models import CommandVariant
+        backup = self.make_backup('routeros')
+        name = backup_functions.gen_backup_name(backup)
+        CommandVariant.objects.filter(command__system_key='backup_download', router_type='routeros').update(
+            payload='/{{ backup_name }}.rsc')
+        def device(command):
+            if command.startswith('cat '):
+                return (0, 'bad command name cat (line 1 column 1)', '')
+            return (0, '/ip address\nadd address=10.0.0.1/24\n', '')
+        client = FakeSSHClient({}, default=device)
+        FakeSCPClient.files, FakeSCPClient.fetched = {f'/{name}.rsc': b'# exported\n'}, []
+        with temporary_media_root():
+            backup = self.run_phase(backup, client)
+            backup = self.run_phase(backup, client)
+            self.assertTrue(backup.success, backup.error_message)
+            stored = backup.backup_binary.read() if backup.backup_binary else b''
+        self.assertNotIn('bad command name', backup.backup_text or '')
+        self.assertNotIn(b'bad command name', stored)
+        self.assertTrue(FakeSCPClient.fetched, 'fell back to SCP')
 
     def test_failure_retries_after_retry_interval_minutes(self):
         backup = self.make_backup('routeros')
@@ -607,7 +648,7 @@ class RetrievalLeavesNothingBehindTests(TestCase):
                                              schedule_type='instant', backup_pending_retrieval=True)
         FakeSCPClient.files = files(backup_functions.gen_backup_name(backup))
         with mock.patch('routerlib.device_session.connect_to_ssh', return_value=FakeSSHClient()), \
-                mock.patch(f'{SSH}.SCPClient', FakeSCPClient), temporary_media_root():
+                mock.patch(f'{SSH}.SafeSCPClient', FakeSCPClient), temporary_media_root():
             return backup_functions.retrieve_backup(backup)
 
     def test_after_success(self):
@@ -641,7 +682,7 @@ class KeepOnlyChangesPipelineTests(TestCase):
         backup = RouterBackup.objects.create(router=self.router, schedule_type=kind, schedule_time=timezone.now())
         name = backup_functions.gen_backup_name(backup)
         client = FakeSSHClient({'/export': rsc})
-        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SCPClient', FakeSCPClient):
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SafeSCPClient', FakeSCPClient):
             backup_functions.perform_backup(backup)
             FakeSCPClient.files = {f'/{name}.backup': b'\x00binary-' + name.encode()}
             backup_functions.perform_backup(backup)

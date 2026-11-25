@@ -26,7 +26,7 @@ flowchart TB
     cron -->|"HTTP /cron/* every minute"| app
     mon -->|"HTTP /monitoring/* with key"| app
     mon -->|ICMP| devices
-    app -->|"SSH and SCP"| devices
+    app -->|"SSH (SCP only where needed)"| devices
     app --> db
 ```
 

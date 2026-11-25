@@ -1,17 +1,17 @@
 # Nothing to mail: every job appends its output to /var/log/cron.log
 MAILTO=""
-*/5 * * * *  root sleep 0 ; /usr/bin/curl -s http://routerfleet:8001/cron/generate_backup_schedule/  >> /var/log/cron.log 2>&1
-* * * * *    root sleep 5 ; /usr/bin/curl -s http://routerfleet:8001/cron/create_backup_tasks/       >> /var/log/cron.log 2>&1
-* * * * *    root sleep 10; /usr/bin/curl -s http://routerfleet:8001/cron/update_router_information/ >> /var/log/cron.log 2>&1
-*/10 * * * * root sleep 20; /usr/bin/curl -s http://routerfleet:8001/cron/housekeeping/              >> /var/log/cron.log 2>&1
-* * * * *    root sleep 40; /usr/bin/curl -s http://routerfleet:8001/cron/perform_backup_tasks/      >> /var/log/cron.log 2>&1
-* * * * *    root sleep 50; /usr/bin/curl -s http://routerfleet:8001/cron/check_updates/             >> /var/log/cron.log 2>&1
+*/5 * * * *  root sleep 0 ; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/generate_backup_schedule/  >> /var/log/cron.log 2>&1
+* * * * *    root sleep 5 ; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/create_backup_tasks/       >> /var/log/cron.log 2>&1
+* * * * *    root sleep 10; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/update_router_information/ >> /var/log/cron.log 2>&1
+*/10 * * * * root sleep 20; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/housekeeping/              >> /var/log/cron.log 2>&1
+* * * * *    root sleep 40; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/perform_backup_tasks/      >> /var/log/cron.log 2>&1
+* * * * *    root sleep 50; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/check_updates/             >> /var/log/cron.log 2>&1
 # Messages and notifications
-* * * * *    root sleep 10; /usr/bin/curl -s http://routerfleet:8001/cron/concatenate_notifications/ >> /var/log/cron.log 2>&1
-*/10 * * * * root sleep 15; /usr/bin/curl -s http://routerfleet:8001/cron/daily_reports/              >> /var/log/cron.log 2>&1
-* * * * *    root sleep 30; /usr/bin/curl -s http://routerfleet:8001/cron/send_messages/             >> /var/log/cron.log 2>&1
-* * * * *    root sleep 50; /usr/bin/curl -s http://routerfleet:8001/cron/perform_command_tasks/             >> /var/log/cron.log 2>&1
-* * * * *    root sleep 40; /usr/bin/curl -s http://routerfleet:8001/cron/create_command_jobs/             >> /var/log/cron.log 2>&1
+* * * * *    root sleep 10; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/concatenate_notifications/ >> /var/log/cron.log 2>&1
+*/10 * * * * root sleep 15; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/daily_reports/              >> /var/log/cron.log 2>&1
+* * * * *    root sleep 30; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/send_messages/             >> /var/log/cron.log 2>&1
+* * * * *    root sleep 50; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/perform_command_tasks/             >> /var/log/cron.log 2>&1
+* * * * *    root sleep 40; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/create_command_jobs/             >> /var/log/cron.log 2>&1
 # Firmware rollouts: one step per device per minute
-* * * * *    root sleep 25; /usr/bin/curl -s --max-time 330 http://routerfleet:8001/cron/firmware_rollouts/        >> /var/log/cron.log 2>&1
-*/2 * * * *  root sleep 35; /usr/bin/curl -s http://routerfleet:8001/cron/discovery/                >> /var/log/cron.log 2>&1
+* * * * *    root sleep 25; /usr/bin/curl -s --max-time 330 -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/firmware_rollouts/        >> /var/log/cron.log 2>&1
+*/2 * * * *  root sleep 35; /usr/bin/curl -s -H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)" http://routerfleet:8001/cron/discovery/                >> /var/log/cron.log 2>&1

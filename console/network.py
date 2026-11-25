@@ -48,6 +48,31 @@ def attached_networks(route_table=ROUTE_TABLE, ipv6_route_table=None):
     return networks
 
 
+def gateways(route_table=ROUTE_TABLE, ipv6_route_table=IPV6_ROUTE_TABLE):
+    """The default gateways of this container, IPv4 and IPv6: on Docker's own
+    network, the address every client appears from when Docker hands
+    connections over itself (its userland proxy, Docker Desktop, rootless)."""
+    found = set()
+    try:
+        with open(route_table) as handle:
+            next(handle, None)
+            for line in handle:
+                fields = line.split()
+                if len(fields) >= 3 and fields[1] == '00000000' and fields[2] != '00000000':
+                    found.add(str(ipaddress.IPv4Address(int(fields[2], 16).to_bytes(4, 'little'))))
+    except (OSError, ValueError):
+        pass
+    try:
+        with open(ipv6_route_table) as handle:
+            for line in handle:
+                fields = line.split()
+                if len(fields) >= 5 and fields[0] == '0' * 32 and int(fields[1], 16) == 0 and fields[4] != '0' * 32:
+                    found.add(str(ipaddress.IPv6Address(int(fields[4], 16))))
+    except (OSError, ValueError):
+        pass
+    return found
+
+
 def _attached_ipv6(route_table):
     """/proc/net/ipv6_route: destination, prefix length, ..., next hop - a
     route without a next hop (all zeros) is a network on a link."""

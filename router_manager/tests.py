@@ -257,7 +257,7 @@ class ManageRouterTests(TestCase):
     def test_an_unreachable_router_can_be_disabled_with_its_monitoring(self, auth, _connect):
         # The reported case: disabling a device that does not answer failed on
         # the credential test, alone or together with monitoring
-        router = make_router(name='edge-1', password='pw')
+        router = make_router(name='edge-1', password='pw', address='192.0.2.1')
         response = self.post({'password': '', 'enabled': '', 'monitoring': ''}, router)
         self.assertRedirects(response, '/router/list/', fetch_redirect_response=False)
         router.refresh_from_db()
@@ -527,7 +527,7 @@ class TestConnectionTests(TestCase):
     def test_the_stored_password_only_goes_to_the_stored_address(self, auth):
         answer = self.ask(dict(self.form, uuid=str(self.router.uuid), address='198.51.100.9'))
         self.assertFalse(answer['success'])
-        self.assertIn('Type the password', answer['message'])
+        self.assertIn('type the password', answer['message'].lower())
         auth.assert_not_called()
         self.assertTrue(self.ask(dict(self.form, uuid=str(self.router.uuid), address='198.51.100.9',
                                        password='typed'))['success'])
@@ -633,7 +633,9 @@ class QuickActionsAndBulkEnableTests(TestCase):
     def test_a_status_report_for_a_disabled_host_is_ignored(self):
         self.router.enabled = False
         self.router.save()
-        response = self.client.get(f'/monitoring/update_router_status/?uuid={self.router.uuid}&status=offline')
+        from django.conf import settings
+        response = self.client.get(f'/monitoring/update_router_status/?uuid={self.router.uuid}&status=offline',
+                                   HTTP_X_MONITORING_KEY=settings.MONITORING_KEY)
         self.assertEqual(response.json()['status'], 'ignored')
         self.assertFalse(RouterDownTime.objects.filter(router=self.router).exists())
 
@@ -825,3 +827,41 @@ class SSHKeyPassphraseChangeTests(TestCase):
         stored.refresh_from_db()
         self.assertIsNone(stored.passphrase)
         self.assertIsNotNone(load(stored.private_key, None))
+
+
+class MovedDeviceCredentialTests(TestCase):
+    """A stored password is only ever sent to the address it was set for:
+    moving a device needs it (and the enable password) typed again; forgetting
+    a host key is for administrators."""
+
+    def setUp(self):
+        from routerfleet.testing import make_router, make_user
+        self.client.force_login(make_user(30))
+        self.router = make_router(name='edge', address='192.0.2.10', password='stored-secret')
+
+    def edit(self, **changes):
+        data = {'name': 'edge', 'address': '192.0.2.10', 'port': 22, 'username': 'admin', 'password': '',
+                'router_type': 'routeros', 'enabled': 'on', 'monitoring': 'on', 'telnet_port': 23}
+        data.update(changes)
+        return self.client.post(f'/router/manage/?uuid={self.router.uuid}', data)
+
+    def test_moving_needs_the_password_again(self):
+        page = self.edit(address='198.51.100.66')
+        self.assertContains(page, 'type the password again')
+        self.router.refresh_from_db()
+        self.assertEqual(self.router.address, '192.0.2.10', 'not moved with the stored password')
+        self.edit(address='198.51.100.66', password='typed-again')
+        self.router.refresh_from_db()
+        self.assertEqual((self.router.address, self.router.password), ('198.51.100.66', 'typed-again'))
+
+    def test_other_edits_keep_the_stored_password(self):
+        self.edit(name='edge-renamed')
+        self.router.refresh_from_db()
+        self.assertEqual((self.router.name, self.router.password), ('edge-renamed', 'stored-secret'))
+
+    def test_forgetting_a_host_key_is_for_administrators(self):
+        from unittest import mock
+        with mock.patch('router_manager.views.host_keys.forget') as forget:
+            page = self.client.post(f'/router/manage/?uuid={self.router.uuid}', {'action': 'forget_host_key'})
+        self.assertContains(page, 'Access Denied')
+        forget.assert_not_called()

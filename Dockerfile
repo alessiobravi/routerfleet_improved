@@ -7,7 +7,9 @@ WORKDIR /app
 # fix exists. bash runs entrypoint.sh and init.sh, openssl generates the secret
 # key, tzdata lets TIMEZONE name a zone.
 RUN apk upgrade --no-cache \
-    && apk add --no-cache bash openssl tzdata
+    && apk add --no-cache bash openssl tzdata su-exec \
+    && addgroup -S -g 1000 routerfleet \
+    && adduser -S -D -u 1000 -G routerfleet -h /home/routerfleet -s /sbin/nologin routerfleet
 
 COPY requirements.txt /app/
 # pip has no use once the requirements are installed - and its own bundled

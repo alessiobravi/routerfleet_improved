@@ -475,17 +475,58 @@ jobs:
           test "$CODE" = "403"
           echo "console works end to end, and refuses another site"
 
-      - name: The scheduler reaches the application
+      - name: The scheduler reaches the application, and is answered
         run: |
           for _ in $(seq 1 18); do
             LOGS=$(docker compose -f docker-compose-dev.yml logs routerfleet 2>/dev/null)
-            if grep -q 'GET /cron/' <<< "${LOGS}"; then
-              echo "cron calls arrive"; exit 0
+            # Answered 200: a refused call (a scheduler key gone wrong) would be 404
+            if grep -qE '"GET /cron/[^ ]+ HTTP/1.1" 200' <<< "${LOGS}"; then
+              if grep -qE '"GET /cron/[^ ]+ HTTP/1.1" 404' <<< "${LOGS}"; then
+                echo "::error::the scheduler's calls are refused"; grep -E '"GET /cron/' <<< "${LOGS}" | tail -5; exit 1
+              fi
+              echo "cron calls arrive and are answered"; exit 0
             fi
             sleep 5
           done
-          echo "::error::no /cron/ request reached the application within 90 seconds"
+          echo "::error::no answered /cron/ request within 90 seconds"
+          docker compose -f docker-compose-dev.yml logs routerfleet 2>/dev/null | grep -E '/cron/' | tail -5
           exit 1
+
+      - name: Hardening - unprivileged application, monitoring without the encryption key, scheduler key
+        run: |
+          set -eu
+          C="docker compose -f docker-compose-dev.yml"
+          # The application runs as routerfleet (uid 1000), not root
+          UID1=$(docker exec routerfleet awk '/^Uid:/{print $2}' /proc/1/status)
+          echo "application uid: $UID1"; test "$UID1" = "1000"
+          # Its settings (they hold the keys) are not readable by others
+          docker exec routerfleet sh -c 'test "$(stat -c %a /app/routerfleet/production_settings.py)" = 640'
+          # Monitoring has its key - and not the key to every device password
+          docker exec routerfleet-monitoring test -s /app_secrets/monitoring_key
+          if docker exec routerfleet-monitoring test -e /app_secrets/encryption_key; then
+            echo "::error::the monitoring container can read the encryption key"; exit 1
+          fi
+          # The scheduler's endpoints need its key from anything but the scheduler
+          KEY=$(docker exec routerfleet cat /service_keys/cron_key)
+          test -n "$KEY"
+          CODE=$(docker exec routerfleet-nginx sh -c "wget -S -q -O /dev/null --header 'Host: localhost' http://routerfleet:8001/cron/housekeeping/ 2>&1 | awk '/HTTP\\//{print \$2}' | tail -1" || true)
+          echo "without the key: $CODE"; test "$CODE" = "404"
+          docker exec routerfleet-nginx wget -q -O /dev/null --header 'Host: localhost' --header "X-RF-Cron-Key: ${KEY}" \
+            http://routerfleet:8001/cron/housekeeping/
+          # Upgrading from a release that ran as root: the volumes back to root,
+          # a restart hands them over again and the installation keeps working
+          docker exec -u 0 routerfleet chown -R root:root /var/lib/routerfleet /app_static_files /certificate /discovery
+          $C restart routerfleet
+          for _ in $(seq 1 60); do
+            STATE=$(docker inspect -f '{{.State.Health.Status}}' routerfleet)
+            [ "$STATE" = "healthy" ] && break
+            sleep 3
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' routerfleet)" = "healthy"
+          docker logs routerfleet 2>&1 | grep -q 'Handing /var/lib/routerfleet to the application user (once)'
+          docker exec routerfleet sh -c 'test "$(stat -c %u /var/lib/routerfleet)" = 1000'
+          curl -fsSk -o /dev/null https://localhost/accounts/login/
+          echo "hardening holds, and an upgraded installation keeps working"
 
       # The Zabbix collector in contrib/zabbix, against this very database and
       # through the narrow role it documents: every value it reports, and
@@ -654,7 +695,19 @@ jobs:
             for NAME in routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx; do
               docker tag "routerfleet-dev/${NAME}:local" "ghcr.io/alessiobravi/${NAME}:latest"
             done
-            docker compose -f docker-compose-no-postgres.yml up -d --pull never --wait --wait-timeout 300
+            # New images with a compose file from before 0.38 (no service_keys
+            # volume, monitoring on the secrets volume): must keep working as is
+            python3 - <<'PYOLD'
+          import re
+          text = open('docker-compose-no-postgres.yml').read()
+          text = text.replace('      - service_keys:/app_secrets/:ro\n', '      - app_secrets:/app_secrets/\n')
+          text = re.sub(r'\n *# [^\n]*\n *volumes:\n *- service_keys:/service_keys/:ro', '', text)
+          text = re.sub(r'\n[^\n]*\n *- service_keys:/service_keys/\n', '\n', text)
+          text = text.replace('  service_keys:\n', '')
+          assert 'service_keys' not in text, 'still has service_keys'
+          open('docker-compose-old.yml', 'w').write(text)
+          PYOLD
+            docker compose -f docker-compose-old.yml up -d --pull never --wait --wait-timeout 300
           else
             uname -m | grep -qx aarch64
             docker compose -f docker-compose-dev.yml up -d --build --wait --wait-timeout 600
@@ -685,6 +738,16 @@ jobs:
           print(connection.vendor, 'database verified')"
           if [ "$VARIANT" = sqlite ]; then
             docker exec routerfleet python manage.py shell -c "from django.db import connection; assert connection.vendor == 'sqlite'"
+            # The old compose file: no scheduler key required, and the scheduler is answered
+            if docker exec routerfleet grep -q CRON_KEY /app/routerfleet/production_settings.py; then
+              echo "::error::a compose file without service_keys must not require the scheduler key"; exit 1
+            fi
+            for _ in $(seq 1 18); do
+              if docker logs routerfleet 2>&1 | grep -qE '"GET /cron/[^ ]+ HTTP/1.1" 200'; then echo "old compose: scheduler answered"; break; fi
+              sleep 5
+            done
+            docker logs routerfleet 2>&1 | grep -qE '"GET /cron/[^ ]+ HTTP/1.1" 200'
+            docker exec routerfleet-monitoring test -s /app_secrets/monitoring_key
           fi
 
       - name: Logs
@@ -693,7 +756,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
         run: |
           FILE=docker-compose-dev.yml
-          [ "$VARIANT" = sqlite ] && FILE=docker-compose-no-postgres.yml
+          [ "$VARIANT" = sqlite ] && FILE=docker-compose-old.yml
           docker compose -f "$FILE" ps -a && docker compose -f "$FILE" logs --tail 60
 
   migration:

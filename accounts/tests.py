@@ -261,3 +261,36 @@ class PasskeySignInOfferedTests(TestCase):
         with mock.patch('routerfleet_tools.https.passkey_requirements',
                         return_value=[('Served over HTTPS', True), ('Reached by a domain name', True), ('Trusted', False)]):
             self.assertNotContains(self.client.get('/accounts/login/', HTTP_HOST='localhost'), 'passkey-area')
+
+
+class SignInBetweenGuessesTests(TestCase):
+    """A successful sign-in clears only that account's own failures: holding
+    one account and signing in between guesses at others does not reset the
+    address's count - for the lockout, nor for banning."""
+
+    def setUp(self):
+        from routerfleet_tools.models import HttpsSettings
+        HttpsSettings.objects.filter(pk=HttpsSettings.load().pk).update(ban_failures=5)
+        from django.contrib.auth.models import User
+        User.objects.create_user('insider', password='Insider-pass-2026!')
+        User.objects.create_user('victim', password='Victim-pass-2026!')
+
+    def attempt(self, username, password):
+        self.client.post('/accounts/login/', {'username': username, 'password': password}, REMOTE_ADDR='198.51.100.20')
+        self.client.logout()
+
+    def test_signing_in_between_guesses_does_not_reset_the_address(self):
+        from routerfleet_tools.bans import is_banned
+        for _ in range(3):
+            for guess in ('a', 'b'):
+                self.attempt('victim', guess)
+            self.attempt('insider', 'Insider-pass-2026!')
+        self.assertTrue(is_banned('198.51.100.20'), '6 guesses at another account, whatever the sign-ins between')
+
+    def test_a_user_who_mistyped_then_signed_in_starts_again(self):
+        from accounts.lockout import counted_failures
+        from audit_log.models import LoginRecord
+        for _ in range(4):
+            self.attempt('insider', 'typo')
+        self.attempt('insider', 'Insider-pass-2026!')
+        self.assertEqual(counted_failures(LoginRecord.objects.filter(ip='198.51.100.20')), 0)

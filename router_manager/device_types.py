@@ -71,7 +71,8 @@ PRESET_COMMANDS = {
         'connection_test': 'cat /etc/version',
         'inventory': 'echo "firmware=$(cat /etc/version)"\ncat /etc/board.info\necho "kernel=$(uname -r)"\n'
                      'cat /proc/cpuinfo',
-        'backup_download': '/tmp/system.cfg',  # nosec B108 - a path on the device
+        # The configuration file read over the command channel: no download
+        'backup_text': 'configuration: cat /tmp/system.cfg',
     },
     'cisco-ios': {
         'neighbors': 'show cdp neighbors detail\nshow lldp neighbors detail',
@@ -171,7 +172,7 @@ PRESETS = {
         'firmware_upload_path': '/tmp/fwupdate.bin',
         'firmware_verify': 'size',
         'name': 'Ubiquiti airOS', 'vendor': 'Ubiquiti', 'position': 30,
-        'description': 'airOS over SSH. Its configuration file is downloaded as the text backup.',
+        'description': 'airOS over SSH. Its configuration file is read as the text backup - nothing downloaded.',
         'session_mode': 'exec',
         'test_pattern': r'(?m)^\s*([A-Z]{2}\.v\d\S*)',
         'inventory_fields': {

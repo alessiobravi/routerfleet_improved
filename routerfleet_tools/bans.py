@@ -29,12 +29,22 @@ def _address(text):
     return getattr(address, 'ipv4_mapped', None) or address
 
 
+def shared(address):
+    """The address every client comes from when Docker hands connections over
+    itself (the container's own gateway): banning or locking it would shut
+    out everybody, so it never is - the per-account limits still apply."""
+    from console.network import gateways
+    return str(address) in gateways()
+
+
 def never_banned(text, https_settings):
     """Whitelisted: an Allow entry matches it, or banning it would shut out others."""
     from .https import clean_proxies
     from .models import AccessRule
     address = _address(text)
     if address is None or address.is_loopback or address.is_unspecified:
+        return True
+    if shared(address):
         return True
     nets = [rule.network for rule in AccessRule.objects.filter(action='allow')]
     nets += clean_proxies(https_settings.trusted_proxies) if https_settings.mode == 'proxy' else []
@@ -58,11 +68,12 @@ def is_banned(text):
 
 
 def failures(address, minutes):
+    """Failed sign-ins from an address in the window - a successful sign-in
+    clears only that account's own failures (accounts.lockout)."""
+    from accounts.lockout import counted_failures
     from audit_log.models import LoginRecord
-    records = LoginRecord.objects.filter(ip=address, created__gte=timezone.now() - timezone.timedelta(minutes=minutes))
-    last_success = records.filter(successful=True).order_by('-created').values_list('created', flat=True).first()
-    failed = records.filter(successful=False)
-    return (failed.filter(created__gt=last_success) if last_success else failed).count()
+    return counted_failures(LoginRecord.objects.filter(
+        ip=address, created__gte=timezone.now() - timezone.timedelta(minutes=minutes)))
 
 
 def consider(text):

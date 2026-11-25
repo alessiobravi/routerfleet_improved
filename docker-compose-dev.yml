@@ -2,6 +2,8 @@ services:
   routerfleet-postgres:
     container_name: routerfleet-postgres
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     image: routerfleet-dev/routerfleet-postgres18:local
     build:
       context: ./containers/postgres18
@@ -30,6 +32,8 @@ services:
   routerfleet:
     container_name: routerfleet
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     image: routerfleet-dev/routerfleet:local
     build:
       context: .
@@ -45,6 +49,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - TZ=${TIMEZONE}
+      # The application runs as an unprivileged user; APP_USER=root in .env runs it as root
+      - APP_USER=${APP_USER:-routerfleet}
       - COMPOSE_VERSION=09a
       - COMPOSE_TYPE=with-postgres
 
@@ -60,6 +66,8 @@ services:
       - discovery_data:/discovery
       - static_volume:/app_static_files/
       - app_secrets:/app_secrets/
+      # Only the keys the scheduler and monitoring need (never the encryption key)
+      - service_keys:/service_keys/
       # Shared with nginx: HTTPS in System settings writes the mode and certificates here
       - https_cert:/certificate
     command: /bin/bash /app/init.sh
@@ -78,12 +86,17 @@ services:
   routerfleet-cron:
     container_name: routerfleet-cron
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     image: routerfleet-dev/routerfleet-cron:local
     build:
       context: ./containers/cron
       dockerfile: Dockerfile-cron
     environment:
       - TZ=${TIMEZONE}
+    # Its key, sent with every call to the application
+    volumes:
+      - service_keys:/service_keys/:ro
     depends_on:
       routerfleet:
         condition: service_healthy
@@ -91,6 +104,8 @@ services:
   routerfleet-monitoring:
     container_name: routerfleet-monitoring
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     image: routerfleet-dev/routerfleet-monitoring:local
     build:
       context: ./containers/monitoring
@@ -107,7 +122,8 @@ services:
     cap_drop: [ALL]
     cap_add: [NET_RAW]
     volumes:
-      - app_secrets:/app_secrets/
+      # The monitoring key alone, read-only - not the secrets volume with the key to every device password
+      - service_keys:/app_secrets/:ro
       - discovery_data:/discovery
     depends_on:
       routerfleet:
@@ -116,6 +132,8 @@ services:
   routerfleet-nginx:
     container_name: routerfleet-nginx
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     image: routerfleet-dev/routerfleet-nginx:local
     build:
       context: ./containers/nginx
@@ -161,6 +179,7 @@ networks:
         - subnet: fd72:6674:6c74::/64
 
 volumes:
+  service_keys:
   discovery_data:
   static_volume:
   https_cert:

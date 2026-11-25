@@ -13,10 +13,9 @@ from routerfleet_tools.models import WebadminSettings
 
 def has_monitoring_key(request):
     """The monitoring container sends the key in the X-Monitoring-Key header, so it
-    is never part of a URL - an address ends up in error messages and logs. The
-    ?key= parameter is still accepted for a monitoring container that predates
-    the header."""
-    sent = request.headers.get('X-Monitoring-Key') or request.GET.get('key') or ''
+    is never part of a URL - an address ends up in error messages and logs. A
+    key in the URL (?key=, monitoring images before 0.20) is not accepted."""
+    sent = request.headers.get('X-Monitoring-Key') or ''
     expected = getattr(settings, "MONITORING_KEY", "") or ""
     return bool(expected) and hmac.compare_digest(str(sent), str(expected))
 
@@ -26,7 +25,9 @@ def view_router_config_timestamp(request):
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     if not webadmin_settings.router_config_last_updated:
         webadmin_settings.router_config_last_updated = timezone.now()
-    webadmin_settings.monitoring_last_run = timezone.now()
+    if has_monitoring_key(request):
+        # Monitoring itself asked: it is alive (a signed-in page asking is not)
+        webadmin_settings.monitoring_last_run = timezone.now()
     webadmin_settings.save()
     return JsonResponse({'router_config': webadmin_settings.router_config_last_updated.isoformat()})
 
@@ -56,6 +57,7 @@ def view_export_router_list(request):
         query_router_list = router_group.routers.all().filter(enabled=True, monitoring=True)
     else:
         query_router_list = Router.objects.filter(enabled=True, monitoring=True)
+    query_router_list = query_router_list.select_related('routerstatus')
 
     router_list = {}
     for router in query_router_list:
@@ -73,9 +75,11 @@ def view_export_router_list(request):
 
 
 def view_update_router_status(request):
-    if not request.user.is_authenticated and not has_monitoring_key(request):
+    # Monitoring alone reports a status: a signed-in user (or a link one follows)
+    # could otherwise mark devices offline, open outages and send notifications
+    if not has_monitoring_key(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
-    router = Router.objects.get(uuid=request.GET.get('uuid'))
+    router = get_object_or_404(Router.objects.select_related('routerstatus'), uuid=request.GET.get('uuid'))
     if not (router.enabled and router.monitoring):
         # Disabled or not monitored: a report still in flight changes nothing,
         # opens no outage and sends no notification

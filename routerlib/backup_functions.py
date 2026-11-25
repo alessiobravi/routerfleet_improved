@@ -6,6 +6,8 @@ import os
 import shutil
 import tempfile
 from scp import SCPClient
+
+from routerlib.safe_scp import SafeSCPClient
 from django.core.files.base import ContentFile
 
 from message_center.functions import notify_backup_fail
@@ -42,7 +44,40 @@ def run_scp_get(scp_client: SCPClient, remote_path: str, local_path: str, router
         raise
 
 
-def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBackup"] = None, *, skip_stdout: bool = False,) -> Tuple[int, str, str]:
+OUTPUT_MAX_BYTES = 64 * 1024 * 1024   # what one command may print (a configuration export)
+
+
+def read_limited(stream, limit):
+    """All a stream gives, up to limit bytes - more is an error, not a memory
+    blow-up."""
+    chunks, total = [], 0
+    while True:
+        chunk = stream.read(65536)
+        if not chunk:
+            return b''.join(chunks)
+        total += len(chunk)
+        if total > limit:
+            raise ValueError(f'the device sent more than {limit // (1024 * 1024)} MB')
+        chunks.append(chunk)
+
+
+def decode_text(raw, router_backup=None):
+    """UTF-8, else Latin-1 - what a configuration file is written in (airOS)."""
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError:
+        if router_backup is not None:
+            append_task_console_output(router_backup, '[decode=latin-1 fallback]')
+        return raw.decode('latin-1', errors='replace')
+
+
+def output_limit():
+    from django.conf import settings
+    return int(getattr(settings, 'BACKUP_OUTPUT_MAX_BYTES', OUTPUT_MAX_BYTES))
+
+
+def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBackup"] = None, *, skip_stdout: bool = False,
+                    text_fallback: bool = False) -> Tuple[int, str, str]:
     # 1) Log command BEFORE executing, and persist it (so it survives failures)
     if router_backup is not None:
         if router_backup.task_console_output is None:
@@ -52,10 +87,12 @@ def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBac
     # 2) Execute
     stdin, stdout, stderr = ssh_client.exec_command(command)
 
-    # 3) Wait and collect outputs
+    # 3) Read the output first, then the exit status: waiting for the exit
+    # first can hang on a large output - the device waits to be read
+    raw = read_limited(stdout, output_limit())
+    stderr_text = read_limited(stderr, 1024 * 1024).decode("utf-8", errors="replace")
     exit_code = stdout.channel.recv_exit_status()
-    stdout_text = stdout.read().decode("utf-8", errors="replace")
-    stderr_text = stderr.read().decode("utf-8", errors="replace")
+    stdout_text = decode_text(raw, router_backup) if text_fallback else raw.decode("utf-8", errors="replace")
 
     # 4) Log outputs AFTER executing
     if router_backup is not None:
@@ -73,6 +110,39 @@ def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBac
         router_backup.save(update_fields=["task_console_output"])
 
     return exit_code, stdout_text, stderr_text
+
+
+CAT_MARKER = 'RF-CAT-OK'
+
+
+def _download_by_cat(session, device_type, remote_path, local_path, router_backup):
+    """A file read over the command channel, byte for byte: True when it
+    worked. Not for an interactive shell (a terminal changes binary data) or a
+    device without cat (RouterOS) - those fall back to SCP."""
+    import shlex
+    from routerlib.safe_scp import max_bytes
+    if getattr(device_type, 'session_mode', 'exec') == 'shell':
+        return False
+    # The marker goes to stderr only when a real shell ran cat and cat worked:
+    # a device without one (RouterOS) can print its error with exit status 0,
+    # and that must never be stored as the backup. stdout stays the file alone.
+    command = f'cat -- {shlex.quote(remote_path)} && echo {CAT_MARKER} >&2'
+    append_task_console_output(router_backup, f'$ {command}\n')
+    try:
+        _, stdout, stderr = session.exec_command(command)
+        data = read_limited(stdout, max_bytes())
+        errors = read_limited(stderr, 64 * 1024)
+        exit_code = stdout.channel.recv_exit_status()
+    except Exception as error:   # noqa: BLE001 - SCP is tried next
+        append_task_console_output(router_backup, f'[cat unavailable: {str(error)[:120]}] trying SCP\n\n')
+        return False
+    if exit_code != 0 or CAT_MARKER.encode() not in errors:
+        append_task_console_output(router_backup, '[no shell with cat here] trying SCP\n\n')
+        return False
+    with open(local_path, 'wb') as handle:
+        handle.write(data)
+    append_task_console_output(router_backup, f'[cat_ok] {len(data)} bytes\n\n')
+    return True
 
 
 def perform_backup(router_backup: RouterBackup):
@@ -219,7 +289,8 @@ def execute_backup(router_backup: RouterBackup):
         session = device_session.connect_router(router)
         extras = []
         for number, (name, command) in enumerate(texts):
-            exit_code, stdout_text, stderr_text = run_ssh_command(session, command, router_backup, skip_stdout=True)
+            exit_code, stdout_text, stderr_text = run_ssh_command(session, command, router_backup, skip_stdout=True,
+                                                                  text_fallback=True)
             if exit_code:
                 # The device refused the command: what it printed is its
                 # error message, never a configuration to store
@@ -255,12 +326,7 @@ def execute_backup(router_backup: RouterBackup):
 def _store_text(router_backup, local_path, file_extension, backup_name):
     from router_manager import device_types
     with open(local_path, 'rb') as handle:
-        raw_bytes = handle.read()
-    try:
-        text = raw_bytes.decode('utf-8')
-    except UnicodeDecodeError:
-        text = raw_bytes.decode('latin-1', errors='replace')
-        append_task_console_output(router_backup, '[decode=latin-1 fallback]')
+        text = decode_text(handle.read(), router_backup)
     # Lines the device type marks as noise (timestamps) are not a change
     router_backup.backup_text = device_types.clean_text(router_backup.router.device_type, text)
     router_backup.backup_text_filename = f'{backup_name}.{file_extension["text"]}'
@@ -296,19 +362,32 @@ def retrieve_backup(router_backup: RouterBackup):
             return success, ('Failed to retrieve backup files: the device type takes no text backup and has no '
                              'files to download')
         text_taken = bool(router_backup.backup_text)
+        binary_taken = False
         session = device_session.connect_router(router)
-        scp_client = SCPClient(session.get_transport(), socket_timeout=300)
+        scp_client = None
         for number, remote_path in enumerate(downloads):
             remote_path = remote_path.strip()
             is_text = not text_taken and remote_path.endswith('.' + file_extension['text'])
+            if not is_text and binary_taken:
+                # A backup keeps one binary file: a second would replace the first
+                # and leave it behind in storage
+                append_task_console_output(router_backup, f'[skipped] {remote_path}: a backup keeps one binary file\n\n')
+                continue
             local_path = os.path.join(work, f'{number}-{os.path.basename(remote_path) or "file"}')
-            run_scp_get(scp_client, remote_path, local_path, router_backup)
+            # The file over the command channel (cat) where the device allows it;
+            # SCP only where that is the only way - with one file, at this path
+            if not _download_by_cat(session, device_type, remote_path, local_path, router_backup):
+                if scp_client is None:
+                    scp_client = SafeSCPClient(session.get_transport(), socket_timeout=300)
+                run_scp_get(scp_client, remote_path, local_path, router_backup)
             if is_text:
                 _store_text(router_backup, local_path, file_extension, backup_name)
+                text_taken = True
             else:
                 extension = file_extension['binary'] or 'bin'
                 with open(local_path, 'rb') as backup_file:
                     router_backup.backup_binary.save(f"{backup_name}.{extension}", ContentFile(backup_file.read()))
+                binary_taken = True
         router_backup.save()
         for command in system_commands.lines('backup_remove', router.router_type, **values):
             run_ssh_command(session, command, router_backup)

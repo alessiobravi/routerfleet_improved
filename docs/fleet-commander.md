@@ -340,7 +340,7 @@ Commander page:
 | inventory and versions | the inventory read, every 24 h and on request | none |
 | backup - text | phase 1: text backups from command output, `name: command` per line | `{{ export_parameters }}` |
 | backup - create | phase 1: files made on the device | `{{ backup_name }}`, `{{ export_parameters }}` |
-| backup - files to download | phase 2: paths fetched by SCP, one per line | `{{ backup_name }}` |
+| backup - files to download | phase 2: paths fetched - by `cat` where the device has a shell, else SCP - one per line | `{{ backup_name }}` |
 | backup - remove from device | after the download | `{{ backup_name }}` |
 | backup - clean leftovers | after every successful backup | none |
 | firmware - verify the upload | a [firmware rollout](firmware.md), after the upload | `{{ firmware_name }}`, `{{ firmware_path }}`, `{{ firmware_version }}` |

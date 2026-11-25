@@ -1,3 +1,5 @@
+import hmac
+from django.conf import settings
 from functools import wraps
 
 from django.http import JsonResponse
@@ -16,15 +18,24 @@ def cron_endpoint(view):
     behind it: nginx writes the address of the caller into X-Real-IP on the way
     in, while the cron container talks to the application directly, so a request
     that carries that header came from outside and is refused. It is not an
-    authentication - a deployment that puts its own proxy in front, or publishes
-    the application port, is not covered by it and has to keep those paths to
-    itself.
+    authentication on its own.
+
+    The authentication: with the compose files from 0.38 the scheduler holds a
+    key of its own (CRON_KEY, on the service_keys volume) and sends it with
+    every call (X-RF-Cron-Key); then a call without it is refused - so no
+    process on the host, and no other container, can make the installation
+    work through the application's port. Without that volume (an older compose
+    file) CRON_KEY is not set and the calls are taken as before.
     """
     @wraps(view)
     def wrapper(request, *args, **kwargs):
         if request.META.get('HTTP_X_REAL_IP'):
             # Answered the way a path that does not exist is answered, so the
             # reply says nothing about what is there
+            return JsonResponse({'error': 'Not found'}, status=404)
+        expected = getattr(settings, 'CRON_KEY', '') or ''
+        if expected and not hmac.compare_digest(request.META.get('HTTP_X_RF_CRON_KEY', '').encode(),
+                                                expected.encode()):
             return JsonResponse({'error': 'Not found'}, status=404)
         return view(request, *args, **kwargs)
 

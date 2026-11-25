@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import path
 
@@ -42,7 +43,6 @@ import router_manager.views as router_views  # noqa: E402
 import discovery.views as discovery_views  # noqa: E402
 import routerfleet_tools.access_views as access_views  # noqa: E402
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('debug/run_backups/', view_debug_run_backups, name='debug_run_backups'),
     path('debug/test_messages/', view_debug_test_messages, name='debug_test_messages'),
     path('', view_dashboard, name='dashboard'),
@@ -163,3 +163,7 @@ urlpatterns = [
     path('cron/create_command_jobs/', view_cron_create_command_jobs, name='cron_create_command_jobs'),
     path('cron/perform_command_tasks/', view_cron_perform_command_tasks, name='cron_perform_command_tasks'),
 ]
+
+# The Django admin: off in production (entrypoint.sh), on in development
+if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
+    urlpatterns.append(path('admin/', admin.site.urls))

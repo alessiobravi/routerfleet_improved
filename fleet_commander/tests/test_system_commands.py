@@ -32,7 +32,9 @@ class DefinitionTests(TestCase):
         self.assertEqual(system_commands.lines('backup_text', 'juniper-junos'),
                          ['configuration: show configuration', 'set: show configuration | display set'])
         self.assertEqual(system_commands.lines('connection_test', 'openwrt'), ['ubus call system board'])
-        self.assertEqual(system_commands.lines('backup_download', 'ubiquiti-airos', backup_name='b'), ['/tmp/system.cfg'])
+        # airOS: its configuration read over the command channel, nothing downloaded
+        self.assertEqual(system_commands.lines('backup_download', 'ubiquiti-airos', backup_name='b'), [])
+        self.assertEqual(system_commands.lines('backup_text', 'ubiquiti-airos'), ['configuration: cat /tmp/system.cfg'])
 
     def test_an_unknown_or_missing_placeholder_is_refused(self):
         self.assertTrue(system_commands.validate_payload('backup_cleanup', 'routeros', 'rm {{ backup_name }}'))

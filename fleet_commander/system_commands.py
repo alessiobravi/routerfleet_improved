@@ -108,9 +108,9 @@ DEFAULTS = {
     },
     'neighbors': {
         'name': 'System: neighbours (discovery)',
-        'description': 'Prints the device\'s neighbour tables - LLDP, CDP, MikroTik MNDP - read with the inventory, '
-                       'for Discovered devices. RouterFleet recognises the output of RouterOS, Cisco, Junos, Huawei and '
-                       'lldpd. Empty: the device type is not asked.',
+        'description': 'Prints the device\'s neighbour tables - LLDP, CDP, MikroTik MNDP - read when an operator '
+                       'chooses the device in Device Discovery. RouterFleet recognises the output of RouterOS, Cisco, '
+                       'Junos, Huawei and lldpd. Empty: the device type is not offered there.',
         'placeholders': (),
         'required': False,
     },
