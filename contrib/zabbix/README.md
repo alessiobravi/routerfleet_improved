@@ -121,7 +121,7 @@ run the SQL above again.
 ```bash
 sudo install -m 0755 scripts/zbx-routerfleet.sh /usr/local/sbin/zbx-routerfleet.sh
 sudo /usr/local/sbin/zbx-routerfleet.sh probe      # expect: 1
-sudo /usr/local/sbin/zbx-routerfleet.sh discovery  # expect: JSON with your routers
+sudo /usr/local/sbin/zbx-routerfleet.sh discovery  # expect: JSON with your devices
 ```
 
 If your container or database names differ from the defaults, create
@@ -176,7 +176,7 @@ does not alarm but two consecutive ones do.
 ```bash
 # the collector, directly
 /usr/local/sbin/zbx-routerfleet.sh probe       # 1
-/usr/local/sbin/zbx-routerfleet.sh routers     # number of monitored routers
+/usr/local/sbin/zbx-routerfleet.sh routers     # number of monitored devices
 /usr/local/sbin/zbx-routerfleet.sh failing     # 0 if all is well
 
 # through the agent, from the Zabbix server

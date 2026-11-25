@@ -83,7 +83,7 @@ flowchart TD
     row["RouterBackup row<br/>pending"]
     perform["/cron/perform_backup_tasks/<br/>every minute, ~45 s budget"]
     phase1["Phase 1: tell the device<br/>to write its backup"]
-    phase2["Phase 2: fetch the files<br/>over SCP"]
+    phase2["Phase 2: fetch the files<br/>by cat, SCP only where needed"]
     done["success<br/>hash and change flag computed"]
 
     prof --> gen --> sched --> create --> row --> perform --> phase1

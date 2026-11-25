@@ -12,17 +12,17 @@ sequenceDiagram
     Note over Mon: waits 30 s for the app on startup
     Mon->>Mon: read /app_secrets/monitoring_key
     loop every cycle
-        Mon->>App: GET /monitoring/router_config_timestamp/?key=…
+        Mon->>App: GET /monitoring/router_config_timestamp/ (X-Monitoring-Key)
         App-->>Mon: timestamp of the last device-list change
         alt timestamp changed, or 10 minutes elapsed
-            Mon->>App: GET /monitoring/export_router_list/?key=…
+            Mon->>App: GET /monitoring/export_router_list/ (X-Monitoring-Key)
             App-->>Mon: uuid, address, name, last known state
         end
         loop each device, spread over 60 s
             Mon->>Dev: fping
             Dev-->>Mon: reachable or not
             alt state differs from last known
-                Mon->>App: GET /monitoring/update_router_status/?key=…&uuid=…&status=…
+                Mon->>App: GET /monitoring/update_router_status/?uuid=…&status=… (X-Monitoring-Key)
                 App->>App: record the change, open or close a downtime, notify
             end
         end
@@ -80,9 +80,13 @@ ICMP but accepts SSH.
 
 ## Authentication
 
-The `/monitoring/` endpoints accept either a signed-in session or
-`?key=<MONITORING_KEY>`. The key is generated once on first container start and
-kept in the `app_secrets` volume. See [Security](security.md).
+Monitoring sends its key in the `X-Monitoring-Key` header (never in a URL;
+`?key=` is not accepted). Only the key reports a device's status; the device
+list can also be read by a signed-in Viewer and above. The key is generated
+once on the first start, kept in `app_secrets`, and copied to the
+`monitoring_keys` volume - the only one the monitoring container mounts, read-only:
+it never holds the encryption key nor the scheduler's key. See
+[Security](security.md#the-monitoring-endpoints).
 
 ## Monitoring RouterFleet itself with Zabbix
 

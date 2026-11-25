@@ -49,3 +49,14 @@ cosign verify ghcr.io/alessiobravi/routerfleet:latest \
   --certificate-identity https://github.com/alessiobravi/routerfleet_improved/.github/workflows/build_and_push_images.yml@refs/heads/main \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
+
+Each image also carries the **build provenance** of the workflow that made it
+(which commit, which workflow run), recorded with GitHub's attestations. With
+the [GitHub CLI](https://cli.github.com/):
+
+```bash
+gh attestation verify oci://ghcr.io/alessiobravi/routerfleet:latest --repo alessiobravi/routerfleet_improved
+```
+
+An image is published only after those very bytes have run: built once, started
+as an installation on amd64 and on arm64, then tagged, signed and attested.

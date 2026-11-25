@@ -15,7 +15,8 @@ it reach.
 Some pages check only that you are signed in, with no level at all: the
 status page, the device list and device details, groups, SSH key
 names, the backup list, backup profiles, the About page and *My
-Settings*. An account with no level — or level 10 — sees exactly these.
+Settings*. A Viewer (level 10) sees exactly these; an account with no level
+sees only *My Settings* (see [Accounts without an access level](#accounts-without-an-access-level)).
 
 ## What each page requires
 
@@ -44,6 +45,9 @@ Settings*. An account with no level — or level 10 — sees exactly these.
 | Tools | Backup clean-up, export of the latest backups | 50 |
 | System settings | All of System settings - administrators only: Media and messaging, Devices, Display (default rows per table), Backups and jobs, Security | 50 |
 | | [Firmware repository](firmware.md): upload, switch off, delete | 50 |
+| Device Discovery | See discovered devices, hide them, discover adjacent devices, read chosen devices' neighbours | 30 |
+| | Add a discovered device (the wizard, its groups included) | 50 |
+| Devices | Forget a device's host key (confirmed with a small sum) | 50 |
 | Firmware updates | Start and follow updates of devices (the arrows in the device list and on the device page), abort a rollout | 40 |
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
 | | HTTPS, [HTTP access and banning](security.md#http-access-lists-and-banning), [Updates](updating.md) (the update check) | 50 |

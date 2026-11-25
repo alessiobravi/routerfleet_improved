@@ -10,22 +10,24 @@ has an IPv4 and an IPv6 address, and every service listens on both.
 flowchart TB
     browser["Browser"]
     devices["Network devices<br/>RouterOS · OpenWrt · airOS<br/>Cisco IOS · Junos · VRP"]
+    lan["RouterFleet's LAN segment<br/>LLDP · CDP · MNDP · Ubiquiti"]
 
-    subgraph stack["Docker Compose stack"]
+    subgraph stack["Docker Compose stack (dual stack network)"]
         nginx["routerfleet-nginx<br/>nginx:alpine<br/>HTTP_PORT, HTTPS_PORT<br/>(80, 443 by default)"]
-        app["routerfleet<br/>gunicorn, 5 workers × 4 threads<br/>port 8001"]
+        app["routerfleet<br/>gunicorn, 5 workers × 4 threads<br/>port 8001, unprivileged"]
         cron["routerfleet-cron<br/>cron + curl"]
-        mon["routerfleet-monitoring<br/>python + fping"]
         db[("routerfleet-postgres<br/>PostgreSQL 18")]
     end
+    mon["routerfleet-monitoring<br/>host network, raw socket only<br/>fping + discovery listener"]
 
     browser -->|HTTPS| nginx
-    nginx -->|"proxy_pass /"| app
+    nginx -->|"access list and bans,<br/>then proxy_pass /"| app
     nginx -->|"/static/ from volume"| nginx
     nginx -->|"/cron/ returns 404"| nginx
-    cron -->|"HTTP /cron/* every minute"| app
-    mon -->|"HTTP /monitoring/* with key"| app
+    cron -->|"HTTP /cron/* with its key"| app
+    mon -->|"HTTP /monitoring/* with its key,<br/>host loopback :8001"| app
     mon -->|ICMP| devices
+    lan -.->|"heard when asked"| mon
     app -->|"SSH (SCP only where needed)"| devices
     app --> db
 ```
@@ -74,13 +76,14 @@ starting all its jobs at once.
 | +10s | 1 min | `/cron/update_router_information/` | Refresh the device inventory |
 | +10s | 1 min | `/cron/concatenate_notifications/` | Fold pending notifications into messages |
 | +15s | 10 min | `/cron/daily_reports/` | Send the daily status and backup reports |
-| +20s | 10 min | `/cron/housekeeping/` | Expire stale locks and tasks, apply retention |
+| +20s | 10 min | `/cron/housekeeping/` | Expire stale locks and tasks, apply retention; remove old discovery runs, devices not heard for 90 days, long-ended bans |
 | +30s | 1 min | `/cron/send_messages/` | Deliver queued messages |
 | +40s | 1 min | `/cron/perform_backup_tasks/` | Run backups, up to ~45 s per pass |
 | +40s | 1 min | `/cron/create_command_jobs/` | Turn due command schedules into jobs |
 | +50s | 1 min | `/cron/check_updates/` | Update check — asks GitHub at most hourly; off with `UPDATE_CHECK=off` |
 | +50s | 1 min | `/cron/perform_command_tasks/` | Run command tasks |
 | +25s | 1 min | `/cron/firmware_rollouts/` | Advance [firmware rollouts](firmware.md): one step per device |
+| +35s | 2 min | `/cron/discovery/` | Move a running [discovery](discovery.md) on, import what the listener heard, check reachability |
 
 Two consequences worth knowing:
 
@@ -106,7 +109,7 @@ flowchart TD
     addr -->|yes| dbsel["Build the DATABASES block<br/>from DATABASE_ENGINE"]
     dbsel --> secret["Generate SECRET_KEY<br/>openssl rand -base64 32"]
     secret --> keys["Create monitoring_key and<br/>encryption_key in /app_secrets<br/>if they do not exist yet"]
-    keys --> svc["Copy the monitoring key and create<br/>the scheduler key in /service_keys"]
+    keys --> svc["Copy the monitoring key to /monitoring_keys<br/>and the scheduler key to /cron_keys"]
     svc --> drop["Hand the writable folders to<br/>the routerfleet user, once"]
     drop --> init["init.sh as routerfleet:<br/>migrate, collectstatic, gunicorn"]
 ```
@@ -169,7 +172,9 @@ Two details in that model are deliberate and worth knowing:
 | `/var/lib/routerfleet/` | Binary backups and firmware images (`MEDIA_ROOT`) | `media_root` |
 | `/app_static_files/` | Collected static files | `static_volume` |
 | `/app_secrets/` | `encryption_key`, `monitoring_key` | `app_secrets` |
-| `/service_keys/` | `monitoring_key` (a copy), `cron_key` - shared read-only with monitoring and the scheduler | `service_keys` |
+| `/monitoring_keys/` | `monitoring_key` (a copy) - mounted read-only by monitoring alone | `monitoring_keys` |
+| `/cron_keys/` | `cron_key` (a copy) - mounted read-only by the scheduler alone | `cron_keys` |
+| `/discovery/` | The listener's request, state and findings - shared with monitoring (owned by the application's user, writable by root's group) | `discovery_data` |
 | `/certificate/` | `nginx.pem`, `nginx.key` | `https_cert` |
 | `/var/lib/routerfleet_sqlite/` | SQLite database, when used | `sqlite_volume` |
 

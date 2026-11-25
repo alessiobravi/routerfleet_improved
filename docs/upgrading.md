@@ -32,7 +32,11 @@ Choose one of the two ways; both keep your data.
 
 **Keep your compose file** - nothing changes but the images. Works for every
 compose file of RouterFleet Improved and of RouterFleet Extended, whose
-database stays on PostgreSQL 16:
+database stays on PostgreSQL 16. What an older file does not have - and the
+current one adds - is listed under [What you may notice after
+upgrading](#what-you-may-notice-after-upgrading): the discovery listener and
+IPv6 (0.36), monitoring without the encryption key and the scheduler's key
+(0.38), a key volume each (0.40):
 
 ```bash
 cd path/to/routerfleet
@@ -225,16 +229,40 @@ The move to PostgreSQL 18 above works from either.
 
 ## What you may notice after upgrading
 
-- **0.38.0: take the new compose file** for the full hardening - it adds the
-  `service_keys` volume: monitoring then no longer mounts the volume with the
-  encryption key, and the scheduler's calls need its key. An installation that
-  keeps its compose file keeps working as before, without those two. With
-  either, the application now runs as an unprivileged user: on the first start
-  it hands its folders over once (a large media volume takes a moment), and
-  `APP_USER=root` in `.env` runs it as root again, should anything need it.
-  Changing a device's address now asks for its password again; adding a
-  passkey asks for your password; an account without an access level sees
-  only its own settings.
+- **0.40.0: the keys get a volume each.** The current compose file replaces
+  0.38's `service_keys` volume with `monitoring_keys` and `cron_keys`, so
+  monitoring and the scheduler can no longer read each other's key. A 0.38 or
+  0.39 compose file keeps working (both keys in `service_keys`); once on the
+  0.40 file, `docker volume rm <project>_service_keys` removes the old one.
+  Also: changing a device's **port** asks for its password again (as a changed
+  address does); adding a passkey or changing your password counts wrong
+  passwords like sign-ins; *Forget host key* asks for a small sum; signed-in
+  pages are not kept in the browser cache; housekeeping removes discovery runs
+  after 30 days and discovered devices not heard for 90 days.
+- **0.39.0: groups in the add-device wizard** (Device Discovery).
+- **0.38.2: the status bar** at the bottom of every page replaces the floating
+  "Live" box; the credit line is on the About page.
+- **0.38.0: take the new compose file** for the full hardening - monitoring no
+  longer mounts the volume with the encryption key, and the scheduler's calls
+  need its key. An installation that keeps its compose file keeps working as
+  before, without those two. With either, the application now runs as an
+  unprivileged user: on the first start it hands its folders over once (a
+  large media volume takes a moment), and `APP_USER=root` in `.env` runs it as
+  root again, should anything need it. Changing a device's address now asks
+  for its password again; adding a passkey asks for your password; an account
+  without an access level sees only its own settings.
+- **0.37.0: Devices Manager and Device Discovery.** *Router Manager* is now
+  *Devices Manager*, and "device" replaces "router" throughout; discovery has a
+  menu item of its own, and neighbour tables are read only from the devices
+  you choose there - no longer with every inventory update. Confirmations open
+  inline, beside what was clicked.
+- **0.36.0: the compose file moves monitoring to the host's network** (with the
+  raw-socket right only) for the discovery listener, adds the
+  `discovery_data` volume, publishes the application's port 8001 on the host's
+  loopback (127.0.0.1 and ::1; `MONITORING_PORT` changes it) and creates the
+  dual-stack network `routerfleet_dualstack` (`IPV6=false` where the kernel
+  has IPv6 off). Without the new file, everything but the LAN listener and
+  IPv6 keeps working.
 - **0.31.0: a sign-in lasts 24 hours after the last use** instead of two weeks
   from signing in: everybody signs in again within a day of the upgrade at the
   latest. Each user can choose up to two weeks in *My Settings → Security settings → Session expiration time*.
@@ -306,8 +334,9 @@ The move to PostgreSQL 18 above works from either.
 - **Device host keys are checked.** Nothing is needed on upgrade: keys are
   learned on each device's next connection. A device you reset or replace later
   must have its key forgotten on its page before it can be reached again.
-- **Sign-in attempts are limited**: 5 refused attempts for an account or from an
-  address within 15 minutes, then 15 minutes of refusals.
+- **Sign-in attempts are limited**: 5 refused attempts for an account from an
+  address, or 5 from an address whatever the names, or 20 for an account from
+  all addresses together, within 15 minutes - then 15 minutes of refusals.
 - **Secure cookies** need the current compose file, which passes
   `HTTPS_REDIRECT_POLICY` to the application. An older compose file keeps
   working, without them.

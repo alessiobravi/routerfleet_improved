@@ -13,6 +13,66 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.40.0] - 2026-11-25
+
+The findings of a second full review, fixed. Upgrading needs nothing; the
+current compose file gives monitoring and the scheduler a key volume each.
+
+### Security
+- **One HTTP access entry could stop every later update reaching nginx** (and,
+  after an nginx restart, take the web interface down): an IPv4 address written
+  the IPv6 way (`::ffff:10.0.0.1`) is now stored as IPv4, and nginx's check
+  accepts every form that is stored.
+- **Aborting a firmware rollout never installs on a device any more**: a step
+  that finishes after the abort no longer carries the device into installing.
+- **A changed port asks for the device's password again**, like a changed
+  address - in the device form and in bulk edit.
+- **Browsers no longer fill your RouterFleet login into a device's
+  credentials** (device form, bulk edit).
+- **Monitoring and the scheduler each get a volume with their own key only**
+  (`monitoring_keys`, `cron_keys`): neither can act as the other. 0.38/0.39's
+  `service_keys` keeps working.
+- **A secret encrypted with another key is never handed on** - not sent to a
+  device, not used as an authenticator secret, never encrypted twice - and the
+  status page warns administrators.
+- Client-address headers are not believed from the host side (the published
+  loopback port): no dodging the lockout, no getting someone banned.
+- The current password typed in a session (adding a passkey, changing it)
+  counts like a sign-in: recorded, and stopped by the lockout.
+- *Forget host key* asks for a small sum, checked on the server.
+- HSTS only for an uploaded certificate browsers trust.
+- Signed-in pages are never kept in the browser cache (`no-store`).
+- Accounts without an access level can no longer read the device list through
+  the monitoring endpoints.
+- The shared discovery folder is no longer world-writable, links planted in it
+  are not followed, and a malformed listener file no longer breaks the page.
+- Device reads are bounded and time out everywhere (inventory, connection
+  test, Fleet Commander, firmware, neighbours); the SCP client takes nothing
+  after its file; the reachability probe never reaches the stack's own networks.
+- The console says plainly when the page is not HTTPS.
+
+### Fixed
+- Backups deleted by housekeeping or with their device left their binary files
+  on disk.
+- A notification could be sent twice when a sending run took over a minute.
+- A LAN discovery could tie up the web workers (reachability checked one
+  device after another in the page); two clicks could start two discoveries.
+- Status updates by monitoring and by backups could overwrite each other.
+- SQLite waits for a lock instead of failing at once; creating a device type
+  with its commands is all or nothing; Zabbix no longer counts a queued backup
+  as failed.
+- Housekeeping removes old discovery runs, discovered devices not heard for 90
+  days and long-ended bans.
+- Discovery test samples and setup examples are free of environment details.
+
+### Documentation
+- Contradictions resolved (HSTS, permission levels, storage thresholds,
+  compose version, loopback addresses), stale passages updated (monitoring's
+  key, neighbour reads, downloads, channels), and what was missing added:
+  volumes, the scheduler's discovery job, the architecture diagram, three
+  management commands, Device Discovery permissions, application limits,
+  build provenance, and upgrade notes from 0.36 on.
+
 ## [0.39.1] - 2026-11-25
 
 ### Fixed

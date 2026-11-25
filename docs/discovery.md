@@ -97,7 +97,7 @@ cross Docker's network) with every right dropped but the **raw socket**
 state and what it hears pass through a file on a shared volume.
 
 On the host's network, monitoring reaches the application on the host's
-**loopback**: the application's port 8001 is published on `127.0.0.1` only
+**loopback**: the application's port 8001 is published on `127.0.0.1` and `::1` only
 (`MONITORING_PORT` in `.env` changes it). Nothing outside the host can reach
 it; a program running on the host itself can, scheduler endpoints included -
 that is the price of keeping the listener in the monitoring container. Without the raw-socket right it still hears MNDP and Ubiquiti
@@ -139,5 +139,6 @@ and name, whichever source saw it.
 
 | Action | Minimum level |
 |---|---|
-| See discovered devices, add, hide, discover adjacent devices | 30 - Host Manager |
+| See discovered devices, hide them, discover adjacent devices, read chosen devices' neighbours | 30 - Host Manager |
+| Add a discovered device (the wizard, groups included) | 50 - Administrator |
 | Edit the neighbours system command | 50 - Administrator |

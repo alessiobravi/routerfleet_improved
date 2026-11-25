@@ -2,7 +2,8 @@
 
 ## Management commands
 
-Run them inside the application container:
+Run them inside the application container (they run as the application's
+unprivileged user, as the application does):
 
 ```bash
 docker compose exec routerfleet python manage.py <command>
@@ -35,6 +36,37 @@ python manage.py http_access            # the list, the final policy, the bans
 python manage.py http_access --reset    # no entry, no ban, every address allowed
 ```
 
+### `https`
+
+The HTTPS mode, from the host - for when a change in System settings locked
+you out ([HTTPS](https.md#if-a-change-locks-you-out)):
+
+```bash
+python manage.py https status            # what is set, and what nginx applied
+python manage.py https reset             # back to HTTPS_REDIRECT_POLICY in .env
+python manage.py https mode selfsigned   # the self-signed certificate
+```
+
+### `reset_mfa`
+
+Turns off a user's authenticator app and removes their passkeys - for a lost
+phone, also for the only administrator ([Security](security.md#second-factors-and-passkeys)):
+
+```bash
+python manage.py reset_mfa <username>
+```
+
+### `optimize_database`
+
+Compacts the database (PostgreSQL `VACUUM ANALYZE`, SQLite `VACUUM`); `--full`
+runs `VACUUM FULL` on PostgreSQL, which locks tables while it works
+([Tools](tools.md)):
+
+```bash
+python manage.py optimize_database
+python manage.py optimize_database --full
+```
+
 ### `prune_audit_log`
 
 The only way to remove audit entries. `--older-than` is a number of days and is
@@ -63,11 +95,17 @@ collector:
 | Unfinished backup row | 18 hours | Marked `error` with `Backup task expired`, notification sent |
 | Device `backup_lock` with nothing pending | 18 hours | Cleared, device marked last-backup-failed |
 | Device `command_lock` | 2 hours | Cleared |
-| Backups past their retention | per profile | Deleted |
+| Backups past their retention | per profile | Deleted, with their binary files |
 | Messages | 30 days | Deleted |
+| Discovery runs | 30 days | Deleted |
+| Discovered devices not heard | 90 days | Deleted (hidden ones kept, so they stay hidden) |
+| Bans | 30 days after they ended | Deleted |
 
 The retention sweep writes **one** audit entry naming how many rows it removed,
-and a pass that removes nothing writes nothing.
+and a pass that removes nothing writes nothing. A backup's binary file goes
+with its row however the row goes - retention, or deleting the device. The
+login history and the command history are kept until pruned on purpose
+(`prune_audit_log`, see [Management commands](#management-commands)): they are the audit trail.
 
 ## System settings
 
@@ -111,8 +149,8 @@ from 85 %, red from 90 %. **Every card opens the list of exactly what it counts.
   before. Failed opens the devices with a failed backup.
 - **Backup queue** — backups neither succeeded nor failed yet. A number that only
   grows means backups are not completing.
-- **Backup storage** — disk usage under `MEDIA_ROOT`, amber from 80%, red from
-  90%. Binary backups are what fills it.
+- **Backup storage** — disk usage under `MEDIA_ROOT`: yellow from 75%, orange
+  from 85%, red from 90%. Binary backups are what fills it.
 - **Scheduler & monitoring** — red when the scheduler has not run for 5 minutes
   or the monitoring for 10: that container has stopped, and with it the
   backups or the reachability checks.

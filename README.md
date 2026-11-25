@@ -137,7 +137,7 @@ encrypted with.
 | [Devices](docs/devices.md) | Credentials, inventory, version states, the device list |
 | [Device types](docs/device-types.md) | Types as configuration: connection, recognition, inventory, backups, update checks; the wizard |
 | [Firmware repository](docs/firmware.md) | Firmware per device type; updates one device first, then the rest |
-| [Discovery](docs/discovery.md) | Devices from LLDP, CDP and MikroTik neighbour tables, and the optional LAN listener |
+| [Discovery](docs/discovery.md) | Device Discovery: adjacent devices on RouterFleet's LAN, or the neighbour tables of chosen devices; the add wizard |
 | [Backups](docs/backups.md) | Profiles, scheduling, the backup pipeline, retention, diffs |
 | [Fleet Commander](docs/fleet-commander.md) | Commands, variants, verification, jobs, schedules |
 | [Monitoring](docs/monitoring.md) | Reachability checks and downtime records |

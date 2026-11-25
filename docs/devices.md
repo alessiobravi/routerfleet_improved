@@ -341,7 +341,8 @@ operate on — see
 
 | Action | Minimum level |
 |---|---|
-| View the device list, device details, groups and SSH key names | signed in — no level needed |
+| View the device list, device details, groups and SSH key names | 10 — Viewer |
 | Instant backup, group membership | 20 — Backup Operator |
 | Create or edit a device, bulk edit, refresh inventory, test connection | 30 — Host Manager |
 | Create or edit groups and SSH keys | 40 — Configuration Manager |
+| Forget a device's host key (confirmed with a small sum) | 50 — Administrator |

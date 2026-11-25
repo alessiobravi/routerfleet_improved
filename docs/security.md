@@ -42,17 +42,19 @@ regenerates `SECRET_KEY` on every start, that fallback is for development only.
 
 ### If a value will not decrypt
 
-The application logs a warning and hands the value back unchanged. Two different
-situations produce this, and they cannot be told apart from the stored value
-alone:
+Two different situations, told apart by the value itself:
 
 - **the value is not encrypted yet** — normal while the migration that encrypts
-  the column is running, and harmless;
-- **the value was encrypted with a different key** — the case worth worrying
-  about, meaning `app_secrets` was lost or replaced.
-
-The warning names both rather than asserting the alarming one, because it fires
-on every upgrade for the ordinary reason.
+  the column is running, and harmless: it is handed back unchanged, with a
+  warning in the log;
+- **the value is encrypted, but with a different key** — `app_secrets` was lost
+  or replaced, or does not belong to this database. The ciphertext is **never
+  handed on**: not sent to a device as its password, not used as an
+  authenticator secret. It reads as empty (a device then asks for its password
+  again), it is never encrypted a second time (so it can still be read once
+  the right key is back), and administrators see a red warning on the status
+  page. Restore `app_secrets/encryption_key` from a backup, or enter the
+  secrets again.
 
 ### What encryption does not cover
 
@@ -87,12 +89,13 @@ flowchart TD
 2. **A request that came through a proxy is refused.** nginx writes the
    caller's address into `X-Real-IP`; the cron container talks to the
    application directly and sets no such header.
-3. **The scheduler's key.** The cron container holds a key of its own (on the
-   `service_keys` volume, compose files from 0.38) and sends it with every call
+3. **The scheduler's key.** The cron container holds a key of its own - on
+   the `cron_keys` volume, which only the scheduler mounts (compose files from
+   0.40; `service_keys` in 0.38/0.39) - and sends it with every call
    (`X-RF-Cron-Key`); a call without it is refused, so no process on the host
-   and no other container can drive the installation through the
-   application's loopback port. With a compose file from before 0.38 (no
-   `service_keys` volume) the key is not required and the first two locks
+   and no other container, monitoring included, can drive the installation
+   through the application's loopback port. With a compose file from before
+   0.38 (no key volume) the key is not required and the first two locks
    remain, as before.
 
 A refusal is answered the way a non-existent path is, so it reveals nothing.
@@ -101,18 +104,27 @@ A refusal is answered the way a non-existent path is, so it reveals nothing.
 
 `/monitoring/` accepts the monitoring key - a UUID generated on first start,
 compared in constant time - and, for reading the device list, a signed-in
-session. **Only the monitoring key reports a status** (online, offline): a
+Viewer or above. **Only the monitoring key reports a status** (online, offline): a
 signed-in user, or a link someone follows, can not mark devices offline,
 open outages or send notifications.
 
 The key travels in an `X-Monitoring-Key` header, never in a URL (a URL ends up
 in logs and error messages); a key in the URL (`?key=`) is not accepted.
 
-The monitoring container reads its key from the `service_keys` volume, mounted
-read-only - **not** from `app_secrets`, which also holds the key to every
-device password: the container runs on the host's network and parses
-announcements from the LAN, and must not hold that key. (With a compose file
-from before 0.38 it still mounts `app_secrets`.)
+The monitoring container reads its key from the `monitoring_keys` volume,
+mounted read-only - **not** from `app_secrets`, which also holds the key to
+every device password, and not the scheduler's key: the container runs on the
+host's network and parses announcements from the LAN, and must hold nothing
+more than its own key. (A 0.38/0.39 compose file mounts `service_keys`, with
+both keys; one from before 0.38 still mounts `app_secrets`.)
+
+### Where the client's address comes from
+
+nginx tells the application who the client is (`X-Real-IP`); a request that
+reaches the application straight from the host - through its loopback port,
+arriving from Docker's gateway - has no nginx in between, so those headers are
+not believed there: a process on the host can neither dodge the sign-in
+lockout nor get somebody else's address banned that way.
 
 ## Containers and privileges
 
@@ -193,8 +205,8 @@ trusted.
 
 **A device that was reset or replaced** presents a new key on purpose. After
 confirming that is what happened, use the eraser next to the fingerprint
-(**Forget host key**, level 30 or above): the key presented on the next
-connection is then trusted. A key change you cannot explain is what this exists
+(**Forget host key**, administrators only, confirmed with a small sum): the key
+presented on the next connection is then trusted. A key change you cannot explain is what this exists
 to catch — do not forget the key until you know why it changed.
 
 An installation upgraded from a release that did not check host keys has none
@@ -265,7 +277,9 @@ order, the first match deciding**, then a **final policy** for every other
 address: **Allow** unless changed. nginx enforces it with its own `allow` and
 `deny`, which work exactly that way; Let's Encrypt's validation path stays
 open. Behind a reverse proxy the address is the client's, taken from the
-trusted proxies.
+trusted proxies. An IPv4 address written the IPv6 way (`::ffff:10.0.0.1`) is
+stored as the IPv4 address it is - as nginx matches it; an IPv6 scope
+(`fe80::1%eth0`) is refused.
 
 A change that would shut out the administrator making it - by their address
 as nginx sees it - is refused. Locked out anyway (a new address, say)? On the
@@ -345,7 +359,9 @@ signed cookie that expires after five minutes, not in a session, so asking for
 challenges stores nothing on the server.
 
 **Adding a passkey asks for the account's password**: a passkey signs in on
-its own, so a session left open is not enough to add one.
+its own, so a session left open is not enough to add one. That password - and
+the current one when changing it - counts like a sign-in: a wrong one is
+recorded in the login history, and the sign-in lockout stops the guessing.
 
 **Losing a phone or a passkey.** An administrator resets a user's second
 factors on the user's page (**Reset**, confirmed with the username), which
@@ -524,14 +540,13 @@ no way to mark them. Scripts and style attributes stay strict there too. A test
 fails if a template, or markup built in Python, ever carries inline code again.
 Every page was opened in a browser with the policy enforced, with no violation.
 
-**HSTS is deliberately not sent.** With the self-signed certificate an
-installation starts with, a browser that has seen HSTS refuses to let the user
-past the certificate warning — the installation would lock itself out. If you
-run a certificate browsers trust, you can add
-`add_header Strict-Transport-Security "max-age=31536000" always;` to the HTTPS
-server block of your nginx configuration. Set
-`HTTPS_REDIRECT_POLICY=never` to serve both — which sends passwords in
-cleartext, and is not recommended.
+**HSTS only with a certificate browsers trust** - Let's Encrypt's once issued,
+or an uploaded one browsers trust: nginx then sends
+`Strict-Transport-Security` (one year). Never with the self-signed
+certificate, nor an uploaded one browsers do not trust: a browser that has seen
+HSTS refuses to let the user past the certificate warning. See
+[HTTPS](https.md#hsts). `HTTPS_REDIRECT_POLICY=never` serves plain HTTP too -
+which sends passwords in cleartext, and is not recommended.
 
 ### Device console
 
@@ -555,6 +570,13 @@ live parts of the status page, a rollout or a job - and the scheduler's calls do
 not count as use, so a tab left open does not keep a sign-in alive. The expiry
 is renewed at most every five minutes, so it may run up to five minutes longer.
 Before 0.31.0 every sign-in lasted two weeks from signing in.
+
+### Browser cache
+
+A page shown to a signed-in user is sent with `Cache-Control: no-store`: an
+authenticator secret, a backup's text or the HTTPS settings are never brought
+back from the browser's disk cache (or with Back) after signing out on a
+shared workstation. Static files keep their caching.
 
 ### Cookies
 

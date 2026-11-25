@@ -15,6 +15,8 @@ and every variant. For the three-command version, see the
 - [Ports](#ports)
 - [TLS certificates](#tls-certificates)
 - [Behind your own reverse proxy](#behind-your-own-reverse-proxy)
+- [The monitoring container and discovery](#the-monitoring-container-and-discovery)
+- [IPv4 and IPv6](#ipv4-and-ipv6)
 - [Volumes and what to back up](#volumes-and-what-to-back-up)
 - [Verifying the installation](#verifying-the-installation)
 - [Building the images yourself](#building-the-images-yourself)
@@ -51,15 +53,15 @@ container).
 | `routerfleet-nginx` | `ghcr.io/alessiobravi/routerfleet-nginx` | TLS, static files, the only published service | 80, 443 |
 | `routerfleet-postgres` | `ghcr.io/alessiobravi/routerfleet-postgres18` | The database: the official `postgres:18` on Alpine with every available update installed, built-in `C.UTF-8` ordering — default compose file only | none |
 
-Also created: one Compose network (internal; containers reach each other by
-name) and six named volumes — see [Volumes](#volumes-and-what-to-back-up).
+Also created: RouterFleet's own Compose network (dual stack; containers reach
+each other by name) and its named volumes — see [Volumes](#volumes-and-what-to-back-up).
 
 **Start order and health.** PostgreSQL, the application and nginx have healthchecks,
 and the others wait for them: the application starts once PostgreSQL accepts
 connections, and the scheduler, the monitoring loop and nginx start once the
 application answers a real page — so nothing calls it while it is still
-migrating. `docker compose ps` shows `healthy` for both when the installation is
-up. nginx is healthy once it listens on 443, which on a first start is after it
+migrating. `docker compose ps` shows `healthy` for all three when the
+installation is up. nginx is healthy once it listens on 443, which on a first start is after it
 has generated its certificate. The application is given three minutes for its
 first start, which is when a large database migrates.
 How the pieces talk to each other is in [Architecture](architecture.md).
@@ -69,7 +71,7 @@ How the pieces talk to each other is in [Architecture](architecture.md).
 Every push to `main` is a release, and **only the newest release is offered**:
 publishing a release deletes every older one — its GitHub Release, git tag and
 images. A release that was superseded was superseded because the new one fixes
-something, so the old one is not left around to be installed. Each of the five
+something, so the old one is not left around to be installed. Each of the six
 images is published as:
 
 | Tag | Meaning |
@@ -215,7 +217,7 @@ addition to `SERVER_ADDRESS`.
 
 | Variable | Value | Purpose |
 |---|---|---|
-| `COMPOSE_VERSION` | `08a` | The image refuses to start with an older compose file that lacks a required volume or variable |
+| `COMPOSE_VERSION` | `09a` (`08a` in the no-postgres file, still accepted) | The image refuses to start with an older compose file that lacks a required volume or variable |
 | `COMPOSE_TYPE` | `with-postgres` / `no-postgres` | Lets the image check the database settings match the compose file |
 
 ### Application settings
@@ -231,6 +233,11 @@ permanent override needs an image of your own.
 | `PROJECT_REPOSITORY_URL` | this repository | Where the interface's project links point |
 | `PROJECT_SUPPORT_URL` | this repository's issues | Where "Request Device Support" points |
 | `SCHEDULE_LATE_LIMIT_MINUTES` | `2` | How late a command schedule may still run |
+| `LOGIN_LOCKOUT_ATTEMPTS` / `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | `5` / `20` / `15` | The sign-in lockout ([Security](security.md#sign-in-attempts)); banning has its own settings in System settings |
+| `BACKUP_DOWNLOAD_MAX_BYTES` | 256 MB | The largest file a backup download takes |
+| `BACKUP_OUTPUT_MAX_BYTES` | 64 MB | The largest command output a backup takes |
+| `FIRMWARE_MAX_BYTES` | 1 GB | The largest firmware upload |
+| `CONSOLE_IDLE_SECONDS` / `CONSOLE_MAX_SECONDS` / `CONSOLE_SESSIONS_PER_USER` | 15 min / 4 h / 3 | The device console's limits |
 
 ### Generated on first start
 
@@ -238,8 +245,8 @@ permanent override needs an image of your own.
 |---|---|---|
 | `SECRET_KEY` | regenerated **every** start | Signs sessions — a restart signs everyone out |
 | Encryption key | `app_secrets/encryption_key` | Encrypts stored device passwords. Created once, never rotated. **Losing it loses the passwords** |
-| Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once; copied to `service_keys`, the only volume monitoring mounts |
-| Scheduler key | `service_keys/cron_key` | Sent by the scheduler with every call; required while that volume is mounted (compose files from 0.38). Created once |
+| Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once; copied to `monitoring_keys`, the only volume monitoring mounts |
+| Scheduler key | `app_secrets/cron_key`, copied to `cron_keys` | Sent by the scheduler with every call; required while a key volume is mounted (compose files from 0.38). Created once |
 | TLS certificate | `https_cert/nginx.pem`, `nginx.key` | Self-signed, RSA 4096, CN `localhost`, valid 10 years. Created only if missing |
 
 ## The monitoring container and discovery
@@ -248,7 +255,7 @@ The monitoring container runs on the **host's network**, with every right
 dropped but the raw socket: ping needs it, and so does the discovery listener
 inside it, dormant until *Discover adjacent devices* asks
 ([Discovery](discovery.md)). From the host's network it reaches the
-application on the host's loopback: port **8001 on `127.0.0.1` only** - set
+application on the host's loopback: port **8001 on `127.0.0.1` and `::1` only** - set
 `MONITORING_PORT` in `.env` if 8001 is taken on the host. Nothing outside the
 host can reach that port.
 
@@ -345,7 +352,10 @@ rules:
 | `postgres_data` | The PostgreSQL 16 database of releases before 0.24, until migrated ([Upgrading](upgrading.md#moving-to-postgresql-18)) | until removed |
 | `sqlite_volume` | The database (SQLite) | **yes**, when using SQLite |
 | `app_secrets` | Encryption and monitoring keys | **yes — without it the stored passwords are unrecoverable** |
-| `service_keys` | The keys monitoring and the scheduler need - never the encryption key | no, recreated on start |
+| `monitoring_keys` | The monitoring key alone - what the monitoring container mounts | no, recreated on start |
+| `cron_keys` | The scheduler's key alone - what the scheduler mounts | no, recreated on start |
+| `discovery_data` | The discovery listener's request, state and findings, shared with monitoring | no |
+| `service_keys` | 0.38/0.39 compose files only: both keys in one volume (0.40 splits them; can be removed after taking the 0.40 file) | no |
 | `media_root` | Binary backup files and firmware images | **yes** |
 | `https_cert` | TLS certificate and key | if you supplied your own |
 | `static_volume` | Collected static files | no, regenerated on start |
@@ -355,7 +365,7 @@ Backup commands are in [Upgrading](upgrading.md#before-you-start).
 ## Verifying the installation
 
 ```bash
-docker compose ps                                  # running; postgres and routerfleet "healthy"
+docker compose ps                                  # running; postgres, routerfleet and nginx "healthy"
 docker compose logs routerfleet --tail 50          # migrations, gunicorn started
 docker compose logs routerfleet-cron --tail 20     # JSON replies every minute
 docker compose logs routerfleet-monitoring --tail 20
