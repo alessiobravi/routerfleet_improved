@@ -20,6 +20,23 @@ configurable port (22 by default). Passwords are encrypted at rest — see
 [Security](security.md). SSH keys are stored once under a name and shared by as
 many devices as you like; RSA, ECDSA and Ed25519 keys are accepted.
 
+**A new SSH key is generated or pasted.** *Generate a new key* makes the key
+pair on the server, as the type you choose:
+
+| Type | What it is |
+|---|---|
+| Ed25519 (the default) | Elliptic curve, 256 bits: short, fast, the modern choice |
+| ECDSA P-256, P-384, P-521 | Elliptic curves NIST P-256, P-384, P-521 |
+| RSA 2048, 3072, 4096 | RSA of that size |
+
+Pick the type your devices accept. The private key never leaves the server
+except for the devices' SSH logins; its page then shows the **public key**,
+with *Copy the public key*, ending with the key's name so a device lists it
+recognisably - put it on each device that should accept the key (RouterOS:
+`/user ssh-keys import`; Linux-based systems: `~/.ssh/authorized_keys`). A
+passphrase given while generating protects the key from the start. DSA and
+RSA below 2048 bits are not offered: no longer considered safe.
+
 **SSH keys** are checked when saved: the key must open, with its passphrase if
 it has one. The public key is derived from the private one when left empty.
 A key can have an optional **passphrase**: a protected key is given with it,

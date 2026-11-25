@@ -450,7 +450,11 @@ def view_manage_sshkey(request):
             form.add_error(None, 'The confirmation was wrong or too late: the private key was not changed. '
                                  'Reveal it again to edit it.')
         else:
-            form.save()
+            saved = form.save()
+            if form.generated:
+                # Its page shows the public key, to copy to the devices
+                messages.success(request, 'SSH key generated|Copy its public key to the devices that should accept it.')
+                return redirect(f'/router/manage_sshkey/?uuid={saved.uuid}')
             messages.success(request, 'SSH Key saved successfully')
             return redirect('ssh_keys_list')
 

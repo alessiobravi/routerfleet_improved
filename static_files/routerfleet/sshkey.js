@@ -15,6 +15,21 @@
     var original = null;          // the revealed key, to tell whether it changed
     var saveSum = null;
 
+    // Copy the public key, to put it on the devices
+    var copy = document.getElementById('copy-public-key');
+    if (copy) {
+      copy.addEventListener('click', function () {
+        var text = document.getElementById('id_public_key').value.trim();
+        function done() { copy.innerHTML = '<i class="fas fa-check me-1"></i>Copied'; setTimeout(function () { copy.innerHTML = '<i class="fas fa-copy me-1"></i>Copy the public key'; }, 2000); }
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(text).then(done, function () {});
+        } else {
+          var area = document.getElementById('id_public_key'); area.focus(); area.select();
+          try { if (document.execCommand('copy')) { done(); } } catch (e) {}
+        }
+      });
+    }
+
     function csrf() { return form.querySelector('input[name=csrfmiddlewaretoken]').value; }
     function show(id, on) { var el = document.getElementById(id); if (el) { el.classList.toggle('d-none', !on); } }
 

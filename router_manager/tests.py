@@ -880,3 +880,94 @@ class MovedDeviceCredentialTests(TestCase):
             page = self.client.post(f'/router/manage/?uuid={self.router.uuid}', {'action': 'forget_host_key'})
         self.assertContains(page, 'Access Denied')
         forget.assert_not_called()
+
+
+class SSHKeyGenerationTests(TestCase):
+    """A new key can be generated here, as the type the user chooses - by
+    algorithm and size - and is usable at once: paramiko loads it and signs
+    with it, protected by the passphrase when one is given."""
+
+    def setUp(self):
+        self.client.force_login(make_user(40))
+
+    def generate(self, **data):
+        return self.client.post('/router/manage_sshkey/', {'name': 'gen key', 'source': 'generate', **data})
+
+    def test_every_type_offered_is_a_working_key(self):
+        import paramiko
+        from router_manager.sshkeys import KEY_TYPES, checked, generate
+        from routerlib.functions import load_private_key_from_string
+        expected = {'ed25519': 'ssh-ed25519', 'ecdsa-256': 'ecdsa-sha2-nistp256', 'ecdsa-384': 'ecdsa-sha2-nistp384',
+                    'ecdsa-521': 'ecdsa-sha2-nistp521', 'rsa-2048': 'ssh-rsa', 'rsa-3072': 'ssh-rsa', 'rsa-4096': 'ssh-rsa'}
+        self.assertEqual([value for value, _, _ in KEY_TYPES], list(expected))
+        for kind, name in expected.items():
+            with self.subTest(kind=kind):
+                for passphrase in ('', 'a passphrase'):
+                    stored, public = checked(generate(kind), passphrase)
+                    self.assertTrue(public.startswith(name + ' '))
+                    key = load_private_key_from_string(stored, passphrase or None)
+                    self.assertIsInstance(key, paramiko.PKey)
+                    self.assertTrue(key.sign_ssh_data(b'login'))   # what an SSH login asks of it
+                    if passphrase:
+                        with self.assertRaises(Exception):
+                            load_private_key_from_string(stored, None)
+        rsa = load_private_key_from_string(checked(generate('rsa-3072'), '')[0])
+        self.assertEqual(rsa.get_bits(), 3072)
+
+    def test_an_unknown_type_is_refused(self):
+        from router_manager.sshkeys import KeyProblem, generate
+        for kind in ('dsa', 'rsa-1024', 'ecdsa-224', '', 'rsa'):
+            with self.subTest(kind=kind), self.assertRaises(KeyProblem):
+                generate(kind)
+        response = self.generate(key_type='rsa-1024')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(SSHKey.objects.exists())
+
+    def test_generating_stores_it_and_opens_its_page_with_the_public_key(self):
+        response = self.generate(key_type='ecdsa-384', passphrase='secret words')
+        key = SSHKey.objects.get(name='gen key')
+        self.assertRedirects(response, f'/router/manage_sshkey/?uuid={key.uuid}', fetch_redirect_response=False)
+        self.assertTrue(key.public_key.startswith('ecdsa-sha2-nistp384 '))
+        self.assertTrue(key.public_key.endswith(' gen-key'), 'named after the key, so devices list it recognisably')
+        self.assertEqual(key.passphrase, 'secret words')
+        from routerlib.functions import KeyPassphraseError, load_private_key_from_string
+        with self.assertRaises(KeyPassphraseError):
+            load_private_key_from_string(key.private_key, None)
+        self.assertIsNotNone(load_private_key_from_string(key.private_key, 'secret words'))
+        page = self.client.get(f'/router/manage_sshkey/?uuid={key.uuid}')
+        self.assertContains(page, key.public_key)
+        self.assertContains(page, 'id="copy-public-key"')
+        self.assertNotContains(page, key.private_key.splitlines()[1])
+
+    def test_the_default_is_ed25519_and_what_was_pasted_is_not_used(self):
+        pasted = new_private_key()
+        self.generate(private_key=pasted, public_key='ssh-ed25519 AAAAtyped')
+        key = SSHKey.objects.get(name='gen key')
+        self.assertTrue(key.public_key.startswith('ssh-ed25519 '))
+        self.assertNotIn('AAAAtyped', key.public_key)
+        self.assertNotEqual(key.private_key.strip(), pasted.strip())
+
+    def test_pasting_still_works_and_the_new_key_page_offers_both(self):
+        page = self.client.get('/router/manage_sshkey/')
+        for text in ('Generate a new key', 'Paste an existing key', 'Ed25519', 'ECDSA P-521', 'RSA 4096'):
+            self.assertContains(page, text)
+        response = self.client.post('/router/manage_sshkey/', {'name': 'pasted', 'source': 'paste',
+                                                               'private_key': new_private_key()})
+        self.assertRedirects(response, '/router/ssh_keys/', fetch_redirect_response=False)
+        self.assertFalse(SSHKey.objects.get(name='pasted').public_key.endswith(' pasted'), 'as given, no comment added')
+        self.assertContains(self.client.post('/router/manage_sshkey/', {'name': 'empty', 'source': 'paste'}),
+                            'Paste the private key.')
+
+    def test_an_existing_key_is_never_regenerated(self):
+        self.client.post('/router/manage_sshkey/', {'name': 'kept', 'private_key': new_private_key()})
+        key = SSHKey.objects.get(name='kept')
+        before = key.private_key
+        self.client.force_login(make_user(50))
+        self.client.post(f'/router/manage_sshkey/?uuid={key.uuid}', {'name': 'kept', 'source': 'generate', 'key_type': 'rsa-2048'})
+        key.refresh_from_db()
+        self.assertEqual(key.private_key, before)
+
+    def test_below_level_40_nothing_is_generated(self):
+        self.client.force_login(make_user(30))
+        self.generate()
+        self.assertFalse(SSHKey.objects.exists())

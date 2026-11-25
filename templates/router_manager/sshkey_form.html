@@ -10,6 +10,16 @@
         <input type="hidden" name="confirm_answer" id="confirm-answer">
         {% for error in form.non_field_errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
         <div class="rf-set-group">
+            {% if not instance %}
+            <div class="rf-set-row d-block">
+                <div class="btn-group w-100" role="radiogroup" aria-label="New key">
+                    <input type="radio" class="btn-check" name="source" id="source-generate" value="generate" {% if form.source.value != 'paste' %}checked{% endif %}>
+                    <label class="btn btn-outline-primary" for="source-generate"><i class="fas fa-wand-magic-sparkles me-1"></i>Generate a new key</label>
+                    <input type="radio" class="btn-check" name="source" id="source-paste" value="paste" {% if form.source.value == 'paste' %}checked{% endif %}>
+                    <label class="btn btn-outline-primary" for="source-paste"><i class="fas fa-paste me-1"></i>Paste an existing key</label>
+                </div>
+            </div>
+            {% endif %}
             <div class="rf-set-row">
                 <span class="rf-set-icon blue"><i class="fas fa-tag"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="id_name">Name</label>
@@ -17,7 +27,22 @@
                     {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</div>
             </div>
 
-            <div class="rf-set-row">
+            {% if not instance %}
+            <div data-rf-show-when="source" data-for="generate"><div class="rf-set-row d-block">
+                <div class="small mb-1">Key type</div>
+                {% for value, label, description in form.key_types %}
+                <label class="rf-set-choice rf-set-row">
+                    <input type="radio" name="key_type" value="{{ value }}" {% if form.key_type.value == value or not form.key_type.value and forloop.first %}checked{% endif %}>
+                    <span class="rf-set-icon {% if value == 'ed25519' %}green{% elif 'ecdsa' in value %}teal{% else %}indigo{% endif %}"><i class="fas fa-key"></i></span>
+                    <span class="rf-set-text"><span class="rf-set-label d-block">{{ label }}</span><span class="rf-set-sub d-block">{{ description }}</span></span>
+                    <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
+                </label>
+                {% endfor %}
+                {% for error in form.key_type.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                <div class="rf-set-sub mt-1">Made here, by RouterFleet: the private key is stored encrypted and never leaves the server except to the devices' SSH logins. Its public key is shown next, to put on the devices.</div>
+            </div></div>
+            {% endif %}
+            <div class="rf-set-row"{% if not instance %} data-rf-show-when="source" data-for="paste"{% endif %}>
                 <span class="rf-set-icon red"><i class="fas fa-key"></i></span>
                 <div class="rf-set-text">
                     <label class="small mb-0" for="id_private_key">Private key</label>
@@ -64,11 +89,12 @@
             {% endif %}
             {% endif %}{% endif %}
 
-            <div class="rf-set-row">
+            <div class="rf-set-row"{% if not instance %} data-rf-show-when="source" data-for="paste"{% endif %}>
                 <span class="rf-set-icon teal"><i class="fas fa-unlock"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="id_public_key">Public key</label>
                     <textarea class="form-control font-monospace rf-fs-12" id="id_public_key" name="public_key" rows="3" spellcheck="false">{{ form.public_key.value|default:'' }}</textarea>
-                    <div class="rf-set-sub mt-1">Left empty, it is derived from the private key.</div></div>
+                    {% if instance %}<button type="button" class="btn btn-outline-primary btn-sm mt-2" id="copy-public-key"><i class="fas fa-copy me-1"></i>Copy the public key</button>{% endif %}
+                    <div class="rf-set-sub mt-1">{% if instance %}Put it on each device that should accept this key - for example RouterOS: <code>/user ssh-keys import</code>; Linux-based systems: <code>~/.ssh/authorized_keys</code>.{% else %}Left empty, it is derived from the private key.{% endif %}</div></div>
             </div>
         </div>
 

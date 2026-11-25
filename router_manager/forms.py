@@ -344,6 +344,9 @@ class SSHKeyForm(forms.ModelForm):
                                  help_text='Protects the private key. A key without one is stored protected by the '
                                            'passphrase given here. Encrypted at rest, never shown again.')
     remove_passphrase = forms.BooleanField(required=False, label='Remove the stored passphrase')
+    # A new key: pasted, or generated here as the type chosen
+    source = forms.ChoiceField(required=False, choices=[('generate', 'Generate a new key'), ('paste', 'Paste an existing key')])
+    key_type = forms.ChoiceField(required=False)
 
     class Meta:
         model = SSHKey
@@ -352,6 +355,10 @@ class SSHKeyForm(forms.ModelForm):
 
     def __init__(self, *args, secrets_allowed=True, **kwargs):
         super(SSHKeyForm, self).__init__(*args, **kwargs)
+        from router_manager.sshkeys import KEY_TYPES
+        self.fields['key_type'].choices = [(value, label) for value, label, _ in KEY_TYPES]
+        self.key_types = KEY_TYPES
+        self.generated = False
         self.secrets_allowed = secrets_allowed
         stored = bool(self.instance.pk and self.instance.private_key)
         self.fields['public_key'].required = False
@@ -395,6 +402,16 @@ class SSHKeyForm(forms.ModelForm):
         given_key = (cleaned.get('private_key') or '').strip()
         given_passphrase = cleaned.get('passphrase') or ''
         removing = cleaned.get('remove_passphrase')
+        if not self.instance.pk and cleaned.get('source') == 'generate':
+            # Generated here: what was pasted (if anything) and a public key typed are not used
+            from router_manager.sshkeys import comment_for, generate
+            try:
+                given_key = generate(cleaned.get('key_type') or 'ed25519')
+            except KeyProblem as problem:
+                self.add_error('key_type', str(problem))
+                return cleaned
+            cleaned['public_key'] = ''
+            self.generated = True
         if not given_key and not (self.instance.pk and self.instance.private_key):
             self.add_error('private_key', 'Paste the private key.')
             return cleaned
@@ -416,7 +433,7 @@ class SSHKeyForm(forms.ModelForm):
             return cleaned
         self._stored_passphrase = passphrase
         if not (cleaned.get('public_key') or '').strip():
-            cleaned['public_key'] = public
+            cleaned['public_key'] = f"{public} {comment_for(cleaned.get('name'))}" if self.generated else public
         return cleaned
 
     def save(self, commit=True):

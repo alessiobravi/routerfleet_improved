@@ -13,6 +13,16 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.42.0] - 2026-11-25
+
+### Added
+- **Generate an SSH key in RouterFleet.** A new SSH key is generated here or
+  pasted as before. The type is yours to choose, by algorithm and size:
+  Ed25519 (the default), ECDSA P-256, P-384 or P-521, RSA 2048, 3072 or 4096.
+  The key is stored encrypted - protected by a passphrase from the start when
+  one is given - and its page opens with the public key and a *Copy* button,
+  the key's name at the end of the line so devices list it recognisably.
+
 ## [0.41.0] - 2026-11-25
 
 ### Changed

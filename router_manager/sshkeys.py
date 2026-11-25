@@ -1,12 +1,53 @@
-"""SSH keys: checking a key with its passphrase, deriving its public key, and
-protecting an unprotected key with the passphrase it was given."""
+"""SSH keys: checking a key with its passphrase, deriving its public key,
+protecting an unprotected key with the passphrase it was given, and generating
+a new key of the type chosen."""
+import re
+
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
 from routerlib.functions import KeyPassphraseError, load_private_key_from_string
 
 
 class KeyProblem(Exception):
     pass
+
+
+# The types a new key can be generated as - by algorithm and size, the user's
+# choice: (value, label, description). Ed25519 first: the default.
+KEY_TYPES = [
+    ('ed25519', 'Ed25519', 'Elliptic curve, 256 bits: a short key, fast, the modern default'),
+    ('ecdsa-256', 'ECDSA P-256', 'Elliptic curve NIST P-256'),
+    ('ecdsa-384', 'ECDSA P-384', 'Elliptic curve NIST P-384'),
+    ('ecdsa-521', 'ECDSA P-521', 'Elliptic curve NIST P-521'),
+    ('rsa-2048', 'RSA 2048', 'RSA, 2048 bits'),
+    ('rsa-3072', 'RSA 3072', 'RSA, 3072 bits'),
+    ('rsa-4096', 'RSA 4096', 'RSA, 4096 bits: the largest, slowest to use'),
+]
+CURVES = {'256': ec.SECP256R1, '384': ec.SECP384R1, '521': ec.SECP521R1}
+RSA_SIZES = {'2048', '3072', '4096'}
+
+
+def generate(kind):
+    """A new private key of that type, unprotected, in OpenSSH format (the
+    caller protects it with a passphrase through checked())."""
+    family, _, size = kind.partition('-')
+    if kind == 'ed25519':
+        key = ed25519.Ed25519PrivateKey.generate()
+    elif family == 'ecdsa' and size in CURVES:
+        key = ec.generate_private_key(CURVES[size]())
+    elif family == 'rsa' and size in RSA_SIZES:
+        key = rsa.generate_private_key(public_exponent=65537, key_size=int(size))
+    else:
+        raise KeyProblem('Choose one of the key types offered.')
+    return key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.OpenSSH,
+                             serialization.NoEncryption()).decode()
+
+
+def comment_for(name):
+    """The comment ending a generated key's public line - the key's name,
+    without spaces, so a device lists the key under a recognisable name."""
+    return re.sub(r'[^A-Za-z0-9._@+-]+', '-', (name or '').strip()).strip('-')[:60] or 'routerfleet'
 
 
 def checked(private_key, passphrase):
