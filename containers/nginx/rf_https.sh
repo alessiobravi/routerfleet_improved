@@ -25,7 +25,8 @@ log() { echo "[rf_https] $*"; }
 
 valid_domain() { printf '%s' "$1" | grep -Eq '^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'; }
 valid_email() { printf '%s' "$1" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'; }
-valid_net() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$|^[0-9A-Fa-f:]+(/[0-9]{1,3})?$'; }
+# IPv4, IPv6 - and IPv6 with an IPv4 tail (::ffff:10.0.0.1), which nginx accepts too
+valid_net() { printf '%s' "$1" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,2})?$|^[0-9A-Fa-f:]+(/[0-9]{1,3})?$|^[0-9A-Fa-f:]+:([0-9]{1,3}\.){3}[0-9]{1,3}(/[0-9]{1,3})?$'; }
 
 state() { [ -f "$STATE" ] && jq -r "$1 // empty" "$STATE" 2>/dev/null; }
 

@@ -671,3 +671,40 @@ class WizardGroupsTests(TestCase):
         self.post(new_group='lab')
         self.assertEqual(RouterGroup.objects.filter(name__iexact='lab').count(), 1)
         self.assertIn(self.lab, Router.objects.get(name='edge').routergroup_set.all())
+
+
+class AdvanceBoundsTests(TestCase):
+    """However many devices a LAN announces, a page request checks their
+    reachability in one bounded batch, and only one request at a time moves a
+    discovery on."""
+
+    def setUp(self):
+        self.folder = pathlib.Path(tempfile.mkdtemp())
+        override = override_settings(DISCOVERY_FILE=str(self.folder / 'seen.json'))
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def test_one_batch_for_many_new_devices(self):
+        import time
+        from unittest import mock
+        from . import runs
+        from .models import DiscoveryRun
+        run = runs.start('admin')
+        DiscoveryRun.objects.filter(pk=run.pk).update(state='listening')
+        now = int(time.time())
+        (self.folder / 'seen.json').write_text(json.dumps({'devices': {
+            str(n): {'identity': f'spoof-{n}', 'address': f'198.51.100.{n}', 'protocols': ['mndp'], 'last_seen': now}
+            for n in range(1, 60)}}))
+        (self.folder / 'listener.json').write_text(json.dumps({'alive': time.time(), 'listening_until': time.time() + 100}))
+        with mock.patch('discovery.reach.check', return_value=0) as check:
+            runs.advance(DiscoveryRun.objects.get(pk=run.pk))
+        self.assertEqual(check.call_count, 1, 'one batch, not one check per device')
+
+    def test_a_refresh_skips_while_another_request_moves_the_run_on(self):
+        from unittest import mock
+        from . import runs
+        run = runs.start('admin')
+        with mock.patch('django.core.cache.backends.filebased.FileBasedCache.add', return_value=False), \
+                mock.patch('discovery.runs._advance') as advance:
+            runs.advance(run)
+        advance.assert_not_called()

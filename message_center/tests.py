@@ -450,3 +450,21 @@ class ViewTests(TestCase):
         self.assertRedirects(self.client.get('/message_center/manage_channel/?uuid=x%26next%3D//evil.example'),
                              '/system/notifications/channel/', fetch_redirect_response=False)
         self.assertEqual(self.client.get('/message_center/message_history/').status_code, 200)
+
+
+class SendBudgetTests(TestCase):
+    """A send run stops starting sends after its budget, so the next minute's
+    run never takes the same pending messages: nothing is sent twice."""
+
+    def test_the_run_stops_at_its_budget(self):
+        from unittest import mock
+        from message_center.models import Message
+        ops = channel()
+        for number in range(3):
+            Message.objects.create(channel=ops, message=f'm{number}', subject='s', status='pending')
+        clock = iter([0, 10, 50, 60, 70])
+        with mock.patch('message_center.views.time.monotonic', side_effect=lambda: next(clock)), \
+                mock.patch('message_center.views.send_notification_message') as send:
+            data = self.client.get('/cron/send_messages/').json()
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual(data['stopped'], 'budget')

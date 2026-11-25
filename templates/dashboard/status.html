@@ -5,6 +5,12 @@
 <link rel="stylesheet" href="{% static 'routerfleet/status.css' %}">
 
 <div class="rf-status">
+    {% if secrets_unreadable and rf_is_admin %}
+    <div class="alert alert-danger" role="alert">{{ 'bad'|state_icon }} <b>Stored secrets can not be read with the configured encryption key.</b>
+        Device passwords, SSH keys or authenticator secrets were saved with a different key - the <code>app_secrets</code>
+        volume was lost or replaced, or does not belong to this database. They read as empty until the right key is back:
+        restore <code>app_secrets/encryption_key</code> from a backup (see <a href="{% tag_project_repository_url %}/blob/main/docs/security.md#if-a-value-will-not-decrypt" rel="noopener" target="_blank">If a value will not decrypt</a>), or enter the secrets again.</div>
+    {% endif %}
     <!-- The charts, on top -->
     <div class="row">
         <div class="col-lg-6 mb-3">

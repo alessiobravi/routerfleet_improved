@@ -1,3 +1,4 @@
+import time
 from django.http import JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -115,6 +116,9 @@ def view_cron_daily_reports(request):
     return JsonResponse(data)
 
 
+SEND_BUDGET_SECONDS = 40
+
+
 @cron_endpoint
 def view_cron_send_messages(request):
     data = {
@@ -131,7 +135,14 @@ def view_cron_send_messages(request):
     if not message_list:
         message_list = Message.objects.filter(status='pending', next_retry__lte=timezone.now())
 
+    # A run stops starting sends after SEND_BUDGET_SECONDS: with a channel's 15 s
+    # timeout it ends before the next minute's run begins, so two runs never
+    # take the same pending messages and send them twice
+    started = time.monotonic()
     for message in message_list:
+        if time.monotonic() - started > SEND_BUDGET_SECONDS:
+            data['stopped'] = 'budget'
+            break
         if update_notification and message.retry_count == 0:
             if len(message.message + update_notification) < message_settings.max_length:
                 message.message += update_notification

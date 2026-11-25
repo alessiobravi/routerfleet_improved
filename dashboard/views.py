@@ -219,6 +219,8 @@ def view_status(request):
         'update_state': update_state_counts(),
         'routerfleet_version': settings.ROUTERFLEET_RELEASE,
         'update_check': update_check_state(),
+        # Secrets encrypted with another key than the configured one: said loudly
+        'secrets_unreadable': __import__('routerlib.encryption', fromlist=['unreadable_seen']).unreadable_seen(),
     }
     return render(request, 'dashboard/status.html', context=context)
 

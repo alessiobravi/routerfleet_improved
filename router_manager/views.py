@@ -637,6 +637,14 @@ def view_edit_routers_multiple(request):
             if backup_profile_uuid and backup_profile_uuid != 'clear':
                 backup_profile = get_object_or_404(BackupProfile, uuid=backup_profile_uuid)
 
+            # A stored password goes only to the address and port it was set for:
+            # a new port for devices that keep theirs needs the password typed
+            new_port = form.cleaned_data.get('port')
+            if new_port and not form.cleaned_data.get('password') and \
+                    any(r.port != new_port and r.password for r in routers):
+                messages.warning(request, 'Not saved|A new port needs the password typed again: the stored ones are '
+                                          'only sent to the port they were set for.')
+                return redirect('/router/edit/multiple/')
             updated_count = 0
             # One entry for the whole edit instead of one per router: the form says
             # what to set, and the number of devices it reached is the interesting

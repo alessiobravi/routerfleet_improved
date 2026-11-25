@@ -347,11 +347,20 @@ class BulkEditTests(TestCase):
         self.assertEqual(list(self.client.get('/router/edit/multiple/').context['routers']), [self.a])
 
     def test_blank_fields_leave_values_alone(self):
-        self.apply(port='2222')
+        self.apply(username='operator')
         for router in (self.a, self.b):
             router.refresh_from_db()
-            self.assertEqual((router.port, router.username), (2222, 'admin'))
+            self.assertEqual((router.port, router.username), (22, 'operator'))
         self.assertEqual(Router.objects.get(pk=self.a.pk).password, 'a-pw')
+
+    def test_a_new_port_needs_the_password_typed(self):
+        # A stored password goes only to the port it was set for
+        self.apply(port='2222')
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.port, 22, 'not moved with the stored password')
+        self.apply(port='2222', password='typed-again')
+        self.a.refresh_from_db()
+        self.assertEqual((self.a.port, self.a.password), (2222, 'typed-again'))
 
     def test_new_password_drops_the_key_but_not_on_monitoring_devices(self):
         Router.objects.filter(pk=self.a.pk).update(ssh_key=self.key)
@@ -367,7 +376,7 @@ class BulkEditTests(TestCase):
 
     def test_one_audit_entry_for_the_whole_edit(self):
         before = ChangeRecord.objects.count()
-        self.apply(port='2200')
+        self.apply(port='2200', password='typed-again')
         new = ChangeRecord.objects.order_by('-created')[:ChangeRecord.objects.count() - before]
         self.assertEqual([(r.action, r.note, r.affected_count) for r in new],
                          [('bulk', 'Bulk edit of devices', 3)])
@@ -853,6 +862,12 @@ class MovedDeviceCredentialTests(TestCase):
         self.edit(address='198.51.100.66', password='typed-again')
         self.router.refresh_from_db()
         self.assertEqual((self.router.address, self.router.password), ('198.51.100.66', 'typed-again'))
+
+    def test_a_new_port_needs_the_password_again_too(self):
+        page = self.edit(port=2222)
+        self.assertContains(page, 'type the password again')
+        self.router.refresh_from_db()
+        self.assertEqual(self.router.port, 22)
 
     def test_other_edits_keep_the_stored_password(self):
         self.edit(name='edge-renamed')

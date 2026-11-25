@@ -145,7 +145,20 @@ def _fail(target, message):
     _notify(target)
 
 
+# Before the device starts installing, an abort stops it; from installing on it
+# is followed to its end - its new version, or the failure - never left halfway
+BEFORE_INSTALL = ('backing_up', 'uploading', 'verifying')
+
+
 def _move(target, state, message='', deadline=None):
+    # A step finishing after an abort must not carry the device on into
+    # installing: it stops there (or, updated already, ends as updated)
+    if state in BEFORE_INSTALL + ('installing', 'bootloader') and \
+            not FirmwareRollout.objects.filter(pk=target.rollout_id, state='running').exists():
+        if state == 'bootloader':
+            state, message = 'done', 'Updated; the bootloader firmware was not started: the rollout was aborted.'
+        else:
+            state, message = 'skipped', 'Stopped before installing: the rollout was aborted.'
     target.state, target.message = state, message
     if deadline is not None:
         target.deadline = deadline
@@ -428,11 +441,6 @@ def advance(rollout):
         rollout.state, rollout.finished_at = 'done', timezone.now()
         rollout.message = f'{rollout.targets.filter(state="done").count()} devices updated.'
         rollout.save(update_fields=['state', 'finished_at', 'message', 'updated'])
-
-
-# Before the device starts installing, an abort stops it; from installing on it
-# is followed to its end - its new version, or the failure - never left halfway
-BEFORE_INSTALL = ('backing_up', 'uploading', 'verifying')
 
 
 def advance_all():

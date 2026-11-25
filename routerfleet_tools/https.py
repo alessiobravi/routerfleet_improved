@@ -210,6 +210,11 @@ def clean_network(value):
     if not text or len(text) > 50 or '%' in text:
         raise ValueError('an address or a network, IPv4 or IPv6 - for example 192.0.2.0/24 or 2001:db8::/32')
     network = ipaddress.ip_network(text, strict=False)
+    # An IPv4 address written the IPv6 way (::ffff:10.0.0.1): stored as the
+    # IPv4 it is - nginx matches IPv4 clients that way, and Python writes the
+    # mapped form with dots, which nginx's own check would refuse
+    if network.version == 6 and network.prefixlen >= 96 and network.network_address.ipv4_mapped:
+        network = ipaddress.ip_network(f'{network.network_address.ipv4_mapped}/{network.prefixlen - 96}')
     return str(network)
 
 

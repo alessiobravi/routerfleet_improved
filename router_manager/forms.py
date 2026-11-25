@@ -33,8 +33,10 @@ ACCOUNT_HINT = _account_hint()
 
 
 class RouterForm(forms.ModelForm):
-    password = forms.CharField(widget=forms.PasswordInput, required=False)
-    enable_password = forms.CharField(widget=forms.PasswordInput, required=False, label='Enable password',
+    # The device's credentials, never the RouterFleet login a browser would fill in
+    password = forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}), required=False)
+    enable_password = forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+                                      required=False, label='Enable password',
                                       help_text='Only for device types with an enable step (Cisco), when the account '
                                                 'does not land in privileged mode. Empty keeps the stored one.')
 
@@ -57,6 +59,7 @@ class RouterForm(forms.ModelForm):
         self.fields['telnet_port'].required = False
         self.fields['telnet_port'].help_text = 'Used only when the Telnet console is allowed.'
         self.fields['username'].help_text = ACCOUNT_HINT
+        self.fields['username'].widget.attrs['autocomplete'] = 'off'   # the device's account, not RouterFleet's
         self.fields['console_telnet'].help_text = ('Telnet sends everything, passwords included, unencrypted. '
                                                    'Off unless the device has no SSH.')
         self.helper = FormHelper()
@@ -148,13 +151,14 @@ class RouterForm(forms.ModelForm):
         # moving a device to another address needs it typed again. Otherwise
         # whoever may edit a device (and can never see its password) could
         # point it at a host of their own and receive the password there.
-        moved = bool(self.instance.pk and address and (self.instance.address or '').lower() != address)
+        moved = bool(self.instance.pk and address and ((self.instance.address or '').lower() != address
+                                                        or (port and self.instance.port != port)))
         if moved and chosen_type is not None and chosen_type.managed:
             if not password and not ssh_key and self.instance.password:
-                self.add_error('password', 'The address changed: type the password again - the stored one is only '
-                                           'sent to the address it was set for.')
+                self.add_error('password', 'The address or port changed: type the password again - the stored one '
+                                           'is only sent to the address and port it was set for.')
             if self._stored_enable_password and not cleaned_data.get('enable_password'):
-                self.add_error('enable_password', 'The address changed: type the enable password again.')
+                self.add_error('enable_password', 'The address or port changed: type the enable password again.')
             if self.errors:
                 return cleaned_data
         # Empty keeps the stored enable password
@@ -198,8 +202,8 @@ class RouterForm(forms.ModelForm):
 class RouterBulkEditForm(forms.Form):
     # Every field is optional: a blank field means "leave this device's value unchanged"
     port = forms.IntegerField(required=False, min_value=1, max_value=65535)
-    username = forms.CharField(required=False, max_length=100)
-    password = forms.CharField(required=False, widget=forms.PasswordInput)
+    username = forms.CharField(required=False, max_length=100, widget=forms.TextInput(attrs={'autocomplete': 'off'}))
+    password = forms.CharField(required=False, widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}))
     ssh_key = forms.ChoiceField(required=False)
     backup_profile = forms.ChoiceField(required=False)
     monitoring = forms.ChoiceField(required=False, choices=[('', 'Unchanged'), ('true', 'Enable'), ('false', 'Disable')])

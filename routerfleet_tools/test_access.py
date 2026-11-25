@@ -310,3 +310,18 @@ class HstsAndEntryValidationTests(SimpleTestCase):
             with self.subTest(value=value), self.assertRaises(ValidationError):
                 https.clean_proxies(value)
         self.assertEqual(https.clean_proxies('10.0.0.0/8\n2001:db8::/32'), ['10.0.0.0/8', '2001:db8::/32'])
+
+
+class MappedAddressTests(SimpleTestCase):
+    """An IPv4 address written the IPv6 way is stored as IPv4, and nginx's own
+    check accepts what is stored - one entry can never stop the list (and
+    every later ban or HTTPS change) from reaching nginx."""
+
+    def test_mapped_addresses_become_ipv4_and_nginx_accepts_every_stored_form(self):
+        self.assertEqual(https.clean_network('::ffff:10.0.0.1'), '10.0.0.1/32')
+        self.assertEqual(https.clean_network('::ffff:10.0.0.0/120'), '10.0.0.0/24')
+        script = (ROOT / 'containers/nginx/rf_https.sh').read_text()
+        valid = next(line for line in script.splitlines() if line.startswith('valid_net()'))
+        for value in ('10.0.0.1/32', '2001:db8::/32', '::ffff:10.0.0.1/128', https.clean_network('fd00::1')):
+            result = subprocess.run(['sh', '-c', valid + '\nvalid_net "$1"', 'sh', value], capture_output=True)
+            self.assertEqual(result.returncode, 0, value)

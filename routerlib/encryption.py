@@ -46,7 +46,37 @@ def encrypt_value(value):
         get_fernet().decrypt(value.encode())
         return value
     except InvalidToken:
+        if looks_encrypted(value):
+            # Encrypted under another key (a lost or replaced app_secrets):
+            # kept as it is, never encrypted a second time - it can still be
+            # read once the right key is back
+            return value
         return get_fernet().encrypt(value.encode()).decode()
+
+
+def looks_encrypted(value):
+    """A Fernet token: version byte 0x80 in base64 ('gAAAAA'), and long."""
+    return isinstance(value, str) and value.startswith('gAAAAA') and len(value) >= 100
+
+
+UNREADABLE_FLAG = 'rf-undecryptable'
+
+
+def note_unreadable():
+    """Remembered for a day, across workers: the status page warns."""
+    try:
+        from django.core.cache import caches
+        caches['limits'].set(UNREADABLE_FLAG, 1, 86400)
+    except Exception:   # noqa: BLE001 - a warning must never break a read
+        pass
+
+
+def unreadable_seen():
+    try:
+        from django.core.cache import caches
+        return bool(caches['limits'].get(UNREADABLE_FLAG))
+    except Exception:   # noqa: BLE001
+        return False
 
 
 def decrypt_value(value):
@@ -63,6 +93,14 @@ def decrypt_value(value):
         # under a different key, which is the case worth worrying about. The
         # message therefore names both instead of asserting the alarming one at
         # every upgrade.
+        if looks_encrypted(value):
+            # Encrypted, but not with this key: the ciphertext is never handed
+            # on - not sent to a device as its password, not used as a TOTP
+            # secret. Empty instead, and the status page says why.
+            logger.error('A stored secret was encrypted with a different key than the configured ENCRYPTION_KEY '
+                         '(app_secrets lost or replaced?). It reads as empty until the right key is back.')
+            note_unreadable()
+            return ''
         logger.warning(
             'Could not decrypt a stored value. Either it is not encrypted yet '
             '(normal while the upgrade that encrypts it is running), or it was '

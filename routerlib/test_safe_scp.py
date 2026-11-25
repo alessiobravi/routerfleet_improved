@@ -168,3 +168,34 @@ class PinnedHttpsTests(SimpleTestCase):
         from routerlib import outbound
         with self.assertRaises(ValueError):
             outbound.https_get('http://vendor.example/x')
+
+
+class WrongKeyTests(SimpleTestCase):
+    """A secret encrypted under another key is never handed on - not sent to a
+    device, not used as a TOTP secret - never encrypted twice, and flagged."""
+
+    def test_a_token_of_another_key(self):
+        from cryptography.fernet import Fernet
+        from routerlib import encryption
+        foreign = Fernet(Fernet.generate_key()).encrypt(b'device-secret').decode()
+        with mock_flag() as flags:
+            self.assertEqual(encryption.decrypt_value(foreign), '', 'never the ciphertext')
+            self.assertEqual(encryption.encrypt_value(foreign), foreign, 'not encrypted a second time')
+        self.assertTrue(flags)
+        # a plain value (not encrypted yet, during an upgrade) still passes through
+        self.assertEqual(encryption.decrypt_value('plain-not-yet-encrypted'), 'plain-not-yet-encrypted')
+
+
+def mock_flag():
+    from unittest import mock
+    flags = []
+    patcher = mock.patch('routerlib.encryption.note_unreadable', side_effect=lambda: flags.append(1))
+
+    class Context:
+        def __enter__(self):
+            patcher.start()
+            return flags
+
+        def __exit__(self, *exc):
+            patcher.stop()
+    return Context()

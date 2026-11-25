@@ -833,3 +833,24 @@ class RefusedByExitCodeMigrationTests(TestCase):
         for kept in (clean, cleanup_only, old_format):
             kept.refresh_from_db()
             self.assertTrue(kept.success, kept.task_console_output)
+
+
+class BinaryFileGoesWithItsBackupTests(TestCase):
+    """Housekeeping's retention and deleting a device remove the backups'
+    files too - nothing is left behind in MEDIA_ROOT."""
+
+    def test_queryset_delete_and_device_delete_remove_the_files(self):
+        import os
+        from django.core.files.base import ContentFile
+        with temporary_media_root():
+            router = make_router(router_type='routeros')
+            backups = []
+            for number in range(2):
+                backup = RouterBackup.objects.create(router=router, schedule_type='instant', success=True)
+                backup.backup_binary.save(f'b-{number}.backup', ContentFile(b'binary'))
+                backups.append(backup.backup_binary.path)
+            self.assertTrue(all(os.path.exists(path) for path in backups))
+            RouterBackup.objects.filter(pk=RouterBackup.objects.first().pk).delete()   # as retention does
+            self.assertEqual(sum(os.path.exists(path) for path in backups), 1)
+            router.delete()                                                          # its backups go with it
+            self.assertFalse(any(os.path.exists(path) for path in backups))

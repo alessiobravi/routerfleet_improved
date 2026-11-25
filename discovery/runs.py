@@ -53,12 +53,13 @@ def name_of(device):
 
 
 def _heard(run, device, routers, check_reach=True, via=''):
-    """One device heard: in the run and its timeline - new or known, and for a
-    new one whether SSH answers from RouterFleet's host."""
-    from .reach import check, is_ip
+    """One device heard: in the run and its timeline - new or known. Returns
+    the device when it is new and its reachability is to be checked (in one
+    batch, by _check_reach), else None."""
+    from .reach import is_ip
     from .views import known_router
     if device.key in run.heard:
-        return
+        return None
     run.heard.append(device.key)
     protocols = ', '.join(p.upper() for p in device.protocols.split(',') if p) or 'a neighbour protocol'
     where = name_of(device) + (f' ({device.address})' if device.address and device.address != name_of(device) else '')
@@ -66,11 +67,23 @@ def _heard(run, device, routers, check_reach=True, via=''):
     router = known_router(device, routers)
     if router:
         _event(run, f'{how} - already in RouterFleet as {router.name}.', 'info')
-        return
+        return None
     _event(run, f'{how} - new: listed above, under what was found.', 'ok')
-    if check_reach and is_ip(device.address):
-        check([device])
-        device.refresh_from_db()
+    return device if check_reach and is_ip(device.address) else None
+
+
+def _check_reach(run, devices):
+    """Whether SSH answers from RouterFleet's host, for the new devices just
+    heard: one parallel, bounded batch (reach.check) - never one device after
+    another inside a page request, however many a LAN announces."""
+    from .reach import check
+    devices = [d for d in devices if d is not None]
+    if not devices:
+        return
+    check(devices)
+    for device in DiscoveredDevice.objects.filter(pk__in=[d.pk for d in devices]).order_by('pk'):
+        if device.reachable is None:
+            continue   # beyond the batch's bound: checked on a later refresh of the list
         if device.reachable:
             _event(run, f'{name_of(device)}: SSH answers from RouterFleet\'s host - it can be added.', 'ok')
         else:
@@ -135,9 +148,11 @@ def read_devices(run_pk, check_reach=True):
             if not count:
                 _event(run, f'{router.name}: no neighbour reported (LLDP, CDP or MNDP may be off there, or its '
                             'device type has no neighbours command).', 'warn')
+            to_check = []
             for device in DiscoveredDevice.objects.filter(seen_by_router=router, last_seen__gte=before).order_by('identity'):
                 found += 1
-                _heard(run, device, routers, check_reach, via=router.name)
+                to_check.append(_heard(run, device, routers, check_reach, via=router.name))
+            _check_reach(run, to_check)
             run.save(update_fields=['events', 'heard'])
         new = sum(1 for key in run.heard if not known_router(DiscoveredDevice.objects.get(key=key), routers))
         run.state, run.finished_at = 'done', timezone.now()
@@ -150,9 +165,21 @@ def read_devices(run_pk, check_reach=True):
 
 
 def advance(run, check_reach=True):
-    """Moves the run on; returns it."""
+    """Moves the run on; returns it. One request at a time: a page that
+    refreshes itself while another request is moving the run on skips."""
     if run is None or not run.active:
         return run
+    from django.core.cache import caches
+    lock = f'rf-discovery-advance-{run.pk}'
+    if not caches['limits'].add(lock, 1, 120):
+        return run
+    try:
+        return _advance(run, check_reach)
+    finally:
+        caches['limits'].delete(lock)
+
+
+def _advance(run, check_reach=True):
     from .views import known_router
     from router_manager.models import Router
     now = timezone.now()
@@ -179,8 +206,7 @@ def advance(run, check_reach=True):
     # The listener writes whole seconds, and is silent until asked: a few seconds of slack
     fresh = (DiscoveredDevice.objects.filter(seen_by=LAN, last_seen__gte=run.created - timezone.timedelta(seconds=5))
              .exclude(key__in=run.heard).order_by('last_seen'))
-    for device in fresh:
-        _heard(run, device, routers, check_reach)
+    _check_reach(run, [_heard(run, device, routers, check_reach) for device in fresh])
     if run.state == 'listening' and ((now >= run.until and state['listening_left'] == 0)
                                      or (now - run.until).total_seconds() > GRACE_SECONDS):
         run.state, run.finished_at = 'done', now

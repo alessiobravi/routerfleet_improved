@@ -55,3 +55,24 @@ class AbortTests(TestCase):
         with mock.patch('firmware.rollout.step') as step:
             rollout.advance_all()
         self.assertEqual([call.args[0].pk for call in step.call_args_list], [rebooting.pk])
+
+
+class AbortRaceTests(TestCase):
+    """A step that finishes after an abort does not carry the device into
+    installing - the firmware is never installed after Abort."""
+
+    def test_a_verify_finishing_after_the_abort_stops(self):
+        from routerfleet.testing import make_router
+        from firmware.models import FirmwareRollout, RolloutTarget
+        rollout_row = FirmwareRollout.objects.create(source='online', channel='stable')
+        target = RolloutTarget.objects.create(rollout=rollout_row, router=make_router(), state='verifying')
+        FirmwareRollout.objects.filter(pk=rollout_row.pk).update(state='aborted')
+        target.refresh_from_db()
+        rollout._move(target, 'installing', 'Verified.')
+        target.refresh_from_db()
+        self.assertEqual(target.state, 'skipped')
+        # after an install, the device is followed to its end (rebooting is allowed)
+        other = RolloutTarget.objects.create(rollout=rollout_row, router=make_router(), state='installing')
+        rollout._move(other, 'rebooting', 'Installed.')
+        other.refresh_from_db()
+        self.assertEqual(other.state, 'rebooting')
