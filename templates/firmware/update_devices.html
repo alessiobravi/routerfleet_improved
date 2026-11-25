@@ -10,7 +10,8 @@
         <input type="hidden" name="confirmation" id="confirmation">
         {% for router in routers %}<input type="hidden" name="routers[]" value="{{ router.uuid }}">{% endfor %}
 
-        <div class="rf-set-title">{% if kind == 'bootloader' %}Bootloader firmware of {% else %}System update of {% endif %}{% if single %}{{ routers.0.name }}{% else %}{{ routers|length }} devices{% endif %}</div>
+        <details class="rf-set-section" data-rf-remember="what">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-microchip"></i></span><span class="rf-set-summary-title">{% if kind == 'bootloader' %}Bootloader firmware of {% else %}System update of {% endif %}{% if single %}{{ routers.0.name }}{% else %}{{ routers|length }} devices{% endif %}</span><span class="rf-set-summary-sub">The version to install</span></summary>
         <div class="rf-set-group">
             {% for choice in choices %}
             <label class="rf-set-row rf-set-choice">
@@ -28,8 +29,10 @@
             {% endfor %}
         </div>
         <div class="rf-set-foot">{% if kind == 'bootloader' %}The bootloader firmware (RouterOS: RouterBOOT) that comes with the system the device runs - a process of its own, apart from system updates. It takes effect at the reboot the upgrade ends with.{% else %}In order: a file of the firmware repository made for the device (type, model, architecture), newest first; then the device's own online update, with the newest release of each channel. Only newer versions are offered - of the same major version, unless the device type allows another. The bootloader firmware is upgraded on its own, from the purple arrow.{% endif %}</div>
+        </details>
 
-        <div class="rf-set-title">Devices</div>
+        <details class="rf-set-section" data-rf-remember="devices">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-server"></i></span><span class="rf-set-summary-title">Devices</span><span class="rf-set-summary-sub">{{ routers|length }} device{{ routers|length|pluralize }}</span></summary>
         <div class="rf-set-group">
             {% for row in rows %}
             <div class="rf-set-row">
@@ -39,14 +42,17 @@
             </div>
             {% endfor %}
         </div>
+        </details>
 
         {% if choices %}
         {% if not single %}
-        <div class="rf-set-title">How</div>
+        <details class="rf-set-section" data-rf-remember="how">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-route"></i></span><span class="rf-set-summary-title">How</span><span class="rf-set-summary-sub">One device first, then the others</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="batch_size">Devices at a time after the first</label>
                 <input type="number" class="form-control" id="batch_size" name="batch_size" min="1" max="20" value="3"></div></div>
         </div>
+        </details>
         {% endif %}
         <div class="rf-set-foot">For every device: a backup first; then {% if kind == 'bootloader' %}the bootloader upgrade and a reboot, and the device must come back reporting the new bootloader firmware{% else %}the update, and the device must come back reporting the version it was offered{% endif %}. {% if not single %}The device marked "first" goes alone; the others follow only when it is back, a few at a time. {% endif %}Any failure stops the devices not started yet. Devices reboot.</div>
         <div class="text-center mt-3"><button type="button" class="btn btn-danger btn-lg" data-rf-submit="update-form" data-rf-confirm-word="update" data-rf-confirm-sum="Start the update? The devices reboot."><i class="fas fa-rocket me-1"></i>Start the update</button></div>

@@ -488,6 +488,15 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 /* The coloured badge in a section's header */
 .rf-set-summary > .rf-set-icon { width: 30px; height: 30px; font-size: 14px; margin-right: 10px; grid-row: 1 / span 2; }
 .rf-set-section .rf-set-summary-sub { grid-column: 2; }
+/* A section header without a badge (sections of generated forms) */
+.rf-set-section > .rf-set-summary.rf-plain { grid-template-columns: 1fr auto; }
+.rf-set-section > .rf-set-summary.rf-plain::after { grid-column: 2; }
+.rf-set-section > .rf-set-summary.rf-plain .rf-set-summary-sub { grid-column: 1; }
+/* A title holding a badge or a state icon stays one piece */
+.rf-set-summary-title { grid-column: 2; grid-row: 1; min-width: 0; }
+.rf-set-summary.rf-plain .rf-set-summary-title { grid-column: 1; }
+/* What follows a section's own list inside it, e.g. a note or a second list */
+.rf-set-section > .rf-set-foot:last-child { margin-bottom: 4px; }
 /* A filter: the first row of the list it filters */
 .rf-set-search .form-control { border: 0; box-shadow: none; background: transparent; padding-left: 0; }
 .rf-set-search .form-control:focus { box-shadow: none; }

@@ -248,7 +248,9 @@ def settings_form(context, form):
         groups.append({**section, 'rows': current})
     if not any(item['kind'] == 'button' for item in foot):
         foot.insert(0, {'kind': 'button', 'value': 'Save', 'name': 'submit', 'css': 'btn btn-primary', 'submit': True})
-    return {'form': form, 'groups': groups, 'foot': foot, 'csrf_token': context.get('csrf_token'),
+    # Two titled groups or more: each is a section, closed until opened on purpose
+    sections = sum(1 for group in groups if group.get('title')) >= 2
+    return {'form': form, 'groups': groups, 'foot': foot, 'csrf_token': context.get('csrf_token'), 'sections': sections,
             'action': getattr(helper, 'form_action', '') or '',
             'form_tag': getattr(helper, 'form_tag', True) if helper else True,
             'multipart': form.is_multipart()}

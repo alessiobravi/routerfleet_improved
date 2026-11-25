@@ -12,7 +12,8 @@
         </a>
     </div>
     {% for entry in types %}
-    <div class="rf-set-title">{{ entry.type.name }}{% if not entry.installable %} <span class="badge text-bg-secondary ms-1" title="The device type has no firmware install procedure">no install procedure</span>{% endif %}</div>
+    <details class="rf-set-section" data-rf-remember="type-{{ entry.type.pk }}">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-microchip"></i></span><span class="rf-set-summary-title">{{ entry.type.name }}{% if not entry.installable %} <span class="badge text-bg-secondary ms-1" title="The device type has no firmware install procedure">no install procedure</span>{% endif %}</span><span class="rf-set-summary-sub">{{ entry.images|length }} file{{ entry.images|length|pluralize }}</span></summary>
     <div class="rf-set-group">
         {% for image in entry.images %}
         <a class="rf-set-row" href="/system/firmware/image/?uuid={{ image.uuid }}">
@@ -26,9 +27,11 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">No firmware uploaded for {{ entry.type.name }}.</span></div>
         {% endfor %}
     </div>
+    </details>
     {% endfor %}
 
-    <div class="rf-set-title">Recent rollouts</div>
+    <details class="rf-set-section" data-rf-remember="rollouts">
+        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-route"></i></span><span class="rf-set-summary-title">Recent rollouts</span><span class="rf-set-summary-sub">The latest firmware updates and how they went</span></summary>
     <div class="rf-set-group">
         {% for rollout in rollouts %}
         <a class="rf-set-row" href="/system/firmware/rollout/?uuid={{ rollout.uuid }}">
@@ -41,6 +44,7 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">No rollout yet.</span></div>
         {% endfor %}
     </div>
+    </details>
     <div class="rf-set-foot">A device type installs firmware only when its procedure is defined (System settings, Device types). Up to {{ max_mb }} MB per file.</div>
 </div>
 {% endblock %}

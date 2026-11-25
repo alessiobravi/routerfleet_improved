@@ -5,7 +5,8 @@
     <a href="/system/firmware/" class="small"><i class="fas fa-chevron-left"></i> Firmware repository</a>
     <form method="post" enctype="multipart/form-data" action="/system/firmware/upload/">
         {% csrf_token %}
-        <div class="rf-set-title">Firmware</div>
+        <details class="rf-set-section" data-rf-remember="file">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-file-arrow-up"></i></span><span class="rf-set-summary-title">Firmware</span><span class="rf-set-summary-sub">Device type, version, the file and its checksum</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="device_type">Device type</label>
                 <select class="form-select" id="device_type" name="device_type" required>
@@ -22,7 +23,9 @@
                 <input type="text" class="form-control" id="expected_sha256" name="expected_sha256" maxlength="64" spellcheck="false" placeholder="64 hexadecimal characters from the vendor's download page">
                 <small class="text-muted">When given, a file that does not match is refused - it is not the file the vendor published.</small></div></div>
         </div>
-        <div class="rf-set-title">Which devices it is for</div>
+        </details>
+        <details class="rf-set-section" data-rf-remember="for">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-server"></i></span><span class="rf-set-summary-title">Which devices it is for</span><span class="rf-set-summary-sub">The models and architecture it fits</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="models_pattern">Models (regular expression, optional)</label>
                 <input type="text" class="form-control" id="models_pattern" name="models_pattern" maxlength="200" spellcheck="false" placeholder="^(hAP ax|C53UiG)">
@@ -33,6 +36,7 @@
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="notes">Notes</label>
                 <textarea class="form-control" id="notes" name="notes" rows="2" maxlength="2000"></textarea></div></div>
         </div>
+        </details>
         <div class="text-center mt-3"><button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-upload me-1"></i>Upload</button></div>
     </form>
 </div>

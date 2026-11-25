@@ -3,7 +3,8 @@
 {% load static custom_tags %}
 {% block content %}
 <div class="rf-settings">
-    <div class="rf-set-title">Account</div>
+    <details class="rf-set-section" data-rf-remember="account">
+        <summary class="rf-set-summary"><span class="rf-set-icon cyan" aria-hidden="true"><i class="fas fa-user"></i></span><span class="rf-set-summary-title">Account</span><span class="rf-set-summary-sub">{{ request.user.username }} · {{ user_level_label }}</span></summary>
     <div class="rf-set-group">
         <div class="rf-set-row">
             <span class="rf-set-icon cyan"><i class="fas fa-user"></i></span>
@@ -11,9 +12,10 @@
                 <div class="rf-set-sub">{{ user_level_label }} · {{ request.user.email|default:"no email address" }}</div></div>
         </div>
     </div>
+    </details>
 
     <details class="rf-set-section" data-rf-remember="security">
-        <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-shield-halved"></i></span>Security settings<span class="rf-set-summary-sub">{% if totp_enabled %}authenticator on{% else %}authenticator off{% endif %} · {{ passkeys|length }} passkey{{ passkeys|length|pluralize }}</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-shield-halved"></i></span><span class="rf-set-summary-title">Security settings</span><span class="rf-set-summary-sub">{% if totp_enabled %}authenticator on{% else %}authenticator off{% endif %} · {{ passkeys|length }} passkey{{ passkeys|length|pluralize }}</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/user/settings/totp/">
             <span class="rf-set-icon {% if totp_enabled %}teal{% else %}amber{% endif %}"><i class="fas fa-mobile-alt"></i></span>
@@ -70,7 +72,7 @@
 
     </details>
     <details class="rf-set-section" data-rf-remember="display">
-        <summary class="rf-set-summary"><span class="rf-set-icon indigo" aria-hidden="true"><i class="fas fa-palette"></i></span>Visualization options<span class="rf-set-summary-sub">Light or dark</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon indigo" aria-hidden="true"><i class="fas fa-palette"></i></span><span class="rf-set-summary-title">Visualization options</span><span class="rf-set-summary-sub">Light or dark</span></summary>
     <div class="rf-set-group">
         {% for value, label, icon, sub in theme_choices %}
         <label class="rf-set-row rf-set-choice">
@@ -87,7 +89,7 @@
 
     </details>
     <details class="rf-set-section" data-rf-remember="address-links">
-        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-link"></i></span>Device address links<span class="rf-set-summary-sub">What a click on a device's address in the device list opens: {{ form.instance.get_address_link_display }}</span></summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-link"></i></span><span class="rf-set-summary-title">Device address links</span><span class="rf-set-summary-sub">What a click on a device's address in the device list opens: {{ form.instance.get_address_link_display }}</span></summary>
     <form method="post" id="address-link-form" class="rf-set-group">
         {% csrf_token %}
         {% for value, display in form.address_link.field.choices %}
@@ -105,7 +107,7 @@
     <div class="rf-set-foot">Saved as soon as you choose.</div>
     </details>
     <details class="rf-set-section" data-rf-remember="email">
-        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-envelope"></i></span>Email notifications</summary>
+        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-envelope"></i></span><span class="rf-set-summary-title">Email notifications</span></summary>
     <form method="post" class="rf-set-group" id="email-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="email">

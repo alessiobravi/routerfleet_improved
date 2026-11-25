@@ -83,12 +83,16 @@
           if (!next) { return; }
           var focused = document.activeElement;
           if (focused && focused !== document.body && old.contains(focused) && /INPUT|TEXTAREA|SELECT/.test(focused.tagName)) { return; }
-          if (next.outerHTML === old.outerHTML) { return; }
+          // The same once the sections the user opened are left aside
+          var was = old.cloneNode(true);
+          was.querySelectorAll('details[data-rf-remember][open]').forEach(function (d) { d.removeAttribute('open'); });
+          if (next.outerHTML === was.outerHTML) { return; }
           // What was typed in a filter stays, and filters the fresh rows too
           var typed = {};
           old.querySelectorAll('input[data-rf-filter]').forEach(function (input) { typed[input.dataset.rfFilter] = input.value; });
           var adopted = document.importNode(next, true);
           old.replaceWith(adopted);
+          if (window.rfInitSections) { window.rfInitSections(adopted); }
           if (window.rfInitPanels) { window.rfInitPanels(adopted); }
           if (window.rfInitTables) { window.rfInitTables(adopted); }
           if (window.rfInitSelects) { window.rfInitSelects(adopted); }

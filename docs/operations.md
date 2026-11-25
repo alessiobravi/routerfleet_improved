@@ -167,6 +167,18 @@ yet.
 
 ## Finding your way around the interface
 
+### Sections
+
+Settings, forms and tool pages are made of **sections that start closed**:
+each shows its title and a line saying what it holds, and opens with a click,
+so nothing is changed by accident. What you open stays open while you move
+around in the same browser session, also while the page updates itself. A
+section opens by itself when it holds an error, when a required field in it
+is left empty on saving, or when a link points into it. The progress and the
+findings of a running discovery are always shown, as is a page made of a
+single form or list. Creating a device type, step by step, shows each step
+open.
+
 ### Object pages
 
 A Fleet Commander job, a task, a device and a backup open the same way:

@@ -6,7 +6,8 @@
     <form method="post" id="rollout-form">
         {% csrf_token %}
         <input type="hidden" name="confirmation" id="confirmation">
-        <div class="rf-set-title">Devices to update to {{ image.version }}</div>
+        <details class="rf-set-section" data-rf-remember="devices">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-server"></i></span><span class="rf-set-summary-title">Devices to update to {{ image.version }}</span><span class="rf-set-summary-sub">The devices this file is for</span></summary>
         <div class="rf-set-group">
             {% for c in candidates %}
             <label class="rf-set-row mb-0 rf-pointer">
@@ -21,12 +22,15 @@
             <div class="rf-set-row"><span class="rf-set-text text-muted">No enabled device of this type and model.</span></div>
             {% endfor %}
         </div>
-        <div class="rf-set-title">How</div>
+        </details>
+        <details class="rf-set-section" data-rf-remember="how">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-route"></i></span><span class="rf-set-summary-title">How</span><span class="rf-set-summary-sub">One device first, then the others</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="batch_size">Devices at a time after the first</label>
                 <input type="number" class="form-control" id="batch_size" name="batch_size" min="1" max="20" value="3"></div></div>
         </div>
         <div class="rf-set-foot">For every device: a backup first; the file is uploaded and checked on the device against the repository; then it is installed and must come back reporting {{ image.version }}. The device marked "first" goes alone; the others follow only when it is back on the new version, a few at a time. Any failure stops the devices not started yet. Devices reboot.</div>
+        </details>
         {% if candidates %}<div class="text-center mt-3"><button type="button" class="btn btn-danger btn-lg" data-rf-submit="rollout-form" data-rf-confirm-word="update" data-rf-confirm-sum="Update the chosen devices to {{ image.version }}? They reboot."><i class="fas fa-rocket me-1"></i>Start the update</button></div>{% endif %}
     </form>
 </div>

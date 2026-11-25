@@ -4,10 +4,11 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
-    {% if error %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endif %}
+    {% if error %}<div class="alert alert-danger rf-form-error py-2 mt-3">{{ error }}</div>{% endif %}
     {% if not shared %}<div class="alert alert-warning py-2 mt-3">{{ 'warn'|state_icon }} The certificate volume is not shared with the application: the list is kept, but nginx does not receive it until the current compose file is taken (see HTTPS).</div>{% endif %}
 
-    <div class="rf-set-title">Access list - checked in order, the first match decides</div>
+    <details class="rf-set-section" data-rf-remember="list">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-list-ol"></i></span><span class="rf-set-summary-title">Access list - checked in order, the first match decides</span><span class="rf-set-summary-sub">{{ rules|length }} entr{{ rules|length|pluralize:'y,ies' }}, then {% if default == 'allow' %}allow{% else %}deny{% endif %} every other address</span></summary>
     <div class="rf-set-group">
         {% for rule in rules %}
         <div class="rf-set-row">
@@ -35,8 +36,10 @@
         </div>
     </div>
     <div class="rf-set-foot">Your address, as nginx sees it: <b>{{ your_address|default:"unknown" }}</b> - {% if you_allowed %}allowed{% else %}not allowed{% endif %}. A change that would shut it out is refused. Lost access anyway, or banned? On the host: <code>docker compose exec routerfleet python manage.py http_access --reset</code></div>
+    </details>
 
-    <div class="rf-set-title">Add an entry</div>
+    <details class="rf-set-section" data-rf-remember="add">
+        <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-plus"></i></span><span class="rf-set-summary-title">Add an entry</span><span class="rf-set-summary-sub">Allow or deny an address or a network</span></summary>
     <form method="post" class="rf-set-group">
         {% csrf_token %}<input type="hidden" name="action" value="add">
         <div class="rf-set-row">
@@ -59,7 +62,9 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </button>
     </form>
-    <div class="rf-set-title">Banning after failed sign-ins</div>
+    </details>
+    <details class="rf-set-section" data-rf-remember="bans">
+        <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-hand"></i></span><span class="rf-set-summary-title">Banning after failed sign-ins</span><span class="rf-set-summary-sub">Ban addresses that keep failing to sign in</span></summary>
     <form method="post" class="rf-set-group">
         {% csrf_token %}<input type="hidden" name="action" value="bans">
         <label class="rf-set-row" for="ban_enabled">
@@ -83,8 +88,10 @@
         </button>
     </form>
     <div class="rf-set-foot">Counted per address from the login history, since its last successful sign-in. Never banned: addresses an <b>Allow</b> entry above matches, loopback, and the trusted proxies. The sign-in lockout still applies beside it.</div>
+    </details>
 
-    <div class="rf-set-title">Banned now</div>
+    <details class="rf-set-section" data-rf-remember="banned">
+        <summary class="rf-set-summary"><span class="rf-set-icon red" aria-hidden="true"><i class="fas fa-ban"></i></span><span class="rf-set-summary-title">Banned now</span><span class="rf-set-summary-sub">{{ bans|length }} address{{ bans|length|pluralize:'es' }} banned now</span></summary>
     <div class="rf-set-group">
         {% for ban in bans %}
         <div class="rf-set-row">
@@ -98,6 +105,7 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">No address is banned.</span></div>
         {% endfor %}
     </div>
+    </details>
 
     <div class="rf-set-foot">Applies to the web interface over HTTP and HTTPS, every HTTPS mode. Let's Encrypt's validation stays open. The scheduler and monitoring talk to the application directly and are not affected. Behind a reverse proxy, the client's address comes from the trusted proxies (see HTTPS).</div>
 </div>

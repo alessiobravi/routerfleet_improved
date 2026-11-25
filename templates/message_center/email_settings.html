@@ -4,11 +4,12 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/system/notifications/" class="small"><i class="fas fa-chevron-left"></i> Notifications</a>
-    {% for error in errors %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endfor %}
+    {% for error in errors %}<div class="alert alert-danger rf-form-error py-2 mt-3">{{ error }}</div>{% endfor %}
     <form method="post" autocomplete="off">
         {% csrf_token %}
         <input type="hidden" name="action" value="save">
-        <div class="rf-set-title">Mail server</div>
+        <details class="rf-set-section" data-rf-remember="mail">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-envelope"></i></span><span class="rf-set-summary-title">Mail server</span><span class="rf-set-summary-sub">Email notifications and password reset, on or off</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon {% if smtp.ready %}teal{% else %}amber{% endif %}"><i class="fas fa-envelope"></i></span>
@@ -21,8 +22,10 @@
                 </div>
             </div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Server</div>
+        <details class="rf-set-section" data-rf-remember="server">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-server"></i></span><span class="rf-set-summary-title">Server</span><span class="rf-set-summary-sub">Host, port and encryption</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon orange"><i class="fas fa-server"></i></span>
@@ -48,8 +51,10 @@
             </label>
             {% endfor %}
         </div>
+        </details>
 
-        <div class="rf-set-title">Login <span class="text-lowercase fw-normal">(optional)</span></div>
+        <details class="rf-set-section" data-rf-remember="login">
+            <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-user-lock"></i></span><span class="rf-set-summary-title">Login <span class="text-lowercase fw-normal">(optional)</span></span><span class="rf-set-summary-sub">Username and password, when the server asks</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon blue"><i class="fas fa-user"></i></span>
@@ -72,8 +77,10 @@
             </div>
         </div>
         <div class="rf-set-foot">The password is encrypted at rest and never shown again.</div>
+        </details>
 
-        <div class="rf-set-title">Sender</div>
+        <details class="rf-set-section" data-rf-remember="sender">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-at"></i></span><span class="rf-set-summary-title">Sender</span><span class="rf-set-summary-sub">The address messages come from</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon purple"><i class="fas fa-at"></i></span>
@@ -88,6 +95,7 @@
                            value="{% if posted %}{{ posted.sender_name }}{% else %}{{ smtp.sender_name }}{% endif %}"></div>
             </div>
         </div>
+        </details>
 
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-plug-circle-check me-1"></i>Check and save</button>

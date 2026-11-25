@@ -5,7 +5,8 @@
 <div class="rf-settings">
     <a href="/system/" class="small"><i class="fas fa-chevron-left"></i> System settings</a>
 
-    <div class="rf-set-title">Version</div>
+    <details class="rf-set-section" data-rf-remember="version">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-code-branch"></i></span><span class="rf-set-summary-title">Version</span><span class="rf-set-summary-sub">Running {{ current }}{% if available %} · {{ available }} available{% endif %}</span></summary>
     <div class="rf-set-group">
         <div class="rf-set-row">
             <span class="rf-set-icon teal"><i class="fas fa-code-branch"></i></span>
@@ -23,19 +24,24 @@
             {% endif %}
         </div>
     </div>
+    </details>
 
-    <div class="rf-set-title">{% if available %}Update to {{ available }}{% else %}Updating{% endif %}</div>
+    <details class="rf-set-section" data-rf-remember="update">
+        <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-download"></i></span><span class="rf-set-summary-title">{% if available %}Update to {{ available }}{% else %}Updating{% endif %}</span><span class="rf-set-summary-sub">How to update, on the host</span></summary>
     <div class="rf-set-group"><div class="rf-set-row"><div class="rf-set-text">
         <div class="small mb-1">On the host, in the folder of the compose file:</div>
         <pre class="mb-0">docker compose pull && docker compose up -d</pre>
         <div class="small text-muted mt-2">Back up the database first (docs/upgrading.md). RouterFleet never updates itself: no container is given access to Docker, which would be root on the host.</div>
     </div></div></div>
+    </details>
     {% if database_major and database_major < 18 %}
-    <div class="rf-set-title">The database is PostgreSQL {{ database_major }}</div>
+    <details class="rf-set-section" data-rf-remember="database">
+        <summary class="rf-set-summary"><span class="rf-set-icon amber" aria-hidden="true"><i class="fas fa-database"></i></span><span class="rf-set-summary-title">The database is PostgreSQL {{ database_major }}</span><span class="rf-set-summary-sub">Moved to PostgreSQL 18 by the current compose file</span></summary>
     <div class="rf-set-group"><div class="rf-set-row"><div class="rf-set-text">
         <div class="small mb-1">Taking the <b>current</b> compose file moves it to PostgreSQL 18 by itself, at the first start: the old database is exported, imported and every table compared before RouterFleet starts - a few minutes on a large database. The old database is kept, unchanged, as the way back.</div>
         <div class="small text-muted mt-2">If you changed the ports in your compose file (another web server on 80 or 443), set HTTP_PORT and HTTPS_PORT in .env before - the current compose file reads them from there. Every step, the way back, and moving with a script at a moment you choose instead: docs/upgrading.md, "Moving to PostgreSQL 18".</div>
     </div></div></div>
+    </details>
     {% endif %}
 </div>
 {% endblock %}

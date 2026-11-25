@@ -482,13 +482,33 @@ class SettingsFormLayoutTests(TestCase):
     def test_the_backup_profile_form(self):
         from backup.forms import BackupProfileForm
         html = self.render(BackupProfileForm())
+        # Several titled groups: each a section, closed until opened on purpose
         for title in ('Daily Backups', 'Weekly Backups', 'Monthly Backups', 'Export options', 'Backup Settings'):
-            self.assertIn(f'<div class="rf-set-title">{title}</div>', html)
+            self.assertIn(f'<summary class="rf-set-summary rf-plain"><span class="rf-set-summary-title">{title}</span></summary>', html)
+        self.assertEqual(html.count('<details class="rf-set-section"'), html.count('</details>'))
+        self.assertNotIn('<details class="rf-set-section" data-rf-remember="group-1"', html, 'untitled: no section')
+        self.assertNotIn(' open', html.split('<details', 1)[1].split('>', 1)[0], 'closed at first')
         self.assertIn('class="form-check-input', html)
         self.assertIn('show-sensitive', html, 'a switch with an explanation shows it')
         self.assertIn('type="submit"', html)
         for name in BackupProfileForm().fields:
             self.assertIn(f'name="{name}"', html, name)
+
+    def test_a_single_titled_group_keeps_a_plain_title(self):
+        from django import forms as django_forms
+        from crispy_forms.helper import FormHelper
+        from crispy_forms.layout import HTML, Layout
+
+        class OneSection(django_forms.Form):
+            name = django_forms.CharField()
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.helper = FormHelper()
+                self.helper.layout = Layout(HTML('<h5>Only one</h5>'), 'name')
+        html = self.render(OneSection())
+        self.assertIn('<div class="rf-set-title">Only one</div>', html)
+        self.assertNotIn('<details', html)
 
     def test_the_device_form_keeps_its_buttons_and_hint(self):
         from router_manager.forms import RouterForm

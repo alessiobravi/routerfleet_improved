@@ -12,10 +12,11 @@
         and run <code>docker compose up -d</code>. Until then HTTPS follows <code>HTTPS_REDIRECT_POLICY</code> in <code>.env</code>.
     </div>
     {% endif %}
-    {% for error in errors %}<div class="alert alert-danger py-2 mt-3">{{ error }}</div>{% endfor %}
+    {% for error in errors %}<div class="alert alert-danger rf-form-error py-2 mt-3">{{ error }}</div>{% endfor %}
 
     <div id="rf-live-https" data-rf-live="{% if applying %}active{% else %}done{% endif %}" data-rf-live-reason="applying the HTTPS change" data-rf-live-interval="3">
-        <div class="rf-set-title">HTTPS now</div>
+        <details class="rf-set-section" data-rf-remember="now">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-lock"></i></span><span class="rf-set-summary-title">HTTPS now</span><span class="rf-set-summary-sub">What is set, and what nginx applied</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon {% if current.mode == 'plain' or current.mode == 'proxy' %}red{% else %}teal{% endif %}"><i class="fas {% if current.mode == 'plain' %}fa-lock-open{% else %}fa-lock{% endif %}"></i></span>
@@ -54,8 +55,10 @@
                 <span class="rf-set-value">{% if current.custom_trusted %}{{ 'ok'|state_icon }} trusted by browsers{% else %}{{ 'warn'|state_icon }} not trusted by browsers{% endif %}</span></div>
             {% endif %}
         </div>
+        </details>
 
-        <div class="rf-set-title">Passkeys {% if passkeys_ok %}{{ 'ok'|state_icon:'will work' }}{% else %}{{ 'warn'|state_icon:'will not work' }}{% endif %}</div>
+        <details class="rf-set-section" data-rf-remember="passkeys">
+            <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-key"></i></span><span class="rf-set-summary-title">Passkeys {% if passkeys_ok %}{{ 'ok'|state_icon:'will work' }}{% else %}{{ 'warn'|state_icon:'will not work' }}{% endif %}</span><span class="rf-set-summary-sub">{% if passkeys_ok %}Passkeys will work{% else %}Passkeys will not work yet{% endif %}</span></summary>
         <div class="rf-set-group">
             {% for label, ok in requirements %}
             <div class="rf-set-row">
@@ -65,12 +68,14 @@
             {% endfor %}
         </div>
         <div class="rf-set-foot">{% if passkeys_ok %}Passkeys will work.{% else %}Passkeys will not work until every condition is met.{% endif %} {{ passkey_users }} user{{ passkey_users|pluralize }} sign{{ passkey_users|pluralize:"s," }} in with a passkey.</div>
+        </details>
     </div>
 
     <form method="post" autocomplete="off">
         {% csrf_token %}
         <input type="hidden" name="action" value="review">
-        <div class="rf-set-title">Change</div>
+        <details class="rf-set-section" data-rf-remember="change">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-pen"></i></span><span class="rf-set-summary-title">Change</span><span class="rf-set-summary-sub">Self-signed, Let's Encrypt, your own certificate, a reverse proxy or plain HTTP</span></summary>
         <div class="rf-set-group">
             {% for value, label in modes %}
             <label class="rf-set-row rf-set-choice">
@@ -129,6 +134,7 @@
             <div class="alert alert-danger py-2 mt-3">{{ 'bad'|state_icon }} Passwords and session cookies will cross the network unencrypted.</div>
         </div>
         <div class="rf-set-actions"><button type="submit" class="btn btn-warning"><i class="fas fa-search me-1"></i>Review the change</button></div>
+        </details>
     </form>
 </div>
 {% endblock %}

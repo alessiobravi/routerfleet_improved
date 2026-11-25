@@ -6,12 +6,13 @@
     <div class="alert alert-warning mt-2"><strong>CallMeBot is no longer supported.</strong> This channel is kept for its history
         and sends nothing. Choose another type below to recreate it here, or delete it.</div>
     {% endif %}
-    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
-    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ error }}</div>{% endfor %}
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
 
     <form method="post" autocomplete="off">
         {% csrf_token %}
-        <div class="rf-set-title">Channel</div>
+        <details class="rf-set-section" data-rf-remember="channel">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-tag"></i></span><span class="rf-set-summary-title">Channel</span><span class="rf-set-summary-sub">Name, on or off</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon orange"><i class="fas fa-tag"></i></span>
@@ -29,8 +30,10 @@
                 </div>
             </div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Type</div>
+        <details class="rf-set-section" data-rf-remember="type">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-shapes"></i></span><span class="rf-set-summary-title">Type</span><span class="rf-set-summary-sub">Email, ntfy or Telegram</span></summary>
         <div class="rf-set-group">
             <label class="rf-set-row rf-set-choice{% if not smtp_ready and form.channel_type.value != 'email' %} rf-set-disabled{% endif %}">
                 <input type="radio" name="channel_type" value="email" {% if form.channel_type.value == 'email' %}checked{% elif not smtp_ready %}disabled{% endif %}>
@@ -54,8 +57,10 @@
                 <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
             </label>
         </div>
+        </details>
 
-        <div class="rf-set-title">Where to</div>
+        <details class="rf-set-section" data-rf-remember="where">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-location-arrow"></i></span><span class="rf-set-summary-title">Where to</span><span class="rf-set-summary-sub">Where the messages go</span></summary>
         <div class="rf-set-group">
             <div data-rf-show-when="channel_type" class="rf-set-row rf-for" data-for="ntfy">
                 <span class="rf-set-icon teal"><i class="fas fa-server"></i></span>
@@ -109,8 +114,10 @@
                         pop-up. 4 suits outages, 3 the daily reports.</small></div>
             </div>
         </div>
+        </details>
 
-        <div class="rf-set-title">What it receives</div>
+        <details class="rf-set-section" data-rf-remember="receives">
+            <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-filter"></i></span><span class="rf-set-summary-title">What it receives</span><span class="rf-set-summary-sub">Which events it is sent</span></summary>
         <div class="rf-set-group">
             {% for field, label, on in event_states %}
             <div class="rf-set-row">
@@ -122,6 +129,7 @@
             </div>
             {% endfor %}
         </div>
+        </details>
 
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary btn-lg">Save</button>

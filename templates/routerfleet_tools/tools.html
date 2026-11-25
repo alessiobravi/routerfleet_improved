@@ -2,7 +2,8 @@
 
 {% block content %}
 <div class="rf-settings">
-    <div class="rf-set-title">Backups</div>
+    <details class="rf-set-section" data-rf-remember="backups">
+        <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-box-archive"></i></span><span class="rf-set-summary-title">Backups</span><span class="rf-set-summary-sub">Backup clean-up, export of the latest backups</span></summary>
     <div class="rf-set-group">
         <a class="rf-set-row" href="/tools/backup_cleanup/">
             <span class="rf-set-icon teal"><i class="fas fa-broom"></i></span>
@@ -18,8 +19,10 @@
             <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
         </a>
     </div>
+    </details>
 
-    <div class="rf-set-title">Database</div>
+    <details class="rf-set-section" data-rf-remember="database">
+        <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-database"></i></span><span class="rf-set-summary-title">Database</span><span class="rf-set-summary-sub">{% if database_vendor == 'postgresql' %}PostgreSQL{% else %}SQLite{% endif %}{% if database_size %} · {{ database_size|filesizeformat }}{% endif %} · optimize</span></summary>
     <form method="post" id="optimize-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="optimize">
@@ -52,6 +55,7 @@
         </div>
         <div class="rf-set-foot">Best after a backup clean-up.{% if database_vendor != 'postgresql' %} It needs free disk space as large as the database.{% endif %}</div>
     </form>
+    </details>
 </div>
 {% endblock %}
 

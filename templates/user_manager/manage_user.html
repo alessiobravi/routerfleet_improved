@@ -3,11 +3,12 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/user/list/" class="small"><i class="fas fa-chevron-left"></i> Users</a>
-    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
-    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ error }}</div>{% endfor %}
     <form method="post" autocomplete="off">
         {% csrf_token %}
-        <div class="rf-set-title">{{ form.instance.pk|yesno:"Edit user,New user" }}</div>
+        <details class="rf-set-section" data-rf-remember="account">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-user"></i></span><span class="rf-set-summary-title">{{ form.instance.pk|yesno:"Edit user,New user" }}</span><span class="rf-set-summary-sub">{% if form.instance.pk %}{{ form.instance.username }}{% else %}Username, email and password{% endif %}</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><span class="rf-set-icon rose"><i class="fas fa-user"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.username.id_for_label }}">Username</label>
@@ -27,8 +28,10 @@
                     <input type="tel" class="form-control" id="{{ form.phone.id_for_label }}" name="{{ form.phone.html_name }}" maxlength="30" placeholder="+39 055 123 4567" value="{{ form.phone.value|default_if_none:'' }}">
                     <small class="text-muted">Optional: to reach the person; shown to administrators only.</small></div></div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Access</div>
+        <details class="rf-set-section" data-rf-remember="access">
+            <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-user-shield"></i></span><span class="rf-set-summary-title">Access</span><span class="rf-set-summary-sub">Access level and what it allows</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><span class="rf-set-icon red"><i class="fas fa-user-shield"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.user_level.id_for_label }}">Level</label>
@@ -49,6 +52,7 @@
             </div>
             {% endif %}
         </div>
+        </details>
 
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary btn-lg">Save</button>

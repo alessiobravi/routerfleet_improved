@@ -8,7 +8,8 @@
         {% include 'router_manager/router_nav_tabs.html' with active_tab='discovered' %}
 <div class="rf-settings mt-3" id="rf-live-discovered" data-rf-live="{% if busy %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5">
     {% if busy %}<div class="small text-muted mb-2">{{ 'run'|state_icon }} A discovery is running: new devices appear here as they are found - <a href="/discovery/">follow it in Device Discovery</a>.</div>{% endif %}
-    <div class="rf-set-title">Not in RouterFleet yet</div>
+    <details class="rf-set-section" data-rf-remember="new">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-satellite-dish"></i></span><span class="rf-set-summary-title">Not in RouterFleet yet</span><span class="rf-set-summary-sub">{{ new|length }} device{{ new|length|pluralize }} to add or hide</span></summary>
     <div class="rf-set-group">
         {% if new %}
         <div class="rf-set-row rf-set-search">
@@ -44,6 +45,7 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">Nothing new. Devices appear here as the listener on RouterFleet's LAN hears them, or as the managed devices you choose report their neighbours.</span></div>
         {% endfor %}
     </div>
+    </details>
     {% if dismissed %}
     {% if show_dismissed %}
     <div class="rf-set-title">Hidden - not of interest</div>
@@ -66,7 +68,8 @@
     <div class="rf-set-foot">From RouterFleet's LAN when asked, and from the LLDP, CDP and MikroTik neighbour tables of the managed devices you choose. A device is added by its IP address, when RouterFleet's host reaches it on SSH{% if not can_add %} - by an administrator{% endif %}.</div>
 
     {% if known %}
-    <div class="rf-set-title">Already in RouterFleet</div>
+    <details class="rf-set-section" data-rf-remember="known">
+        <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-check"></i></span><span class="rf-set-summary-title">Already in RouterFleet</span><span class="rf-set-summary-sub">{{ known|length }} device{{ known|length|pluralize }} RouterFleet manages already</span></summary>
     <div class="rf-set-group">
         {% for row in known %}
         <a class="rf-set-row rf-discovered" href="/router/details/?uuid={{ row.router.uuid }}">
@@ -77,6 +80,7 @@
         </a>
         {% endfor %}
     </div>
+    </details>
     {% endif %}
 
 </div>

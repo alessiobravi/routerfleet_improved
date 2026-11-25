@@ -3,7 +3,8 @@
 
 {% block content %}
 <div class="rf-settings" id="rf-live-discovery" data-rf-live="{% if busy or listener.listening_left %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5">
-    <div class="rf-set-title">Adjacent devices - RouterFleet's LAN</div>
+    <details class="rf-set-section" data-rf-remember="adjacent">
+        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-tower-broadcast"></i></span><span class="rf-set-summary-title">Adjacent devices - RouterFleet's LAN</span><span class="rf-set-summary-sub">{% if listener.listening_left %}Listening - {{ listener.listening_left }} s left{% else %}Listen on this host's LAN segment for LLDP, CDP and MNDP{% endif %}</span></summary>
     <form method="post" class="rf-set-group">
         {% csrf_token %}<input type="hidden" name="action" value="listen">
         <div class="rf-set-row">
@@ -26,8 +27,10 @@
         </button>
         {% endif %}
     </form>
+    </details>
 
-    <div class="rf-set-title">From managed devices</div>
+    <details class="rf-set-section" data-rf-remember="managed">
+        <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-diagram-project"></i></span><span class="rf-set-summary-title">From managed devices</span><span class="rf-set-summary-sub">Read the neighbour tables of devices you choose</span></summary>
     <form method="post" class="rf-set-group">
         {% csrf_token %}<input type="hidden" name="action" value="read_devices">
         {% if capable %}
@@ -60,6 +63,7 @@
         <div class="rf-set-row"><span class="rf-set-text text-muted">No managed device's type has a neighbours command (System settings → Devices → device types).</span></div>
         {% endif %}
     </form>
+    </details>
 
     {% if live.found %}
     <div class="rf-set-title">{% if live.run.active %}Found so far{% else %}Found in the last discovery{% endif %} - {{ live.found|length }}</div>

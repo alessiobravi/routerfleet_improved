@@ -3,7 +3,7 @@
 {% load custom_tags %}
 {% block content %}
 <div class="rf-settings">
-    {% for error in errors %}<div class="alert alert-danger py-2">{{ error }}</div>{% endfor %}
+    {% for error in errors %}<div class="alert alert-danger rf-form-error py-2">{{ error }}</div>{% endfor %}
     {% if busy %}
     <div class="alert alert-warning py-2"><i class="fas fa-exclamation-triangle"></i>
         {{ busy|join:" and " }} is running on this device right now. A console works alongside it, but changes made
@@ -14,7 +14,8 @@
         <input type="hidden" name="action" value="open">
         <input type="hidden" name="router" value="{{ router.uuid }}">
 
-        <div class="rf-set-title">Device</div>
+        <details class="rf-set-section" data-rf-remember="device">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-server"></i></span><span class="rf-set-summary-title">Device</span><span class="rf-set-summary-sub">{{ router.name }} · {{ router.address }}</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row">
                 <span class="rf-set-icon blue"><i class="fas fa-network-wired"></i></span>
@@ -22,8 +23,10 @@
                     <div class="rf-set-sub">{{ router.address }} · {{ router.get_router_type_display }}</div></div>
             </div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Connection</div>
+        <details class="rf-set-section" data-rf-remember="connection">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-plug"></i></span><span class="rf-set-summary-title">Connection</span><span class="rf-set-summary-sub">SSH or Telnet, and the port</span></summary>
         <div class="rf-set-group">
             <label class="rf-set-row rf-set-choice">
                 <input type="radio" name="transport" value="ssh" {% if posted.transport != 'telnet' %}checked{% endif %}>
@@ -43,8 +46,10 @@
             {% endif %}
         </div>
         {% if not router.console_telnet %}<div class="rf-set-foot">Telnet is off for this device; it can be allowed in its settings.</div>{% endif %}
+        </details>
 
-        <div class="rf-set-title" data-rf-show-when="transport" data-for="ssh">Account</div>
+        <details class="rf-set-section" data-rf-remember="account" data-rf-show-when="transport" data-for="ssh">
+            <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-user"></i></span><span class="rf-set-summary-title">Account</span><span class="rf-set-summary-sub">The device's backup account or another one</span></summary>
         <div class="rf-set-group" data-rf-show-when="transport" data-for="ssh">
             {% if has_backup_account %}
             <label class="rf-set-row rf-set-choice">
@@ -68,6 +73,7 @@
                         placeholder="Username" value="{{ posted.username }}" autocapitalize="none" spellcheck="false" aria-label="Username"></div>
             </div>
         </div>
+        </details>
 
         <div data-rf-show-when="transport" data-for="telnet"{% if posted.transport != 'telnet' %} hidden{% endif %}>
             <div class="form-check rf-checkbox mt-3 ms-3">

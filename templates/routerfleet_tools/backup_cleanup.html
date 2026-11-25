@@ -80,7 +80,8 @@
 </div>
 {% if binaries %}
 <div class="rf-settings mt-3">
-    <div class="rf-set-title">Binary backups</div>
+    <details class="rf-set-section" data-rf-remember="binaries">
+        <summary class="rf-set-summary"><span class="rf-set-icon red" aria-hidden="true"><i class="fas fa-file-zipper"></i></span><span class="rf-set-summary-title">Binary backups</span><span class="rf-set-summary-sub">Delete the binary backup files of chosen device types</span></summary>
     <form method="post" id="binaries-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="delete_binaries">
@@ -97,6 +98,7 @@
         <div class="rf-set-foot">Deletes the binary files (RouterOS <code>.backup</code>, OpenWrt archives) of the chosen device types, and their references. Every text backup stays, with its history and comparisons. A binary backup can restore what an export leaves out - passwords of local users, private keys - so keep them for devices where that matters.</div>
         <div class="text-center mt-3"><button type="button" class="btn btn-outline-danger btn-lg" id="binaries-button" data-rf-submit="binaries-form" data-rf-confirm-word="delete_binaries" data-rf-confirm-sum="Delete the binary backups of the chosen device types? The text backups are kept. This can not be undone."><i class="fas fa-trash-alt me-1"></i>Delete the chosen binary backups</button></div>
     </form>
+    </details>
 </div>
 {% endif %}
 {% endblock %}

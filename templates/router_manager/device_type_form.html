@@ -15,7 +15,8 @@
         <input type="hidden" name="uuid" value="{% if device_type.pk %}{{ device_type.uuid }}{% endif %}">
 
         <section data-step="1">
-            <div class="rf-set-title">Identity</div>
+            <details class="rf-set-section" data-rf-remember="identity"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-id-card"></i></span><span class="rf-set-summary-title">Identity</span><span class="rf-set-summary-sub">Name, vendor, managed or not</span></summary>
             <div class="rf-set-group">
                 {% if new %}
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="start">Start from</label>
@@ -38,11 +39,13 @@
                 <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Offered for new devices</div></div>
                     <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="enabled" name="enabled" {% if device_type.enabled or new %}checked{% endif %}><label class="form-check-label" for="enabled"><span class="visually-hidden">Offered</span></label></div></div>
             </div>
+            </details>
         </section>
 
         {% if device_type.managed or new %}
         <section data-step="2">
-            <div class="rf-set-title">Connection</div>
+            <details class="rf-set-section" data-rf-remember="connection"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-plug"></i></span><span class="rf-set-summary-title">Connection</span><span class="rf-set-summary-sub">Port, credentials, enable mode, console links</span></summary>
             <div class="rf-set-group">
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="session_mode">How commands are sent</label>
                     <select class="form-select" id="session_mode" name="session_mode">{% for value, label in device_type.SESSION_MODES %}<option value="{{ value }}" {% if device_type.session_mode == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
@@ -60,10 +63,12 @@
                     <textarea class="form-control" id="management_links" name="management_links" rows="2" spellcheck="false" placeholder="Winbox: winbox://{address}">{{ device_type.management_links }}</textarea>
                     <small class="text-muted">One per line, "Label: scheme://..." with {address}, {port}, {username}. SSH is always offered.</small></div></div>
             </div>
+            </details>
         </section>
 
         <section data-step="3">
-            <div class="rf-set-title">Recognition</div>
+            <details class="rf-set-section" data-rf-remember="recognition"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon purple" aria-hidden="true"><i class="fas fa-fingerprint"></i></span><span class="rf-set-summary-title">Recognition</span><span class="rf-set-summary-sub">How a device of this type is recognised</span></summary>
             <div class="rf-set-group">
                 {% if new %}{% for key, definition, payload in commands %}{% if key == 'connection_test' %}
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">Connection test commands</label>
@@ -73,10 +78,12 @@
                     <input type="text" class="form-control rf-mono" id="test_pattern" name="test_pattern" spellcheck="false" value="{{ device_type.test_pattern }}" placeholder="Cisco IOS|IOS-XE">
                     <small class="text-muted">The connection test output must match it. A group, e.g. <code>Version (\S+)</code>, is shown in the result.</small></div></div>
             </div>
+            </details>
         </section>
 
         <section data-step="4">
-            <div class="rf-set-title">Inventory</div>
+            <details class="rf-set-section" data-rf-remember="inventory"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon cyan" aria-hidden="true"><i class="fas fa-list"></i></span><span class="rf-set-summary-title">Inventory</span><span class="rf-set-summary-sub">Where model, version and serial are read from</span></summary>
             <div class="rf-set-group">
                 {% if new %}{% for key, definition, payload in commands %}{% if key == 'inventory' %}
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">Inventory commands</label>
@@ -90,10 +97,12 @@
                     <input type="text" class="form-control rf-mono" id="inventory_repeat" name="inventory_repeat" spellcheck="false" value="{{ device_type.inventory_repeat }}"></div></div>
             </div>
             <div class="rf-set-foot">Each field: one source per line, the first that gives a value wins. <code>key:NAME</code> takes NAME from "NAME: value" or "NAME=value" lines; <code>re:PATTERN</code> takes the first group of a regular expression on the whole output, e.g. <code>re:Version ([\w.()]+)</code>.</div>
+            </details>
         </section>
 
         <section data-step="5">
-            <div class="rf-set-title">Backups</div>
+            <details class="rf-set-section" data-rf-remember="backups"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-box-archive"></i></span><span class="rf-set-summary-title">Backups</span><span class="rf-set-summary-sub">The text and binary backups taken</span></summary>
             <div class="rf-set-group">
                 {% if new %}{% for key, definition, payload in commands %}{% if key == 'backup_text' or key == 'backup_create' or key == 'backup_download' or key == 'backup_remove' or key == 'backup_cleanup' %}
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="command_{{ key }}">{{ definition.name|cut:"System: backup - "|capfirst }}</label>
@@ -116,10 +125,12 @@
                     <input type="text" class="form-control rf-mono" id="legacy_option_hide_sensitive" name="legacy_option_hide_sensitive" value="{{ device_type.legacy_option_hide_sensitive }}" placeholder="hide-sensitive" aria-label="Older versions: passwords and keys left out"></div>
                     <small class="text-muted">For a device whose OS version (as last read) is below this one - RouterOS 6 exports passwords unless told <code>hide-sensitive</code>, and has no <code>show-sensitive</code>. Empty version: every device uses the words above.</small></div></div>
             </div>
+            </details>
         </section>
 
         <section data-step="6">
-            <div class="rf-set-title">Update checks</div>
+            <details class="rf-set-section" data-rf-remember="update-checks"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon amber" aria-hidden="true"><i class="fas fa-bell"></i></span><span class="rf-set-summary-title">Update checks</span><span class="rf-set-summary-sub">Where newer versions are looked for</span></summary>
             <div class="rf-set-group">
                 <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">The device itself tells</div><div class="rf-set-sub">The inventory field "Version offered by the device" is the version it could update to (RouterOS check-for-updates).</div></div>
                     <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="check_device" name="check_device" {% if device_type.check_device %}checked{% endif %}><label class="form-check-label" for="check_device"><span class="visually-hidden">Device check</span></label></div></div>
@@ -141,10 +152,12 @@
                     <div class="form-check form-switch"><input type="checkbox" class="form-check-input" id="check_repository" name="check_repository" {% if device_type.check_repository %}checked{% endif %}><label class="form-check-label" for="check_repository"><span class="visually-hidden">Repository check</span></label></div></div>
             </div>
             <div class="rf-set-foot">The newest version any of them offers counts. With none switched on, devices of this type show "no update check" instead of a guess.</div>
+            </details>
         </section>
 
         <section data-step="7">
-            <div class="rf-set-title">Firmware</div>
+            <details class="rf-set-section" data-rf-remember="firmware"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-microchip"></i></span><span class="rf-set-summary-title">Firmware</span><span class="rf-set-summary-sub">Firmware updates: procedure and channels</span></summary>
             <div class="rf-set-group">
                 <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="firmware_upload_path">Where the file is uploaded on the device</label>
                     <input type="text" class="form-control rf-mono" id="firmware_upload_path" name="firmware_upload_path" spellcheck="false" value="{{ device_type.firmware_upload_path }}" placeholder="/tmp/{% templatetag openvariable %} firmware_name {% templatetag closevariable %}"></div></div>
@@ -166,11 +179,13 @@
                     <span class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" id="update_any_major" name="update_any_major" {% if device_type.update_any_major %}checked{% endif %}></span>
                 </label>
             </div>
+            </details>
         </section>
         {% endif %}
 
         {% if not new and stored_commands and device_type.managed %}
-        <div class="rf-set-title">Commands</div>
+        <details class="rf-set-section" data-rf-remember="commands">
+            <summary class="rf-set-summary"><span class="rf-set-icon red" aria-hidden="true"><i class="fas fa-lock"></i></span><span class="rf-set-summary-title">Commands</span><span class="rf-set-summary-sub">The system commands of this type</span></summary>
         <div class="rf-set-group">
             {% for key, definition, variant in stored_commands %}
             <a class="rf-set-row" href="{% if variant %}/fleet_commander/system/variant/?uuid={{ variant.uuid }}{% else %}#{% endif %}">
@@ -182,11 +197,13 @@
             {% endfor %}
         </div>
         <div class="rf-set-foot">Edited one by one, with a review of the change, as every system command.</div>
+        </details>
         {% endif %}
 
         {% if device_type.managed or new %}
         <section data-step="8">
-            <div class="rf-set-title">Try on a device</div>
+            <details class="rf-set-section" data-rf-remember="try"{% if new %} open{% endif %}>
+                <summary class="rf-set-summary"><span class="rf-set-icon indigo" aria-hidden="true"><i class="fas fa-vial"></i></span><span class="rf-set-summary-title">Try on a device</span><span class="rf-set-summary-sub">Run this form's settings on a device</span></summary>
             <div class="rf-set-group">
                 <div class="rf-set-row"><div class="rf-set-text"><div class="d-flex flex-wrap">
                     <input type="text" class="form-control me-2 mb-1 rf-mw-14" id="try_address" placeholder="Address" aria-label="Address">
@@ -198,6 +215,7 @@
                     <small class="text-muted">Runs the connection test, the inventory and the text backups of this form - saved or not - and shows what each found. Nothing is stored.</small>
                     <div id="try-result" class="mt-2"></div></div></div>
             </div>
+            </details>
         </section>
         {% endif %}
 

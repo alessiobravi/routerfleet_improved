@@ -13,6 +13,21 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.41.0] - 2026-11-25
+
+### Changed
+- **Sections start closed, everywhere**: Device Discovery, Discovered
+  devices, Tools, HTTP access, HTTPS, notifications and their channels, the
+  mail server, message settings, updates, the device console, firmware, users,
+  device types, Fleet Commander, backup profiles and My Settings show each
+  section as a title and a one-line summary - opened on purpose, as System
+  settings already did. What you open stays open for the browser session,
+  also through the live refresh of a running discovery.
+- A section opens by itself when it holds an error, when a required field in
+  it is left empty on saving, or when a link points into it. Always shown: a
+  running discovery's progress and findings, pages of a single form or list,
+  and the steps of a new device type.
+
 ## [0.40.2] - 2026-11-25
 
 ### Fixed

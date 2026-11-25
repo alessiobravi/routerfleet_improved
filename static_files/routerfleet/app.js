@@ -553,17 +553,42 @@
   });
 })();
 
-/* Collapsible sections (details[data-rf-remember]): closed at first; what
-   the user opens is remembered per page for the session. */
+/* Collapsible sections (details[data-rf-remember]): closed at first, so a
+   section is opened on purpose; what the user opens is remembered per page
+   for the session (also across the live refresh, rfInitSections). A section
+   opens by itself when it holds an error, when a field in it fails the
+   browser's check on submit, or when the address points into it (#id). */
 (function () {
   'use strict';
+  var ERRORS = '.is-invalid, .invalid-feedback, div.text-danger.small, .rf-set-sub.text-danger, .rf-form-error';
   function key(section) { return 'rf-section:' + window.location.pathname + ':' + section.dataset.rfRemember; }
-  document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('details[data-rf-remember]').forEach(function (section) {
+  function shown(scope, selector) {
+    return Array.prototype.some.call(scope.querySelectorAll(selector), function (e) { return e.textContent.trim() !== ''; });
+  }
+  function openAround(element) {
+    var section = element && element.closest ? element.closest('details') : null;
+    while (section) { section.open = true; section = section.parentElement ? section.parentElement.closest('details') : null; }
+  }
+  window.rfInitSections = function (root) {
+    (root || document).querySelectorAll('details[data-rf-remember]').forEach(function (section) {
+      if (section.rfReady) { return; }
+      section.rfReady = true;
       try { if (sessionStorage.getItem(key(section)) === 'open') { section.open = true; } } catch (e) {}
+      // An error in it - or, for a section of a form, a form error listed
+      // above the form (.rf-form-error). Empty placeholders do not count.
+      var page = section.closest('form') ? (section.closest('.rf-settings') || document) : null;
+      if (shown(section, ERRORS) || (page && shown(page, '.rf-form-error'))) { section.open = true; }
       section.addEventListener('toggle', function () {
         try { sessionStorage.setItem(key(section), section.open ? 'open' : 'closed'); } catch (e) {}
       });
     });
+  };
+  // A required field in a closed section: open it, so the browser can show why
+  document.addEventListener('invalid', function (event) { openAround(event.target); }, true);
+  document.addEventListener('DOMContentLoaded', function () {
+    window.rfInitSections(document);
+    if (window.location.hash.length > 1) {
+      try { openAround(document.getElementById(decodeURIComponent(window.location.hash.slice(1)))); } catch (e) {}
+    }
   });
 })();

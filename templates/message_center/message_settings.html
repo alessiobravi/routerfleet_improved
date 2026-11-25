@@ -3,19 +3,22 @@
 {% block content %}
 <div class="rf-settings">
     <a href="/system/notifications/" class="small"><i class="fas fa-chevron-left"></i> Notifications</a>
-    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
-    {% for error in form.non_field_errors %}<div class="alert alert-danger py-2 mt-2">{{ error }}</div>{% endfor %}
+    {% for field in form %}{% for error in field.errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ field.label }}: {{ error }}</div>{% endfor %}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger rf-form-error py-2 mt-2">{{ error }}</div>{% endfor %}
     <form method="post">
         {% csrf_token %}
-        <div class="rf-set-title">Daily reports</div>
+        <details class="rf-set-section" data-rf-remember="reports">
+            <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-calendar-day"></i></span><span class="rf-set-summary-title">Daily reports</span><span class="rf-set-summary-sub">When the daily reports go out</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><span class="rf-set-icon amber"><i class="fas fa-clock"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="id_daily_report_time">Time of day</label>
                     <input type="text" class="form-control" id="id_daily_report_time" name="daily_report_time" maxlength="5" required pattern="[0-2][0-9]:[0-5][0-9]" value="{{ form.daily_report_time.value|default_if_none:'' }}">
                     <small class="text-muted">When the daily status and backup reports go out, HH:MM on a 24-hour clock.</small></div></div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Grouping</div>
+        <details class="rf-set-section" data-rf-remember="grouping">
+            <summary class="rf-set-summary"><span class="rf-set-icon orange" aria-hidden="true"><i class="fas fa-layer-group"></i></span><span class="rf-set-summary-title">Grouping</span><span class="rf-set-summary-sub">How long events are collected into one message</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><div class="rf-set-label">Group status changes</div>
                 <div class="rf-set-sub">Devices going offline and online within the delay below go into one message; a device that is back before the delay ends sends nothing.</div></div>
@@ -28,8 +31,10 @@
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_backup_fails_delay">Failed backup delay (seconds)</label>
                 <input type="number" class="form-control" id="id_backup_fails_delay" name="backup_fails_delay" min="0" required value="{{ form.backup_fails_delay.value|default_if_none:'' }}"></div></div>
         </div>
+        </details>
 
-        <div class="rf-set-title">Delivery</div>
+        <details class="rf-set-section" data-rf-remember="delivery">
+            <summary class="rf-set-summary"><span class="rf-set-icon teal" aria-hidden="true"><i class="fas fa-paper-plane"></i></span><span class="rf-set-summary-title">Delivery</span><span class="rf-set-summary-sub">Message length, retries and the time between them</span></summary>
         <div class="rf-set-group">
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_max_length">Longest message (characters)</label>
                 <input type="number" class="form-control" id="id_max_length" name="max_length" min="500" max="2000" required value="{{ form.max_length.value|default_if_none:'' }}">
@@ -39,6 +44,7 @@
             <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="id_retry_interval">Between attempts (seconds)</label>
                 <input type="number" class="form-control" id="id_retry_interval" name="retry_interval" min="0" required value="{{ form.retry_interval.value|default_if_none:'' }}"></div></div>
         </div>
+        </details>
         <div class="text-center mt-4"><button type="submit" class="btn btn-primary btn-lg">Save</button>
             <a href="/system/notifications/" class="btn btn-secondary btn-lg ms-2">Cancel</a></div>
     </form>
