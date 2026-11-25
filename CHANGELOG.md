@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.43.1] - 2026-11-26
+
+### Changed
+- Device list: the update arrows sit at the right of the row - green for a
+  system update, purple for the bootloader, the device page's arrow.
+- The device beside the list: its actions carry their icons (console, command,
+  update, backup, edit, open), and its recent activity is the dotted timeline
+  of the device page again.
+
 ## [0.43.0] - 2026-11-25
 
 Includes 0.42.1, which was not released on its own.

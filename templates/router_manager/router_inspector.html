@@ -5,10 +5,10 @@
         <div class="rf-insp-title"><h2><a href="/router/details/?uuid={{ r.uuid }}">{{ r.name }}</a></h2>
             <div class="rf-page-sub">{{ r.get_router_type_display }}{% if inspector.groups %} · {{ inspector.groups }}{% endif %}</div></div>
         <div class="rf-insp-actions">
-            {% for action in inspector.page.hero.actions %}{% if action.label != 'Edit' %}<a class="btn btn-sm btn-outline-secondary" href="{{ action.href }}">{{ action.label }}</a>{% endif %}{% endfor %}
-            {% if inspector.can_backup %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/router/create_instant_backup/?uuid={{ r.uuid }}" data-rf-field-next="/router/list/?device={{ r.uuid }}" title="Back up now">Back up now</a>{% endif %}
-            {% if inspector.can_edit %}<a class="btn btn-sm btn-outline-secondary" href="/router/manage/?uuid={{ r.uuid }}">Edit</a>{% endif %}
-            <a class="btn btn-sm btn-primary" href="/router/details/?uuid={{ r.uuid }}">Open</a>
+            {% for action in inspector.page.hero.actions %}{% if action.label != 'Edit' %}<a class="btn btn-sm btn-outline-secondary" href="{{ action.href }}"><i class="fas {{ action.icon }} me-1{% if action.label == 'Update system' %} rf-up-os{% elif action.label == 'Update bootloader' %} rf-up-boot{% endif %}" aria-hidden="true"></i>{{ action.label }}</a>{% endif %}{% endfor %}
+            {% if inspector.can_backup %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/router/create_instant_backup/?uuid={{ r.uuid }}" data-rf-field-next="/router/list/?device={{ r.uuid }}" title="Back up now"><i class="fas fa-box-open me-1" aria-hidden="true"></i>Back up now</a>{% endif %}
+            {% if inspector.can_edit %}<a class="btn btn-sm btn-outline-secondary" href="/router/manage/?uuid={{ r.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
+            <a class="btn btn-sm btn-primary" href="/router/details/?uuid={{ r.uuid }}"><i class="fas fa-up-right-from-square me-1" aria-hidden="true"></i>Open</a>
         </div>
     </div>
     <dl class="rf-facts">
@@ -37,11 +37,14 @@
         {% endif %}
     </dl>
     <div class="rf-insp-section">Recent activity</div>
-    <div class="rf-events">
+    <div class="rf-object rf-o-timeline rf-insp-timeline">
         {% for event in inspector.timeline %}
-        <div class="rf-ev"><span class="rf-mono text-muted">{{ event.when|date:"Y-m-d H:i" }}</span><span class="{% if event.state == 'bad' %}text-danger{% endif %}">{{ event.text }}</span></div>
+        <div class="rf-o-t rf-o-{{ event.state|default:'info' }}">
+            <div>{{ event.text }}</div>
+            <small title="{{ event.when }}">{{ event.when|date:"Y-m-d H:i" }}</small>
+        </div>
         {% empty %}
-        <div class="rf-ev"><span></span><span class="text-muted">Nothing recorded yet.</span></div>
+        <p class="text-muted mb-0">Nothing recorded yet.</p>
         {% endfor %}
     </div>
 </div>

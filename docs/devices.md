@@ -221,9 +221,10 @@ information* reads it at once.
 
 ## Version colours
 
-A device with a newer system version available carries a small **↑** after
-its name in the device list (a second one when a newer bootloader firmware can
-be installed); hovering it names the running and the available version. It
+A device with a newer system version available carries a **green arrow** at
+the right of its row in the device list, and a **purple** one when a newer
+bootloader firmware can be installed; hovering it names the running and the
+available version. It
 follows the same rule as the colours below, and the status page counts the
 same rule, so the overview and the list cannot tell different stories.
 
@@ -257,15 +258,17 @@ information*, excluding monitoring-only and airOS devices.
 The list of devices is on the left, the chosen device on the right: its state,
 address, system and version, model, bootloader, last backup and backup
 profile, last configuration change (a click shows the change), next backup,
-login and any lock, then its recent activity - and the actions you may take:
+login and any lock, then its recent activity as a timeline - and the actions
+you may take:
 **Console**, **Execute command**, **Back up now** (level 20, enabled devices),
 **Update system** / **Update bootloader** when one is waiting, **Edit** and
 **Open** (the device's own page). The address bar keeps the chosen device, so
 a link or a reload opens it again. **↑** and **↓** move through the list.
 
 Each device in the list shows its name, address and type, and a dot for its
-state: green online, red offline, grey disabled or not monitored. A small **↑**
-marks an update waiting, a red lock a backup or command lock.
+state: green online, red offline, grey disabled or not monitored. At the right
+of the row, a green arrow marks a system update waiting and a purple one a
+bootloader update; a red lock after the name a backup or command lock.
 
 On a phone the list is shown alone and a device opens its own page.
 

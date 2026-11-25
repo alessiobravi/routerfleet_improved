@@ -663,3 +663,9 @@ a.rf-li { color: inherit; text-decoration: none; }
 .rf-cell-link { color: var(--rf-text); font-weight: 600; text-decoration: none; }
 .rf-cell-link:hover { color: var(--bs-link-color); text-decoration: underline; }
 .rf-addr-link { font-family: var(--bs-body-font-family); font-size: 12.5px; margin-left: 8px; }
+/* The upgrade arrows at the right of a device row, coloured as on the device page */
+.rf-li-marks { display: inline-flex; gap: 5px; font-size: 14px; }
+.rf-li-marks:empty { display: none; }
+.rf-up-os { color: #1f9d55; } .rf-up-boot { color: #7e57c2; }
+html.rf-dark .rf-up-os { color: #3fb950; } html.rf-dark .rf-up-boot { color: #a58bdb; }
+.rf-insp-timeline { padding: 4px 20px 14px 26px; }
