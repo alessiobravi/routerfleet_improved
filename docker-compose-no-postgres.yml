@@ -139,6 +139,5 @@ volumes:
   static_volume:
   https_cert:
   media_root:
-  postgres_data:
   sqlite_volume:
   app_secrets:

@@ -68,49 +68,82 @@ compared on their real value and recorded as `(set)` or `(empty)`.
 
 ## The scheduler endpoints
 
-The `/cron/` endpoints carry **no authentication of their own**. The cron
-container calls them from inside the Docker network on a loop, and there is no
-account behind that call.
-
-That makes them worth protecting by other means, because whoever reaches them
-drives the installation: the command endpoints send payloads to devices, one
-sends messages, one deletes old backups.
+The `/cron/` endpoints drive the installation - the command endpoints send
+payloads to devices, one sends messages, one deletes old backups - so three
+locks stand in front of them:
 
 ```mermaid
 flowchart TD
     ext["Request from outside"] --> nginx["nginx"]
     nginx -->|"location /cron/<br/>returns 404"| blocked["Blocked"]
-    cron["cron container<br/>on the internal network"] -->|"no X-Real-IP"| app["Application"]
-    ext2["Request through any<br/>reverse proxy"] -->|"carries X-Real-IP"| app
-    app --> chk{"X-Real-IP<br/>present?"}
+    cron["cron container<br/>sends its key"] --> app["Application"]
+    other["Anything else reaching port 8001<br/>(a host process, another container)"] --> app
+    app --> chk{"X-Real-IP present,<br/>or the key wrong?"}
     chk -->|yes| r404["404 — answered like<br/>a path that does not exist"]
     chk -->|no| run["Endpoint runs"]
 ```
 
-Two locks, in series:
-
 1. **The shipped nginx does not pass `/cron/` on** — it answers `404`.
-2. **The application refuses a request that arrived through a proxy.** nginx
-   writes the caller's address into `X-Real-IP` on the way in; the cron
-   container talks to the application directly and sets no such header. A
-   request carrying it therefore came from outside and is refused — answered the
-   way a non-existent path is, so the reply reveals nothing.
+2. **A request that came through a proxy is refused.** nginx writes the
+   caller's address into `X-Real-IP`; the cron container talks to the
+   application directly and sets no such header.
+3. **The scheduler's key.** The cron container holds a key of its own (on the
+   `service_keys` volume, compose files from 0.38) and sends it with every call
+   (`X-RF-Cron-Key`); a call without it is refused, so no process on the host
+   and no other container can drive the installation through the
+   application's loopback port. With a compose file from before 0.38 (no
+   `service_keys` volume) the key is not required and the first two locks
+   remain, as before.
 
-This is **not** authentication. A deployment that puts its own reverse proxy in
-front, or that publishes the application's port 8001 directly, is not covered by
-it and must keep those paths to itself.
+A refusal is answered the way a non-existent path is, so it reveals nothing.
 
 ## The monitoring endpoints
 
-`/monitoring/` accepts either a signed-in session or the monitoring key. The
-key is a UUID generated on first container start and kept in
-`app_secrets/monitoring_key`, shared with the monitoring container through that
-volume, and compared in constant time.
+`/monitoring/` accepts the monitoring key - a UUID generated on first start,
+compared in constant time - and, for reading the device list, a signed-in
+session. **Only the monitoring key reports a status** (online, offline): a
+signed-in user, or a link someone follows, can not mark devices offline,
+open outages or send notifications.
 
-The monitoring container sends it in an `X-Monitoring-Key` header, never in a
-URL: an address ends up in access logs and in the text of connection errors,
-which the container prints. `?key=` is still accepted, so the monitoring
-container of an earlier RouterFleet project keeps working during an upgrade.
+The key travels in an `X-Monitoring-Key` header, never in a URL (a URL ends up
+in logs and error messages); a key in the URL (`?key=`) is not accepted.
+
+The monitoring container reads its key from the `service_keys` volume, mounted
+read-only - **not** from `app_secrets`, which also holds the key to every
+device password: the container runs on the host's network and parses
+announcements from the LAN, and must not hold that key. (With a compose file
+from before 0.38 it still mounts `app_secrets`.)
+
+## Containers and privileges
+
+- **The application runs unprivileged**, as the user `routerfleet` (uid 1000).
+  Its start-up runs as root only to write its settings - readable by that user
+  alone, as they hold the keys - and, once, to hand it the folders it writes
+  (media, the SQLite database, static files, the certificate and discovery
+  folders). `manage.py` started as root (`docker compose exec`) drops to that
+  user too. `APP_USER=root` in `.env` runs it as root, should anything need
+  it.
+- **No container gains privileges**: every service runs with
+  `no-new-privileges`.
+- **Key files** are written whole or not at all (a temporary file, checked,
+  then moved into place), and values from `.env` reach the settings as
+  quoted strings - a quote in a password can neither break nor change them.
+
+## Files downloaded from devices
+
+A backup file is read over the **command channel** (`cat`), byte for byte,
+where the device has a shell; **SCP** only where that is the only way. An SCP
+sender describes what it sends, and a client that follows it writes where it
+is told - so a download takes exactly **one file, at the path RouterFleet
+chose**: a directory, a second file or a name with a path in it is refused,
+as is a file over 256 MB. Command output is limited to 64 MB and read before
+its exit status. See [Backups](backups.md#how-files-are-downloaded).
+
+Values that come from devices or vendor pages are data: a version reported by
+a device is matched as plain text in Fleet Commander's checks (never as a
+pattern of its own), and a version read from a vendor channel goes into a
+device's update command only when it is a plain version - letters, digits and
+`. _ - +`.
 
 ## Notification channels
 
@@ -179,7 +212,9 @@ being checked — even the right one — after:
   account, everywhere (guessing spread over many addresses).
 
 The lock lasts until the oldest of those attempts is more than 15 minutes old.
-A successful sign-in starts the count again. The answer is the same whether
+A successful sign-in clears the failures **of that account** from that
+address - never anybody else's: holding one account and signing in between
+guesses at others does not reset the count. The answer is the same whether
 the account exists or not.
 
 Attempts turned away are recorded in the [login history](audit-log.md#login-history)
@@ -192,9 +227,12 @@ Two consequences to be aware of:
   in from their own. Locking a known account everywhere takes 20 failures from
   at least five addresses within 15 minutes.
 - The address is the one nginx sees (see [Where the address comes
-  from](audit-log.md#where-the-address-comes-from)). Behind another reverse
-  proxy that does not pass the client's address on, every visitor shares the
-  proxy's address and one person's failures lock out everyone.
+  from](audit-log.md#where-the-address-comes-from)). Where every visitor
+  arrives from one address - Docker's own gateway (`IPV6=false` with Docker's
+  proxy, Docker Desktop, rootless Docker) - that address is never locked or
+  banned as a whole: one person must not lock out everyone; the per-account
+  limits still apply. Behind a reverse proxy of your own, use proxy mode (see
+  [HTTPS](https.md#behind-a-reverse-proxy)) so the client's address is known.
 
 The limits are `LOGIN_LOCKOUT_ATTEMPTS`, `LOGIN_LOCKOUT_ACCOUNT_ATTEMPTS` and
 `LOGIN_LOCKOUT_MINUTES` in `routerfleet/settings.py`;
@@ -305,6 +343,9 @@ works everywhere. Signing in with a passkey checks the origin, the challenge
 the device's signature and its signature counter. The challenge is kept in a
 signed cookie that expires after five minutes, not in a session, so asking for
 challenges stores nothing on the server.
+
+**Adding a passkey asks for the account's password**: a passkey signs in on
+its own, so a session left open is not enough to add one.
 
 **Losing a phone or a passkey.** An administrator resets a user's second
 factors on the user's page (**Reset**, confirmed with the username), which

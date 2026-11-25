@@ -261,6 +261,13 @@ def _safe_name(text, fallback):
     return name[:80] or fallback
 
 
+def _cell(value):
+    """A manifest cell a spreadsheet shows as text: never run as a formula
+    (a device named "=HYPERLINK(...)")."""
+    text = str(value)
+    return "'" + text if text[:1] in ('=', '+', '-', '@', '\t', '\r') else text
+
+
 def export_latest(include_binary=True, group=None):
     """A zip with the latest configuration of every device - a folder per device,
     one file per backup - and a manifest. Returns (open temporary file, count).
@@ -273,6 +280,7 @@ def export_latest(include_binary=True, group=None):
     writer = csv.writer(manifest)
     writer.writerow(['router', 'address', 'type', 'backup_time', 'unchanged_since', 'sha256', 'files'])
     count = 0
+    folders = set()
     with zipfile.ZipFile(archive_file, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for router in routers:
             latest = RouterBackup.objects.filter(router=router, success=True).exclude(backup_text_hash='') \
@@ -281,11 +289,24 @@ def export_latest(include_binary=True, group=None):
                 continue
             content = latest.content
             folder = _safe_name(router.name, f'router-{router.id}')
+            # Two names that become the same folder ("a b", "a_b") stay apart
+            if folder.lower() in folders:
+                folder = f'{folder}-{router.id}'
+            folders.add(folder.lower())
             files = []
             if content.backup_text:
                 name = _safe_name(content.backup_text_filename or f'{folder}.txt', f'{folder}.txt')
                 archive.writestr(f'{folder}/{name}', content.backup_text)
                 files.append(name)
+                # The other named texts (Juniper's set format), each a file of its own
+                base, _, extension = name.rpartition('.')
+                for extra in content.extra_texts or []:
+                    if not isinstance(extra, dict) or not extra.get('text'):
+                        continue
+                    label = _safe_name(extra.get('name') or 'text', 'text')
+                    extra_name = f'{base or name}-{label}.{extension}' if base else f'{name}-{label}'
+                    archive.writestr(f'{folder}/{extra_name}', extra['text'])
+                    files.append(extra_name)
             if include_binary and content.backup_binary and content.backup_binary.storage.exists(content.backup_binary.name):
                 name = _safe_name(os.path.basename(content.backup_binary.name), f'{folder}.bin')
                 with content.backup_binary.open('rb') as source, archive.open(f'{folder}/{name}', 'w') as target:
@@ -295,10 +316,10 @@ def export_latest(include_binary=True, group=None):
             if not files:
                 continue
             count += 1
-            writer.writerow([router.name, router.address, router.router_type,
+            writer.writerow([_cell(router.name), _cell(router.address), router.router_type,
                              timezone.localtime(latest.created).strftime('%Y-%m-%d %H:%M'),
                              timezone.localtime(content.created).strftime('%Y-%m-%d %H:%M') if latest.same_as_id else '',
-                             latest.backup_text_hash, ' '.join(files)])
+                             latest.backup_text_hash, _cell(' '.join(files))])
         archive.writestr('manifest.csv', manifest.getvalue())
     archive_file.seek(0)
     if count:

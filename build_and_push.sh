@@ -1,28 +1,42 @@
 #!/bin/bash
-# Manual alternative to the CI workflow: builds the six images and pushes them
-# tagged with the current version and as latest. CI does this on every push to
-# main; use this only when you need to publish from a workstation.
+# Builds the six images and pushes them to a registry of YOUR OWN - a fork, a
+# private mirror. The official images (ghcr.io/alessiobravi) are published by
+# CI only, after the very bytes have been tested and with a signature: this
+# script refuses that registry.
+#
+#   REGISTRY=registry.example.net/me ./build_and_push.sh            # the version tag
+#   REGISTRY=registry.example.net/me ./build_and_push.sh --latest   # and latest
 set -euo pipefail
 
 cd "$(dirname "$0")"
 VERSION=$(python3 scripts/version.py)
-REGISTRY=ghcr.io/alessiobravi
+OFFICIAL=ghcr.io/alessiobravi
+if [ -z "${REGISTRY:-}" ]; then
+  echo "Set REGISTRY to your own registry, for example REGISTRY=registry.example.net/me" >&2
+  exit 2
+fi
+if [ "${REGISTRY%/}" = "$OFFICIAL" ]; then
+  echo "The official images are published by CI only (tested, then signed). Use a registry of your own." >&2
+  exit 2
+fi
+LATEST=false
+[ "${1:-}" = "--latest" ] && LATEST=true
 IMAGES=(routerfleet routerfleet-cron routerfleet-monitoring routerfleet-nginx routerfleet-postgres18 routerfleet-postgres)
 
-if [ -n "${GHCR_USERNAME:-}" ] && [ -n "${GHCR_TOKEN:-}" ]; then
-  echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-else
-  echo "Log in to ghcr.io:"
-  docker login ghcr.io
+if [ -n "${REGISTRY_USERNAME:-}" ] && [ -n "${REGISTRY_TOKEN:-}" ]; then
+  echo "$REGISTRY_TOKEN" | docker login "${REGISTRY%%/*}" -u "$REGISTRY_USERNAME" --password-stdin
 fi
 
 echo "Building version ${VERSION}..."
 docker compose -f docker-compose-build.yml build
 
 for IMAGE in "${IMAGES[@]}"; do
-  docker tag "${REGISTRY}/${IMAGE}:latest" "${REGISTRY}/${IMAGE}:${VERSION}"
+  docker tag "${OFFICIAL}/${IMAGE}:latest" "${REGISTRY}/${IMAGE}:${VERSION}"
   docker push "${REGISTRY}/${IMAGE}:${VERSION}"
-  docker push "${REGISTRY}/${IMAGE}:latest"
+  if [ "$LATEST" = true ]; then
+    docker tag "${OFFICIAL}/${IMAGE}:latest" "${REGISTRY}/${IMAGE}:latest"
+    docker push "${REGISTRY}/${IMAGE}:latest"
+  fi
 done
 
-echo "Pushed ${VERSION}. Note: CI also creates the git tag and GitHub Release; this script does not."
+echo "Pushed ${VERSION} to ${REGISTRY}$( [ "$LATEST" = true ] && echo ' (and latest)')."

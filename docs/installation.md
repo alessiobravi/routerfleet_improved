@@ -238,7 +238,8 @@ permanent override needs an image of your own.
 |---|---|---|
 | `SECRET_KEY` | regenerated **every** start | Signs sessions — a restart signs everyone out |
 | Encryption key | `app_secrets/encryption_key` | Encrypts stored device passwords. Created once, never rotated. **Losing it loses the passwords** |
-| Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once |
+| Monitoring key | `app_secrets/monitoring_key` | Authenticates the monitoring container. Created once; copied to `service_keys`, the only volume monitoring mounts |
+| Scheduler key | `service_keys/cron_key` | Sent by the scheduler with every call; required while that volume is mounted (compose files from 0.38). Created once |
 | TLS certificate | `https_cert/nginx.pem`, `nginx.key` | Self-signed, RSA 4096, CN `localhost`, valid 10 years. Created only if missing |
 
 ## The monitoring container and discovery
@@ -313,10 +314,11 @@ and list the proxy's addresses; nginx then serves plain HTTP on `HTTP_PORT` for
 the proxy, and the proxy does TLS. `HTTPS_PORT` is not used in that mode. The
 rules:
 
-1. **Keep `/cron/` to yourself.** Those endpoints carry no authentication and
-   drive the installation. The shipped nginx answers `404` for them, and the
-   application refuses requests that carry `X-Real-IP`. Do not publish port
-   8001 or proxy straight to the application container. Details in
+1. **Keep `/cron/` to yourself.** Those endpoints drive the installation. The
+   shipped nginx answers `404` for them, the application refuses requests that
+   carry `X-Real-IP`, and it requires the scheduler's key (compose files from
+   0.38). Do not publish port 8001 or proxy straight to the application
+   container. Details in
    [Security](security.md#the-scheduler-endpoints).
 2. **Set `SERVER_ADDRESS` to the public name** the browser sees (no port
    needed).
@@ -343,6 +345,7 @@ rules:
 | `postgres_data` | The PostgreSQL 16 database of releases before 0.24, until migrated ([Upgrading](upgrading.md#moving-to-postgresql-18)) | until removed |
 | `sqlite_volume` | The database (SQLite) | **yes**, when using SQLite |
 | `app_secrets` | Encryption and monitoring keys | **yes — without it the stored passwords are unrecoverable** |
+| `service_keys` | The keys monitoring and the scheduler need - never the encryption key | no, recreated on start |
 | `media_root` | Binary backup files and firmware images | **yes** |
 | `https_cert` | TLS certificate and key | if you supplied your own |
 | `static_volume` | Collected static files | no, regenerated on start |
@@ -374,9 +377,11 @@ docker compose -f docker-compose-dev.yml up -d --build
 ```
 
 `build_and_push.sh` builds the six images (PostgreSQL 18, and 16 for compose
-files from before 0.24) and pushes them to a registry
-tagged with the current version and `latest`. It is the manual alternative to
-CI, which does this on every push to `main`.
+files from before 0.24) and pushes them to a registry **of your own**
+(`REGISTRY=registry.example.net/me ./build_and_push.sh`), tagged with the
+current version - and `latest` with `--latest`. The official images are
+published by CI only: built once, those very bytes started and checked on
+amd64 and arm64, then tagged and signed; the script refuses that registry.
 
 ## Uninstalling
 

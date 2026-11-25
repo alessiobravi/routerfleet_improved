@@ -32,6 +32,15 @@ Browsers allow passkeys only when all three hold, and the page checks each:
 Before a change that would stop passkeys working, the review says how many
 users sign in with one: they will need their password and second factor.
 
+## HSTS
+
+With a certificate browsers trust - an uploaded one, or Let's Encrypt's once
+issued - nginx also sends `Strict-Transport-Security` (one year): browsers then
+keep to HTTPS for that name, and refuse plain HTTP there. Never with the
+self-signed certificate. Switching such an installation to plain HTTP later,
+the review warns that browsers that used it will refuse the plain address for
+up to a year.
+
 ## Changing the mode
 
 1. Choose the mode and fill in what it needs.

@@ -11,9 +11,9 @@ services:
     volumes:
       # PostgreSQL 18 keeps its cluster under 18/docker in this volume
       - postgres18_data:/var/lib/postgresql
-      # The PostgreSQL 16 database of earlier releases, read-only: the image
-      # refuses to start empty beside it until scripts/migrate-database.sh
-      # has moved it. Remove this line (and the volume) once migrated.
+      # The PostgreSQL 16 database of earlier releases, read-only: moved into
+      # PostgreSQL 18 automatically on the first start (since 0.28). The line
+      # (and the volume) can go once that is done.
       - postgres_data:/var/lib/postgresql-legacy:ro
     environment:
       - POSTGRES_DB=${POSTGRES_DB}

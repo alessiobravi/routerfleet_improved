@@ -99,15 +99,16 @@ generated on every container start and is not in version control.
 
 ```mermaid
 flowchart TD
-    start["Container starts"] --> check{"COMPOSE_VERSION<br/>is 08a?"}
-    check -->|no| fail["Exit — compose file too old"]
+    start["Container starts"] --> check{"COMPOSE_VERSION<br/>08a or 09a?"}
+    check -->|no| fail["Exit — compose file too old (08a or 09a needed)"]
     check -->|yes| addr{"SERVER_ADDRESS<br/>set?"}
     addr -->|no| fail2["Exit"]
     addr -->|yes| dbsel["Build the DATABASES block<br/>from DATABASE_ENGINE"]
     dbsel --> secret["Generate SECRET_KEY<br/>openssl rand -base64 32"]
     secret --> keys["Create monitoring_key and<br/>encryption_key in /app_secrets<br/>if they do not exist yet"]
-    keys --> admin["Comment out the Django<br/>admin URL"]
-    admin --> init["init.sh: migrate,<br/>collectstatic, gunicorn"]
+    keys --> svc["Copy the monitoring key and create<br/>the scheduler key in /service_keys"]
+    svc --> drop["Hand the writable folders to<br/>the routerfleet user, once"]
+    drop --> init["init.sh as routerfleet:<br/>migrate, collectstatic, gunicorn"]
 ```
 
 `SECRET_KEY` is regenerated on every start, so sessions do not survive a
@@ -168,6 +169,7 @@ Two details in that model are deliberate and worth knowing:
 | `/var/lib/routerfleet/` | Binary backups and firmware images (`MEDIA_ROOT`) | `media_root` |
 | `/app_static_files/` | Collected static files | `static_volume` |
 | `/app_secrets/` | `encryption_key`, `monitoring_key` | `app_secrets` |
+| `/service_keys/` | `monitoring_key` (a copy), `cron_key` - shared read-only with monitoring and the scheduler | `service_keys` |
 | `/certificate/` | `nginx.pem`, `nginx.key` | `https_cert` |
 | `/var/lib/routerfleet_sqlite/` | SQLite database, when used | `sqlite_volume` |
 

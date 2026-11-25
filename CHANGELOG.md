@@ -13,6 +13,65 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.38.0] - 2026-11-25
+
+A security release: the findings of a full review, fixed. Upgrading needs
+nothing; taking the new compose file adds two protections (see below).
+
+### Security
+- **Backup downloads can no longer write outside their folder.** A device (or
+  whatever answers at its address) could make the SCP client write any file of
+  the container. A file is now read over the command channel (`cat`) wherever
+  the device has a shell, and SCP is used only where that is the only way,
+  taking exactly one file at the path RouterFleet chose (no directory, no
+  second file, no path in a name, at most 256 MB). airOS's configuration is now
+  read over the command channel too, where its commands are the shipped ones.
+- **A stored password only goes to the address it was set for**: changing a
+  device's address asks for its password (and enable password) again.
+  Forgetting a host key is for administrators.
+- **Monitoring no longer holds the key to every device password**: with the
+  new compose file it mounts only its own key (`service_keys` volume).
+- **The scheduler's endpoints need its key** (new compose file): no process
+  on the host and no other container can drive the installation through the
+  application's port.
+- **The application runs as an unprivileged user**; every container runs with
+  `no-new-privileges`. `APP_USER=root` in `.env` restores root if needed.
+- **Sign-in limits per account**: a successful sign-in clears only that
+  account's failures, so holding one account no longer resets the lockout or
+  the ban for guesses at others. Docker's own gateway address is never locked
+  or banned as a whole.
+- **Only monitoring reports a device's status**: a signed-in user or a link
+  can no longer mark devices offline; a key in a URL is no longer accepted.
+- **Values from devices and vendors are data**: a version reported by a device
+  is matched as plain text in command checks; only a plain version from a
+  vendor channel goes into an update command; HTTPS fetches go to the address
+  that was checked (no second DNS lookup) with a size limit; the SSH console
+  connects to the address it checked.
+- The discovery listener and its import are bounded (devices, field lengths,
+  file size); loopback is never probed.
+- HSTS with a certificate browsers trust; an IPv6 access rule with a scope and
+  a proxy range trusting almost everyone are refused.
+- Adding a passkey asks for the account's password; the CSV import starts only
+  from its button, never from a link; the password reset answers in the same
+  time whether an account exists or not, with a limit shared by all workers.
+- An account without an access level sees only its own settings; usernames
+  are unique regardless of case; two simultaneous first-user requests can not
+  both create an administrator; the console records the client's real
+  address; anonymous actions are audited as anonymous.
+- **Published images are the tested ones**: built once, those very images
+  started on amd64 and arm64, then tagged, signed and given build provenance.
+  `build_and_push.sh` publishes only to a registry of your own.
+
+### Fixed
+- A large command output could stall a backup (read after its exit status).
+- Key files are written whole or not at all; a quote in a `.env` value can no
+  longer break the settings.
+- The configuration export: devices whose names became the same folder, extra
+  named texts left out, manifest cells a spreadsheet could run as formulas.
+- A backup with several binary downloads left the earlier files behind.
+- An aborted rollout left devices halfway; a slow firmware upload could be
+  started twice.
+
 ## [0.37.2] - 2026-11-25
 
 ### Changed

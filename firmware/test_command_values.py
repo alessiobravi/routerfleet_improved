@@ -34,3 +34,24 @@ class PlainVersionTests(TestCase):
         with mock.patch('firmware.rollout.firmware_values',
                         return_value={'channel': 'stable', 'firmware_version': '7.19.2', 'firmware_path': '/flash/a b.npk'}):
             self.assertEqual(rollout.unsafe_values(target), '')
+
+
+class AbortTests(TestCase):
+    """An abort stops the devices that had not started installing, and follows
+    the ones that had to their end - none is left halfway."""
+
+    def test_abort_then_the_scheduler_finishes_the_installing_ones(self):
+        from routerfleet.testing import make_router
+        from firmware.models import FirmwareRollout, RolloutTarget
+        rollout_row = FirmwareRollout.objects.create(source='online', channel='stable')
+        uploading = RolloutTarget.objects.create(rollout=rollout_row, router=make_router(), position=0, state='uploading')
+        rebooting = RolloutTarget.objects.create(rollout=rollout_row, router=make_router(), position=1, state='rebooting')
+        waiting = RolloutTarget.objects.create(rollout=rollout_row, router=make_router(), position=2, state='waiting')
+        rollout.abort(rollout_row)
+        for target in (uploading, rebooting, waiting):
+            target.refresh_from_db()
+        self.assertEqual((uploading.state, waiting.state), ('skipped', 'skipped'))
+        self.assertEqual(rebooting.state, 'rebooting', 'already installing: followed, not dropped')
+        with mock.patch('firmware.rollout.step') as step:
+            rollout.advance_all()
+        self.assertEqual([call.args[0].pk for call in step.call_args_list], [rebooting.pk])

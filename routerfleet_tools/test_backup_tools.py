@@ -157,6 +157,27 @@ class ExportTests(Base):
         self.assertEqual(manifest[0][0], 'router')
         self.assertEqual(len(manifest), 3)
 
+    def test_colliding_names_extra_texts_and_a_safe_manifest(self):
+        # "edge a" already becomes edge_a; a device named "edge_a" must not share its folder
+        twin = Router.objects.create(name='edge_a', address='192.0.2.3', router_type='routeros', backup_profile=self.every)
+        evil = Router.objects.create(name='=HYPERLINK("x")', address='192.0.2.4', router_type='routeros',
+                                     backup_profile=self.every)
+        self.backup(self.a, 'first', binary=None)
+        self.backup(twin, 'second', binary=None)
+        juniper = self.backup(self.b, 'set config', binary=None)
+        RouterBackup.objects.filter(pk=juniper.pk).update(extra_texts=[{'name': 'set', 'text': 'set system host-name b'}])
+        self.backup(evil, 'evil', binary=None)
+        archive, count = backup_tools.export_latest()
+        bundle = self.open_zip(archive)
+        names = bundle.namelist()
+        self.assertEqual(count, 4)
+        self.assertIn('edge_a/edge_a.rsc', names)
+        self.assertIn(f'edge_a-{twin.id}/edge_a.rsc', names, 'its own folder')
+        self.assertEqual(bundle.read(f'edge_a-{twin.id}/edge_a.rsc'), b'second')
+        self.assertIn('edge-b/edge-b-set.rsc', names, 'the extra named text')
+        rows = list(csv.reader(io.StringIO(bundle.read('manifest.csv').decode())))
+        self.assertIn("'=HYPERLINK(\"x\")", [row[0] for row in rows], 'shown as text, never a formula')
+
     def test_an_unchanged_latest_exports_the_configuration_it_repeats(self):
         self.backup(self.a, 'same', days_ago=1)
         unchanged = self.backup(self.a, 'same')

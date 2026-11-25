@@ -54,6 +54,12 @@ A user has a username, a name and surname, an email address (for
 notifications) and an optional phone number - edited in User Manager by an
 administrator; the list shows them with the user's level and second factors.
 
+## Accounts without an access level
+
+An account made outside the User Manager (with `manage.py createsuperuser`,
+say) has no access level ("No access level"): it sees no page but its own
+settings, until an administrator gives it one. A superuser keeps its access.
+
 ## The first account
 
 The first visit to a fresh installation offers to create the first user, which

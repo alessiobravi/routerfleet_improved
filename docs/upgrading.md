@@ -225,6 +225,16 @@ The move to PostgreSQL 18 above works from either.
 
 ## What you may notice after upgrading
 
+- **0.38.0: take the new compose file** for the full hardening - it adds the
+  `service_keys` volume: monitoring then no longer mounts the volume with the
+  encryption key, and the scheduler's calls need its key. An installation that
+  keeps its compose file keeps working as before, without those two. With
+  either, the application now runs as an unprivileged user: on the first start
+  it hands its folders over once (a large media volume takes a moment), and
+  `APP_USER=root` in `.env` runs it as root again, should anything need it.
+  Changing a device's address now asks for its password again; adding a
+  passkey asks for your password; an account without an access level sees
+  only its own settings.
 - **0.31.0: a sign-in lasts 24 hours after the last use** instead of two weeks
   from signing in: everybody signs in again within a day of the upgrade at the
   latest. Each user can choose up to two weeks in *My Settings → Security settings → Session expiration time*.

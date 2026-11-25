@@ -227,8 +227,18 @@ def step_uploading(target):
         raise StepFailed('the upload did not complete within 40 minutes')
     values = firmware_values(target)
     session = _session(target.router)
+    last = {'at': timezone.now()}
+
+    def still_uploading(filename, size, sent):
+        # A slow upload keeps its lock fresh: never mistaken for one cut off by
+        # a restart, and started a second time beside itself
+        now = timezone.now()
+        if (now - last['at']).total_seconds() >= 60:
+            RolloutTarget.objects.filter(pk=target.pk).update(lock=now)
+            last['at'] = now
     try:
-        SCPClient(session.get_transport(), socket_timeout=300).put(image.file.path, values['firmware_path'])
+        SCPClient(session.get_transport(), socket_timeout=300, progress=still_uploading).put(
+            image.file.path, values['firmware_path'])
     finally:
         session.close()
     _move(target, 'verifying', f'Uploaded to {values["firmware_path"]}.')
@@ -420,18 +430,41 @@ def advance(rollout):
         rollout.save(update_fields=['state', 'finished_at', 'message', 'updated'])
 
 
+# Before the device starts installing, an abort stops it; from installing on it
+# is followed to its end - its new version, or the failure - never left halfway
+BEFORE_INSTALL = ('backing_up', 'uploading', 'verifying')
+
+
 def advance_all():
     for rollout in FirmwareRollout.objects.filter(state='running'):
         try:
             advance(rollout)
         except Exception as error:   # one rollout never stops the others
             logger.warning(f'Firmware rollout {rollout.pk} could not advance: {error}')
+    for rollout in FirmwareRollout.objects.filter(state='aborted', targets__state__in=RolloutTarget.IN_PROGRESS).distinct():
+        try:
+            finish_aborted(rollout)
+        except Exception as error:
+            logger.warning(f'Aborted firmware rollout {rollout.pk} could not finish its devices: {error}')
+
+
+def finish_aborted(rollout):
+    """The devices an abort found in the middle of a step: stopped when they had
+    not started installing (once their step let go), followed to the end when
+    they had."""
+    rollout.targets.filter(state__in=BEFORE_INSTALL, lock__isnull=True).update(
+        state='skipped', message='Stopped before installing: the rollout was aborted.')
+    for target in rollout.targets.filter(state__in=RolloutTarget.IN_PROGRESS).exclude(state__in=BEFORE_INSTALL) \
+            .select_related('router'):
+        step(target)
 
 
 def abort(rollout, user=None):
     if rollout.state != 'running':
         return
     rollout.targets.filter(state='waiting').update(state='skipped', message='Not started: the rollout was aborted.')
+    rollout.targets.filter(state__in=BEFORE_INSTALL, lock__isnull=True).update(
+        state='skipped', message='Stopped before installing: the rollout was aborted.')
     rollout.state, rollout.finished_at = 'aborted', timezone.now()
     who = getattr(user, 'username', '') if user else ''
     rollout.message = f'Aborted{" by " + who if who else ""}. A device already installing finishes on its own.'
