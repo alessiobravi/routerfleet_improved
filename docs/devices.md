@@ -32,8 +32,8 @@ key's own page. The private-key box shows *Reveal / edit*: after a small sum
 (checked by the server; a wrong answer gives a new one) the key appears in the
 box and can be edited; every reveal is recorded in the
 [change log](audit-log.md) as *Secret shown*. Saving a replaced key, a new
-passphrase or its removal asks for another sum; *Cancel* puts the stored key
-back, hidden. A protected key gets its new passphrase - or loses it - without
+passphrase or its removal asks for another sum; *Hide / Protect* puts the stored
+key back, hidden. A protected key gets its new passphrase - or loses it - without
 being pasted again. Others see the box locked: they can rename a key and edit
 its public key, never see or replace the private key.
 

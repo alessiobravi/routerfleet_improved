@@ -42,7 +42,7 @@
                     {% endif %}
                     {% endif %}
                     {% for error in form.private_key.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-                    <div class="rf-set-sub mt-1">{% if has_stored_key %}{% if admin %}Revealing it is recorded in the change log. Replacing it asks for a sum when you save; Cancel keeps the stored key.{% endif %}{% else %}RSA, ECDSA or Ed25519, PEM or OpenSSH format.{% endif %}</div>
+                    <div class="rf-set-sub mt-1">{% if has_stored_key %}{% if admin %}Revealing it is recorded in the change log. Replacing it asks for a sum when you save; Hide / Protect hides it again and keeps the stored key.{% endif %}{% else %}RSA, ECDSA or Ed25519, PEM or OpenSSH format.{% endif %}</div>
                 </div>
             </div>
 

@@ -526,3 +526,8 @@ html.rf-dark .rf-plain-area { background-color: var(--rf-surface); }
 .rf-secret-locked textarea { color: transparent; }
 .rf-secret-locked .rf-secret-reveal, .rf-secret .rf-secret-reveal { position: absolute; right: 10px; bottom: 10px; }
 .rf-confirm { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--rf-line); border-radius: 10px; background: var(--rf-line-soft); }
+/* The inline confirmation of any action (confirm.js): beside what was clicked */
+.rf-confirm-inline { margin: 8px 0; text-align: left; max-width: 520px; }
+.text-center + .rf-confirm-inline, .text-center > .rf-confirm-inline { margin-left: auto; margin-right: auto; }
+.rf-confirm-question { font-weight: 600; margin-bottom: 6px; }
+td .rf-confirm-inline { min-width: 260px; }

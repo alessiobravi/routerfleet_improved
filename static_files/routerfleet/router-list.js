@@ -351,11 +351,18 @@
     on('update-firmware', function () { postSelected(table, '/system/firmware/update/'); });
     on('update-bootloader', function () { postSelected(table, '/system/firmware/update/?kind=bootloader'); });
     // Enable / disable: a disabled host is neither backed up nor monitored
-    function setEnabled(enable) {
+    function setEnabled(enable, button) {
       var routers = selected(table);
       if (!routers.length) { return; }
-      if (!enable && !window.confirm('Disable ' + routers.length + ' host(s)? They are not backed up or monitored ' +
-                                     'until enabled again.')) { return; }
+      if (!enable) {
+        window.rfConfirmInline(button, 'Disable ' + routers.length + ' host(s)? They are not backed up or monitored ' +
+                               'until enabled again.', 'disable', false, 'Disable')
+          .then(function (word) { if (word) { send(routers, false); } });
+        return;
+      }
+      send(routers, true);
+    }
+    function send(routers, enable) {
       var body = new URLSearchParams();
       routers.forEach(function (uuid) { body.append('routers[]', uuid); });
       body.append('action', enable ? 'enable' : 'disable');
@@ -375,8 +382,8 @@
         })
         .catch(function (error) { rfNotify('danger', 'Error', error.message); });
     }
-    on('enable-multiple', function () { setEnabled(true); });
-    on('disable-multiple', function () { setEnabled(false); });
+    on('enable-multiple', function (event, element) { setEnabled(true, element); });
+    on('disable-multiple', function (event, element) { setEnabled(false, element); });
     on('run-command', function () { postSelected(table, '/fleet_commander/command/execute_multiple/'); });
     on('edit-multiple', function () { postSelected(table, '/router/edit/multiple/'); });
   }

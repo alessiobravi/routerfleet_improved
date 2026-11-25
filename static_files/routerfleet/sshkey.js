@@ -52,9 +52,9 @@
             key.readOnly = false;
             box.classList.remove('rf-secret-locked');
             show('reveal-confirm', false);
-            // The button becomes Cancel: back to the stored key, hidden
+            // The button becomes Hide / Protect: back to the stored key, hidden
             var cancel = revealButton.cloneNode(false);
-            cancel.innerHTML = '<i class="fas fa-rotate-left me-1"></i>Cancel';
+            cancel.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide / Protect';
             cancel.classList.replace('btn-outline-danger', 'btn-outline-secondary');
             cancel.addEventListener('click', function () { window.location.reload(); });
             revealButton.replaceWith(cancel);
@@ -80,7 +80,8 @@
       if (!changing || document.getElementById('confirm-answer').value) { return; }
       event.preventDefault();
       if (!saveSum) {
-        window.alert('Reveal the private key first: replacing it, or changing its passphrase, starts there.');
+        window.rfNoteInline(event.submitter || document.getElementById('reveal-button') || form,
+                            'Reveal the private key first: replacing it, or changing its passphrase, starts there.');
         return;
       }
       document.getElementById('save-first').textContent = saveSum[0];

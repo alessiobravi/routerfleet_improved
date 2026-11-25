@@ -112,7 +112,7 @@ class EditTests(TestCase):
         page = self.review()
         self.assertContains(page, '+rm -f /tmp/routerfleet-backup-*')
         self.assertContains(page, 'btn btn-danger btn-lg')
-        self.assertContains(page, f"{page.context['first']} + {page.context['second']} = ?")
+        self.assertContains(page, f"how much is {page.context['first']} + {page.context['second']}?")
         self.variant.refresh_from_db()
         self.assertEqual(self.variant.payload, 'rm /tmp/routerfleet-backup-*', 'a review changes nothing')
 

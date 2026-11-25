@@ -330,9 +330,14 @@
     if (!control) { return; }
     event.preventDefault();
     if (control.dataset.rfToggle) {
-      document.querySelectorAll(control.dataset.rfToggle).forEach(function (target) { target.classList.toggle('d-none'); });
+      document.querySelectorAll(control.dataset.rfToggle).forEach(function (target) {
+        target.classList.toggle('d-none');
+        // An inline confirmation that opens: its answer gets the focus
+        var answer = !target.classList.contains('d-none') && target.querySelector('input:not([type=hidden])');
+        if (answer) { answer.focus(); }
+      });
     } else {
-      window.alert(control.dataset.rfAlert);
+      window.rfNoteInline(control, control.dataset.rfAlert);
     }
   });
   document.addEventListener('change', function (event) {
@@ -340,7 +345,7 @@
     if (!select.matches || !select.matches('select[data-rf-differs-from]')) { return; }
     var other = document.getElementById(select.dataset.rfDiffersFrom);
     if (select.value && other && other.value === select.value) {
-      window.alert(select.dataset.rfDiffersMessage || 'The two choices must differ.');
+      window.rfNoteInline(select, select.dataset.rfDiffersMessage || 'The two choices must differ.');
       if (select.tomselect) { select.tomselect.clear(true); } else { select.value = ''; }
     }
   });
@@ -357,8 +362,9 @@
      A button or link carries what it does; no inline handler, and values come
      from attributes Django escapes - a device name can not break out of a
      JavaScript string any more.
-       data-rf-confirm="<question>"        asked first (OK / Cancel)
-       data-rf-confirm-sum="<question>"    asked with a small sum (rfConfirm);
+       data-rf-confirm="<question>"        asked first, inline (Confirm / Cancel)
+       data-rf-confirm-sum="<question>"    asked inline with a small sum;
+       data-rf-confirm-label="<text>"        the confirm button (default: the word)
        data-rf-confirm-word="<word>"         the word sent as "confirmation"
        data-rf-post="<url>"                a POST to the url (empty: this page)
        data-rf-field-<name>="<value>"        with these fields
@@ -369,9 +375,11 @@
   window.rfActions = window.rfActions || {};
   // The Delete link of a form: the page declares what deleting is (a hidden
   // #rf-delete-action carrying the attributes above)
-  window.rfActions.openCommandDialog = function () {
+  // The confirmation shows beside the link that was clicked, not the hidden button
+  var visibleTrigger = null;
+  window.rfActions.openCommandDialog = function (control) {
     var declared = document.getElementById('rf-delete-action');
-    if (declared) { declared.click(); }
+    if (declared) { visibleTrigger = control; declared.click(); }
   };
   function fieldsOf(element) {
     var fields = {};
@@ -388,12 +396,18 @@
     if (!control || control.disabled) { return; }
     event.preventDefault();
     var data = control.dataset;
-    if (data.rfConfirm && !window.confirm(data.rfConfirm)) { return; }
-    var word = null;
-    if (data.rfConfirmSum) {
-      word = window.rfConfirm(data.rfConfirmSum, data.rfConfirmWord || 'yes');
-      if (!word) { return; }
+    var anchor = control;
+    if (control.offsetParent === null && visibleTrigger) { anchor = visibleTrigger; }
+    visibleTrigger = null;
+    if (data.rfConfirmSum || data.rfConfirm) {
+      window.rfConfirmInline(anchor, data.rfConfirmSum || data.rfConfirm, data.rfConfirmWord || 'yes',
+                             Boolean(data.rfConfirmSum), data.rfConfirmLabel || (data.rfConfirmSum ? '' : 'Confirm'))
+        .then(function (word) { if (word) { perform(control, data, data.rfConfirmSum ? word : null, event); } });
+      return;
     }
+    perform(control, data, null, event);
+  });
+  function perform(control, data, word, event) {
     if (data.rfCall) {
       var action = window.rfActions[data.rfCall];
       if (typeof action === 'function') { action(control, event); }
@@ -409,7 +423,7 @@
     var fields = fieldsOf(control);
     if (word) { fields.confirmation = word; }
     window.postAction(data.rfPost || (window.location.pathname + window.location.search), fields);
-  });
+  }
   // A choice that saves itself: the form is sent when it changes
   document.addEventListener('change', function (event) {
     var input = event.target;

@@ -40,7 +40,7 @@ users sign in with one: they will need their password and second factor.
    anything happens (PEM format, key matching the certificate, not expired,
    issued for the domain, trusted by browsers or not).
 3. **Apply**. Switching **HTTPS off** - either HTTPS-off mode - takes a red
-   button and a sum to solve in a popup, checked on the server, once.
+   button and a sum to solve right below it, checked on the server, once.
 
 Every change is recorded in the change log. nginx applies it within seconds:
 it renders its configuration from fixed templates, tests it, and reloads

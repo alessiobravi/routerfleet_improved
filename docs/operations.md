@@ -165,6 +165,18 @@ warning, red for an error. A balloon closes after **5 seconds** (the bar along
 its bottom shows the time left, and pauses while the pointer rests on it) or
 when you click it; several stack. They show text only.
 
+### Confirmations
+
+An action that can not be undone - deleting, aborting, starting a firmware
+update, switching HTTPS off, changing a system command - asks first, **inline,
+right below what was clicked**: the question and a small sum to answer, then
+the action's own button (*Delete*, *Abort*, *Update*...) or *Cancel*. Enter
+confirms, Escape cancels; a wrong answer asks a new sum. Lighter actions (a
+passkey's removal, disabling hosts) ask a plain *Confirm*. The server checks
+the confirmation again, so it can not be skipped. No browser popup is used,
+except the console's question before opening a link the device printed - a
+browser opens a new tab only straight from a click.
+
 ### Light and dark
 
 The moon in the top bar switches to **dark mode** - for the night - and the

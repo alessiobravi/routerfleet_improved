@@ -13,6 +13,19 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.37.0] - 2026-11-25
+
+### Changed
+- **Confirmations inline, everywhere**: every confirmation - the sums before
+  deleting, aborting, starting an update, changing a system command or
+  switching HTTPS off, and the plain ones (removing a passkey, disabling
+  hosts) - opens right below what was clicked, like the SSH key page, instead
+  of a browser popup or a modal. Enter confirms, Escape cancels, a wrong
+  answer asks a new sum; the server checks the confirmation as before.
+  Informational notes ("no backup schedule", "the two choices must differ")
+  are inline too.
+- SSH key page: once revealed, the key's button reads **Hide / Protect**.
+
 ## [0.36.2] - 2026-11-25
 
 ### Fixed
