@@ -509,8 +509,8 @@ jobs:
           # The scheduler's endpoints need its key from anything but the scheduler
           KEY=$(docker exec routerfleet cat /service_keys/cron_key)
           test -n "$KEY"
-          CODE=$(docker exec routerfleet-nginx sh -c "wget -S -q -O /dev/null --header 'Host: localhost' http://routerfleet:8001/cron/housekeeping/ 2>&1 | awk '/HTTP\\//{print \$2}' | tail -1" || true)
-          echo "without the key: $CODE"; test "$CODE" = "404"
+          OUT=$(docker exec routerfleet-nginx sh -c "wget -q -O /dev/null --header 'Host: localhost' http://routerfleet:8001/cron/housekeeping/ 2>&1" || true)
+          echo "without the key: $OUT"; grep -q '404' <<< "$OUT"
           docker exec routerfleet-nginx wget -q -O /dev/null --header 'Host: localhost' --header "X-RF-Cron-Key: ${KEY}" \
             http://routerfleet:8001/cron/housekeeping/
           # Upgrading from a release that ran as root: the volumes back to root,

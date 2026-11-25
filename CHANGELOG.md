@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.38.1] - 2026-11-25
+
+### Fixed
+- The discovery listener could not write its files once the application ran
+  unprivileged: the monitoring container's root has every capability dropped
+  and obeys file permissions, and the shared discovery folder now lets both
+  write. Caught by the release checks - 0.38.0 was not published; its changes
+  ship in this release.
+
 ## [0.38.0] - 2026-11-25
 
 A security release: the findings of a full review, fixed. Upgrading needs

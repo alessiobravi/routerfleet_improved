@@ -168,6 +168,9 @@ if [ -n "$APP_UID" ] && [ "${APP_USER:-routerfleet}" != "root" ]; then
             chown -R routerfleet:routerfleet "$dir"
         fi
     done
+    # Shared with the monitoring container, whose root has every capability
+    # dropped and so obeys file permissions like anyone: both write here
+    if [ -d /discovery ]; then chmod 0777 /discovery; fi
     export HOME=/home/routerfleet
     exec su-exec routerfleet "$@"
 fi
