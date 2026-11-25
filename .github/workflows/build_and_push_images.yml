@@ -507,7 +507,11 @@ jobs:
             echo "::error::the monitoring container can read the encryption key"; exit 1
           fi
           # The scheduler's endpoints need its key from anything but the scheduler
-          KEY=$(docker exec routerfleet cat /service_keys/cron_key)
+          # ... and monitoring can not read the scheduler's key (a volume each)
+          if docker exec routerfleet-monitoring test -e /app_secrets/cron_key; then
+            echo "::error::the monitoring container can read the scheduler's key"; exit 1
+          fi
+          KEY=$(docker exec routerfleet cat /cron_keys/cron_key)
           test -n "$KEY"
           OUT=$(docker exec routerfleet-nginx sh -c "wget -q -O /dev/null --header 'Host: localhost' http://routerfleet:8001/cron/housekeeping/ 2>&1" || true)
           echo "without the key: $OUT"; grep -q '404' <<< "$OUT"
@@ -700,11 +704,11 @@ jobs:
             python3 - <<'PYOLD'
           import re
           text = open('docker-compose-no-postgres.yml').read()
-          text = text.replace('      - service_keys:/app_secrets/:ro\n', '      - app_secrets:/app_secrets/\n')
-          text = re.sub(r'\n *# [^\n]*\n *volumes:\n *- service_keys:/service_keys/:ro', '', text)
-          text = re.sub(r'\n[^\n]*\n *- service_keys:/service_keys/\n', '\n', text)
-          text = text.replace('  service_keys:\n', '')
-          assert 'service_keys' not in text, 'still has service_keys'
+          text = text.replace('      - monitoring_keys:/app_secrets/:ro\n', '      - app_secrets:/app_secrets/\n')
+          text = re.sub(r'\n *# [^\n]*\n *volumes:\n *- cron_keys:/service_keys/:ro', '', text)
+          text = re.sub(r'\n *# [^\n]*\n *- monitoring_keys:/monitoring_keys/\n *- cron_keys:/cron_keys/\n', '\n', text)
+          text = text.replace('  monitoring_keys:\n', '').replace('  cron_keys:\n', '')
+          assert 'monitoring_keys' not in text and 'cron_keys' not in text, 'still has the key volumes'
           open('docker-compose-old.yml', 'w').write(text)
           PYOLD
             docker compose -f docker-compose-old.yml up -d --pull never --wait --wait-timeout 300

@@ -23,11 +23,9 @@ MAX_VERIFICATION_OUTPUT = 20000
 
 
 def run_fleet_ssh_command(ssh_client, command):
-    stdin, stdout, stderr = ssh_client.exec_command(command)
-    exit_code = stdout.channel.recv_exit_status()
-    stdout_text = stdout.read().decode("utf-8", errors="replace")
-    stderr_text = stderr.read().decode("utf-8", errors="replace")
-    return exit_code, stdout_text, stderr_text
+    # Output first, bounded, then the exit status (routerlib.device_io)
+    from routerlib.device_io import run
+    return run(ssh_client, command, 16 * 1024 * 1024)
 
 
 def get_verification_context(router):

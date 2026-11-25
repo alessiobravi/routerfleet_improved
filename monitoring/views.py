@@ -19,8 +19,19 @@ def has_monitoring_key(request):
     expected = getattr(settings, "MONITORING_KEY", "") or ""
     return bool(expected) and hmac.compare_digest(str(sent), str(expected))
 
+def may_read(request):
+    """The monitoring container (its key), or a signed-in Viewer and above - not
+    an account without an access level."""
+    if has_monitoring_key(request):
+        return True
+    if not request.user.is_authenticated:
+        return False
+    from user_manager.models import UserAcl
+    return request.user.is_superuser or UserAcl.objects.filter(user=request.user, user_level__gte=10).exists()
+
+
 def view_router_config_timestamp(request):
-    if not request.user.is_authenticated and not has_monitoring_key(request):
+    if not may_read(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     if not webadmin_settings.router_config_last_updated:
@@ -33,7 +44,7 @@ def view_router_config_timestamp(request):
 
 
 def view_router_last_status_change(request):
-    if not request.user.is_authenticated and not has_monitoring_key(request):
+    if not may_read(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     last_router_status_change = RouterStatus.objects.filter(last_status_change__isnull=False).order_by('-last_status_change').first()
     if last_router_status_change:
@@ -44,7 +55,7 @@ def view_router_last_status_change(request):
 
 
 def view_export_router_list(request):
-    if not request.user.is_authenticated and not has_monitoring_key(request):
+    if not may_read(request):
         return JsonResponse({'error': 'Not authenticated'}, status=403)
     webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
     # Not updating the monitoring last run here, as this view is also used on the dashboard

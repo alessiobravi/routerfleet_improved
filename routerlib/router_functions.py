@@ -95,8 +95,9 @@ def vendor_available_version(device_type, installed, values, output):
 
 
 def _read_line(session, line):
+    from routerlib.device_io import read_output
     stdin, stdout, stderr = session.exec_command(line)
-    return stdout.read().decode('utf-8', errors='ignore')
+    return read_output(stdout, 4 * 1024 * 1024)
 
 
 def _run_inventory(session, router):

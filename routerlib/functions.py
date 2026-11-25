@@ -102,8 +102,9 @@ def test_authentication(router_type, address, port, username, password, sshkey=N
         for line in system_commands.lines('connection_test', router_type):
             # The system command: edited only by an administrator after an explicit
             # confirmation, with no placeholder an outside value could fill
+            from routerlib.device_io import read_output
             stdin, stdout, stderr = session.exec_command(line)  # nosec B601
-            output += stdout.read().decode('utf-8', errors='replace')
+            output += read_output(stdout, 4 * 1024 * 1024)
         return device_types.test_result(device_type, output)
     except Exception as e:
         return False, str(e)

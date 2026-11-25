@@ -194,6 +194,10 @@ def write_state(https_settings):
         state['domain'] = https_settings.domain
     if https_settings.mode == 'proxy':
         state['trusted_proxies'] = clean_proxies(https_settings.trusted_proxies)
+    if https_settings.mode == 'custom':
+        # HSTS only with a certificate browsers trust: with another, users could
+        # no longer click through the warning, for a year
+        state['trusted'] = bool(https_settings.custom_trusted)
     state['access'] = access_state(https_settings)
     _write_atomically(os.path.join(cert_dir(), STATE_FILE), json.dumps(state, indent=2).encode())
     return state

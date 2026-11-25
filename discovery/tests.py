@@ -151,7 +151,7 @@ class ReadNeighboursTests(TestCase):
         router = make_router(name='mt1', router_type='routeros')
         output = (SAMPLES / 'routeros_terse.txt').read_bytes()
         session = mock.Mock()
-        session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(return_value=output)), None)
+        session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(side_effect=[output, b''] * 10)), None)
         self.assertEqual(read_neighbours(session, router), 2)
         session.exec_command.assert_called_once_with('/ip neighbor print terse')
         self.assertEqual(DiscoveredDevice.objects.get(identity='AP02-EXAMPLE').seen_by_router, router)
@@ -476,7 +476,7 @@ class DeviceDiscoveryTests(TestCase):
     def session(self, output):
         from unittest import mock
         session = mock.Mock()
-        session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(return_value=output)), None)
+        session.exec_command.return_value = (None, mock.Mock(read=mock.Mock(side_effect=[output, b''] * 10)), None)
         return session
 
     def test_only_the_chosen_devices_are_read_and_the_timeline_says_so(self):
@@ -708,3 +708,28 @@ class AdvanceBoundsTests(TestCase):
                 mock.patch('discovery.runs._advance') as advance:
             runs.advance(run)
         advance.assert_not_called()
+
+
+class SharedFolderTests(TestCase):
+    """The folder shared with the listener: a malformed state is "not
+    running", and a link planted where the request goes is not followed."""
+
+    def setUp(self):
+        self.folder = pathlib.Path(tempfile.mkdtemp())
+        override = override_settings(DISCOVERY_FILE=str(self.folder / 'seen.json'))
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def test_a_malformed_listener_state(self):
+        from .store import listener_state
+        (self.folder / 'listener.json').write_text(json.dumps({'alive': {}, 'listening_until': []}))
+        self.assertEqual(listener_state(), {'running': False, 'listening_left': 0})
+
+    def test_a_planted_link_is_not_followed(self):
+        from .store import ask_listener
+        victim = self.folder / 'victim.txt'
+        victim.write_text('precious')
+        (self.folder / 'request.json.tmp').symlink_to(victim)
+        self.assertTrue(ask_listener())
+        self.assertEqual(victim.read_text(), 'precious')
+        self.assertIn('until', json.loads((self.folder / 'request.json').read_text()))

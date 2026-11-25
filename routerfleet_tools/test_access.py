@@ -281,20 +281,23 @@ class HstsAndEntryValidationTests(SimpleTestCase):
     """HSTS only with a certificate browsers trust; a scoped IPv6 entry and a
     proxy range that trusts (almost) everyone are refused."""
 
-    def render(self, mode, files=()):
+    def render(self, mode, files=(), **state):
         with tempfile.TemporaryDirectory() as folder:
             base = pathlib.Path(folder)
             for name in files:
                 (base / name).parent.mkdir(parents=True, exist_ok=True)
                 (base / name).write_text('x')
-            (base / https.STATE_FILE).write_text(json.dumps({'mode': mode, 'generation': 1}))
+            (base / https.STATE_FILE).write_text(json.dumps({'mode': mode, 'generation': 1, **state}))
             result = subprocess.run(['sh', str(ROOT / 'containers/nginx/rf_https.sh'), 'render'], capture_output=True,
                                     text=True, env={'RF_CERT_DIR': folder, 'PATH': '/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin'})
         return result.stdout
 
     def test_hsts_only_with_a_trusted_certificate(self):
-        custom = self.render('custom', ['custom/fullchain.pem', 'custom/privkey.pem'])
-        self.assertEqual(custom.count('Strict-Transport-Security'), 1)
+        files = ['custom/fullchain.pem', 'custom/privkey.pem']
+        self.assertEqual(self.render('custom', files, trusted=True).count('Strict-Transport-Security'), 1)
+        # an uploaded certificate browsers do not trust: no HSTS (users can still click through)
+        self.assertNotIn('Strict-Transport-Security', self.render('custom', files, trusted=False))
+        self.assertNotIn('Strict-Transport-Security', self.render('custom', files))
         self.assertNotIn('Strict-Transport-Security', self.render('selfsigned'))
         self.assertNotIn('Strict-Transport-Security', self.render('plain'))
         # Let's Encrypt before its certificate is issued serves the self-signed one: no HSTS yet

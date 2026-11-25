@@ -288,3 +288,19 @@ class ViewTests(TestCase):
         response = self.client.get('/audit_log/login_history/')
         record = LoginRecord.objects.get(actor=alice)
         self.assertIn(record.session_key, response.context['open_sessions'])
+
+
+class HeadersFromTheHostTests(TestCase):
+    """Straight from the host (the gateway of Docker's network) there is no
+    nginx in between: a header naming the client is not believed."""
+
+    def test_from_the_gateway_the_connection_counts_from_nginx_the_header(self):
+        from unittest import mock
+        from django.test import RequestFactory
+        from audit_log import context
+        factory = RequestFactory()
+        with mock.patch('console.network.gateways', return_value={'172.30.0.1'}):
+            direct = factory.get('/', REMOTE_ADDR='172.30.0.1', HTTP_X_REAL_IP='203.0.113.9')
+            self.assertEqual(context.client_address(direct), ('172.30.0.1', ''))
+            via_nginx = factory.get('/', REMOTE_ADDR='172.30.0.5', HTTP_X_REAL_IP='203.0.113.9')
+            self.assertEqual(context.client_address(via_nginx)[0], '203.0.113.9')

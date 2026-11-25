@@ -340,3 +340,22 @@ class PasskeyNeedsThePasswordTests(TestCase):
                                       content_type='application/json', HTTP_HOST=HOST, HTTP_ORIGIN=ORIGIN)
             self.assertEqual(answer.status_code, 403)
             self.assertNotIn('passkey_register', self.client.session)
+
+
+@override_settings(ALLOWED_HOSTS=[HOST, 'testserver'])
+class PasswordGuessesInASessionTests(TestCase):
+    """The password typed again in a session counts like a sign-in: wrong ones
+    are recorded, and the lockout stops the guessing."""
+
+    def test_guesses_are_recorded_and_locked_out(self):
+        from audit_log.models import LoginRecord
+        user = make_user(30, username='fay', password='right-pw')
+        self.client.force_login(user)
+        for _ in range(6):
+            self.client.post('/user/settings/passkeys/options/', json.dumps({'password': 'guess'}),
+                             content_type='application/json', HTTP_HOST=HOST, HTTP_ORIGIN=ORIGIN)
+        self.assertGreaterEqual(LoginRecord.objects.filter(username='fay', successful=False).count(), 5)
+        answer = self.client.post('/user/settings/passkeys/options/', json.dumps({'password': 'right-pw'}),
+                                  content_type='application/json', HTTP_HOST=HOST, HTTP_ORIGIN=ORIGIN)
+        self.assertEqual(answer.status_code, 403, 'locked out: even the right one is refused for now')
+        self.assertIn('Too many', answer.json()['error'])

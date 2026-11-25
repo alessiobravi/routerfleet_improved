@@ -199,3 +199,35 @@ def mock_flag():
         def __exit__(self, *exc):
             patcher.stop()
     return Context()
+
+
+class DeviceIoTests(SimpleTestCase):
+    """Every device read: bounded, output before the exit status, a timeout
+    on the channel; SCP takes nothing more after its one file."""
+
+    def test_bounded_and_in_the_right_order(self):
+        import io
+        from unittest import mock
+        from routerlib import device_io
+        order = []
+
+        class Channel:
+            def settimeout(self, seconds): order.append(('timeout', seconds))
+            def recv_exit_status(self): order.append('exit'); return 0
+
+        class Stream(io.BytesIO):
+            channel = Channel()
+            def read(self, size=-1):
+                order.append('read'); return super().read(size)
+        session = mock.Mock()
+        session.exec_command.return_value = (None, Stream(b'output'), Stream(b''))
+        self.assertEqual(device_io.run(session, 'show'), (0, 'output', ''))
+        self.assertLess(order.index('read'), order.index('exit'), 'output read before the exit status')
+        self.assertIn(('timeout', device_io.CHANNEL_TIMEOUT), order)
+        with self.assertRaises(ValueError):
+            device_io.read_limited(io.BytesIO(b'x' * 2048), 1024)
+
+    def test_scp_refuses_anything_after_its_file(self):
+        target = pathlib.Path(tempfile.mkdtemp()) / 'file'
+        with self.assertRaises(SCPException):
+            SafeSCPClient(FakeTransport(FakeChannel([b'C0644 5 f\n', b'hello', b'\x00', b'T1 0 1 0\n']))).get('/x', str(target))

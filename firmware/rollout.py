@@ -127,8 +127,9 @@ def _session(router):
 
 
 def _run(session, command):
+    from routerlib.device_io import read_output
     stdin, stdout, stderr = session.exec_command(command)  # nosec B601 - a system command of the device type
-    return stdout.read().decode('utf-8', errors='replace')
+    return read_output(stdout, 4 * 1024 * 1024)
 
 
 def _fail(target, message):

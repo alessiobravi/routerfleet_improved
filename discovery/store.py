@@ -62,8 +62,9 @@ def read_neighbours(session, router):
     output = []
     for line in system_commands.lines('neighbors', router.router_type):
         try:
+            from routerlib.device_io import read_output
             stdin, stdout, stderr = session.exec_command(line)
-            output.append(stdout.read().decode('utf-8', errors='replace'))
+            output.append(read_output(stdout, 4 * 1024 * 1024))
         except Exception as error:   # noqa: BLE001 - one command failing (lldpd not installed) is not the others'
             logger.info(f'Neighbour command on {router.name} failed: {error}')
     if not output:
@@ -116,8 +117,11 @@ def listener_state():
     except (OSError, ValueError):
         return {'running': False, 'listening_left': 0}
     now = time.time()
-    running = now - float(state.get('alive', 0)) < ALIVE_SECONDS
-    left = max(0, int(float(state.get('listening_until', 0)) - now)) if running else 0
+    try:   # the file is the listener's: anything else in it is "not running"
+        running = now - float(state.get('alive', 0)) < ALIVE_SECONDS
+        left = max(0, int(float(state.get('listening_until', 0)) - now)) if running else 0
+    except (TypeError, ValueError, AttributeError):
+        return {'running': False, 'listening_left': 0}
     return {'running': running, 'listening_left': left}
 
 
@@ -126,10 +130,18 @@ def ask_listener(seconds=WINDOW_SECONDS):
     two seconds). False when the shared folder can not be written."""
     import time
     path = os.path.join(_folder(), 'request.json')
+    temporary = path + '.tmp'
     try:
-        with open(path + '.tmp', 'w', encoding='utf-8') as handle:
-            json.dump({'until': time.time() + seconds}, handle)
-        os.replace(path + '.tmp', path)
+        # A link planted where the file goes is never followed (the folder is
+        # shared with another container): removed, then created afresh
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o644)
+        with os.fdopen(handle, 'w', encoding='utf-8') as writer:
+            json.dump({'until': time.time() + seconds}, writer)
+        os.replace(temporary, path)
         return True
     except OSError:
         return False

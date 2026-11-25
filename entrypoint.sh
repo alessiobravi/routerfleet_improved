@@ -142,13 +142,28 @@ echo "ENCRYPTION_KEY = $(pystr "$(cat /app_secrets/encryption_key)")" >> $PRODUC
 # of the whole secrets volume, which holds the key to every device password;
 # the scheduler sends its key with every call, and only then is it required.
 # A compose file without this volume keeps working exactly as before.
-if [ -d /service_keys ]; then
-    if [ ! -s /service_keys/monitoring_key ] || ! cmp -s /app_secrets/monitoring_key /service_keys/monitoring_key; then
-        cp /app_secrets/monitoring_key /service_keys/monitoring_key.tmp && chmod 600 /service_keys/monitoring_key.tmp \
-            && mv /service_keys/monitoring_key.tmp /service_keys/monitoring_key
+# Compose files from 0.40 give each its own volume - monitoring_keys holds the
+# monitoring key alone, cron_keys the scheduler's alone - so neither container
+# can act as the other; 0.38/0.39's shared service_keys volume still works.
+copy_key() {  # $1 source file, $2 target folder
+    if [ ! -s "$2/$(basename "$1")" ] || ! cmp -s "$1" "$2/$(basename "$1")"; then
+        cp "$1" "$2/.$(basename "$1").tmp" && chmod 600 "$2/.$(basename "$1").tmp" \
+            && mv "$2/.$(basename "$1").tmp" "$2/$(basename "$1")"
     fi
-    make_key /service_keys/cron_key "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
-    echo "CRON_KEY = $(pystr "$(cat /service_keys/cron_key)")" >> $PRODUCTION_SETTINGS_FILE
+}
+for dir in /service_keys /monitoring_keys; do
+    [ -d "$dir" ] && copy_key /app_secrets/monitoring_key "$dir"
+done
+if [ -d /service_keys ] || [ -d /cron_keys ]; then
+    make_key /app_secrets/cron_key "python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+    # The same key wherever it is read (it was made in service_keys before 0.40)
+    if [ -s /service_keys/cron_key ] && ! cmp -s /service_keys/cron_key /app_secrets/cron_key; then
+        cp /service_keys/cron_key /app_secrets/cron_key
+    fi
+    for dir in /service_keys /cron_keys; do
+        [ -d "$dir" ] && copy_key /app_secrets/cron_key "$dir"
+    done
+    echo "CRON_KEY = $(pystr "$(cat /app_secrets/cron_key)")" >> $PRODUCTION_SETTINGS_FILE
 fi
 
 # The Django admin is not served in production (a setting, the code untouched)
@@ -169,8 +184,10 @@ if [ -n "$APP_UID" ] && [ "${APP_USER:-routerfleet}" != "root" ]; then
         fi
     done
     # Shared with the monitoring container, whose root has every capability
-    # dropped and so obeys file permissions like anyone: both write here
-    if [ -d /discovery ]; then chmod 0777 /discovery; fi
+    # dropped and so obeys file permissions like anyone: the application's
+    # user owns it, root's group (the monitoring container) may write too,
+    # nobody else
+    if [ -d /discovery ]; then chown routerfleet:0 /discovery && chmod 0770 /discovery; fi
     export HOME=/home/routerfleet
     exec su-exec routerfleet "$@"
 fi

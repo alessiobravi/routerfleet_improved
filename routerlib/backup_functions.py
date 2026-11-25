@@ -89,8 +89,9 @@ def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBac
 
     # 3) Read the output first, then the exit status: waiting for the exit
     # first can hang on a large output - the device waits to be read
-    raw = read_limited(stdout, output_limit())
-    stderr_text = read_limited(stderr, 1024 * 1024).decode("utf-8", errors="replace")
+    from routerlib.device_io import with_timeout
+    raw = read_limited(with_timeout(stdout), output_limit())
+    stderr_text = read_limited(with_timeout(stderr), 1024 * 1024).decode("utf-8", errors="replace")
     exit_code = stdout.channel.recv_exit_status()
     stdout_text = decode_text(raw, router_backup) if text_fallback else raw.decode("utf-8", errors="replace")
 
@@ -130,8 +131,9 @@ def _download_by_cat(session, device_type, remote_path, local_path, router_backu
     append_task_console_output(router_backup, f'$ {command}\n')
     try:
         _, stdout, stderr = session.exec_command(command)
-        data = read_limited(stdout, max_bytes())
-        errors = read_limited(stderr, 64 * 1024)
+        from routerlib.device_io import with_timeout
+        data = read_limited(with_timeout(stdout), max_bytes())
+        errors = read_limited(with_timeout(stderr), 64 * 1024)
         exit_code = stdout.channel.recv_exit_status()
     except Exception as error:   # noqa: BLE001 - SCP is tried next
         append_task_console_output(router_backup, f'[cat unavailable: {str(error)[:120]}] trying SCP\n\n')

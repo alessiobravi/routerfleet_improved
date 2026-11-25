@@ -43,6 +43,12 @@ class SafeSCPClient(SCPClient):
             self.channel.close()
         raise SCPException(reason)
 
+    def _set_time(self, cmd):
+        # A time message belongs before the file; after it, the transfer is over
+        if getattr(self, '_files_received', 0) >= 1:
+            self._refuse('The device sent more after its file: refused')
+        return super()._set_time(cmd)
+
     def _recv_pushd(self, cmd):
         self._refuse('The device sent a directory: refused, a backup download is one file')
 

@@ -26,6 +26,8 @@ class MonitoringApiTests(TestCase):
 
     def test_a_signed_in_user_needs_no_key_to_read_but_can_not_report_a_status(self):
         self.client.force_login(make_user(None))
+        self.assertEqual(self.client.get('/monitoring/export_router_list/').status_code, 403, 'no access level: nothing')
+        self.client.force_login(make_user(10))
         self.assertEqual(self.client.get('/monitoring/export_router_list/').status_code, 200)
         router = make_router()
         answer = self.client.get('/monitoring/update_router_status/', {'uuid': str(router.uuid), 'status': 'offline'})

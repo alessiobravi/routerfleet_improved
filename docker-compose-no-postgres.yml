@@ -33,8 +33,9 @@ services:
       - discovery_data:/discovery
       - static_volume:/app_static_files/
       - app_secrets:/app_secrets/
-      # Only the keys the scheduler and monitoring need (never the encryption key)
-      - service_keys:/service_keys/
+      # Each container's own key, on a volume of its own (never the encryption key)
+      - monitoring_keys:/monitoring_keys/
+      - cron_keys:/cron_keys/
       # Shared with nginx: HTTPS in System settings writes the mode and certificates here
       - https_cert:/certificate
     command: /bin/bash /app/init.sh
@@ -55,9 +56,9 @@ services:
     image: ghcr.io/alessiobravi/routerfleet-cron:latest
     environment:
       - TZ=${TIMEZONE}
-    # Its key, sent with every call to the application
+    # Its key alone, sent with every call to the application
     volumes:
-      - service_keys:/service_keys/:ro
+      - cron_keys:/service_keys/:ro
     depends_on:
       routerfleet:
         condition: service_healthy
@@ -80,8 +81,9 @@ services:
     cap_drop: [ALL]
     cap_add: [NET_RAW]
     volumes:
-      # The monitoring key alone, read-only - not the secrets volume with the key to every device password
-      - service_keys:/app_secrets/:ro
+      # The monitoring key alone, read-only - not the secrets volume with the key to
+      # every device password, and not the scheduler's key
+      - monitoring_keys:/app_secrets/:ro
       - discovery_data:/discovery
     depends_on:
       routerfleet:
@@ -134,7 +136,8 @@ networks:
         - subnet: fd72:6674:6c74::/64
 
 volumes:
-  service_keys:
+  monitoring_keys:
+  cron_keys:
   discovery_data:
   static_volume:
   https_cert:

@@ -63,6 +63,12 @@ def client_address(request):
     if request is None:
         return '', ''
     meta = getattr(request, 'META', None) or {}
+    remote = text(meta.get('REMOTE_ADDR'), IP_LENGTH).strip()
+    if _from_the_host(remote):
+        # Straight from the host (the published loopback port): no nginx in
+        # between, so a header naming the client is whatever the caller wrote -
+        # never believed (it would dodge the lockout, or get someone banned)
+        return (remote[7:] if remote.lower().startswith('::ffff:') and '.' in remote else remote), ''
     forwarded = text(meta.get('HTTP_X_FORWARDED_FOR'), FORWARDED_LENGTH).strip()
     address = text(meta.get('HTTP_X_REAL_IP'), IP_LENGTH).strip()
     if not address and forwarded:
@@ -73,6 +79,19 @@ def client_address(request):
     if address.lower().startswith('::ffff:') and '.' in address:
         address = address[7:]
     return address, forwarded
+
+
+def _from_the_host(remote):
+    """A connection that came through the host's side of Docker's network
+    (the container's gateway), not from nginx's container."""
+    if not remote:
+        return False
+    try:
+        from console.network import gateways
+        plain = remote[7:] if remote.lower().startswith('::ffff:') and '.' in remote else remote
+        return plain in gateways()
+    except Exception:   # noqa: BLE001 - never a reason to refuse a request
+        return False
 
 
 def user_agent(request):

@@ -89,6 +89,22 @@ def view_user_settings(request):
 
 
 @login_required
+def password_attempt_refused(request, password):
+    """The current password typed again in a signed-in session (to add a
+    passkey, to change it): counted like a sign-in - wrong ones recorded in
+    the login history, and refused once the sign-in lockout applies - so a
+    session left open can not be used to guess it. '' when it is right."""
+    from django.contrib.auth.signals import user_login_failed
+    from accounts import lockout
+    if lockout.is_locked_out(request, request.user.username):
+        lockout.record_turned_away(request, request.user.username)
+        return 'Too many wrong passwords - try again later.'
+    if not password or not request.user.check_password(password):
+        user_login_failed.send(sender=__name__, credentials={'username': request.user.username}, request=request)
+        return 'That is not your password.' if password else 'Type your password.'
+    return ''
+
+
 def view_password_change(request):
     """A user changes their own password: the current one first, then the new
     one twice, checked against the password rules. The other sessions of the
@@ -96,6 +112,12 @@ def view_password_change(request):
     from django.contrib.auth import update_session_auth_hash
     from django.contrib.auth.forms import PasswordChangeForm
     form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == 'POST':
+        refused = password_attempt_refused(request, request.POST.get('old_password', ''))
+        if refused:
+            form.is_valid()
+            form.add_error('old_password', refused)
+            return render(request, 'user_manager/password_change.html', {'page_title': 'Change password', 'form': form})
     if request.method == 'POST' and form.is_valid():
         user = form.save()
         update_session_auth_hash(request, user)
@@ -143,8 +165,9 @@ def view_passkey_options(request):
         password = str(json.loads(request.body or b'{}').get('password') or '')
     except (ValueError, AttributeError):
         password = ''
-    if not password or not request.user.check_password(password):
-        return JsonResponse({'error': 'Type your password to add a passkey.'}, status=403)
+    refused = password_attempt_refused(request, password)
+    if refused:
+        return JsonResponse({'error': refused}, status=403)
     try:
         rp_id, _ = mfa.relying_party(request)
     except mfa.PasskeyUnavailable:

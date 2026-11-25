@@ -233,7 +233,9 @@ render() {  # writes the configuration for the current mode to stdout
         custom)
             [ -f "$CERT_DIR/custom/fullchain.pem" ] && [ -f "$CERT_DIR/custom/privkey.pem" ] || {
                 echo "no uploaded certificate on the volume" >&2; return 1; }
-            tls_server "$CERT_DIR/custom/fullchain.pem" "$CERT_DIR/custom/privkey.pem" hsts
+            # HSTS only when browsers trust the uploaded certificate
+            if [ "$(state .trusted)" = "true" ]; then hsts=hsts; else hsts=""; fi
+            tls_server "$CERT_DIR/custom/fullchain.pem" "$CERT_DIR/custom/privkey.pem" "$hsts"
             ;;
         letsencrypt)
             # Until the certificate is issued, the self-signed one keeps HTTPS up
