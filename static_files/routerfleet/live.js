@@ -26,7 +26,7 @@
   // The status bar's left side where the page has one (every page of the
   // application); a floating pill elsewhere
   function showPill(state) {
-    var bar = document.getElementById('rf-status');
+    var bar = document.getElementById('rf-sb-live');
     if (bar) {
       bar.classList.remove('rf-live', 'rf-paused');
       if (state) { bar.classList.add(state === 'live' ? 'rf-live' : 'rf-paused'); }

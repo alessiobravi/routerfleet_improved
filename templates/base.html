@@ -205,11 +205,11 @@
 
     <!-- The status bar: what the page is doing (live.js), and the version -->
     <footer class="app-footer rf-statusbar">
-        <div class="rf-status" id="rf-status" role="status" aria-live="polite"
+        <div class="rf-sb-live" id="rf-sb-live" role="status" aria-live="polite"
              title="This page refreshes by itself while something on it is running, and stops when it is done">
             <span class="rf-dot" aria-hidden="true"></span><span class="rf-label">Ready</span>
         </div>
-        <div class="rf-status-right">
+        <div class="rf-sb-right">
             {% if webadmin_version.update_available %}<a class="btn btn-sm btn-warning py-0" id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener"
                data-changelog-url="{{ webadmin_version.changelog_url }}" data-version="{{ webadmin_version.current_version }}"
                data-instructions="{% tag_project_repository_url %}">Update available: {{ webadmin_version.latest_version }}</a>{% endif %}

@@ -58,7 +58,7 @@ class StatusPageTests(TestCase):
         # Credited on the About page; the bottom bar is the status bar (live state, version)
         status = self.client.get('/status/').content.decode()
         self.assertNotIn('RouterFleet Improved by Alessio Bravi', status)
-        self.assertIn('id="rf-status"', status)
+        self.assertIn('id="rf-sb-live"', status)
 
     def test_the_home_page_is_the_status_page(self):
         self.assertRedirects(self.client.get('/'), '/status/', fetch_redirect_response=False)
@@ -431,3 +431,25 @@ class StateIconTests(TestCase):
         page = self.client.get('/status/').content.decode()
         self.assertIn('rf-state-ok', page)
         self.assertNotIn('class="rf-chip ', page)
+
+
+class StatusBarStylesTests(TestCase):
+    """The status bar's styles touch the status bar only: none of its class
+    names may be one a page already uses (0.38.2 styled the status page's own
+    wrapper, rf-status, and broke its layout)."""
+
+    def test_the_status_bar_classes_belong_to_it_alone(self):
+        import pathlib
+        import re
+        root = pathlib.Path(__file__).resolve().parent.parent
+        css = (root / 'static_files/routerfleet/app.css').read_text()
+        block = css[css.index('/* The status bar (the footer)'):]
+        names = set(re.findall(r'\.(rf-[a-z0-9-]+)', block.split('\n\n')[0] if '\n\n' in block else block))
+        names -= {'rf-dot', 'rf-label', 'rf-live', 'rf-paused'}   # only ever inside the bar here
+        for template in (root / 'templates').rglob('*.html'):
+            if template.name == 'base.html':
+                continue
+            used = set(re.findall(r'class="([^"]*)"', template.read_text()))
+            classes = {c for value in used for c in value.split()}
+            with self.subTest(template=str(template.relative_to(root))):
+                self.assertFalse(names & classes, f"{names & classes} belongs to the status bar")

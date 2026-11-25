@@ -13,6 +13,14 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.38.3] - 2026-11-25
+
+### Fixed
+- **The status page's layout is back.** 0.38.2's new status bar used a style
+  name the status page already had, which squeezed its charts and cards into
+  one row. The bar now has names of its own, and a test makes sure its styles
+  never reach another page.
+
 ## [0.38.2] - 2026-11-25
 
 ### Changed
