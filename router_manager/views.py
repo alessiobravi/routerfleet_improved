@@ -105,26 +105,22 @@ def view_router_list(request):
 
     if not state and not filter_group and request.GET.get('filter_group') != 'all':
         filter_group = RouterGroup.objects.filter(default_group=True).first()
-    # Parse the router_visible_columns cookie
-    visible_columns = []
-    if 'router_visible_columns' in request.COOKIES:
-        try:
-            visible_columns = json.loads(unquote(request.COOKIES['router_visible_columns']))
-        except json.JSONDecodeError:
-            # If the cookie is invalid, use default columns
-            visible_columns = ["name", "type", "status", "backup", "groups"]
-    else:
-        # Default columns if cookie doesn't exist
-        visible_columns = ["name", "type", "status", "backup", "groups"]
+        if filter_group:
+            router_list = router_list.filter(routergroup=filter_group)
 
+    # The list on the left, the chosen device on the right (the first one
+    # unless the address names another of the list)
+    devices = list(router_list)
+    chosen = next((r for r in devices if str(r.uuid) == request.GET.get('device', '')), devices[0] if devices else None)
     context = {
-        'router_list': router_list,
-        'page_title': 'Device List',
+        'router_list': devices,
+        'page_title': 'Devices',
         'filter_group_list': RouterGroup.objects.all().order_by('name'),
         'filter_group': filter_group,
         'state_label': state_label,
+        'state': state or '',
         'last_status_change_timestamp': last_status_change_timestamp,
-        'visible_columns': visible_columns,
+        'inspector': _inspector_context(request, chosen) if chosen else None,
         # Not every user has a UserAcl row, the first user created has none
         'address_link': UserAcl.objects.filter(user=request.user).values_list('address_link', flat=True).first() or 'none',
         'can_execute_commands': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
@@ -134,6 +130,39 @@ def view_router_list(request):
         'can_update_firmware': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'router_manager/router_list.html', context=context)
+
+
+def _inspector_context(request, router):
+    """What the inspector beside the device list shows of one device: its
+    facts, its recent activity and the actions this user may take."""
+    from routerfleet.object_pages import router_page
+    router_status, _ = RouterStatus.objects.get_or_create(router=router)
+    information = RouterInformation.objects.filter(router=router).first()
+    level = UserAcl.objects.filter(user=request.user).values_list('user_level', flat=True).first() or 0
+    page = router_page(router, router_status, information, 100, level >= 40,
+                       can_console=level >= settings.CONSOLE_LEVEL, can_update_firmware=level >= 40)
+    last_change = RouterBackup.objects.filter(router=router, config_change_detected=True).order_by('-created', '-id').first()
+    # The newest backup taken, as the device page counts it
+    newest = RouterBackup.objects.filter(router=router, success=True).order_by('-created').values_list('finish_time', 'created').first()
+    last_backup = max(filter(None, [router_status.last_backup] + list(newest or [])), default=None)
+    return {
+        'last_backup': last_backup,
+        'router': router, 'status': router_status, 'information': information, 'page': page,
+        'groups': ', '.join(router.routergroup_set.order_by('name').values_list('name', flat=True)),
+        'last_change': last_change,
+        'schedule': getattr(router, 'backupschedule', None) if router.is_managed else None,
+        'timeline': page['timeline'][:6],
+        'can_backup': level >= 20 and router.is_managed and router.enabled,
+        'can_edit': level >= 30,
+        'address_link': UserAcl.objects.filter(user=request.user).values_list('address_link', flat=True).first() or 'none',
+    }
+
+
+@login_required()
+def view_router_inspect(request):
+    """The inspector of one device, for the device list to swap in."""
+    router = get_object_or_404(Router, uuid=request.GET.get('uuid'))
+    return render(request, 'router_manager/router_inspector.html', {'inspector': _inspector_context(request, router)})
 
 
 @login_required()

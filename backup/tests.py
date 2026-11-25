@@ -151,3 +151,35 @@ class BackupListPerformanceTests(TestCase):
         everything = self.client.get('/backup/backup_list/?all=1')
         self.assertEqual(len(everything.context['backup_list']), 600)
         self.assertFalse(everything.context['limited'])
+
+
+class BackupListPaneTests(TestCase):
+    """The backup list: the devices with a backup on the left, All devices
+    first; a device's history on the right; the status page's filters keep
+    applying."""
+
+    def setUp(self):
+        from routerfleet.testing import make_router, make_user
+        from backup_data.models import RouterBackup
+        self.client.force_login(make_user(20))
+        self.a, self.b = make_router(name='alpha'), make_router(name='beta')
+        for router in (self.a, self.a, self.b):
+            RouterBackup.objects.create(router=router, success=True, schedule_type='daily', backup_text='x')
+
+    def test_all_devices_then_one(self):
+        page = self.client.get('/backup/backup_list/')
+        self.assertEqual(page.context['all_count'], 3)
+        self.assertEqual([d['router__name'] for d in page.context['devices']], ['alpha', 'beta'])
+        self.assertContains(page, 'All devices')
+        self.assertEqual(len(page.context['backup_list']), 3)
+        one = self.client.get(f'/backup/backup_list/?device={self.a.uuid}')
+        self.assertEqual(one.context['chosen'], self.a)
+        self.assertEqual(len(one.context['backup_list']), 2)
+        self.assertContains(one, 'id="compare-two"')
+
+    def test_the_status_page_filters_and_the_tab_are_kept(self):
+        page = self.client.get(f'/backup/backup_list/?type=errors&since=24h&device={self.a.uuid}')
+        self.assertEqual(len(page.context['backup_list']), 0)
+        self.assertIn('type=errors', page.context['base_query'])
+        self.assertIn('since=24h', page.context['base_query'])
+        self.assertNotIn('device', page.context['base_query'])

@@ -257,7 +257,7 @@ class CardClickThroughTests(TestCase):
         today = timezone.localdate().isoformat()
         response = self.client.get(f'/backup/backup_list/?type=errors&date={today}')
         self.assertEqual(len(response.context['backup_list']), 1)
-        self.assertContains(response, f'Showing only: <strong>{today}</strong>')
+        self.assertContains(response, f'Showing only: <b>{today}</b>')
         self.assertEqual(len(self.client.get('/backup/backup_list/?type=errors&date=2000-01-01').context['backup_list']), 0)
         self.assertEqual(self.client.get('/backup/backup_list/?type=errors&date=nonsense').status_code, 200)
         data = self.client.get('/backup_statistics_data/?days=7').json()

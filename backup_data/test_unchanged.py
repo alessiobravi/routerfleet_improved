@@ -96,7 +96,7 @@ class ViewsReadTheStoredContentTests(Base):
         self.assertNotIn('+/system', response.context['diff_str'])
 
     def test_the_list_marks_unchanged_backups(self):
-        self.assertContains(self.client.get('/backup/backup_list/'), '>unchanged</span>')
+        self.assertContains(self.client.get('/backup/backup_list/'), '>No change</span>')
 
 
 class RetentionKeepsTheLastConfigurationTests(Base):

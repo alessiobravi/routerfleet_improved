@@ -1,0 +1,48 @@
+{% load router_tags %}
+{% with r=inspector.router info=inspector.information status=inspector.status %}
+<div class="rf-insp" data-uuid="{{ r.uuid }}">
+    <div class="rf-insp-head">
+        <div class="rf-insp-title"><h2><a href="/router/details/?uuid={{ r.uuid }}">{{ r.name }}</a></h2>
+            <div class="rf-page-sub">{{ r.get_router_type_display }}{% if inspector.groups %} · {{ inspector.groups }}{% endif %}</div></div>
+        <div class="rf-insp-actions">
+            {% for action in inspector.page.hero.actions %}{% if action.label != 'Edit' %}<a class="btn btn-sm btn-outline-secondary" href="{{ action.href }}">{{ action.label }}</a>{% endif %}{% endfor %}
+            {% if inspector.can_backup %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/router/create_instant_backup/?uuid={{ r.uuid }}" data-rf-field-next="/router/list/?device={{ r.uuid }}" title="Back up now">Back up now</a>{% endif %}
+            {% if inspector.can_edit %}<a class="btn btn-sm btn-outline-secondary" href="/router/manage/?uuid={{ r.uuid }}">Edit</a>{% endif %}
+            <a class="btn btn-sm btn-primary" href="/router/details/?uuid={{ r.uuid }}">Open</a>
+        </div>
+    </div>
+    <dl class="rf-facts">
+        <dt>State</dt>
+        <dd>{% if not r.enabled %}<span class="rf-st off"><i></i>Disabled</span>{% elif not r.monitoring %}<span class="rf-st off"><i></i>Not monitored</span>{% elif status.status_online %}<span class="rf-st ok"><i></i>Online</span>{% else %}<span class="rf-st bad"><i></i>Offline</span>{% endif %}</dd>
+        <dt>Address</dt>
+        <dd class="rf-mono">{% device_links r as links %}{% if inspector.address_link == 'none' or not r.username or not r.is_managed %}{{ r.address }}{% elif inspector.address_link == 'winbox' and links %}<a href="{{ links.0.1 }}">{{ r.address }}</a>{% else %}<a href="ssh://{{ r.username }}@{{ r.address|url_host }}:{{ r.port }}">{{ r.address }}</a>{% if inspector.address_link != 'ssh' %}{% for label, url in links %} <a class="rf-addr-link" href="{{ url }}">{{ label }}</a>{% endfor %}{% endif %}{% endif %}{% if r.port and r.port != 22 %}<span class="text-muted">:{{ r.port }}</span>{% endif %}</dd>
+        {% if r.is_managed %}
+        <dt>System</dt>
+        <dd>{{ r.get_router_type_display }} {% with state=info|os_version_state %}<span class="rf-mono" title="{{ state.title }}">{{ info.os_version|default_if_none:'—' }}</span>{% if state.css_class == 'text-danger' %} <span class="rf-up-text">· {{ info.available_version }} available</span>{% endif %}{% endwith %}</dd>
+        <dt>Model</dt>
+        <dd>{{ info.model_name|default_if_none:'—' }}{% if info.serial_number %} <span class="text-muted rf-mono">· {{ info.serial_number }}</span>{% endif %}</dd>
+        {% if info.firmware_version %}<dt>Bootloader</dt>
+        <dd><span class="rf-mono">{{ info.firmware_version }}</span>{% if info|bootloader_behind %} <span class="rf-up-text">· {{ info.firmware_available }} can be installed</span>{% endif %}</dd>{% endif %}
+        <dt>Backup</dt>
+        <dd>{% if status.last_backup_failed %}<span class="rf-st bad"><i></i>Last backup failed</span>{% elif inspector.last_backup %}<span class="rf-mono">{{ inspector.last_backup|date:"Y-m-d H:i" }}</span>{% else %}<span class="text-muted">None yet</span>{% endif %}
+            <span class="text-muted">· {% if r.backup_profile %}profile {{ r.backup_profile }}{% else %}no backup profile{% endif %}</span></dd>
+        <dt>Last change</dt>
+        <dd>{% if inspector.last_change %}<a href="#" class="config-change-link rf-mono" data-uuid="{{ inspector.last_change.uuid }}" title="Show what changed">{{ inspector.last_change.finish_time|default:inspector.last_change.created|date:"Y-m-d H:i" }}</a>{% else %}<span class="text-muted">—</span>{% endif %}</dd>
+        {% if inspector.schedule.next_daily_backup %}<dt>Next backup</dt>
+        <dd class="rf-mono">{{ inspector.schedule.next_daily_backup|date:"Y-m-d H:i" }}</dd>{% endif %}
+        <dt>Login</dt>
+        <dd>{{ r.username|default:'—' }} <span class="text-muted">· {% if r.ssh_key %}SSH key {{ r.ssh_key }}{% elif r.password %}password{% else %}no credentials{% endif %}</span></dd>
+        {% if status.backup_lock or status.command_lock %}<dt>Locks</dt>
+        <dd class="text-danger">{% if status.backup_lock %}<i class="fas fa-lock text-danger" role="img" aria-label="Backup locked"></i> Backup locked since {{ status.backup_lock|date:"Y-m-d H:i" }}{% endif %}{% if status.command_lock %} <i class="fas fa-lock text-danger" role="img" aria-label="Command locked"></i> Command locked since {{ status.command_lock|date:"Y-m-d H:i" }}{% endif %}</dd>{% endif %}
+        {% endif %}
+    </dl>
+    <div class="rf-insp-section">Recent activity</div>
+    <div class="rf-events">
+        {% for event in inspector.timeline %}
+        <div class="rf-ev"><span class="rf-mono text-muted">{{ event.when|date:"Y-m-d H:i" }}</span><span class="{% if event.state == 'bad' %}text-danger{% endif %}">{{ event.text }}</span></div>
+        {% empty %}
+        <div class="rf-ev"><span></span><span class="text-muted">Nothing recorded yet.</span></div>
+        {% endfor %}
+    </div>
+</div>
+{% endwith %}

@@ -301,7 +301,6 @@ class PageTests(TestCase):
         from user_manager.models import UserAcl
         make_router(router_type='routeros', name='mt1', username='admin')
         UserAcl.objects.update(address_link='both')
-        self.client.cookies['router_visible_columns'] = '["name", "address"]'
         page = self.client.get('/router/list/')
         self.assertContains(page, 'href="winbox://192.0.2.10"')
 
@@ -448,8 +447,8 @@ class UpdateMarkTests(TestCase):
         RouterInformation.objects.create(router=current, os_version='7.18', available_version='7.18')
         RouterInformation.objects.create(router=unknown, os_version='17.9', available_version='')
         page = self.client.get('/router/list/').content.decode()
-        self.assertEqual(page.count('rf-update-mark"'), 1)
-        mark = page.index('rf-update-mark"')
+        self.assertEqual(page.count('rf-up-os"'), 1)
+        mark = page.index('rf-up-os"')
         self.assertLess(page.rindex('behind', 0, mark), mark)
         self.assertIn('7.18 is available, the device runs 7.16', page)
 

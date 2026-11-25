@@ -770,14 +770,14 @@ class BootloaderOnlyEntryTests(TestCase):
                                                                firmware_available='7.25.2')
         self.client.force_login(make_user(40))
         listing = self.client.get('/router/list/')
-        self.assertContains(listing, 'rf-boot-mark')
+        self.assertContains(listing, 'rf-up-boot')
         self.assertContains(listing, f'kind=bootloader&amp;uuid={router.uuid}')
-        self.assertNotContains(listing, 'rf-update-mark', msg_prefix='no system update: no amber arrow')
+        self.assertNotContains(listing, 'rf-up-os', msg_prefix='no system update: no system arrow')
         details = self.client.get('/router/details/?uuid=' + str(router.uuid))
         self.assertContains(details, 'Update bootloader')
         self.assertNotContains(details, 'Update system')
         RouterInformation.objects.filter(router=router).update(firmware_version='7.25.2')
-        self.assertNotContains(self.client.get('/router/list/'), 'rf-boot-mark')
+        self.assertNotContains(self.client.get('/router/list/'), 'rf-up-boot')
 
     def test_two_independent_pages(self):
         router = routeros_device('rb-two', '7.24.5 (stable)')

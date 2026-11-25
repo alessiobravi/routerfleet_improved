@@ -221,18 +221,15 @@ information* reads it at once.
 
 ## Version colours
 
-A device with a newer version available also carries an **amber arrow** after
-its operations (edit, console, command) in the device list, whichever columns
-are shown; hovering it names the running and the available version. It follows
-the same rule as the colours below. The operations keep their place on every
-row, so the arrows line up.
-
-The device list colours two columns, and the status page counts the same rule,
-so the overview and the list cannot tell different stories.
+A device with a newer system version available carries a small **↑** after
+its name in the device list (a second one when a newer bootloader firmware can
+be installed); hovering it names the running and the available version. It
+follows the same rule as the colours below, and the status page counts the
+same rule, so the overview and the list cannot tell different stories.
 
 ```mermaid
 flowchart TD
-    start["OS version column"] --> hasos{"OS version known?"}
+    start["OS version"] --> hasos{"OS version known?"}
     hasos -->|no| grey["No colour<br/>device was never read"]
     hasos -->|yes| hasav{"Available version known?"}
     hasav -->|no| yellow["Yellow<br/>nothing to compare with"]
@@ -257,68 +254,67 @@ information*, excluding monitoring-only and airOS devices.
 
 ## The device list
 
-### Filtering
+The list of devices is on the left, the chosen device on the right: its state,
+address, system and version, model, bootloader, last backup and backup
+profile, last configuration change (a click shows the change), next backup,
+login and any lock, then its recent activity - and the actions you may take:
+**Console**, **Execute command**, **Back up now** (level 20, enabled devices),
+**Update system** / **Update bootloader** when one is waiting, **Edit** and
+**Open** (the device's own page). The address bar keeps the chosen device, so
+a link or a reload opens it again. **↑** and **↓** move through the list.
 
-**Filter** opens a row of text boxes under the column headings, one per column,
-each filtering its own column as you type. **Show/Hide Columns** works
-alongside it. Hiding the filter row clears the filters, so the list is never
-filtered without a visible reason.
+Each device in the list shows its name, address and type, and a dot for its
+state: green online, red offline, grey disabled or not monitored. A small **↑**
+marks an update waiting, a red lock a backup or command lock.
 
-The filter row and its contents are remembered in the browser, and a filter is
-remembered **by its column's name, not its position** — so it survives showing
-and hiding columns, and is picked up again when a hidden column returns.
+On a phone the list is shown alone and a device opens its own page.
 
-### Search terms
+### Search and filters
 
-Both the column filters and the search box understand the same terms, all
-matched case-insensitively:
+The search box looks at the name, address, type, version, model and groups,
+case-insensitively; **/** jumps to it:
 
 | Term | Meaning |
 |---|---|
-| `text` | The cell contains it |
-| `!text` | The cell does not contain it. `!7.16` shows every device not on 7.16. Taken literally, so `.` and `[` stay characters. A bare `!` clears the search |
-| `^pattern` | A regular expression. In a column filter it matches the cell, so `^7\.1[67]` finds versions starting 7.16 or 7.17. In the search box it matches anywhere in the row |
+| `text` | Devices whose details contain it |
+| `!text` | Devices whose details do not contain it. `!7.16` shows every device not on 7.16. A bare `!` shows all |
+| `^pattern` | A regular expression, matched anywhere: `^7\.1[67]` finds 7.16 and 7.17 |
 | `!^pattern` | Devices that do **not** match the pattern |
-| `(empty)` | Column filters only: rows where this column has no value — an empty cell or the `---` the list writes. `(empty)` in *Groups* finds devices in no group |
-| `!(empty)` | Rows that do have a value |
 
-A pattern that does not compile yet — `^(` on the way to `^(a|b)` — leaves the
+A pattern that does not compile yet - `^(` on the way to `^(a|b)` - leaves the
 list as it stands and marks the box until the pattern is finished.
+
+Beside it, the **group** (the list opens on the default group, if one is
+marked) and the **state**: online, offline, disabled, not monitored, last
+backup failed, update available. A card of the status page opens the list on
+exactly the devices it counted, and says so.
 
 ### Address links
 
-What a click on a device's address does is a **per-user** setting under *My
-Settings* (the gear icon, top right):
+What a click on a device's address does - in the panel on the right - is a
+**per-user** setting under *My Settings* (the gear icon, top right):
 
 | Setting | Behaviour |
 |---|---|
 | No links | The address is plain text |
 | Open with SSH | `ssh://user@address:port` |
 | Open with Winbox | `winbox://address` — RouterOS devices only |
-| Show a menu | Hovering opens a small menu with both |
+| Show a menu | SSH on the address, the device type's other links beside it |
 
 Devices that cannot offer an action stay plain text: a monitoring device, a
 device with no username for SSH, anything that is not RouterOS for Winbox.
 **Passwords are never part of a link.**
 
-### Quick actions
+### Selection and export
 
-The last column holds what is done to one device: **Edit**, **Back up now**
-(an instant backup; level 20, enabled devices - one without a backup profile
-says so; the list stays where it was), **Console** and **Execute command** where the user's level
-allows them, and an amber arrow when an update is available. The icons keep
-their places on every row.
+Tick devices - or the box above the list, for every device the search and
+filters show - and **Actions** offers what can be done to all of them (below).
 
-### Export and selection
-
-**Select All** selects what the search currently shows, not every device in the
-list. Rows filtered out remain in the page but hidden, so without this they
-would be selected too.
-
-**CSV export** writes the rows the current search shows — search box, column
-filters and group all respected — across all pages, in the current sort order,
-with the currently visible columns. The file carries a byte order mark so Excel
-opens accented characters correctly, and its name carries the date.
+**Export CSV** writes the devices the list shows, with every field (name,
+type, address, state, groups, backup profile, last backup, last configuration
+change, OS and available version, model, serial number, bootloader,
+architecture). The file carries a byte order mark so Excel opens accented
+characters correctly, and its name carries the date.
 
 ## Bulk operations
 

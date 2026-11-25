@@ -2,363 +2,100 @@
 {% load static %}
 {% load router_tags %}
 
-
-
-
-
 {% block content %}
-    <div id="router-list-page" data-last-status-change="{{ last_status_change_timestamp }}"
-         data-group="{{ filter_group.uuid|default_if_none:'' }}">
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    {% include 'router_manager/router_nav_tabs.html' %}
-                    {% if state_label %}
-                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
-                        <span><i class="fas fa-filter"></i> Showing only: <strong>{{ state_label }}</strong></span>
-                        <a href="/router/list/?filter_group=all" class="alert-link">Show all</a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Column Visibility Modal -->
-                    <div class="modal fade" id="columnVisibilityModal" tabindex="-1" role="dialog" aria-labelledby="columnVisibilityModalLabel" aria-hidden="true">
-                        <div class="modal-dialog" role="document">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="columnVisibilityModalLabel">Show/Hide Columns</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div id="columnCheckboxes">
-                                        <!-- Checkboxes will be added here dynamically -->
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="button" class="btn btn-danger" id="resetColumnVisibility">Reset</button>
-                                    <button type="button" class="btn btn-primary" id="applyColumnVisibility">Apply</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                <tr>
-                                    <th></th>
-                                    {% if "name" in visible_columns %}
-                                    <th data-column="name">Name</th>
-                                    {% endif %}
-                                    {% if "type" in visible_columns %}
-                                    <th data-column="type">Type</th>
-                                    {% endif %}
-                                    {% if "address" in visible_columns %}
-                                    <th data-column="address">Address</th>
-                                    {% endif %}
-                                    {% if "status" in visible_columns %}
-                                    <th data-column="status" data-priority="2">Status</th>
-                                    {% endif %}
-                                    {% if "backup" in visible_columns %}
-                                    <th data-column="backup">Backup</th>
-                                    {% endif %}
-                                    {% if "last_backup" in visible_columns %}
-                                    <th data-column="last_backup">Last Backup</th>
-                                    {% endif %}
-                                    {% if "last_config_change" in visible_columns %}
-                                    <th data-column="last_config_change">Last Config Change</th>
-                                    {% endif %}
-                                    {% if "next_daily_backup" in visible_columns %}
-                                    <th data-column="next_daily_backup">Next Daily Backup</th>
-                                    {% endif %}
-                                    {% if "next_weekly_backup" in visible_columns %}
-                                    <th data-column="next_weekly_backup">Next Weekly Backup</th>
-                                    {% endif %}
-                                    {% if "next_monthly_backup" in visible_columns %}
-                                    <th data-column="next_monthly_backup">Next Monthly Backup</th>
-                                    {% endif %}
-                                    {% if "lock_information" in visible_columns %}
-                                        <th data-column="lock_information">Backup Lock</th>
-                                        <th data-column="lock_information">Command Lock</th>
-                                    {% endif %}
-                                    {% if "groups" in visible_columns %}
-                                    <th data-column="groups">Groups</th>
-                                    {% endif %}
-                                    {% if "auth" in visible_columns %}
-                                    <th data-column="auth">Auth</th>
-                                    {% endif %}
-                                    {% if "os_version" in visible_columns %}
-                                    <th data-column="os_version">OS Version</th>
-                                    {% endif %}
-                                    {% if "model_name" in visible_columns %}
-                                    <th data-column="model_name">Model Name</th>
-                                    {% endif %}
-                                    {% if "model_version" in visible_columns %}
-                                    <th data-column="model_version">Model Version</th>
-                                    {% endif %}
-                                    {% if "serial_number" in visible_columns %}
-                                    <th data-column="serial_number">Serial Number</th>
-                                    {% endif %}
-                                    {% if "firmware_version" in visible_columns %}
-                                    <th data-column="firmware_version">Firmware Version</th>
-                                    {% endif %}
-                                    {% if "available_version" in visible_columns %}
-                                    <th data-column="available_version">Available Version</th>
-                                    {% endif %}
-                                    {% if "architecture" in visible_columns %}
-                                    <th data-column="architecture">Architecture</th>
-                                    {% endif %}
-                                    {% if "cpu" in visible_columns %}
-                                    <th data-column="cpu">CPU</th>
-                                    {% endif %}
-                                    <th class="text-nowrap">Quick actions</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for router in router_list %}
-                                    <tr{% if not router.enabled %} class="rf-disabled-row"{% endif %}>
-                                        <td><input type="checkbox" class="router-checkbox" data-uuid="{{ router.uuid }}"></td>
-                                        {% if "name" in visible_columns %}
-                                        <td data-column="name">{% if router.monitoring %}<span class="d-md-none me-1">{% if router.routerstatus.status_online %}<i class="far fa-check-circle text-success" title="Online"></i>{% else %}<i class="far fa-times-circle text-danger" title="Unavailable"></i>{% endif %}</span>{% endif %}<a href="/router/details/?uuid={{ router.uuid }}">{{ router.name }}</a></td>
-                                        {% endif %}
-                                        {% if "type" in visible_columns %}
-                                        <td data-column="type">{{ router.get_router_type_display }}</td>
-                                        {% endif %}
-                                        {% if "address" in visible_columns %}
-                                        <td data-column="address">
-                                            {# What a click on the address does is a per user setting #}
-                                            {% device_links router as links %}
-                                            {% if address_link == 'none' or not router.username or not router.is_managed %}
-                                                {{ router.address }}
-                                            {% elif address_link == 'ssh' %}
-                                                <a href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}">{{ router.address }}</a>
-                                            {% elif address_link == 'winbox' %}
-                                                {% if links %}<a href="{{ links.0.1 }}">{{ router.address }}</a>{% else %}{{ router.address }}{% endif %}
-                                            {% elif links %}
-                                                <div class="dropdown d-inline address-dropdown">
-                                                    <a class="dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ router.address }}</a>
-                                                    <div class="dropdown-menu">
-                                                        <a class="dropdown-item" href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}" aria-label="Open SSH" data-label="SSH"></a>
-                                                        {% for label, url in links %}<a class="dropdown-item" href="{{ url }}" aria-label="Open {{ label }}" data-label="{{ label }}"></a>{% endfor %}
-                                                    </div>
-                                                </div>
-                                            {% else %}
-                                                <a href="ssh://{{ router.username }}@{{ router.address|url_host }}:{{ router.port }}">{{ router.address }}</a>
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "status" in visible_columns %}
-                                        <td data-column="status" id="status-{{ router.uuid }}">
-                                            {% if router.monitoring %}
-                                                {% if router.routerstatus.status_online %}
-                                                    <span class="d-none">online</span><i class="far fa-check-circle text-success" title="Host is Online"></i>
-                                                {% else %}
-                                                    <span class="d-none">offline</span><i class="far fa-times-circle text-danger" title="Host is unavailable"></i>
-                                                {% endif %}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "backup" in visible_columns %}
-                                        <td data-column="backup">
-                                            {% if router.is_managed %}
-                                                {% if router.backup_profile %}
-                                                    {{ router.backup_profile }} {% if router.routerstatus.last_backup_failed %}<i class="fas fa-exclamation-triangle text-danger" title="Last backup failed to complete"></i>{% endif %}
-                                                {% else %}
-                                                    <i class="fas fa-exclamation-triangle text-warning" title="No backup profile selected"></i>
-                                                {% endif %}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "last_backup" in visible_columns %}
-                                        <td data-column="last_backup">
-                                            {% if router.is_managed and router.routerstatus.last_backup %}
-                                                {{ router.routerstatus.last_backup|date:"Y-m-d H:i:s" }}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "last_config_change" in visible_columns %}
-                                        <td data-column="last_config_change">
-                                            {% if router.last_config_change_uuid %}
-                                                <a href="#" class="config-change-link"
-                                                   data-uuid="{{ router.last_config_change_uuid }}"
-                                                   title="Show what changed in this backup">
-                                                    {{ router.last_config_change_time|date:"Y-m-d H:i:s" }}
-                                                </a>
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "next_daily_backup" in visible_columns %}
-                                        <td data-column="next_daily_backup">
-                                            {% if router.is_managed and router.backupschedule.next_daily_backup %}
-                                                {{ router.backupschedule.next_daily_backup|date:"Y-m-d H:i:s" }}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "next_weekly_backup" in visible_columns %}
-                                        <td data-column="next_weekly_backup">
-                                            {% if router.is_managed and router.backupschedule.next_weekly_backup %}
-                                                {{ router.backupschedule.next_weekly_backup|date:"Y-m-d H:i:s" }}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "next_monthly_backup" in visible_columns %}
-                                        <td data-column="next_monthly_backup">
-                                            {% if router.is_managed and router.backupschedule.next_monthly_backup %}
-                                                {{ router.backupschedule.next_monthly_backup|date:"Y-m-d H:i:s" }}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "lock_information" in visible_columns %}
-                                            <td data-column="lock_information">{% if router.routerstatus.backup_lock %}<span class="d-none">{{ router.routerstatus.backup_lock }}</span><i class="fas fa-lock text-danger" role="img" aria-label="Backup locked" title="Backup locked since {{ router.routerstatus.backup_lock }}"></i>{% endif %}</td>
-                                            <td data-column="lock_information">{% if router.routerstatus.command_lock %}<span class="d-none">{{ router.routerstatus.command_lock }}</span><i class="fas fa-lock text-danger" role="img" aria-label="Command locked" title="Command locked since {{ router.routerstatus.command_lock }}"></i>{% endif %}</td>
-                                        {% endif %}
-                                        {% if "groups" in visible_columns %}
-                                        <td data-column="groups">
-                                            {% if router.routergroup_set.exists %}
-                                                {% for group in router.routergroup_set.all %}
-                                                    {{ group.name }}{% if not forloop.last %}, {% endif %}
-                                                {% endfor %}
-                                            {% else %}
-                                                ---
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "auth" in visible_columns %}
-                                        <td data-column="auth" class="min-width">
-                                            {% if router.is_managed %}
-                                                {% if router.ssh_key %}
-                                                    <span class="d-none">sshkey</span><i class="fas fa-key" title="SSH Key: {{ router.ssh_key }}"></i>
-                                                {% elif router.password %}
-                                                    <span class="d-none">password</span><i class="fas fa-keyboard" title="Password Authentication"></i>
-                                                {% else %}
-                                                    <i class="fas fa-exclamation-triangle text-warning" title="Missing authentication"></i>
-                                                {% endif %}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "os_version" in visible_columns %}
-                                        <td data-column="os_version">
-                                            {% if router.is_managed %}
-                                                {% with state=router.routerinformation|os_version_state %}
-                                                    <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.os_version|default_if_none:'' }}</span>
-                                                {% endwith %}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "model_name" in visible_columns %}
-                                        <td data-column="model_name">
-                                            {% if router.is_managed %}
-                                                {{ router.routerinformation.model_name|default_if_none:'' }}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "model_version" in visible_columns %}
-                                        <td data-column="model_version">
-                                            {% if router.is_managed %}
-                                                {{ router.routerinformation.model_version|default_if_none:'' }}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "serial_number" in visible_columns %}
-                                        <td data-column="serial_number">
-                                            {% if router.is_managed %}
-                                                {{ router.routerinformation.serial_number|default_if_none:'' }}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "firmware_version" in visible_columns %}
-                                        <td data-column="firmware_version">
-                                            {% if router.is_managed %}
-                                                {% with state=router.routerinformation|firmware_state %}
-                                                    <span class="{{ state.css_class }}" title="{{ state.title }}">{{ router.routerinformation.firmware_version|default_if_none:'' }}</span>
-                                                {% endwith %}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "available_version" in visible_columns %}
-                                        <td data-column="available_version">
-                                            {% if router.is_managed %}
-                                                {% if router.routerinformation.update_available %}
-                                                    <span class="text-warning" title="Upgrade available">{{ router.routerinformation.available_version }}
-                                                        <i class="fas fa-arrow-up"></i></span>
-                                                {% else %}
-                                                    {{ router.routerinformation.available_version|default_if_none:'' }}
-                                                {% endif %}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "architecture" in visible_columns %}
-                                        <td data-column="architecture">
-                                            {% if router.is_managed %}
-                                                {{ router.routerinformation.architecture|default_if_none:'' }}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        {% if "cpu" in visible_columns %}
-                                        <td data-column="cpu">
-                                            {% if router.is_managed %}
-                                                {{ router.routerinformation.cpu|default_if_none:'' }}
-                                            {% endif %}
-                                        </td>
-                                        {% endif %}
-                                        <td class="min-width">
-                                            {# Fixed slots, kept empty when they do not apply, so every row lines up #}
-                                            <span class="rf-actions">
-                                            <a href="/router/manage/?uuid={{ router.uuid }}" class="rf-slot" title="Edit" aria-label="Edit {{ router.name }}"><i class="fas fa-edit"></i></a>
-                                            {% if can_backup %}{% if router.is_managed and router.enabled %}<a href="#" class="rf-slot" title="Back up now" aria-label="Back up {{ router.name }} now" data-rf-post="/router/create_instant_backup/?uuid={{ router.uuid }}" data-rf-field-next="{{ request.get_full_path }}"><i class="fas fa-box-open"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
-                                            {% if can_open_console %}{% if router.is_managed %}<a href="/router/console/?uuid={{ router.uuid }}" class="rf-slot" title="Console" aria-label="Console of {{ router.name }}"><i class="fas fa-keyboard"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
-                                            {% if can_execute_commands %}{% if router.is_managed %}<a href="/fleet_commander/router/execute/?uuid={{ router.uuid }}" class="rf-slot" title="Execute command" aria-label="Execute command on {{ router.name }}"><i class="fas fa-terminal"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endif %}
-                                            {% with version=router.routerinformation|os_version_state %}{% if version.css_class == 'text-danger' %}<a href="{% if can_update_firmware and router.enabled %}/system/firmware/update/?uuid={{ router.uuid }}{% else %}/router/details/?uuid={{ router.uuid }}{% endif %}" class="rf-slot rf-update-mark" title="{{ version.title }}{% if can_update_firmware and router.enabled %} - click to update the system{% endif %}" aria-label="{{ version.title }}"><i class="fas fa-arrow-alt-circle-up"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}{% endwith %}
-                                            {% if router.routerinformation|bootloader_behind %}<a href="{% if can_update_firmware and router.enabled %}/system/firmware/update/?kind=bootloader&amp;uuid={{ router.uuid }}{% else %}/router/details/?uuid={{ router.uuid }}{% endif %}" class="rf-slot rf-boot-mark" title="Bootloader firmware {{ router.routerinformation.firmware_version }} - {{ router.routerinformation.firmware_available }} can be installed{% if can_update_firmware and router.enabled %} - click to upgrade it{% endif %}" aria-label="A newer bootloader firmware can be installed"><i class="fas fa-arrow-alt-circle-up"></i></a>{% else %}<span class="rf-slot"></span>{% endif %}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-lg-12">
-                                <a href="/router/manage/" class="btn btn-primary">Add Device</a>
-                                <a href="/router/import_tool/" class="btn btn-primary">Import Tool</a>
-                                <button id="select-all" class="btn btn-outline-primary" title="Select All"><i class="fas fa-check-square"></i></button>
-                                <button id="select-none" class="btn btn-outline-primary" title="Select None"><i class="fas fa-square"></i></button>
-                                <button id="export-csv" class="btn btn-outline-primary" title="Export the filtered list as CSV"><i class="fas fa-file-csv"></i></button>
-                                <button id="update-information" class="btn btn-info d-none">Update Information</button>
-                                <button id="create-backup" class="btn btn-warning d-none">Create Backup Task</button>
-                                <button id="run-command" class="btn btn-info d-none">Run Command</button>
-                                <button id="manage-groups" class="btn btn-primary d-none">Groups</button>
-                                <button id="edit-multiple" class="btn btn-primary d-none">Edit</button>
-                                {% if can_update_firmware %}<button id="update-firmware" class="btn btn-outline-warning d-none" title="Update the system (OS) of the selected hosts: the options each one has">Update system</button>
-                                <button id="update-bootloader" class="btn btn-outline-secondary d-none" title="Upgrade the bootloader firmware (RouterBOOT) of the selected hosts">Update bootloader</button>{% endif %}
-                                {% if can_edit %}<button id="enable-multiple" class="btn btn-outline-success d-none" title="Enable the selected hosts: backed up and monitored again">Enable</button>
-                                <button id="disable-multiple" class="btn btn-outline-danger d-none" title="Disable the selected hosts: no backups, no monitoring">Disable</button>{% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<div id="router-list-page" class="rf-pane-page" data-last-status-change="{{ last_status_change_timestamp }}"
+     data-group="{{ filter_group.uuid|default_if_none:'' }}">
+    <div class="rf-page-head">
+        <div><h1>Devices</h1>
+            <div class="rf-page-sub">{{ router_list|length }} device{{ router_list|length|pluralize }}{% if state_label %} · {{ state_label }}{% elif filter_group %} in {{ filter_group.name }}{% endif %}</div></div>
+        <div class="rf-page-actions">
+            {% if can_edit %}<a href="/router/import_tool/" class="btn btn-outline-secondary btn-sm">Import</a>{% endif %}
+            <button type="button" id="export-csv" class="btn btn-outline-secondary btn-sm" title="The devices the list shows, every field">Export CSV</button>
+            {% if can_edit %}<a href="/router/manage/" class="btn btn-primary btn-sm">Add device</a>{% endif %}
         </div>
     </div>
+    {% include 'router_manager/router_nav_tabs.html' %}
+    {% if state_label %}
+    <div class="rf-notice"><span>Showing only: <b>{{ state_label }}</b>, from the status page</span><a href="/router/list/?filter_group=all">Show all</a></div>
+    {% endif %}
+
+    <div class="rf-split">
+        <div class="rf-split-list">
+            <div class="rf-search"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" id="device-search" placeholder="Search name, address, type, version, group" aria-label="Search the devices"
+                       title="text finds it, !text leaves it out, ^pattern is a regular expression"></div>
+            <div class="rf-filter-row">
+                <select class="form-select form-select-sm" id="device-group" aria-label="Group">
+                    <option value="all"{% if not filter_group %} selected{% endif %}>All groups</option>
+                    {% for group in filter_group_list %}<option value="{{ group.uuid }}"{% if filter_group.uuid == group.uuid %} selected{% endif %}>{{ group.name }}</option>{% endfor %}
+                </select>
+                <select class="form-select form-select-sm" id="device-state" aria-label="State">
+                    <option value="">Any state</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                    <option value="disabled">Disabled</option>
+                    <option value="unmonitored">Not monitored</option>
+                    <option value="backup-failed">Last backup failed</option>
+                    <option value="update">Update available</option>
+                </select>
+            </div>
+            <div class="rf-select-bar">
+                <label class="rf-select-all"><input type="checkbox" id="select-all" aria-label="Select every device shown"> <span id="selected-count">Select</span></label>
+                <div class="dropdown d-none" id="bulk-actions">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">Actions</button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if can_backup %}<li><a class="dropdown-item" href="#" id="create-backup">Back up now</a></li>{% endif %}
+                        <li><a class="dropdown-item" href="#" id="update-information">Update information</a></li>
+                        {% if can_execute_commands %}<li><a class="dropdown-item" href="#" id="run-command">Run a command</a></li>{% endif %}
+                        {% if can_edit %}<li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="manage-groups">Groups</a></li>
+                        <li><a class="dropdown-item" href="#" id="edit-multiple">Edit</a></li>{% endif %}
+                        {% if can_update_firmware %}<li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="update-firmware">Update system</a></li>
+                        <li><a class="dropdown-item" href="#" id="update-bootloader">Update bootloader</a></li>{% endif %}
+                        {% if can_edit %}<li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="enable-multiple">Enable</a></li>
+                        <li><a class="dropdown-item text-danger" href="#" id="disable-multiple">Disable</a></li>{% endif %}
+                    </ul>
+                </div>
+            </div>
+            <div class="rf-list" id="device-list" role="list">
+                {% for router in router_list %}
+                {% with info=router.routerinformation status=router.routerstatus version=router.routerinformation|os_version_state %}
+                <div class="rf-li{% if inspector and inspector.router.pk == router.pk %} on{% endif %}{% if not router.enabled %} rf-li-off{% endif %}" role="listitem"
+                     data-uuid="{{ router.uuid }}"
+                     data-state="{% if not router.enabled %}disabled{% elif not router.monitoring %}unmonitored{% elif status.status_online %}online{% else %}offline{% endif %}"
+                     data-flags="{% if router.is_managed and status.last_backup_failed %} backup-failed{% endif %}{% if router.is_managed and version.css_class == 'text-danger' %} update{% endif %}"
+                     data-search="{{ router.name }} {{ router.address }} {{ router.get_router_type_display }} {{ info.os_version|default_if_none:'' }} {{ info.model_name|default_if_none:'' }}{% for group in router.routergroup_set.all %} {{ group.name }}{% endfor %}"
+                     data-csv-type="{{ router.get_router_type_display }}" data-csv-address="{{ router.address }}"
+                     data-csv-groups="{% for group in router.routergroup_set.all %}{{ group.name }}{% if not forloop.last %}; {% endif %}{% endfor %}"
+                     data-csv-profile="{{ router.backup_profile|default_if_none:'' }}"
+                     data-csv-last-backup="{% if router.is_managed and status.last_backup %}{{ status.last_backup|date:'Y-m-d H:i:s' }}{% endif %}"
+                     data-csv-last-change="{{ router.last_config_change_time|date:'Y-m-d H:i:s' }}"
+                     data-csv-os="{{ info.os_version|default_if_none:'' }}" data-csv-available="{{ info.available_version|default_if_none:'' }}"
+                     data-csv-model="{{ info.model_name|default_if_none:'' }}" data-csv-serial="{{ info.serial_number|default_if_none:'' }}"
+                     data-csv-firmware="{{ info.firmware_version|default_if_none:'' }}" data-csv-architecture="{{ info.architecture|default_if_none:'' }}">
+                    <input type="checkbox" class="router-checkbox" data-uuid="{{ router.uuid }}" aria-label="Select {{ router.name }}">
+                    <a class="rf-li-main" href="/router/details/?uuid={{ router.uuid }}" data-inspect="{{ router.uuid }}">
+                        <span class="rf-li-name">{{ router.name }}{% if router.is_managed and version.css_class == 'text-danger' %}<span class="rf-up rf-up-os" title="{{ version.title }}" aria-label="System update available">↑</span>{% endif %}{% if router.is_managed and info|bootloader_behind %}<span class="rf-up rf-up-boot" title="Bootloader firmware {{ info.firmware_version }} - {{ info.firmware_available }} can be installed" aria-label="Bootloader update available">↑</span>{% endif %}{% if status.backup_lock or status.command_lock %}<i class="fas fa-lock rf-li-lock" role="img" aria-label="Locked" title="{% if status.backup_lock %}Backup locked since {{ status.backup_lock }}{% endif %}{% if status.command_lock %} Command locked since {{ status.command_lock }}{% endif %}"></i>{% endif %}</span>
+                        <span class="rf-li-sub"><span class="rf-mono">{{ router.address }}</span> · {{ router.get_router_type_display }}</span>
+                    </a>
+                    <span class="rf-dot {% if not router.enabled or not router.monitoring %}off{% elif status.status_online %}ok{% else %}bad{% endif %}" id="status-{{ router.uuid }}"
+                          title="{% if not router.enabled %}Disabled{% elif not router.monitoring %}Not monitored{% elif status.status_online %}Online{% else %}Offline{% endif %}"
+                          data-monitored="{% if router.enabled and router.monitoring %}1{% endif %}"></span>
+                </div>
+                {% endwith %}
+                {% empty %}
+                <div class="rf-empty">No device{% if filter_group %} in {{ filter_group.name }} - <a href="?filter_group=all">all groups</a>{% endif %}.</div>
+                {% endfor %}
+                <div class="rf-empty d-none" id="device-none">No device matches.</div>
+            </div>
+        </div>
+        <div class="rf-split-detail" id="rf-inspector">
+            {% if inspector %}{% include 'router_manager/router_inspector.html' %}{% endif %}
+        </div>
     </div>
+</div>
 {% endblock %}
 
 {% block custom_page_scripts %}

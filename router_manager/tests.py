@@ -186,11 +186,28 @@ class ListAndDetailTests(TestCase):
         response = self.client.get(f'/router/list/?filter_group={group.uuid}')
         self.assertEqual(list(response.context['router_list']), [a])
 
-    def test_visible_columns_cookie(self):
-        self.client.cookies['router_visible_columns'] = '%5B%22name%22%5D'
-        self.assertEqual(self.client.get('/router/list/').context['visible_columns'], ['name'])
-        self.client.cookies['router_visible_columns'] = 'not json'
-        self.assertIn('groups', self.client.get('/router/list/').context['visible_columns'])
+    def test_the_list_and_its_inspector(self):
+        a = make_router(name='alpha')
+        b = make_router(name='beta')
+        page = self.client.get('/router/list/')
+        self.assertEqual(page.context['inspector']['router'], a, 'the first device, unless another is named')
+        self.assertContains(page, 'id="rf-inspector"')
+        self.assertContains(page, f'data-inspect="{b.uuid}"')
+        chosen = self.client.get(f'/router/list/?device={b.uuid}')
+        self.assertEqual(chosen.context['inspector']['router'], b)
+        foreign = self.client.get('/router/list/?device=00000000-0000-0000-0000-000000000000')
+        self.assertEqual(foreign.context['inspector']['router'], a, 'a device not in the list is not shown')
+        fragment = self.client.get(f'/router/inspect/?uuid={b.uuid}')
+        self.assertContains(fragment, 'class="rf-insp"')
+        self.assertContains(fragment, 'beta')
+        self.assertNotContains(fragment, '<html', msg_prefix='only the inspector, to swap in')
+        self.assertEqual(self.client.get('/router/inspect/?uuid=00000000-0000-0000-0000-000000000000').status_code, 404)
+
+    def test_the_list_opens_on_the_default_group_as_documented(self):
+        inside, outside = make_router(name='inside'), make_router(name='outside')
+        make_group(routers=[inside], default_group=True)
+        self.assertEqual(list(self.client.get('/router/list/').context['router_list']), [inside])
+        self.assertEqual(len(self.client.get('/router/list/?filter_group=all').context['router_list']), 2)
 
     def test_details_availability(self):
         router = make_router()
@@ -589,10 +606,10 @@ class QuickActionsAndBulkEnableTests(TestCase):
         self.router = make_router(name='edge-q1', backup_profile=self.profile)
         self.client.force_login(make_user(30))
 
-    def test_the_column_is_named_and_offers_back_up_now(self):
+    def test_the_inspector_offers_back_up_now(self):
         page = self.client.get('/router/list/')
-        self.assertContains(page, 'Quick actions')
         self.assertContains(page, f'data-rf-post="/router/create_instant_backup/?uuid={self.router.uuid}"')
+        self.assertContains(page, 'id="create-backup"', msg_prefix='and for a selection, in the Actions menu')
         self.client.force_login(make_user(10))
         self.assertNotContains(self.client.get('/router/list/'), 'Back up now')
 

@@ -98,6 +98,7 @@ urlpatterns = [
     path('message_center/email/', RedirectView.as_view(url='/system/notifications/email/', permanent=True)),
     path('router/details/', view_router_details, name='router_details'),
     path('router/availability/', view_router_availability, name='router_availability'),
+    path('router/inspect/', router_views.view_router_inspect, name='router_inspect'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),
     # SSH keys have a menu item of their own (0.42); the old addresses lead there
     path('ssh_keys/', view_ssh_key_list, name='ssh_keys_list'),

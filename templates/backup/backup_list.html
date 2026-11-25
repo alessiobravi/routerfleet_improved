@@ -1,112 +1,103 @@
 {% extends 'base.html' %}
-
+{% load static %}
 
 {% block content %}
-<div id="rf-live-backups" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="backups in progress" data-rf-live-interval="5">
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    {% if day %}
-                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
-                        <span><i class="fas fa-filter"></i> Showing only: <strong>{{ day|date:"Y-m-d" }}</strong></span>
-                        <a href="?type={{ view_type }}" class="alert-link">Show all</a>
-                    </div>
+<div id="rf-live-backups" class="rf-pane-page" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="backups in progress" data-rf-live-interval="5">
+    <div class="rf-page-head">
+        <div><h1>Backups</h1>
+            <div class="rf-page-sub">{% if view_type == 'queue' %}Waiting to be taken or retrieved{% elif view_type == 'errors' %}Backups that failed{% else %}Backups taken{% endif %}{% if chosen %} · {{ chosen.name }}{% endif %} · {{ total }}</div></div>
+    </div>
+    {% include 'backup/backup_nav_tabs.html' %}
+    {% if day %}<div class="rf-notice"><span>Showing only: <b>{{ day|date:"Y-m-d" }}</b>, from the status page</span><a href="?type={{ view_type }}">Show all</a></div>{% endif %}
+    {% if recent %}<div class="rf-notice"><span>Showing only: <b>the last 24 hours</b>, from the status page</span><a href="?type={{ view_type }}">Show all</a></div>{% endif %}
+    {% if limited %}<div class="rf-notice"><span>The newest {{ list_limit }} of {{ total }} backups. Older ones: pick a day on the status page chart, or show them all (slower).</span>
+        <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}all=1">Show all {{ total }}</a></div>{% endif %}
+
+    <div class="rf-split">
+        <div class="rf-split-list">
+            <div class="rf-search"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" id="backup-device-search" placeholder="Search devices" aria-label="Search the devices"></div>
+            <div class="rf-list mt-2" id="backup-devices" role="list">
+                <a class="rf-li{% if not chosen %} on{% endif %}" role="listitem" href="?{{ base_query }}" data-search="all devices">
+                    <span class="rf-li-main"><span class="rf-li-name">All devices</span>
+                        <span class="rf-li-sub">{{ all_count }} backup{{ all_count|pluralize }}</span></span>
+                </a>
+                {% for device in devices %}
+                <a class="rf-li{% if chosen and chosen.uuid == device.router__uuid %} on{% endif %}" role="listitem" href="?{% if base_query %}{{ base_query }}&{% endif %}device={{ device.router__uuid }}" data-search="{{ device.router__name }}">
+                    <span class="rf-li-main"><span class="rf-li-name">{{ device.router__name }}</span>
+                        <span class="rf-li-sub">{{ device.count }} · newest <span class="rf-mono">{{ device.newest|date:"Y-m-d H:i" }}</span></span></span>
+                    <span class="rf-dot {% if view_type == 'errors' %}bad{% elif view_type == 'queue' %}run{% else %}ok{% endif %}" aria-hidden="true"></span>
+                </a>
+                {% empty %}
+                <div class="rf-empty">No backup here.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="rf-split-detail rf-split-detail-always">
+            <div class="rf-insp-head">
+                <div class="rf-insp-title">
+                    {% if chosen %}
+                    <h2><a href="/router/details/?uuid={{ chosen.uuid }}">{{ chosen.name }}</a></h2>
+                    <div class="rf-page-sub">{{ chosen.get_router_type_display }}{% if chosen.routerinformation.os_version %} {{ chosen.routerinformation.os_version }}{% endif %}{% if chosen.backup_profile %} · profile {{ chosen.backup_profile }}{% endif %}</div>
+                    {% else %}
+                    <h2>All devices</h2>
+                    <div class="rf-page-sub">Newest first</div>
                     {% endif %}
-                    {% if recent %}
-                    <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
-                        <span><i class="fas fa-filter"></i> Showing only: <strong>the last 24 hours</strong></span>
-                        <a href="?type={{ view_type }}" class="alert-link">Show all</a>
-                    </div>
-                    {% endif %}
-                    {% include 'backup/backup_nav_tabs.html' %}
-                    {% if limited %}
-                    <div class="alert alert-light border small mt-2 mb-2">The newest {{ list_limit }} of {{ total }} backups. Older ones: pick a day on the status page chart, or
-                        <a href="?{% for key, value in request.GET.items %}{% if key != 'all' %}{{ key }}={{ value|urlencode }}&{% endif %}{% endfor %}all=1">show all {{ total }}</a> (slower).</div>
-                    {% endif %}
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                <tr>
-                                    <th class="min-width">ID</th>
-                                    <th>Device</th>
-                                    <th>Address</th>
-                                    <th>Schedule Type</th>
-                                    <th>Task Created</th>
-                                    <th>Finish Time</th>
-                                    <th class="min-width" title="Whether this backup brought a different configuration than the one before it">Config Change</th>
-                                    <th class="min-width" title="Backup hash"><i class="fas fa-code-branch" title="Configuration has changed"></i></th>
-                                    <th class="min-width">Status</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for backup in backup_list %}
-                                    <tr>
-                                        <td class="min-width">
-                                            <a href="/backup/backup_details/?uuid={{ backup.uuid }}">
-                                            {{ backup.id }}
-                                            </a>
-                                        </td>
-                                        <td>
-                                            <a href="/router/details/?uuid={{ backup.router.uuid }}">
-                                                {{ backup.router.name }}
-                                            </a>
-                                        </td>
-                                    <td>{{ backup.router.address }}</td>
-                                    <td>{{ backup.get_schedule_type_display }}</td>
-                                    <td>{{ backup.created|default_if_none:"" }}</td>
-                                    <td>{% if backup.finish_time %}{{ backup.finish_time }}{% else %}
-                                        <i class="far fa-clock text-warning"></i>{% endif %}</td>
-
-                                    <td class="min-width">
-                                        {% if backup.config_change_detected %}
-                                            <a href="#" class="config-change-link" data-uuid="{{ backup.uuid }}"
-                                               title="Show what this backup changed">
-                                                <i class="fas fa-code-branch"></i> Changed
-                                            </a>
-                                        {% else %}
-                                            ---
-                                        {% endif %}
-                                    </td>
-
-                                    <td class="min-width">
-                                        {% if backup.backup_text_hash %}
-                                        <a href="#" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":12" }}...</a>
-                                        {% if backup.same_as_id %}<span class="badge text-bg-light" title="Unchanged: the content is the stored backup it is the same as">unchanged</span>{% endif %}
-                                        {% endif %}
-                                    </td>
-                                    
-                                    <td class="min-width text-center">
-                                        {% if backup.success %}
-                                            <i class="far fa-check-circle text-success"></i>
-                                        {% elif backup.error %}
-                                            <i class="far fa-times-circle text-danger"
-                                               title="{{ backup.error_message }}"></i>
-                                        {% elif backup.backup_pending_retrieval %}
-                                            <i class="fas fa-cloud-download-alt text-info"
-                                               title="Backup pending Retrieval"></i>
-                                        {% else %}
-                                            <i class="far fa-clock text-warning"></i>
-                                        {% endif %}
-                                    </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-                    
-
                 </div>
+                <div class="rf-insp-actions">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="compare-two" disabled title="Tick two backups to compare them">Compare two</button>
+                    {% if chosen and can_backup and chosen.is_managed and chosen.enabled %}<a href="#" class="btn btn-sm btn-primary" data-rf-post="/router/create_instant_backup/?uuid={{ chosen.uuid }}" data-rf-field-next="{{ request.get_full_path }}">Back up now</a>{% endif %}
+                </div>
+            </div>
+            <div class="table-responsive">
+            <table class="rf-tbl rf-tbl-nowrap" id="backup-table">
+                <thead><tr>
+                    <th class="w1"><span class="visually-hidden">Compare</span></th>
+                    <th class="w1">#</th>
+                    <th>{% if view_type == 'queue' %}Created{% else %}Finished{% endif %}</th>
+                    {% if not chosen %}<th>Device</th>{% endif %}
+                    <th>Schedule</th>
+                    <th>Result</th>
+                    {% if chosen %}<th>Hash</th>{% endif %}
+                    <th class="w1"></th>
+                </tr></thead>
+                <tbody>
+                {% for backup in backup_list %}
+                <tr>
+                    <td class="w1"><input type="checkbox" class="compare-pick" value="{{ backup.uuid }}" data-created="{{ backup.created|date:'U' }}" aria-label="Pick backup {{ backup.id }} to compare"></td>
+                    <td class="w1"><a class="rf-mono text-muted" href="/backup/backup_details/?uuid={{ backup.uuid }}">{{ backup.id }}</a></td>
+                    <td class="rf-mono text-nowrap">{% if backup.finish_time and view_type != 'queue' %}{{ backup.finish_time|date:"Y-m-d H:i" }}{% else %}{{ backup.created|date:"Y-m-d H:i" }}{% endif %}</td>
+                    {% if not chosen %}<td class="rf-cell-name"><a class="rf-cell-link" href="?{% if base_query %}{{ base_query }}&{% endif %}device={{ backup.router.uuid }}" title="{{ backup.router.name }}">{{ backup.router.name }}</a></td>{% endif %}
+                    <td>{{ backup.get_schedule_type_display }}</td>
+                    <td>{% if backup.success %}{% if backup.config_change_detected %}<a href="#" class="config-change-link" data-uuid="{{ backup.uuid }}" title="Show what this backup changed">Changed</a>{% elif backup.same_as_id %}<span class="text-muted" title="The same configuration as the backup before: recorded, not stored again">No change</span>{% else %}<span class="text-muted">Stored</span>{% endif %}
+                        {% elif backup.error %}<span class="rf-st bad" title="{{ backup.error_message }}"><i></i>{{ backup.error_message|default:"Failed"|truncatechars:60 }}</span>
+                        {% elif backup.backup_pending_retrieval %}<span class="rf-st run"><i></i>Waiting to be retrieved</span>
+                        {% else %}<span class="rf-st run"><i></i>Waiting{% if backup.next_retry %}, next try {{ backup.next_retry|date:"H:i" }}{% endif %}</span>{% endif %}</td>
+                    {% if chosen %}<td class="rf-mono text-muted" title="{{ backup.backup_text_hash }}">{{ backup.backup_text_hash|slice:":7" }}</td>{% endif %}
+                    <td class="w1">
+                        <div class="dropdown">
+                            <a href="#" class="rf-kebab dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions for backup {{ backup.id }}">⋯</a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/backup/backup_details/?uuid={{ backup.uuid }}">Open</a></li>
+                                {% if backup.success %}<li><a class="dropdown-item" href="/backup/download/?uuid={{ backup.uuid }}&amp;type=text">Download the configuration</a></li>{% endif %}
+                                {% if backup.config_change_detected %}<li><a class="dropdown-item config-change-link" href="#" data-uuid="{{ backup.uuid }}">What changed</a></li>{% endif %}
+                                <li><a class="dropdown-item" href="/router/details/?uuid={{ backup.router.uuid }}">Open the device</a></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-muted p-3">No backup here.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block custom_page_scripts %}
+    <script src="{% static 'routerfleet/backup-list.js' %}"></script>
 {% endblock %}

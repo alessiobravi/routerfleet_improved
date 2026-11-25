@@ -67,10 +67,20 @@ device printed is never stored as a configuration.
 
 ## The backup list
 
-The list shows the newest 500 backups of the chosen view (successful, errors,
-queue) and says how many there are; older ones are reached by day - a bar of
-the status page's chart - or with *show all*. It reads only the columns it
-shows, so it stays fast with any number of backups.
+The devices with a backup in the chosen view (successful, queue, errors) are
+on the left, **All devices** first; on the right, the backups of the device
+chosen - or of every device, newest first - with when it finished, the
+schedule, the result (*Changed*, a click showing what changed; *No change*;
+*Stored*; or why it failed, or what it waits for) and, for one device, the
+configuration's hash. Each row's menu opens the backup, downloads its
+configuration or shows what changed. **Back up now** takes an instant backup
+of the chosen device.
+
+It shows the newest 500 backups of the view and says how many there are; older
+ones are reached by day - a bar of the status page's chart - or with *show
+all*; a day or *the last 24 hours* from the status page stays applied while
+you choose devices. It reads only the fields it shows, so it stays fast with
+any number of backups.
 
 ## From a profile to a stored backup
 
@@ -203,9 +213,8 @@ after it.
 Where this shows up:
 
 - The **backup overview** marks the backups that changed something.
-- The device list has a **Last Config Change** column, off by default under
-  *Show/Hide Columns*, showing when the device's configuration last changed, or
-  `---` if it never did.
+- The device list shows the chosen device's **last change**, or `—` if its
+  configuration never changed; the CSV export carries it for every device.
 - Clicking either opens the change **in place**, without leaving the page, as a
   line-by-line diff against the previous backup, with a button to open the full
   comparison when the change is longer than the three lines of context.
@@ -221,7 +230,7 @@ backup like this: when its configuration is the
 same as the device's last stored one, the backup is recorded - it succeeded, at
 that time, and counts for everything that measures backup age - but its text and
 binary are not stored again. It points to the stored backup instead, and is
-marked *unchanged* in the backup list; opening, downloading or comparing it
+marked *No change* in the backup list; opening, downloading or comparing it
 shows the stored configuration it is the same as.
 
 **Keep unchanged backups** in the profile stores every scheduled backup in full,
@@ -304,8 +313,9 @@ done.
 
 ## Comparing backups
 
-Any two backups of a device can be compared from the backup list. The diff is
-computed on the stored configuration text. Binary images are downloadable but
+Any two backups can be compared from the backup list: tick two and **Compare
+these two** shows the older against the newer. The diff is computed on the
+stored configuration text. Binary images are downloadable but
 not comparable.
 
 ## Permissions

@@ -106,6 +106,22 @@ def view_backup_list(request):
         start = timezone.make_aware(datetime.datetime.combine(day, datetime.time.min))
         backup_list = backup_list.filter(created__gte=start, created__lt=start + timezone.timedelta(days=1))
 
+    # The devices on the left - those with a backup in this list - and, when
+    # one is chosen, its backups on the right; otherwise every device's
+    from django.db.models import Count, Max
+    from router_manager.models import Router
+    devices = list(backup_list.order_by().values('router__uuid', 'router__name')
+                   .annotate(count=Count('id'), newest=Max('created')).order_by('router__name'))
+    all_count = sum(device['count'] for device in devices)
+    chosen = None
+    if request.GET.get('device'):
+        chosen = Router.objects.filter(uuid=request.GET.get('device')).select_related('routerinformation').first()
+        if chosen:
+            backup_list = backup_list.filter(router=chosen)
+    keep = {key: value for key, value in request.GET.items() if key in ('type', 'since', 'date', 'all')}
+    from urllib.parse import urlencode
+    base_query = urlencode(keep)
+
     total = backup_list.count()
     show_all = request.GET.get('all') == '1'
     context = {
@@ -113,7 +129,12 @@ def view_backup_list(request):
         'total': total,
         'limited': not show_all and total > LIST_LIMIT,
         'list_limit': LIST_LIMIT,
-        'page_title': 'Backup List',
+        'devices': devices,
+        'all_count': all_count,
+        'chosen': chosen,
+        'base_query': base_query,
+        'can_backup': UserAcl.objects.filter(user=request.user, user_level__gte=20).exists(),
+        'page_title': 'Backups',
         # Live while a backup in this list is still being taken
         'live_active': backup_list.filter(success=False, error=False).exists(),
         'view_type': view_type,

@@ -13,6 +13,34 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.43.0] - 2026-11-25
+
+Includes 0.42.1, which was not released on its own.
+
+### Changed
+- **Devices Manager: the list and the chosen device side by side.** The
+  devices on the left - name, address, type, a dot for the state, a small ↑
+  for an update waiting - and on the right the chosen device: state, address,
+  system and version, model, bootloader, last backup and profile, last
+  change, next backup, login, locks, recent activity, and the actions allowed.
+  ↑/↓ move through the list; the address bar keeps the device; on a phone a
+  device opens its own page. Search keeps `!` and `^`; group and state
+  filters; ticking devices offers every bulk action in one menu; Export CSV
+  writes every field of the devices shown. The column chooser and the
+  per-column filters are gone.
+- **Backup list: devices and their history.** The devices with a backup in
+  the view on the left (All devices first), their backups on the right -
+  finish time, schedule, result in words, hash - with each row's actions in a
+  menu, Back up now, and ticking two backups to compare them. A day or the
+  last 24 hours from the status page stays applied.
+- Calm styling on both: no tags, a dot and a word for a state, colour only
+  for what needs attention; the tabs of Devices Manager and Backup as
+  underlined text. The menu on the left is unchanged.
+
+### Fixed
+- The device list now opens filtered to the default group, as the
+  documentation always said (it named the group but listed every device).
+
 ## [0.42.1] - 2026-11-25
 
 ### Changed

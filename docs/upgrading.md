@@ -130,8 +130,8 @@ upgrade, during normal operation, which would mean `app_secrets` was replaced.
 
 Existing data is adopted rather than reset, so after the upgrade:
 
-- Every backup has its change flag filled in, so the **Last Config Change**
-  column and the change markers in the backup list are immediately populated
+- Every backup has its change flag filled in, so the **last change** of each
+  device and the change markers in the backup list are immediately populated
   from your existing history.
 - Commands that already existed are upgraded by data migrations. Every RouterOS
   command whose payload uses the package update gains a verification and a 600 s
@@ -229,6 +229,11 @@ The move to PostgreSQL 18 above works from either.
 
 ## What you may notice after upgrading
 
+- **0.43.0: Devices and Backup list and detail.** The device list is a list
+  with the chosen device beside it, and the backup list the devices with
+  their history; the column chooser and the per-column filters are gone - the
+  search keeps `!` and `^`, the CSV export carries every field. The device
+  list now opens on the default group, as documented.
 - **0.40.0: the keys get a volume each.** The current compose file replaces
   0.38's `service_keys` volume with `monitoring_keys` and `cron_keys`, so
   monitoring and the scheduler can no longer read each other's key. A 0.38 or

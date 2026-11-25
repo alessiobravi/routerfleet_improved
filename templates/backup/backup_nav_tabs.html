@@ -1,29 +1,6 @@
-<ul class="nav nav-tabs" role="tablist">
-    <li class="nav-item">
-        <a class="nav-link {% if request.path == '/backup/profile_list/' %}active{% endif %}" href="/backup/profile_list/" role="tab">
-            Backup Profiles
-        </a>
-    </li>
-
-    <li class="nav-item">
-        <a class="nav-link {% if view_type == 'success' %}active{% endif %}" href="/backup/backup_list/"
-           role="tab">
-            Backup List
-        </a>
-    </li>
-
-    <li class="nav-item">
-        <a class="nav-link {% if view_type == 'queue' %}active{% endif %}" href="/backup/backup_list/?type=queue"
-           role="tab">
-            Backup Queue
-        </a>
-    </li>
-
-    <li class="nav-item">
-        <a class="nav-link {% if view_type == 'errors' %}active{% endif %}" href="/backup/backup_list/?type=errors"
-           role="tab">
-            Backup Errors
-        </a>
-    </li>
-    
-</ul>
+<nav class="rf-tabs" aria-label="Backup">
+    <a class="{% if request.path == '/backup/profile_list/' %}on{% endif %}" href="/backup/profile_list/">Backup Profiles</a>
+    <a class="{% if view_type == 'success' %}on{% endif %}" href="/backup/backup_list/">Backup List</a>
+    <a class="{% if view_type == 'queue' %}on{% endif %}" href="/backup/backup_list/?type=queue">Backup Queue</a>
+    <a class="{% if view_type == 'errors' %}on{% endif %}" href="/backup/backup_list/?type=errors">Backup Errors</a>
+</nav>
