@@ -999,3 +999,44 @@ class SSHKeyMenuTests(TestCase):
         devices = self.client.get('/router/list/')
         self.assertNotContains(devices, 'href="/ssh_keys/" role="tab"')
         self.assertNotContains(devices, '<a href="/ssh_keys/" class="nav-link active">')
+
+
+class SSHKeyListTests(TestCase):
+    """The SSH key list in the settings style: one row a key, with its type
+    and size, its SHA256 fingerprint as ssh-keygen shows it, and the devices
+    using it."""
+
+    def test_the_fingerprint_is_the_one_ssh_shows(self):
+        from router_manager.sshkeys import KEY_TYPES, checked, describe, generate
+        from routerlib.functions import load_private_key_from_string
+        labels = {'ed25519': 'Ed25519', 'ecdsa-256': 'ECDSA P-256', 'ecdsa-384': 'ECDSA P-384',
+                  'ecdsa-521': 'ECDSA P-521', 'rsa-2048': 'RSA 2048', 'rsa-3072': 'RSA 3072', 'rsa-4096': 'RSA 4096'}
+        for kind, _, _ in KEY_TYPES:
+            with self.subTest(kind=kind):
+                stored, public = checked(generate(kind), '')
+                _, label, fingerprint = describe(public + ' a-comment')
+                self.assertEqual(label, labels[kind])
+                self.assertEqual(fingerprint, load_private_key_from_string(stored).fingerprint)
+        self.assertEqual(describe(''), ('', '', ''))
+        self.assertEqual(describe('ssh-ed25519 not-base64!'), ('', '', ''))
+
+    def test_the_list_rows(self):
+        from router_manager.sshkeys import checked, generate
+        _, public = checked(generate('ed25519'), '')
+        key = SSHKey.objects.create(name='fleet key', public_key=public, private_key='FAKE-TEST-PRIVATE-KEY-MATERIAL',
+                                    passphrase='p')
+        make_router(ssh_key=key)
+        make_router(name='second', ssh_key=key)
+        self.client.force_login(make_user(40))
+        page = self.client.get('/ssh_keys/')
+        self.assertContains(page, 'class="rf-set-row rf-sshkey"')
+        self.assertContains(page, 'Ed25519 · <span class="rf-mono">SHA256:')
+        self.assertContains(page, '2 devices')
+        self.assertContains(page, 'Protected by a passphrase')
+        self.assertContains(page, 'Add an SSH key')
+        self.assertNotContains(page, '<table')
+        self.assertNotContains(page, 'FAKE-TEST-PRIVATE-KEY-MATERIAL')
+        self.client.force_login(make_user(10))
+        viewer = self.client.get('/ssh_keys/')
+        self.assertContains(viewer, 'fleet key')
+        self.assertNotContains(viewer, 'Add an SSH key')

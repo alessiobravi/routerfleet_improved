@@ -13,6 +13,14 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.42.1] - 2026-11-25
+
+### Changed
+- **The SSH key list in the style of the newer pages**: one row a key with
+  its type and size (Ed25519, ECDSA P-384, RSA 4096...), its SHA256
+  fingerprint - the one `ssh-keygen -l` and the devices show - and how many
+  devices use it; *Add an SSH key* closes the list, for those who may add.
+
 ## [0.42.0] - 2026-11-25
 
 ### Changed

@@ -44,6 +44,34 @@ def generate(kind):
                              serialization.NoEncryption()).decode()
 
 
+def describe(public_key):
+    """(kind for the icon, label, SHA256 fingerprint) of a public key line -
+    the fingerprint as ssh-keygen -l and devices show it. ('', '', '') when
+    the line is not one."""
+    import base64
+    import hashlib
+    parts = (public_key or '').split()
+    if len(parts) < 2:
+        return '', '', ''
+    try:
+        blob = base64.b64decode(parts[1], validate=True)
+    except ValueError:
+        return '', '', ''
+    fingerprint = 'SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
+    algorithm = parts[0]
+    if algorithm == 'ssh-ed25519':
+        return 'ed25519', 'Ed25519', fingerprint
+    if algorithm.startswith('ecdsa-sha2-nistp'):
+        return 'ecdsa', f"ECDSA P-{algorithm.removeprefix('ecdsa-sha2-nistp')}", fingerprint
+    if algorithm == 'ssh-rsa':
+        try:
+            import paramiko
+            return 'rsa', f'RSA {paramiko.RSAKey(data=blob).get_bits()}', fingerprint
+        except Exception:
+            return 'rsa', 'RSA', fingerprint
+    return 'other', algorithm, fingerprint
+
+
 def comment_for(name):
     """The comment ending a generated key's public line - the key's name,
     without spaces, so a device lists the key under a recognisable name."""

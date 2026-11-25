@@ -1,54 +1,35 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                <th>Name</th>
-                                <th>Public Key</th>
-                                <th>Devices</th>
-                                <th></th>
-                                </thead>
-
-                                <tbody>
-                                {% for sshkey in sshkey_list %}
-                                    <tr>
-                                        <td>{{ sshkey.name }}{% if sshkey.passphrase %} <i class="fas fa-lock text-danger ms-1" role="img" aria-label="Protected by a passphrase" title="Protected by a passphrase"></i>{% endif %}</td>
-                                        <td>{{ sshkey.public_key|slice:40 }}...</td>
-                                        <td>{{ sshkey.router_set.count }}</td>
-                                        <td class="min-width">
-                                            <a href="/ssh_keys/manage/?uuid={{ sshkey.uuid }}" title="Edit" aria-label="Edit {{ sshkey.name }}"><i
-                                                    class="fas fa-edit"></i></a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                    </div>
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <a href="/ssh_keys/manage/" class="btn btn-primary">Add SSH Key</a>
-
-                        </div>
-                        
-
-                    </div>
-
-                </div>
-            </div>
+<div class="rf-settings">
+    <div class="rf-set-title">SSH keys</div>
+    <div class="rf-set-group">
+        {% if rows|length > 8 %}
+        <div class="rf-set-row rf-set-search">
+            <span class="rf-set-icon sky"><i class="fas fa-search"></i></span>
+            <input type="search" class="form-control" data-rf-filter=".rf-sshkey" placeholder="Filter by name, type or fingerprint" aria-label="Filter the SSH keys">
         </div>
+        {% endif %}
+        {% for row in rows %}
+        <a class="rf-set-row rf-sshkey" href="/ssh_keys/manage/?uuid={{ row.key.uuid }}">
+            <span class="rf-set-icon {% if row.kind == 'ed25519' %}green{% elif row.kind == 'ecdsa' %}teal{% elif row.kind == 'rsa' %}indigo{% else %}sky{% endif %}"><i class="fas fa-key"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.key.name }}{% if row.key.passphrase %} <i class="fas fa-lock text-danger ms-1" role="img" aria-label="Protected by a passphrase" title="Protected by a passphrase"></i>{% endif %}</span>
+                <span class="rf-set-sub d-block">{% if row.label %}{{ row.label }} · <span class="rf-mono">{{ row.fingerprint }}</span>{% else %}No public key{% endif %}</span></span>
+            <span class="rf-set-value">{{ row.key.devices }} device{{ row.key.devices|pluralize }}</span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% empty %}
+        <div class="rf-set-row"><span class="rf-set-text text-muted">No SSH key yet.</span></div>
+        {% endfor %}
+        {% if can_manage %}
+        <a class="rf-set-row rf-set-add" href="/ssh_keys/manage/">
+            <span class="rf-set-icon amber"><i class="fas fa-plus"></i></span>
+            <span class="rf-set-text"><span class="rf-set-label d-block">Add an SSH key</span>
+                <span class="rf-set-sub d-block">Generate a new one - Ed25519, ECDSA or RSA - or paste an existing key</span></span>
+            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
+        </a>
+        {% endif %}
     </div>
-    
+    <div class="rf-set-foot">A key is stored once and used by as many devices as you choose in their settings. The fingerprint is the one <code>ssh-keygen -l</code> and the devices show. A red lock: protected by a passphrase. Private keys are shown only to administrators, in the key's page.</div>
+</div>
 {% endblock %}

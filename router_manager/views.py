@@ -388,9 +388,16 @@ def view_manage_router_group(request):
 
 @login_required()
 def view_ssh_key_list(request):
+    """The SSH keys, one row each: type and size, fingerprint, devices using it."""
+    from django.db.models import Count
+    from router_manager.sshkeys import describe
+    rows = []
+    for sshkey in SSHKey.objects.annotate(devices=Count('router')).order_by('name'):
+        kind, label, fingerprint = describe(sshkey.public_key)
+        rows.append({'key': sshkey, 'kind': kind, 'label': label, 'fingerprint': fingerprint})
     context = {
-        'sshkey_list': SSHKey.objects.all().order_by('name'),
-        'page_title': 'SSH Keys',
+        'rows': rows, 'page_title': 'SSH Keys',
+        'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'router_manager/sshkey_list.html', context=context)
 
