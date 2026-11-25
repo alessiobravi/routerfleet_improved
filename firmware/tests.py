@@ -399,12 +399,11 @@ class UpdateOptionsTests(TestCase):
         routeros = device_types.get('routeros')
         options._cache.clear()
         answer = mock.MagicMock(status_code=200, text='7.25.2 1795173070\n')
-        with mock.patch('firmware.options.requests.get', return_value=answer) as get, \
-                mock.patch('routerlib.router_functions._safe_url', side_effect=lambda url: url):
+        with mock.patch('routerlib.outbound.https_get', return_value=answer) as get:
             self.assertEqual(options.fetch_channel_version(routeros, 'https://vendor.example/a'), '7.25.2')
             self.assertEqual(options.fetch_channel_version(routeros, 'https://vendor.example/a'), '7.25.2')
             self.assertEqual(get.call_count, 1, 'kept for an hour')
-        with mock.patch('routerlib.router_functions._safe_url', side_effect=ValueError('only https')):
+        with mock.patch('routerlib.outbound.https_get', side_effect=ValueError('only https')):
             self.assertEqual(options.fetch_channel_version(routeros, 'http://vendor.example/b'), '')
 
     def test_channel_lines_are_validated(self):
@@ -634,8 +633,7 @@ class MorePlatformsTests(TestCase):
         self.assertTrue(openwrt.update_any_major)
         body = json.dumps({'stable_version': '25.12.6', 'oldstable_version': '24.10.8', 'upcoming_version': ''})
         options._cache.clear()
-        with mock.patch('firmware.options.requests.get', return_value=mock.MagicMock(status_code=200, text=body)) as get, \
-                mock.patch('routerlib.router_functions._safe_url', side_effect=lambda url: url):
+        with mock.patch('routerlib.outbound.https_get', return_value=mock.MagicMock(status_code=200, text=body)) as get:
             found = options.options_for(router)
         online = [(o['channel'], o['version']) for o in found if o['kind'] == 'online']
         self.assertEqual(online, [('stable', '25.12.6'), ('oldstable', '24.10.8')])

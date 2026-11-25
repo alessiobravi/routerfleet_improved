@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 # "<major or *> <channel>: https://... [| pattern]" - the pattern reads this line's version
 CHANNEL_LINE = re.compile(r'^\s*(\d{1,3}|\*)\s+([A-Za-z0-9][\w.\-]{0,39})\s*:\s*(https://[^\s|]{1,300})\s*(?:\|\s*(.{1,200}?))?\s*$')
 DEFAULT_PATTERN = r'^\s*([0-9][0-9A-Za-z.\-]*)'
+PLAIN_VERSION = re.compile(r'^[0-9A-Za-z][0-9A-Za-z._+\-]{0,63}$')
 CACHE_SECONDS = 3600
 _cache = {}   # url -> (time, version)
 
@@ -80,14 +81,13 @@ def fetch_channel_version(device_type, url, pattern=''):
     read - read with the line's pattern, else the device type's, else the
     first word. Fetched by the server, https only, never on RouterFleet's own
     networks, kept for an hour (one fetch for lines sharing an address)."""
-    from routerlib.router_functions import _safe_url
+    from routerlib import outbound
     cached = _cache.get(url)
     if cached and time.time() - cached[0] < CACHE_SECONDS:
         text = cached[1]
     else:
         try:
-            response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
-                                    headers={'User-Agent': 'RouterFleet-Improved'})
+            response = outbound.https_get(url, headers={'User-Agent': 'RouterFleet-Improved'}, limit=256 * 1024)
             response.raise_for_status()
             text = response.text[:20000]
         except Exception as error:
@@ -98,7 +98,10 @@ def fetch_channel_version(device_type, url, pattern=''):
         match = re.search(pattern or device_type.update_channel_pattern or DEFAULT_PATTERN, text, re.MULTILINE)
     except re.error:
         match = None
-    return match.group(1).strip()[:64] if match and match.groups() else ''
+    version = match.group(1).strip()[:64] if match and match.groups() else ''
+    # Filled into the device's update command later: a plain version only, or
+    # nothing - what a vendor page (or whoever serves it) says is not trusted
+    return version if PLAIN_VERSION.match(version) else ''
 
 
 def current_channel(router):

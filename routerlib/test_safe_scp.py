@@ -115,3 +115,56 @@ class CronKeyTests(SimpleTestCase):
         self.assertTrue(calls)
         for line in calls:
             self.assertIn('-H "X-RF-Cron-Key: $(cat /service_keys/cron_key 2>/dev/null)"', line)
+
+
+class PinnedHttpsTests(SimpleTestCase):
+    """An HTTPS fetch goes to exactly the address that was checked - the name
+    is not resolved a second time - while TLS still checks and announces the
+    name; the answer is size-limited."""
+
+    def test_the_connection_goes_to_the_checked_address_with_the_name_for_tls(self):
+        from unittest import mock
+        from routerlib import outbound
+        seen = {}
+
+        class FakeResponse:
+            status_code, encoding = 200, 'utf-8'
+            def iter_content(self, size): return iter([b'{"ok": true}'])
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+
+        def get(session, url, **kwargs):
+            seen['url'], seen['headers'], seen['redirects'] = url, kwargs['headers'], kwargs['allow_redirects']
+            adapter = session.get_adapter(url)
+            seen['sni'] = adapter.poolmanager.connection_pool_kw.get('server_hostname')
+            seen['assert'] = adapter.poolmanager.connection_pool_kw.get('assert_hostname')
+            return FakeResponse()
+        with mock.patch('console.network.check', return_value='203.0.113.7'), \
+                mock.patch('requests.Session.get', autospec=True, side_effect=get):
+            answer = outbound.https_get('https://vendor.example/releases.json')
+        self.assertEqual(answer.json(), {'ok': True})
+        self.assertEqual(seen['url'], 'https://203.0.113.7:443/releases.json')
+        self.assertEqual(seen['headers']['Host'], 'vendor.example')
+        self.assertEqual((seen['sni'], seen['assert']), ('vendor.example', 'vendor.example'))
+        self.assertFalse(seen['redirects'])
+
+    def test_ipv6_and_a_size_limit(self):
+        from unittest import mock
+        from routerlib import outbound
+
+        class Big:
+            status_code, encoding = 200, 'utf-8'
+            def iter_content(self, size): return iter([b'x' * 4096] * 10)
+            def __enter__(self): return self
+            def __exit__(self, *exc): return False
+        with mock.patch('console.network.check', return_value='2001:db8::7'), \
+                mock.patch('requests.Session.get', return_value=Big()) as get:
+            with self.assertRaises(ValueError):
+                outbound.https_get('https://vendor.example:8443/x', limit=1024)
+        self.assertEqual(get.call_args.args[0], 'https://[2001:db8::7]:8443/x')
+        self.assertEqual(get.call_args.kwargs['headers']['Host'], 'vendor.example:8443')
+
+    def test_only_https(self):
+        from routerlib import outbound
+        with self.assertRaises(ValueError):
+            outbound.https_get('http://vendor.example/x')

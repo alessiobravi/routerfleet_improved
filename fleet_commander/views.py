@@ -598,7 +598,7 @@ def view_task_details(request):
     verification_expectations = []
     if task.command_variant:
         verification_expectations = build_verification_expectations(
-            task.command_variant, task.verify_context or {}
+            task.command_variant, task.verify_context or {}, for_display=True
         )
     from routerfleet.object_pages import task_page
     context = {

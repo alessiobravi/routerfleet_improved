@@ -59,9 +59,16 @@ class TelnetFilter:
     def __init__(self):
         self.pending = b''
 
+    # A negotiation that never ends (an IAC SB without its IAC SE) is dropped
+    # rather than kept growing for the whole session
+    MOST_PENDING = 4096
+
     def feed(self, data):
         data = self.pending + data
         self.pending = b''
+        if len(data) > self.MOST_PENDING and data.startswith(bytes((self.IAC, self.SB))) and \
+                data.find(bytes((self.IAC, self.SE))) == -1:
+            data = b''
         out, replies, i = bytearray(), bytearray(), 0
         while i < len(data):
             byte = data[i]
@@ -250,13 +257,16 @@ class ConsoleConsumer(AsyncWebsocketConsumer):
 
     async def open_ssh(self, cols, rows, password):
         router = self.session.router
-        await asyncio.to_thread(network.check, router.address, router.port)
+        # The checked address is the one connected to (the name is not looked up
+        # again); the host key is still the one stored for the device's address
+        address = await asyncio.to_thread(network.check, router.address, router.port)
         if self.session.account == 'backup':
             username, secret, key = router.username, router.password, router.ssh_key
         else:
             username, secret, key = self.session.username, password or '', None
         await self.status(f'Connecting to {router.address}:{router.port} as {username}...')
-        self.ssh = await asyncio.to_thread(connect_to_ssh, router.address, router.port, username, secret, key)
+        self.ssh = await asyncio.to_thread(connect_to_ssh, router.address, router.port, username, secret, key,
+                                           connect_to=address)
         secret = password = None
         channel = await asyncio.to_thread(self.ssh.invoke_shell, term='xterm-256color', width=cols, height=rows)
         self.device = channel

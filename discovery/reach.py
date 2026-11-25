@@ -19,7 +19,8 @@ def is_ip(value):
         address = ipaddress.ip_address((value or '').strip())
     except ValueError:
         return False
-    return not (address.is_link_local or address.is_multicast or address.is_unspecified)
+    # Loopback would probe RouterFleet's own container, not a device
+    return not (address.is_link_local or address.is_multicast or address.is_unspecified or address.is_loopback)
 
 
 def _probe(address, port=SSH_PORT):

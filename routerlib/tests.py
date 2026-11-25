@@ -381,7 +381,7 @@ class OpenWrtInformationTests(TestCase):
                 version = url.split('/releases/')[1].split('/')[0]
                 response.status_code = 200 if version in boards_with_images else 404
             return response
-        return mock.patch('routerlib.router_functions.requests.get', side_effect=get)
+        return mock.patch('routerlib.outbound.https_get', side_effect=get)
 
     def offered(self, version_id='23.05.3', board='ramips/mt7621'):
         values = {'VERSION_ID': version_id, 'OPENWRT_BOARD': board}
@@ -407,7 +407,7 @@ class OpenWrtInformationTests(TestCase):
         self.assertEqual(info.available_version, '24.10.1')
         self.assertTrue(info.update_available)
         self.assertIn('/releases/24.10.1/targets/ramips/mt7621/profiles.json', get.call_args_list[-1].args[0])
-        self.assertFalse(get.call_args_list[0].kwargs['allow_redirects'])
+        self.assertIn('User-Agent', get.call_args_list[0].kwargs['headers'])
 
     def test_release_without_images_for_the_board_is_not_offered(self):
         with self.fake_requests(boards_with_images=()):
@@ -431,7 +431,7 @@ class OpenWrtInformationTests(TestCase):
     def test_snapshot_and_unreadable_release_list_are_unknown(self):
         with self.fake_requests():
             self.assertEqual(self.offered('SNAPSHOT'), ('', False))
-        with mock.patch('routerlib.router_functions.requests.get', side_effect=OSError('down')), \
+        with mock.patch('routerlib.outbound.https_get', side_effect=OSError('down')), \
                 self.assertLogs('routerlib.router_functions', level='WARNING'):
             self.assertEqual(self.offered(), ('', False))
 
@@ -451,14 +451,15 @@ class OpenWrtInformationTests(TestCase):
         from router_manager.models import DeviceType
         DeviceType.objects.filter(pk=self.device_type.pk).update(vendor_url='http://downloads.example.com/v.json')
         self.device_type.refresh_from_db()
-        with mock.patch('routerlib.router_functions.requests.get') as get, \
+        # The real https_get, with the network faked: nothing is sent at all
+        with mock.patch('requests.Session.get') as get, \
                 self.assertLogs('routerlib.router_functions', level='WARNING'):
             self.assertEqual(self.offered(), ('', False))
         get.assert_not_called()
         DeviceType.objects.filter(pk=self.device_type.pk).update(vendor_url='https://internal.example/v.json')
         self.device_type.refresh_from_db()
         with mock.patch('console.network.check', side_effect=Refused('internal')), \
-                mock.patch('routerlib.router_functions.requests.get') as get, \
+                mock.patch('requests.Session.get') as get, \
                 self.assertLogs('routerlib.router_functions', level='WARNING'):
             self.assertEqual(self.offered(), ('', False))
         get.assert_not_called()

@@ -191,8 +191,9 @@ class ConsumerTests(TransactionTestCase):
         self.connect_mock = patcher.start()
         self.addCleanup(patcher.stop)
 
-    def connect(self, address, port, username, password, key):
+    def connect(self, address, port, username, password, key, connect_to=None):
         self.connected_with = (address, port, username, password)
+        self.connected_to = connect_to   # the address checked, connected to without a second lookup
         return self.fake
 
     def ticket(self, account='backup', username=None, user=None, transport='ssh'):
@@ -266,6 +267,7 @@ class ConsumerTests(TransactionTestCase):
         self.assertEqual(self.connected_with, ('192.0.2.1' if self.router.address == '192.0.2.1' else self.router.address,
                                                self.router.port, self.router.username, 'stored-secret'))
         self.assertEqual(self.fake.channel.size, (100, 30))
+        self.assertTrue(self.connected_to, 'connected to the checked address, not a fresh lookup')
         banner = await communicator.receive_from(timeout=3)
         self.assertEqual(banner, b'device> ')
         await communicator.send_to(bytes_data=b'/system resource print\r')

@@ -52,22 +52,35 @@ def load_private_key_from_string(key_str, passphrase=None):
     return None
 
 
-def connect_to_ssh(address, port, username, password, sshkey=None):
+def connect_to_ssh(address, port, username, password, sshkey=None, connect_to=None):
+    """connect_to: the IP to open the connection to, already checked (the
+    console) - the name is then not resolved again; the host key is the one
+    stored for the address either way."""
     ssh_client = paramiko.SSHClient()
     # The device must present the host key it presented the first time
     stored = host_keys.prepare(ssh_client, address, port)
+    sock = None
     try:
+        if connect_to:
+            import socket
+            sock = socket.create_connection((connect_to, port), timeout=10)
+        common = dict(port=port, username=username, look_for_keys=False, timeout=10, banner_timeout=10,
+                      auth_timeout=15, allow_agent=False, sock=sock)
         if sshkey:
             private_key = load_private_key_from_string(sshkey.private_key, getattr(sshkey, 'passphrase', None))
-            ssh_client.connect(address, port=port, username=username, pkey=private_key, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
+            ssh_client.connect(address, pkey=private_key, **common)
         else:
-            ssh_client.connect(address, port=port, username=username, password=password, look_for_keys=False, timeout=10, banner_timeout=10, auth_timeout=15, allow_agent=False)
+            ssh_client.connect(address, password=password, **common)
     except paramiko.BadHostKeyException as error:
         # A different key than the stored one (of any type): refused before authentication
         ssh_client.close()
+        if sock is not None:
+            sock.close()
         raise host_keys.HostKeyChanged(host_keys.changed_message(stored, error.key)) from None
     except Exception:
         ssh_client.close()
+        if sock is not None:
+            sock.close()
         raise
     host_keys.remember(ssh_client, address, port, stored)
     return ssh_client

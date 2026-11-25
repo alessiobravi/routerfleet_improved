@@ -579,3 +579,31 @@ class PagesTests(TestCase):
         self.assertIn('Show 1 hidden device', listing)
         shown = self.client.get('/router/discovered/?dismissed=1').content.decode()
         self.assertIn('Show again', shown)
+
+
+class ListenerBoundsTests(TestCase):
+    """What anyone on the LAN can send is bounded: devices remembered, field
+    lengths, devices imported; loopback is never an address to probe."""
+
+    def test_the_listener_remembers_a_bounded_number_and_length(self):
+        module = listener()
+        module.seen.clear()
+        module.MOST_DEVICES = 5
+        for number in range(20):
+            module.remember({'mac': f'00:00:5e:00:53:{number:02x}', 'identity': 'x' * 5000}, 'lldp')
+        self.assertEqual(len(module.seen), 5)
+        self.assertTrue(all(len(entry['identity']) <= module.LONGEST_FIELD for entry in module.seen.values()))
+        module.seen.clear()
+
+    def test_loopback_is_not_an_address(self):
+        from .reach import is_ip
+        self.assertEqual(listener().usable('127.0.0.1'), '')
+        self.assertFalse(is_ip('127.0.0.1'))
+        self.assertFalse(is_ip('::1'))
+        self.assertTrue(is_ip('192.0.2.5'))
+
+    def test_an_oversized_listener_file_is_skipped(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / 'seen.json'
+            path.write_bytes(b' ' * (8 * 1024 * 1024 + 1))
+            self.assertEqual(import_listener_file(str(path)), 0)

@@ -19,10 +19,19 @@ class PlaceholderTests(SimpleTestCase):
 
     def test_expectations_are_resolved(self):
         variant = self.variant('installed-version: {{ expected_version }}\n\n  plain line  \n')
-        self.assertEqual(cf.build_verification_expectations(variant, {'expected_version': '7.17'}), [
+        self.assertEqual(cf.build_verification_expectations(variant, {'expected_version': '7.17'}, for_display=True), [
             ('installed-version: {{ expected_version }}', 'installed-version: 7.17'),
             ('plain line', 'plain line'),
         ])
+        # For matching, a value from the device is literal text, never a pattern
+        self.assertEqual(cf.build_verification_expectations(variant, {'expected_version': '7.17'})[0][1],
+                         'installed-version: 7\\.17')
+
+    def test_a_device_value_can_not_force_a_match(self):
+        variant = self.variant('installed-version: {{ expected_version }}')
+        resolved = cf.build_verification_expectations(variant, {'expected_version': '.*'})[0][1]
+        self.assertFalse(cf.expectation_matches(resolved, 'installed-version: 7.16'))
+        self.assertTrue(cf.expectation_matches(resolved, 'installed-version: .*'))
 
     def test_unknown_placeholder_is_left_as_written(self):
         self.assertEqual(cf.build_verification_expectations(self.variant('{{ nope }}'), {}),

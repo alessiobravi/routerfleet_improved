@@ -104,6 +104,19 @@ def firmware_values(target):
     return {'firmware_name': name, 'firmware_path': path, 'firmware_version': image.version}
 
 
+# What a version or a name filled into a device command may contain - nothing
+# a device's command line would read as more than one word or command
+COMMAND_VALUE = re.compile(r'^[0-9A-Za-z][0-9A-Za-z._+\-]{0,79}$')
+
+
+def unsafe_values(target):
+    """The placeholder values (versions, channel, file name) that are not
+    plain, '' when all are."""
+    bad = [str(value) for key, value in firmware_values(target).items()
+           if key != 'firmware_path' and value and not COMMAND_VALUE.match(str(value))]
+    return ', '.join(bad)[:120]
+
+
 def install_key(target):
     return 'firmware_online_update' if online(target) else 'firmware_install'
 
@@ -153,6 +166,9 @@ def check_target(target):
             return f'{device_type.name} has no bootloader firmware upgrade'
         if target.rollout.source == 'bootloader':
             return ''
+    unsafe = unsafe_values(target)
+    if unsafe:
+        return f'not a plain version or name, so never put in a device command: {unsafe}'
     if online(target):
         if not target.to_version:
             return 'no version to update to'

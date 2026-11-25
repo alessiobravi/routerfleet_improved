@@ -258,3 +258,20 @@ class SharedAddressTests(TestCase):
             v6.write_text('00000000000000000000000000000000 00 00000000000000000000000000000000 00 '
                           'fd7266746c7400000000000000000001 00000400 00000000 00000000 00000003 eth0\n')
             self.assertEqual(gateways(str(v4), str(v6)), {'172.30.0.1', 'fd72:6674:6c74::1'})
+
+
+class ConsoleForwardedForTests(SimpleTestCase):
+    """The console server trusts X-Forwarded-For: nginx sends the client as it
+    sees it, alone - never appended to what the browser claimed."""
+
+    def test_every_console_location_sends_the_client_alone(self):
+        for name in ('containers/nginx/rf_https.sh', 'containers/nginx/virtualhost.conf',
+                     'containers/nginx/virtualhost_noredirect.conf'):
+            text = (ROOT / name).read_text()
+            position = 0
+            while (start := text.find('location /console/ws/', position)) != -1:
+                block = text[start:text.index('}', start)]
+                with self.subTest(file=name):
+                    self.assertIn('X-Forwarded-For', block)
+                    self.assertNotIn('proxy_add_x_forwarded_for', block)
+                position = start + 1

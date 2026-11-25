@@ -90,7 +90,8 @@ locations() {
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host \$http_host;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        # The client as nginx sees it, alone: the console server trusts this header
+        proxy_set_header X-Forwarded-For \$remote_addr;
         proxy_set_header X-Forwarded-Proto $1;
         proxy_read_timeout 4h;
         proxy_send_timeout 4h;

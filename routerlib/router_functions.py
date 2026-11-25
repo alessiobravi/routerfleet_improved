@@ -26,23 +26,12 @@ def _version_key(version: str) -> tuple:
     return tuple(int(part) if part.isdigit() else 0 for part in re.split(r'[.\-]', version or ''))
 
 
-def _safe_url(url):
-    """Only https, and never an address on RouterFleet's own networks: the
-    URL is configured in a device type, and is fetched by the server."""
-    from console import network
-    parts = urlsplit(url or '')
-    if parts.scheme != 'https' or not parts.hostname:
-        raise ValueError('only https:// addresses are fetched')
-    network.check(parts.hostname, parts.port or 443)
-    return url
-
-
 def _fetch_json(url):
     cached = _vendor_cache.get(url)
     if cached and time.time() - cached[0] < VENDOR_CACHE_TTL:
         return cached[1]
-    response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
-                            headers={'User-Agent': 'RouterFleet-Improved-update-check'})
+    from routerlib import outbound
+    response = outbound.https_get(url, headers={'User-Agent': 'RouterFleet-Improved-update-check'})
     response.raise_for_status()
     data = response.json()
     _vendor_cache[url] = (time.time(), data)
@@ -52,8 +41,8 @@ def _fetch_json(url):
 def _confirmed(url):
     if url not in _confirm_cache:
         try:
-            response = requests.get(_safe_url(url), timeout=10, allow_redirects=False,
-                                    headers={'User-Agent': 'RouterFleet-Improved-update-check'})
+            from routerlib import outbound
+            response = outbound.https_get(url, headers={'User-Agent': 'RouterFleet-Improved-update-check'})
             _confirm_cache[url] = response.status_code == 200
         except (requests.RequestException, ValueError):
             return False  # not cached: asked again next time

@@ -77,6 +77,9 @@ def import_listener_file(path=None):
     path = path or getattr(settings, 'DISCOVERY_FILE', '/discovery/seen.json')
     if not os.path.isfile(path):
         return 0
+    if os.path.getsize(path) > 8 * 1024 * 1024:
+        logger.warning('The discovery listener file is too large to read; skipped.')
+        return 0
     try:
         with open(path, encoding='utf-8') as handle:
             data = json.load(handle)
@@ -84,7 +87,9 @@ def import_listener_file(path=None):
         logger.warning('The discovery listener file could not be read.')
         return 0
     records = []
-    for record in (data.get('devices') or {}).values() if isinstance(data, dict) else []:
+    # Bounded like the listener itself: a flood of announcements on the LAN can
+    # not fill the database
+    for record in list((data.get('devices') or {}).values())[:MOST_IMPORTED] if isinstance(data, dict) else []:
         if isinstance(record, dict):
             clean = {k: str(v)[:200] for k, v in record.items() if k != 'protocols' and isinstance(v, (str, int))}
             clean['protocols'] = {str(p)[:8] for p in record.get('protocols') or [] if p in ('lldp', 'cdp', 'mndp', 'ubnt')}
@@ -93,6 +98,7 @@ def import_listener_file(path=None):
 
 
 WINDOW_SECONDS = 180
+MOST_IMPORTED = 2000   # devices taken from the listener's file at once
 ALIVE_SECONDS = 30
 
 

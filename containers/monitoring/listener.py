@@ -41,18 +41,28 @@ def usable(address):
         parsed = ipaddress.ip_address((address or '').split('%')[0])
     except ValueError:
         return ''
-    return '' if (parsed.is_link_local or parsed.is_multicast or parsed.is_unspecified) else str(parsed)
+    return '' if (parsed.is_link_local or parsed.is_multicast or parsed.is_unspecified or parsed.is_loopback) else str(parsed)
 
 
 def mac_text(raw):
     return ':'.join(f'{b:02x}' for b in raw)
 
 
+# Anyone on the LAN can send these frames, as many as they like and with any
+# content: what is kept is bounded - this many devices, this long a field -
+# so a flood can not exhaust the container's memory or the database behind it
+MOST_DEVICES = 2000
+LONGEST_FIELD = 200
+
+
 def remember(record, protocol):
+    record = {k: v[:LONGEST_FIELD] if isinstance(v, str) else v for k, v in record.items()}
     key = record.get('mac') or f"{record.get('address', '')}|{record.get('identity', '')}"
     if key in ('|', ''):
         return
     with lock:
+        if key not in seen and len(seen) >= MOST_DEVICES:
+            return   # full: already-known devices still update, new ones wait for the next window
         known = seen.setdefault(key, {'protocols': []})
         known.update({k: v for k, v in record.items() if v})
         if protocol not in known['protocols']:
@@ -75,7 +85,7 @@ def parse_mndp(data, source=''):
         if name == 'mac' and len(value) == 6:
             record['mac'] = mac_text(value)
         elif name == 'address' and len(value) == 4:
-            record['address'] = str(ipaddress.IPv4Address(value))
+            record['address'] = usable(str(ipaddress.IPv4Address(value))) or record.get('address', '')
         elif name:
             record[name] = value.decode('utf-8', errors='replace')
     return record
@@ -100,7 +110,7 @@ def parse_ubnt(data, source=''):
         position += 3 + length
         if kind == 0x02 and len(value) == 10:
             record['mac'] = mac_text(value[:6])
-            record['address'] = str(ipaddress.IPv4Address(value[6:10]))
+            record['address'] = usable(str(ipaddress.IPv4Address(value[6:10]))) or record.get('address', '')
         elif kind in (0x01, 0x05, 0x13) and len(value) == 6:
             record.setdefault('mac', mac_text(value))
         elif kind in UBNT_FIELDS and value:

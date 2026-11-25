@@ -52,18 +52,24 @@ def extract_expected_version(output):
     return match.group(1).strip() if match else ''
 
 
-def build_verification_expectations(variant, context):
+def build_verification_expectations(variant, context, for_display=False):
     """The expectations of a variant, with their placeholders resolved.
 
-    Returns a list of (as written, resolved) tuples.
+    Returns a list of (as written, resolved) tuples - resolved for matching
+    (values escaped), or for_display as a person reads it.
     """
     expectations = []
     for line in (variant.verify_expect or '').splitlines():
         line = line.strip()
         if not line:
             continue
+        # A value comes from the device (the version it reported): matched as
+        # the text it is, never read as a regular expression of its own - '.*'
+        # would pass anything, a crafted one could stall the scheduler
         resolved = PLACEHOLDER_PATTERN.sub(
-            lambda match: str(context.get(match.group(1), match.group(0))), line
+            lambda match: ((str if for_display else re.escape)(str(context[match.group(1)]))
+                           if match.group(1) in context else match.group(0)),
+            line
         )
         expectations.append((line, resolved))
     return expectations
