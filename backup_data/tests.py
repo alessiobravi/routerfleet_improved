@@ -317,10 +317,8 @@ class PipelineTests(TestCase):
         self.assertNotIn('header comment', backup.backup_text)
 
     def test_named_text_backups_are_kept_apart_and_all_count_as_change(self):
-        from fleet_commander.models import CommandVariant
         backup = self.make_backup('juniper-junos')
         router = backup.router
-        Router = type(router)
         # Juniper talks through a shell; the fake client answers per command here
         edit_type('juniper-junos', session_mode='exec')
         client = FakeSSHClient({'show configuration': '## Last commit: 2026-11-22\nsystem { host-name r1; }\n',
