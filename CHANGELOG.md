@@ -16,10 +16,9 @@ the Zabbix kit reads, says so under **Monitoring**.
 ## [0.45.1] - 2026-11-26
 
 ### Added
-- **Clear discovered devices.** *Remove* takes one off the list, *Clear
-  these* every device of the view shown (new, in RouterFleet or hidden),
-  after a small sum. Only RouterFleet's record goes: a device heard again
-  comes back as new.
+- **Clear Discovered Devices** empties the whole list - new, in RouterFleet
+  and hidden - after a small sum; *Remove* takes one device off. Only
+  RouterFleet's record goes: a device heard again comes back as new.
 
 ## [0.45.0] - 2026-11-26
 

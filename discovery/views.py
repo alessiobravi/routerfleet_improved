@@ -159,7 +159,8 @@ def view_discovered(request):
         return _back(view, device)
     if request.method == 'POST' and request.POST.get('action') in ('remove', 'clear'):
         # Only RouterFleet's record goes: a device heard again comes back as new
-        rows = dict(zip(VIEWS, _classify()))[view]
+        views = dict(zip(VIEWS, _classify()))
+        rows = views[view]
         if request.POST.get('action') == 'remove':
             # Any record behind the row names it - which one the row shows depends on the database's order
             row = next((r for r in rows if request.POST.get('uuid', '') in r['uuids']), None)
@@ -167,15 +168,16 @@ def view_discovered(request):
                 raise Http404
             ids, label = row['ids'], (row['router'].name if row['router'] else row['device'].identity or row['device'].address or row['device'].mac)
         elif posted_confirmation(request) == 'clear':
-            ids, label = [pk for r in rows for pk in r['ids']], None
+            # The whole list - new, in RouterFleet and hidden
+            ids, label = list(DiscoveredDevice.objects.values_list('pk', flat=True)), None
         else:
             messages.warning(request, 'Not cleared|The confirmation was missing or wrong.')
             return _back(view)
         removed = DiscoveredDevice.objects.filter(pk__in=ids).delete()[0]
         messages.success(request, (f'Removed|{label} - it comes back if it is heard again.' if label else
-                                   f'List cleared|{removed} discovered device{"s" if removed != 1 else ""} removed; '
-                                   'they come back if they are heard again.'))
-        return _back(view)
+                                   f'Discovered devices cleared|{removed} removed; '
+                                   'a device comes back if it is heard again.'))
+        return _back('new' if not label else view)
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'

@@ -3,8 +3,8 @@
 
 {% block pane_attrs %}id="rf-live-discovered" data-rf-live="{% if busy %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5"{% endblock %}
 {% block pane_sub %}{{ new|length }} new · {{ known|length }} in RouterFleet · {{ dismissed|length }} hidden{% endblock %}
-{% block pane_actions %}{% if rows %}<button type="button" class="btn btn-outline-danger btn-sm" data-rf-post="?view={{ view }}" data-rf-field-action="clear"
-        data-rf-confirm-word="clear" data-rf-confirm-sum="Remove all {{ rows|length }} {% if view == 'new' %}new{% elif view == 'known' %}already-known{% else %}hidden{% endif %} discovered device{{ rows|length|pluralize }}? Only RouterFleet's list is cleared: a device heard again comes back as new."><i class="fas fa-trash me-1" aria-hidden="true"></i>Clear these</button>{% endif %}
+{% block pane_actions %}{% if new or known or dismissed %}<button type="button" class="btn btn-outline-danger btn-sm" data-rf-post="?view={{ view }}" data-rf-field-action="clear"
+        data-rf-confirm-word="clear" data-rf-confirm-sum="Clear all discovered devices - {{ new|length }} new, {{ known|length }} in RouterFleet, {{ dismissed|length }} hidden? Only RouterFleet's list is cleared: a device heard again by a later discovery comes back as new."><i class="fas fa-trash me-1" aria-hidden="true"></i>Clear Discovered Devices</button>{% endif %}
 <a href="/discovery/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-tower-broadcast me-1" aria-hidden="true"></i>Device Discovery</a>{% endblock %}
 {% block pane_tabs %}{% include 'router_manager/router_nav_tabs.html' %}{% endblock %}
 {% block pane_notices %}{% if busy %}<div class="rf-notice"><span><span class="rf-st run"><i></i>A discovery is running</span> - new devices appear here as they are found.</span><a href="/discovery/">Follow it</a></div>{% endif %}{% endblock %}

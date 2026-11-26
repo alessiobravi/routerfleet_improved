@@ -134,10 +134,10 @@ itself. A switch above the list picks which ones:
   one row per device, however many protocols heard it.
 - **Hidden**: the devices put aside; **Show again** makes one new again.
 
-**Remove** takes the chosen device off the list, **Clear these** every device
-of the view shown (after a small sum). Only RouterFleet's record goes: a
-device heard again by a later discovery comes back as new - clearing the
-hidden ones lets them come back. Housekeeping also removes, by itself, a
+**Remove** takes the chosen device off the list; **Clear Discovered Devices**
+empties the whole list - new, in RouterFleet and hidden - after a small sum.
+Only RouterFleet's record goes: a device heard again by a later discovery
+comes back as new, hidden ones included. Housekeeping also removes, by itself, a
 device not heard for 90 days (hidden ones excepted, so they stay hidden).
 
 A device is one row: merged by its MAC address when known, else by address
