@@ -1,89 +1,67 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 {% load custom_tags %}
 
-{% block content %}
-<div class="card card-primary card-outline">
-    <div class="card-header"><h3 class="card-title">{{ page_title }}</h3></div>
-    <div class="card-body">
-        {% include 'router_manager/router_nav_tabs.html' with active_tab='discovered' %}
-<div class="rf-settings mt-3" id="rf-live-discovered" data-rf-live="{% if busy %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5">
-    {% if busy %}<div class="small text-muted mb-2">{{ 'run'|state_icon }} A discovery is running: new devices appear here as they are found - <a href="/discovery/">follow it in Device Discovery</a>.</div>{% endif %}
-    <details class="rf-set-section" data-rf-remember="new">
-        <summary class="rf-set-summary"><span class="rf-set-icon blue" aria-hidden="true"><i class="fas fa-satellite-dish"></i></span><span class="rf-set-summary-title">Not in RouterFleet yet</span><span class="rf-set-summary-sub">{{ new|length }} device{{ new|length|pluralize }} to add or hide</span></summary>
-    <div class="rf-set-group">
-        {% if new %}
-        <div class="rf-set-row rf-set-search">
-            <span class="rf-set-icon blue"><i class="fas fa-magnifying-glass"></i></span>
-            <input type="search" class="form-control" data-rf-filter=".rf-discovered" placeholder="Filter by name, address, platform or where seen" aria-label="Filter discovered devices">
-        </div>
+{% block pane_attrs %}id="rf-live-discovered" data-rf-live="{% if busy %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5"{% endblock %}
+{% block pane_sub %}{{ new|length }} new · {{ known|length }} in RouterFleet · {{ dismissed|length }} hidden{% endblock %}
+{% block pane_actions %}<a href="/discovery/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-tower-broadcast me-1" aria-hidden="true"></i>Device Discovery</a>{% endblock %}
+{% block pane_tabs %}{% include 'router_manager/router_nav_tabs.html' %}{% endblock %}
+{% block pane_notices %}{% if busy %}<div class="rf-notice"><span><span class="rf-st run"><i></i>A discovery is running</span> - new devices appear here as they are found.</span><a href="/discovery/">Follow it</a></div>{% endif %}{% endblock %}
+
+{% block pane_list %}
+<nav class="rf-seg" aria-label="Which devices">
+    <a class="{% if view == 'new' %}on{% endif %}" href="?view=new">New <b>{{ new|length }}</b></a>
+    <a class="{% if view == 'known' %}on{% endif %}" href="?view=known">In RouterFleet <b>{{ known|length }}</b></a>
+    <a class="{% if view == 'hidden' %}on{% endif %}" href="?view=hidden">Hidden <b>{{ dismissed|length }}</b></a>
+</nav>
+{% if rows|length > 6 %}<div class="rf-search mb-2"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+    <input type="search" data-rf-filter=".rf-discovered" placeholder="Search name, address, platform, where seen" aria-label="Search the discovered devices"></div>{% endif %}
+<div class="rf-list" role="list">
+    {% for row in rows %}
+    <a class="rf-li rf-discovered{% if chosen and chosen.device.pk == row.device.pk %} on{% endif %}" role="listitem" href="?view={{ view }}&amp;device={{ row.device.uuid }}">
+        <span class="rf-li-main"><span class="rf-li-name">{% if row.router %}{{ row.router.name }}{% else %}{{ row.device.identity|default:row.device.address|default:row.device.mac }}{% endif %}</span>
+            <span class="rf-li-sub">{% if row.device.address %}<span class="rf-mono">{{ row.device.address }}</span> · {% endif %}{{ row.device.platform|default:"unknown platform"|truncatechars:40 }}</span></span>
+        <span class="rf-dot {% if row.router or row.device.reachable %}ok{% elif row.device.reachable is False %}bad{% endif %}"
+              title="{% if row.router %}In RouterFleet{% elif row.device.reachable %}Reachable{% elif row.device.reachable is False %}Not reachable{% elif not row.device.address %}No address{% else %}Not checked yet{% endif %}"></span>
+    </a>
+    {% empty %}
+    <div class="rf-empty">{% if view == 'new' %}Nothing new. Devices appear here as the listener on RouterFleet's LAN hears them, or as the managed devices you choose report their neighbours - see <a href="/discovery/">Device Discovery</a>.{% elif view == 'known' %}No discovered device is in RouterFleet yet.{% else %}Nothing hidden.{% endif %}</div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block pane_detail %}
+{% if chosen %}{% with d=chosen.device r=chosen.router %}
+<div class="rf-insp-head">
+    <div class="rf-insp-title"><h2>{% if r %}<a href="/router/details/?uuid={{ r.uuid }}">{{ r.name }}</a>{% else %}{{ d.identity|default:d.address|default:d.mac }}{% endif %}</h2>
+        <div class="rf-page-sub">{{ d.platform|default:"unknown platform" }}{% if d.model and d.model not in d.platform %} · {{ d.model }}{% endif %}</div></div>
+    <div class="rf-insp-actions">
+        {% if r %}<a class="btn btn-sm btn-primary" href="/router/details/?uuid={{ r.uuid }}"><i class="fas fa-up-right-from-square me-1" aria-hidden="true"></i>Open the device</a>
+        {% else %}
+        {% if d.address %}<form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="recheck"><input type="hidden" name="uuid" value="{{ d.uuid }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Check now whether RouterFleet's host reaches it over SSH"><i class="fas fa-rotate me-1" aria-hidden="true"></i>Check again</button></form>{% endif %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="{% if d.dismissed %}restore{% else %}dismiss{% endif %}"><input type="hidden" name="uuid" value="{{ d.uuid }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">{% if d.dismissed %}<i class="fas fa-eye me-1" aria-hidden="true"></i>Show again{% else %}<i class="fas fa-eye-slash me-1" aria-hidden="true"></i>Hide{% endif %}</button></form>
+        {% if d.reachable and can_add and not d.dismissed %}<a class="btn btn-sm btn-primary" href="/router/discovered/add/?uuid={{ d.uuid }}"><i class="fas fa-wand-magic-sparkles me-1" aria-hidden="true"></i>Add device</a>{% endif %}
         {% endif %}
-        {% for row in new %}
-        <div class="rf-set-row rf-discovered">
-            <span class="rf-set-icon {% if row.type == 'routeros' %}blue{% elif 'cisco' in row.type %}teal{% elif row.type %}purple{% else %}sky{% endif %}"><i class="fas fa-satellite-dish"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ row.device.identity }}">{{ row.device.identity|default:row.device.address|default:row.device.mac }}</span>
-                <span class="rf-set-sub d-block">{% if row.device.address %}{{ row.device.address }} · {% endif %}<span title="{{ row.device.platform }}">{{ row.device.platform|default:"unknown platform"|truncatechars:60 }}</span>{% if row.device.model and row.device.model not in row.device.platform %} {{ row.device.model }}{% endif %}{% if row.device.version and row.device.version not in row.device.platform %} · {{ row.device.version|truncatechars:40 }}{% endif %}</span>
-                <span class="rf-set-sub d-block">{{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %} · {{ row.device.last_seen|timesince }} ago</span>
-                <span class="rf-set-sub d-block">{% if not row.device.address %}{{ 'info'|state_icon }} No IP address announced: can not be added from here{% elif row.device.reachable %}{{ 'ok'|state_icon }} Reachable from RouterFleet's host - {{ row.device.reachable_detail }}{% elif row.device.reachable is None %}{{ 'wait'|state_icon }} Reachability not checked yet{% endif %}</span>
-                {% if row.device.address and row.device.reachable is False %}
-                <span class="rf-unreachable">
-                    <span class="d-block"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i><b>Not reachable from RouterFleet's host</b> - {{ row.device.reachable_detail }}.</span>
-                    <span class="d-block">RouterFleet manages devices over SSH from its own host: it can be added once SSH answers from there. Check the address, a firewall in between, or that SSH is on.</span>
-                    <form method="post" class="d-block">{% csrf_token %}<input type="hidden" name="action" value="recheck"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
-                        <button type="submit" class="btn btn-sm btn-outline-warning mt-2" title="Check this device again"><i class="fas fa-rotate me-1"></i>Check again</button></form>
-                </span>
-                {% endif %}</span>
-            <form method="post" class="d-inline" data-rf-inline-submit=".rf-set-row">{% csrf_token %}<input type="hidden" name="action" value="dismiss"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
-                <button type="submit" class="btn btn-link text-muted" title="Not of interest - hide it" aria-label="Hide {{ row.device.identity }}"><i class="fas fa-eye-slash"></i></button></form>
-            {% if row.device.reachable %}
-                {% if can_add %}<a class="btn btn-sm btn-outline-primary" href="/router/discovered/add/?uuid={{ row.device.uuid }}" title="Add it with the wizard, by its IP address"><i class="fas fa-wand-magic-sparkles me-1"></i>Add device</a>{% endif %}
-            {% elif row.device.address and row.device.reachable is None %}
-            <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="recheck"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
-                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Check now whether RouterFleet's host reaches it"><i class="fas fa-rotate me-1"></i>Check</button></form>
-            {% endif %}
-        </div>
-        {% empty %}
-        <div class="rf-set-row"><span class="rf-set-text text-muted">Nothing new. Devices appear here as the listener on RouterFleet's LAN hears them, or as the managed devices you choose report their neighbours.</span></div>
-        {% endfor %}
-    </div>
-    </details>
-    {% if dismissed %}
-    {% if show_dismissed %}
-    <div class="rf-set-title">Hidden - not of interest</div>
-    <div class="rf-set-group">
-        {% for row in dismissed %}
-        <div class="rf-set-row">
-            <span class="rf-set-icon sky"><i class="fas fa-eye-slash"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.device.identity|default:row.device.address }}</span>
-                <span class="rf-set-sub d-block">{{ row.device.address }}{% if row.device.platform %} · {{ row.device.platform }}{% endif %}</span></span>
-            <form method="post" data-rf-inline-submit=".rf-set-row">{% csrf_token %}<input type="hidden" name="action" value="restore"><input type="hidden" name="uuid" value="{{ row.device.uuid }}">
-                <button type="submit" class="btn btn-sm btn-outline-primary" aria-label="Show {{ row.device.identity|default:row.device.address }} again"><i class="fas fa-eye me-1"></i>Show again</button></form>
-        </div>
-        {% endfor %}
-    </div>
-    <div class="text-center mt-2"><a class="btn btn-outline-secondary" href="/router/discovered/"><i class="fas fa-eye-slash me-1"></i>Hide the hidden ones</a></div>
-    {% else %}
-    <div class="text-center mt-2"><a class="btn btn-outline-secondary" href="?dismissed=1"><i class="fas fa-eye me-1"></i>Show {{ dismissed|length }} hidden device{{ dismissed|length|pluralize }}</a></div>
-    {% endif %}
-    {% endif %}
-    <div class="rf-set-foot">From RouterFleet's LAN when asked, and from the LLDP, CDP and MikroTik neighbour tables of the managed devices you choose. A device is added by its IP address, when RouterFleet's host reaches it on SSH{% if not can_add %} - by an administrator{% endif %}.</div>
-
-    {% if known %}
-    <details class="rf-set-section" data-rf-remember="known">
-        <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-check"></i></span><span class="rf-set-summary-title">Already in RouterFleet</span><span class="rf-set-summary-sub">{{ known|length }} device{{ known|length|pluralize }} RouterFleet manages already</span></summary>
-    <div class="rf-set-group">
-        {% for row in known %}
-        <a class="rf-set-row rf-discovered" href="/router/details/?uuid={{ row.router.uuid }}">
-            <span class="rf-set-icon green"><i class="fas fa-check"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.router.name }}</span>
-                <span class="rf-set-sub d-block">{{ row.device.address }} · {{ row.protocols }} · seen by {{ row.device.seen_by }}{% if row.device.interface %} on {{ row.device.interface }}{% endif %}</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% endfor %}
-    </div>
-    </details>
-    {% endif %}
-
-</div>
     </div>
 </div>
+{% if not r and d.address and d.reachable is False %}
+<div class="rf-unreachable mx-3 mt-3"><span class="d-block"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i><b>Not reachable from RouterFleet's host</b> - {{ d.reachable_detail }}.</span>
+    <span class="d-block">RouterFleet manages devices over SSH from its own host: it can be added once SSH answers from there. Check the address, a firewall in between, or that SSH is on.</span></div>
+{% endif %}
+<dl class="rf-facts">
+    <dt>State</dt>
+    <dd>{% if r %}<span class="rf-st ok"><i></i>In RouterFleet</span>{% elif not d.address %}<span class="rf-st off"><i></i>No IP address announced - can not be added from here</span>{% elif d.reachable %}<span class="rf-st ok"><i></i>Reachable</span> <span class="text-muted">· {{ d.reachable_detail }}</span>{% elif d.reachable is False %}<span class="rf-st bad"><i></i>Not reachable</span>{% else %}<span class="rf-st off"><i></i>Not checked yet</span>{% endif %}{% if d.checked_at %} <span class="text-muted">· checked {{ d.checked_at|timesince }} ago</span>{% endif %}</dd>
+    <dt>Address</dt><dd class="rf-mono">{{ d.address|default:"—" }}</dd>
+    {% if d.mac %}<dt>MAC</dt><dd class="rf-mono">{{ d.mac }}</dd>{% endif %}
+    {% if d.identity %}<dt>Identity</dt><dd>{{ d.identity }}</dd>{% endif %}
+    {% if d.version %}<dt>Version</dt><dd class="rf-mono">{{ d.version }}</dd>{% endif %}
+    <dt>Heard by</dt><dd>{{ chosen.protocols|default:"—" }}</dd>
+    <dt>Seen by</dt><dd>{% if d.seen_by_router %}<a href="/router/details/?uuid={{ d.seen_by_router.uuid }}">{{ d.seen_by }}</a>{% else %}{{ d.seen_by|default:"—" }}{% endif %}{% if d.interface %} <span class="text-muted">on {{ d.interface }}{% if d.remote_interface %} → its {{ d.remote_interface }}{% endif %}</span>{% endif %}</dd>
+    <dt>First seen</dt><dd class="rf-mono">{{ d.first_seen|date:"Y-m-d H:i" }}</dd>
+    <dt>Last seen</dt><dd><span class="rf-mono">{{ d.last_seen|date:"Y-m-d H:i" }}</span> <span class="text-muted">· {{ d.last_seen|timesince }} ago</span></dd>
+</dl>
+{% endwith %}{% else %}
+<div class="rf-empty p-4">Choose a device on the left.</div>
+{% endif %}
 {% endblock %}

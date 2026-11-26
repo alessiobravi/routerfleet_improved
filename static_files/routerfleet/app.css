@@ -685,3 +685,9 @@ a.rf-li { color: inherit; text-decoration: none; }
   .rf-split-detail.rf-split-detail-always { display: block; }
   .rf-list { max-height: none; }
 }
+/* A switch between views of one list (Discovered: new, in RouterFleet, hidden) */
+.rf-seg { display: flex; background: var(--rf-surface); border: 1px solid var(--rf-line); border-radius: 8px; padding: 3px; gap: 2px; margin-bottom: 8px; }
+.rf-seg a { flex: 1; text-align: center; padding: 5px 6px; border-radius: 6px; color: var(--rf-muted); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.rf-seg a:hover { color: var(--rf-text); }
+.rf-seg a.on { background: var(--rf-hover); color: var(--rf-text); box-shadow: inset 0 0 0 1px var(--rf-line); }
+.rf-seg b { font-weight: 500; color: var(--rf-muted); margin-left: 3px; }

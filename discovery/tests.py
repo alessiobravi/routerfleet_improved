@@ -82,7 +82,7 @@ class DiscoveredPageTests(TestCase):
         self.client.force_login(make_user(30))
         page = self.client.get('/router/discovered/').content.decode()
         self.assertIn('AP02-EXAMPLE', page)
-        self.assertIn('Already in RouterFleet', page)
+        self.assertIn('In RouterFleet <b>', page, 'the view of the ones already in RouterFleet')
         device = DiscoveredDevice.objects.get(identity='AP02-EXAMPLE')
         form = self.client.get(f'/router/manage/?discovered={device.uuid}').content.decode()
         self.assertIn('value="AP02-EXAMPLE"', form)
@@ -93,7 +93,10 @@ class DiscoveredPageTests(TestCase):
         self.client.force_login(make_user(30))
         device = DiscoveredDevice.objects.get(identity='AP02-EXAMPLE')
         self.client.post('/router/discovered/', {'action': 'dismiss', 'uuid': str(device.uuid)})
-        self.assertNotIn('AP02-EXAMPLE', self.client.get('/router/discovered/').content.decode().split('Already in RouterFleet')[0])
+        names = [row['device'].identity for row in self.client.get('/router/discovered/').context['rows']]
+        self.assertNotIn('AP02-EXAMPLE', names, 'hidden: no longer among the new ones')
+        hidden = [row['device'].identity for row in self.client.get('/router/discovered/?view=hidden').context['rows']]
+        self.assertIn('AP02-EXAMPLE', hidden)
         self.client.post('/router/discovered/', {'action': 'restore', 'uuid': str(device.uuid)})
         self.assertFalse(DiscoveredDevice.objects.get(pk=device.pk).dismissed)
 
@@ -296,7 +299,7 @@ class ReachabilityAndWizardTests(TestCase):
         with mock.patch('discovery.reach.check_stale'):
             page = self.client.get('/router/discovered/').content.decode()
         self.assertNotIn('/router/discovered/add/', page, 'no add button below administrator')
-        self.assertIn('Reachable from RouterFleet', page)
+        self.assertIn('<span class="rf-st ok"><i></i>Reachable</span>', page)
 
 
 class IPv6DiscoveryTests(TestCase):
@@ -572,12 +575,13 @@ class PagesTests(TestCase):
                                         reachable_detail='no answer on SSH (port 22)')
         DiscoveredDevice.objects.create(key='addr:198.51.100.8|gone', identity='gone', address='198.51.100.8',
                                         last_seen=timezone.now(), dismissed=True)
-        listing = self.client.get('/router/discovered/').content.decode()
-        self.assertIn('class="rf-unreachable"', listing)
+        far = DiscoveredDevice.objects.get(identity='far')
+        listing = self.client.get(f'/router/discovered/?device={far.uuid}').content.decode()
+        self.assertIn('class="rf-unreachable', listing)
         self.assertIn("Not reachable from RouterFleet's host</b> - no answer on SSH (port 22).", listing)
         self.assertIn('Check again', listing)
-        self.assertIn('Show 1 hidden device', listing)
-        shown = self.client.get('/router/discovered/?dismissed=1').content.decode()
+        self.assertIn('Hidden <b>1</b>', listing, 'the hidden ones, one click away')
+        shown = self.client.get('/router/discovered/?view=hidden').content.decode()
         self.assertIn('Show again', shown)
 
 

@@ -104,25 +104,39 @@ def _start_discovery(request):
     return redirect(DISCOVERY_URL)
 
 
+VIEWS = ('new', 'known', 'hidden')
+
+
+def _back(view, device=None):
+    """The list again, on the same view and device - only values it knows."""
+    query = f'?view={view}' if view in VIEWS else ''
+    if device is not None:
+        query += ('&' if query else '?') + f'device={device.uuid}'
+    return redirect(LIST_URL + query)
+
+
 @login_required
 def view_discovered(request):
-    """Discovered devices: the list only - new ones (added in one click when
-    reachable), the ones already in RouterFleet, hidden ones. It refreshes
-    itself while a discovery runs."""
+    """Discovered devices, as list and detail: new ones (added with the
+    wizard when reachable), the ones already in RouterFleet, hidden ones on
+    the left; the chosen device on the right. It refreshes itself while a
+    discovery runs."""
     if not allowed(request):
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    view = request.GET.get('view') if request.GET.get('view') in VIEWS else 'new'
     if request.method == 'POST' and request.POST.get('action') == 'recheck':
         from .reach import check
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         check([device])
-        return redirect(LIST_URL)
+        return _back(view, device)
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'
         device.save(update_fields=['dismissed'])
         if request.headers.get('Accept', '').startswith('application/json'):
             return JsonResponse({'ok': True, 'dismissed': device.dismissed})   # the row goes at once, no reload
-        return redirect(LIST_URL + ('?dismissed=1' if request.GET.get('dismissed') else ''))
+        # Hidden: the list it left; shown again: it is new again, chosen there
+        return _back('new', device) if not device.dismissed else _back(view)
     run = runs.advance(runs.current())   # what a running discovery found so far
     busy = run if run and run.active else None
     from django.conf import settings
@@ -148,9 +162,11 @@ def view_discovered(request):
             dismissed.append(row)
         else:
             new.append(row)
+    rows = {'new': new, 'known': known, 'hidden': dismissed}[view]
+    chosen = next((row for row in rows if str(row['device'].uuid) == request.GET.get('device', '')), rows[0] if rows else None)
     return render(request, 'discovery/discovered.html', {
         'page_title': 'Discovered devices', 'new': new, 'known': known, 'dismissed': dismissed,
-        'show_dismissed': bool(request.GET.get('dismissed')), 'busy': busy,
+        'view': view, 'rows': rows, 'chosen': chosen, 'busy': busy,
         'can_add': UserAcl.objects.filter(user=request.user, user_level__gte=ADD_LEVEL).exists()})
 
 
