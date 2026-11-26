@@ -183,7 +183,7 @@ class CardClickThroughTests(TestCase):
     def setUp(self):
         from django.utils import timezone
         from backup_data.models import RouterBackup
-        from router_manager.models import Router, RouterStatus
+        from router_manager.models import Router
         self.client.force_login(make_user(50))
         specs = [('on1', True, True, True), ('on2', True, True, True), ('off1', True, True, False),
                  ('dis1', False, True, True), ('unmon1', True, False, True)]
@@ -253,7 +253,6 @@ class CardClickThroughTests(TestCase):
 
     def test_a_day_of_the_chart_opens_that_days_backups(self):
         from django.utils import timezone
-        from backup_data.models import RouterBackup
         today = timezone.localdate().isoformat()
         response = self.client.get(f'/backup/backup_list/?type=errors&date={today}')
         self.assertEqual(len(response.context['backup_list']), 1)
