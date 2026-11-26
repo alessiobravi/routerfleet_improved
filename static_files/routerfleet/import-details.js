@@ -41,6 +41,6 @@ document.addEventListener('DOMContentLoaded', function () {
       var current = statusCell && statusCell.querySelector('.badge');
       if (current && current.textContent.trim() === 'Pending') { await run(uuid); }
     }
-    start.textContent = 'Import finished';
+    if (window.rfLabelled) { window.rfLabelled(start, 'fa-check', 'Import finished'); } else { start.textContent = 'Import finished'; }
   });
 });

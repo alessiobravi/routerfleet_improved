@@ -220,10 +220,10 @@
         {% endif %}
 
         <div class="text-center mt-4" id="form-buttons">
-            {% if new %}<button type="button" class="btn btn-secondary btn-lg me-2" id="prev"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</button><button type="button" class="btn btn-primary btn-lg me-2" id="next">Next</button>{% endif %}
-            <button type="submit" class="btn btn-success btn-lg" id="save">{% if new %}Create the device type{% else %}Save{% endif %}</button>
-            {% if not new and device_type.preset %}<button type="button" class="btn btn-outline-secondary btn-lg ms-2" data-rf-post="" data-rf-field-action="restore" data-rf-confirm-word="restore" data-rf-confirm-sum="Restore the shipped settings of {{ device_type.name }}? Commands are restored one by one.">Restore preset</button>{% endif %}
-            {% if not new and not devices and device_type.slug != 'monitoring' %}<button type="button" class="btn btn-outline-danger btn-lg ms-2" data-rf-post="" data-rf-field-action="delete" data-rf-confirm-word="delete" data-rf-confirm-sum="Delete the device type {{ device_type.name }} and its commands?">Delete</button>{% endif %}
+            {% if new %}<button type="button" class="btn btn-secondary btn-lg me-2" id="prev"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</button><button type="button" class="btn btn-primary btn-lg me-2" id="next"><i class="fas fa-arrow-right me-1" aria-hidden="true"></i>Next</button>{% endif %}
+            <button type="submit" class="btn btn-success btn-lg" id="save"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>{% if new %}Create the device type{% else %}Save{% endif %}</button>
+            {% if not new and device_type.preset %}<button type="button" class="btn btn-outline-secondary btn-lg ms-2" data-rf-post="" data-rf-field-action="restore" data-rf-confirm-word="restore" data-rf-confirm-sum="Restore the shipped settings of {{ device_type.name }}? Commands are restored one by one."><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Restore preset</button>{% endif %}
+            {% if not new and not devices and device_type.slug != 'monitoring' %}<button type="button" class="btn btn-outline-danger btn-lg ms-2" data-rf-post="" data-rf-field-action="delete" data-rf-confirm-word="delete" data-rf-confirm-sum="Delete the device type {{ device_type.name }} and its commands?"><i class="fas fa-trash me-1" aria-hidden="true"></i>Delete</button>{% endif %}
         </div>
     </form>
 </div>

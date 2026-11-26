@@ -48,16 +48,16 @@
             <div class="rf-set-row"><span class="rf-set-icon amber"><i class="fas fa-mobile-alt"></i></span>
                 <span class="rf-set-text"><span class="rf-set-label d-block">Second factors</span>
                     <span class="rf-set-sub d-block">{% if mfa_state.totp %}authenticator app{% endif %}{% if mfa_state.totp and mfa_state.passkeys %} · {% endif %}{% if mfa_state.passkeys %}{{ mfa_state.passkeys }} passkey{{ mfa_state.passkeys|pluralize }}{% endif %}{% if not mfa_state.totp and not mfa_state.passkeys %}none - password only{% endif %}</span></span>
-                {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="reset_mfa" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="This removes the authenticator app and every passkey of {{ user_acl.user.username }}, who then signs in with a password only.">Reset</button>{% endif %}
+                {% if mfa_state.totp or mfa_state.passkeys %}<button type="button" class="btn btn-outline-warning btn-sm" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="reset_mfa" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="This removes the authenticator app and every passkey of {{ user_acl.user.username }}, who then signs in with a password only."><i class="fas fa-rotate-left me-1" aria-hidden="true"></i>Reset</button>{% endif %}
             </div>
             {% endif %}
         </div>
         </details>
 
         <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Save</button>
+            <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button>
             <a href="/user/list/" class="btn btn-secondary btn-lg ms-2"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</a>
-            {% if user_acl %}<a href="#" class="btn btn-outline-danger btn-lg ms-2" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="delete" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="Remove the user {{ user_acl.user.username }} permanently?">Delete user</a>{% endif %}
+            {% if user_acl %}<a href="#" class="btn btn-outline-danger btn-lg ms-2" data-rf-post="?uuid={{ user_acl.uuid }}" data-rf-field-action="delete" data-rf-confirm-word="{{ user_acl.user.username }}" data-rf-confirm-sum="Remove the user {{ user_acl.user.username }} permanently?"><i class="fas fa-trash me-1" aria-hidden="true"></i>Delete user</a>{% endif %}
         </div>
     </form>
 </div>

@@ -14,8 +14,8 @@
     <div class="rf-set-foot">{{ candidates|length }} enabled device{{ candidates|length|pluralize }} can take it.</div>
     <div class="text-center mt-3">
         {% if image.enabled %}<a href="/system/firmware/rollout/start/?uuid={{ image.uuid }}" class="btn btn-primary btn-lg"><i class="fas fa-rocket me-1"></i>Update devices</a>{% endif %}
-        <button type="button" class="btn btn-outline-secondary btn-lg ms-1" data-rf-post="" data-rf-field-action="toggle">{% if image.enabled %}Switch off{% else %}Offer again{% endif %}</button>
-        <button type="button" class="btn btn-outline-danger btn-lg ms-1" data-rf-post="" data-rf-field-action="delete" data-rf-confirm-word="delete" data-rf-confirm-sum="Delete this firmware from the repository? The file is removed.">Delete</button>
+        <button type="button" class="btn btn-outline-secondary btn-lg ms-1" data-rf-post="" data-rf-field-action="toggle"><i class="fas {% if image.enabled %}fa-toggle-off{% else %}fa-toggle-on{% endif %} me-1" aria-hidden="true"></i>{% if image.enabled %}Switch off{% else %}Offer again{% endif %}</button>
+        <button type="button" class="btn btn-outline-danger btn-lg ms-1" data-rf-post="" data-rf-field-action="delete" data-rf-confirm-word="delete" data-rf-confirm-sum="Delete this firmware from the repository? The file is removed."><i class="fas fa-trash me-1" aria-hidden="true"></i>Delete</button>
     </div>
 </div>
 {% endblock %}

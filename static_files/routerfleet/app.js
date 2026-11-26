@@ -150,6 +150,15 @@
       action: document.getElementById('genericModalActionButton')
     };
   }
+  // A button's icon and words, set together (never markup from data)
+  function labelled(button, icon, text) {
+    var i = document.createElement('i');
+    i.className = 'fas ' + icon + ' me-1';
+    i.setAttribute('aria-hidden', 'true');
+    button.replaceChildren(i, document.createTextNode(text));
+    button.title = text;
+  }
+  window.rfLabelled = labelled;
   function paragraph(text, muted) {
     var p = document.createElement('p');
     if (muted !== false) { p.className = 'text-body-secondary'; }
@@ -160,7 +169,7 @@
     var m = modalParts();
     m.label.textContent = title;
     m.body.replaceChildren(paragraph('Loading…'));
-    m.close.textContent = 'Close';
+    labelled(m.close, 'fa-xmark', 'Close');
     m.action.classList.add('d-none');
     bootstrap.Modal.getOrCreateInstance(m.element).show();
     return m;
@@ -200,7 +209,7 @@
     var m = openModal('Configuration change');
     getJson('/backup/config_change/?uuid=' + encodeURIComponent(uuid)).then(function (response) {
       m.label.textContent = 'Configuration change of ' + response.router;
-      m.action.textContent = 'Open the full comparison';
+      labelled(m.action, 'fa-code-compare', 'Open the full comparison');
       m.action.href = response.compare_url;
       m.action.target = '_self';
       m.action.classList.remove('d-none');
@@ -309,7 +318,7 @@
           return box;
         });
         m.body.replaceChildren.apply(m.body, parts.length ? parts : [paragraph('No release notes.')]);
-        m.action.textContent = 'Update instructions';
+        labelled(m.action, 'fa-book', 'Update instructions');
         m.action.href = link.dataset.instructions || link.href;
         m.action.target = '_blank';
         m.action.rel = 'noopener';

@@ -49,7 +49,7 @@
                 <div class="input-group input-group-sm mt-2">
                     <input type="text" id="passkey-name" class="form-control" maxlength="100" placeholder="Name, e.g. Work laptop" aria-label="Name of the new passkey" disabled>
                     <input type="password" id="passkey-password" class="form-control" autocomplete="current-password" placeholder="Your password" aria-label="Your password, to add a passkey" disabled>
-                    <button type="button" id="passkey-add-button" class="btn btn-primary" disabled>Add a passkey</button>
+                    <button type="button" id="passkey-add-button" class="btn btn-primary" disabled><i class="fas fa-key me-1" aria-hidden="true"></i>Add a passkey</button>
                 </div>
                 <div class="rf-set-sub mt-1">Your password confirms it is you: a passkey signs in on its own.</div>
                 <div id="passkey-error" class="text-danger small mt-1" role="alert"></div>
@@ -66,7 +66,7 @@
                     {% for value, label in session_choices %}<option value="{{ value }}" {% if value == session_hours %}selected{% endif %}>{{ label }}</option>{% endfor %}
                 </select>
             </div>
-            <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+            <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button></div></noscript>
         </form>
     </div>
 
@@ -102,7 +102,7 @@
             <i class="fas fa-check rf-set-check" aria-hidden="true"></i>
         </label>
         {% endfor %}
-        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm">Save</button></div></noscript>
+        <noscript><div class="rf-set-row"><button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button></div></noscript>
     </form>
     <div class="rf-set-foot">Saved as soon as you choose.</div>
     </details>
@@ -134,7 +134,7 @@
         </div>
         {% endfor %}
         <div class="rf-set-row justify-content-end">
-            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button>
         </div>
     </form>
     {% if email_ready %}

@@ -46,7 +46,7 @@
     {% if foot %}
     <div class="rf-set-actions">
         {% for item in foot %}
-        {% if item.kind == 'button' %}<button type="{% if item.submit %}submit{% else %}button{% endif %}" name="{{ item.name }}" class="{{ item.css }}">{{ item.value }}</button>
+        {% if item.kind == 'button' %}<button type="{% if item.submit %}submit{% else %}button{% endif %}" name="{{ item.name }}" class="{{ item.css }}">{% if item.submit %}<i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>{% endif %}{{ item.value }}</button>
         {% else %}{{ item.html|safe }}{% endif %}
         {% endfor %}
     </div>

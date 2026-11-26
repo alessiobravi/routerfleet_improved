@@ -758,3 +758,11 @@ html.rf-dark { --rf-c-teal: #2dd4bf; --rf-c-blue: #7eb0ff; --rf-c-green: #4ade80
   .app-content .btn:has(> i.fas, > i.far):not(.btn-check + .btn):not(.rf-keep-label) { font-size: 0; padding: 7px 11px; line-height: 1; }
   .app-content .btn:has(> i.fas, > i.far):not(.btn-check + .btn):not(.rf-keep-label) > i { font-size: 15px; margin: 0 !important; }
 }
+/* Colours of the action icons added later, same scheme */
+.app-content .btn:has(> .fa-code-compare), .app-content .btn:has(> .fa-plug), .app-content .btn:has(> .fa-list-check) { --rf-act: var(--rf-c-blue); }
+.app-content .btn:has(> .fa-toggle-on), .app-content .btn:has(> .fa-check) { --rf-act: var(--rf-c-green); }
+.app-content .btn:has(> .fa-power-off) { --rf-act: var(--rf-c-red); }
+.app-content .btn:has(> .fa-rotate-left) { --rf-act: var(--rf-c-amber); }
+.app-content .btn:has(> .fa-key) { --rf-act: var(--rf-c-purple); }
+.app-content .btn:has(> .fa-network-wired), .app-content .btn:has(> .fa-toggle-off), .app-content .btn:has(> .fa-arrow-left),
+.app-content .btn:has(> .fa-arrow-right), .app-content .btn:has(> .fa-xmark) { --rf-act: var(--rf-c-grey); }

@@ -15,7 +15,7 @@
             <span class="text-muted" id="console-clock"></span></div>
         <div>
             <button type="button" class="btn btn-sm btn-outline-danger" id="console-disconnect" disabled><i class="fas fa-power-off me-1"></i>Disconnect</button>
-            <a href="{{ back }}" class="btn btn-sm btn-outline-secondary">Device</a>
+            <a href="{{ back }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-network-wired me-1" aria-hidden="true"></i>Device</a>
         </div>
     </div>
 
@@ -23,7 +23,7 @@
     <form class="rf-console-login" id="console-login" autocomplete="off">
         <label for="console-password" class="mb-0">Password for <strong>{{ session.username }}</strong></label>
         <input type="password" id="console-password" class="form-control form-control-sm" autocomplete="off" required autofocus>
-        <button type="submit" class="btn btn-sm btn-primary">Connect</button>
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-plug me-1" aria-hidden="true"></i>Connect</button>
         {% if request.is_secure %}<small class="text-muted">Sent once, over HTTPS and then SSH, to the device login; not stored.</small>
         {% else %}<small class="text-danger"><i class="fas fa-triangle-exclamation me-1" aria-hidden="true"></i>This page is not HTTPS: the password and the whole session cross the network to RouterFleet unencrypted.</small>{% endif %}
     </form>
@@ -37,7 +37,7 @@
                 <div class="h5 mb-1" id="console-ended-title">Connection closed</div>
                 <div class="small mb-3" id="console-ended-reason"></div>
                 <a href="/router/list/" class="btn btn-primary" id="console-ended-list"><i class="fas fa-list me-1"></i>Back to devices</a>
-                <a href="{{ back }}" class="btn btn-outline-light ms-1">This device</a>
+                <a href="{{ back }}" class="btn btn-outline-light ms-1"><i class="fas fa-network-wired me-1" aria-hidden="true"></i>This device</a>
                 <button type="button" class="btn btn-link text-light d-block mx-auto mt-2 small" id="console-ended-keep">Keep the output on screen</button>
             </div>
         </div>

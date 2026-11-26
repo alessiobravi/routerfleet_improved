@@ -21,9 +21,11 @@ the Zabbix kit reads, says so under **Monitoring**.
   RouterFleet's record goes: a device heard again comes back as new.
 
 ### Changed
-- Cancel and Back buttons carry an icon (✕, ←), and the confirmations' own
-  buttons too (✓, ✕): on a phone they shrink to the icon like every other
-  button.
+- **Every action button carries an icon** - Cancel and Back (✕, ←), Save,
+  Delete, Connect, Device on the console page, Compare two, Apply, Next,
+  Reveal, Turn on/off, the confirmations' ✓ and ✕, the dialogs' buttons - so
+  on a phone each shrinks to its icon like the rest. Only the view switches
+  of a comparison keep their words.
 
 ## [0.45.0] - 2026-11-26
 

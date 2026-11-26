@@ -43,8 +43,8 @@
                     {% endif %}
                 </div>
                 <div class="rf-insp-actions">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="compare-two" disabled title="Tick two backups to compare them">Compare two</button>
-                    {% if chosen and can_backup and chosen.is_managed and chosen.enabled %}<a href="#" class="btn btn-sm btn-primary" data-rf-post="/router/create_instant_backup/?uuid={{ chosen.uuid }}" data-rf-field-next="{{ request.get_full_path }}">Back up now</a>{% endif %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="compare-two" disabled title="Tick two backups to compare them"><i class="fas fa-code-compare me-1" aria-hidden="true"></i>Compare two</button>
+                    {% if chosen and can_backup and chosen.is_managed and chosen.enabled %}<a href="#" class="btn btn-sm btn-primary" data-rf-post="/router/create_instant_backup/?uuid={{ chosen.uuid }}" data-rf-field-next="{{ request.get_full_path }}"><i class="fas fa-box-open me-1" aria-hidden="true"></i>Back up now</a>{% endif %}
                 </div>
             </div>
             <div class="table-responsive">

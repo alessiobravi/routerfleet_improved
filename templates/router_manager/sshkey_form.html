@@ -59,7 +59,7 @@
                         <label class="small mb-1" for="reveal-answer">To reveal it: how much is <span id="reveal-first">{{ reveal_first }}</span> + <span id="reveal-second">{{ reveal_second }}</span>?</label>
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control" id="reveal-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-                            <button type="button" class="btn btn-danger" id="reveal-ok">Reveal</button>
+                            <button type="button" class="btn btn-danger" id="reveal-ok"><i class="fas fa-eye me-1" aria-hidden="true"></i>Reveal</button>
                             <button type="button" class="btn btn-outline-secondary" id="reveal-cancel"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</button>
                         </div>
                         <div class="text-danger small mt-1" id="reveal-error" role="alert"></div>
@@ -102,15 +102,15 @@
             <label class="small mb-1" for="save-answer">You are replacing the private key or its passphrase. To save: how much is <span id="save-first"></span> + <span id="save-second"></span>?</label>
             <div class="input-group input-group-sm">
                 <input type="text" class="form-control" id="save-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
-                <button type="button" class="btn btn-danger" id="save-ok">Save</button>
+                <button type="button" class="btn btn-danger" id="save-ok"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button>
                 <button type="button" class="btn btn-outline-secondary" id="save-cancel"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</button>
             </div>
         </div>
 
         <div class="rf-set-actions">
-            <button type="submit" class="btn btn-success" id="sshkey-save">Save</button>
+            <button type="submit" class="btn btn-success" id="sshkey-save"><i class="fas fa-floppy-disk me-1" aria-hidden="true"></i>Save</button>
             <a class="btn btn-secondary" href="/ssh_keys/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a>
-            {% if instance %}<a href="#" class="btn btn-outline-danger" data-command="delete" data-rf-call="openCommandDialog">Delete</a>{% endif %}
+            {% if instance %}<a href="#" class="btn btn-outline-danger" data-command="delete" data-rf-call="openCommandDialog"><i class="fas fa-trash me-1" aria-hidden="true"></i>Delete</a>{% endif %}
         </div>
     </form>
 </div>
