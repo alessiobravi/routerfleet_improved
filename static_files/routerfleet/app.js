@@ -553,6 +553,20 @@
   });
 })();
 
+/* A button that shows only its icon on a phone names itself in a tooltip */
+(function () {
+  'use strict';
+  function name(root) {
+    (root || document).querySelectorAll('.btn').forEach(function (button) {
+      if (button.title || !button.querySelector(':scope > i')) { return; }
+      var words = button.textContent.replace(/\s+/g, ' ').trim();
+      if (words) { button.title = words; }
+    });
+  }
+  window.rfNameButtons = name;
+  document.addEventListener('DOMContentLoaded', function () { name(document); });
+})();
+
 /* Collapsible sections (details[data-rf-remember]): closed at first, so a
    section is opened on purpose; what the user opens is remembered per page
    for the session (also across the live refresh, rfInitSections). A section

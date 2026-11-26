@@ -725,3 +725,36 @@ a.rf-li { color: inherit; text-decoration: none; }
 .app-content .card .nav-tabs { border-bottom: 1px solid var(--rf-line); gap: 22px; }
 .app-content .card .nav-tabs .nav-link { border: 0; border-bottom: 2px solid transparent; padding: 7px 0; color: var(--rf-muted); font-weight: 600; background: transparent; }
 .app-content .card .nav-tabs .nav-link.active { color: var(--rf-text); border-bottom-color: var(--rf-text); }
+
+/* ==== Action buttons: coloured by what they do (read from their icon), the
+   same colour on every page; on a phone, the icon alone. Solid blue stays for
+   the main action of a page (add, open, add with the wizard). ==== */
+:root { --rf-c-teal: #0d8a7f; --rf-c-blue: #2563eb; --rf-c-green: #15803d; --rf-c-purple: #6d28d9;
+        --rf-c-amber: #b45309; --rf-c-red: #c62828; --rf-c-grey: #4b5563; }
+html.rf-dark { --rf-c-teal: #2dd4bf; --rf-c-blue: #7eb0ff; --rf-c-green: #4ade80; --rf-c-purple: #b9a1f0;
+               --rf-c-amber: #fbbf24; --rf-c-red: #f87171; --rf-c-grey: #c3cbd4; }
+.app-content .btn:has(> .fa-keyboard), .app-content .btn:has(> .fa-box-open) { --rf-act: var(--rf-c-teal); }
+.app-content .btn:has(> .fa-terminal), .app-content .btn:has(> .fa-rotate), .app-content .btn:has(> .fa-up-right-from-square),
+.app-content .btn:has(> .fa-tower-broadcast), .app-content .btn:has(> .fa-sliders), .app-content .btn:has(> .fa-bell) { --rf-act: var(--rf-c-blue); }
+.app-content .btn:has(> .fa-arrow-alt-circle-up), .app-content .btn:has(> .fa-play) { --rf-act: var(--rf-c-green); }
+.app-content .btn:has(> .fa-microchip) { --rf-act: var(--rf-c-purple); }
+.app-content .btn:has(> .fa-pen), .app-content .btn:has(> .fa-edit) { --rf-act: var(--rf-c-amber); }
+.app-content .btn:has(> .fa-hand-paper), .app-content .btn:has(> .fa-trash), .app-content .btn:has(> .fa-trash-alt), .app-content .btn:has(> .fa-ban) { --rf-act: var(--rf-c-red); }
+.app-content .btn:has(> .fa-eye), .app-content .btn:has(> .fa-eye-slash), .app-content .btn:has(> .fa-copy), .app-content .btn:has(> .fa-file-csv),
+.app-content .btn:has(> .fa-file-import), .app-content .btn:has(> .fa-list) { --rf-act: var(--rf-c-grey); }
+/* Outlined buttons with an action icon, and the hero's former solid ones for
+   console, command, update, backup: tinted in their colour */
+.app-content .btn[class*="btn-outline"]:has(> i), .app-content .btn.btn-default:has(> i),
+.app-content .btn.btn-primary:has(> .fa-terminal, > .fa-arrow-alt-circle-up, > .fa-microchip, > .fa-box-open, > .fa-keyboard, > .fa-play) {
+  --rf-act-c: var(--rf-act, var(--rf-c-grey));
+  color: var(--rf-act-c) !important; background: color-mix(in srgb, var(--rf-act-c) 11%, transparent) !important;
+  border-color: color-mix(in srgb, var(--rf-act-c) 42%, transparent) !important; }
+.app-content .btn[class*="btn-outline"]:has(> i):hover, .app-content .btn.btn-default:has(> i):hover,
+.app-content .btn.btn-primary:has(> .fa-terminal, > .fa-arrow-alt-circle-up, > .fa-microchip, > .fa-box-open, > .fa-keyboard, > .fa-play):hover {
+  background: color-mix(in srgb, var(--rf-act-c) 20%, transparent) !important; }
+.app-content .btn[class*="btn-outline"]:has(> i):disabled { opacity: .55; }
+/* Phones: the icon alone - the words stay for screen readers and the tooltip */
+@media (max-width: 575.98px) {
+  .app-content .btn:has(> i.fas, > i.far):not(.btn-check + .btn):not(.rf-keep-label) { font-size: 0; padding: 7px 11px; line-height: 1; }
+  .app-content .btn:has(> i.fas, > i.far):not(.btn-check + .btn):not(.rf-keep-label) > i { font-size: 15px; margin: 0 !important; }
+}

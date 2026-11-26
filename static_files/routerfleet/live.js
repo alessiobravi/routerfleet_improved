@@ -93,6 +93,7 @@
           var adopted = document.importNode(next, true);
           old.replaceWith(adopted);
           if (window.rfInitSections) { window.rfInitSections(adopted); }
+          if (window.rfNameButtons) { window.rfNameButtons(adopted); }
           if (window.rfInitPanels) { window.rfInitPanels(adopted); }
           if (window.rfInitTables) { window.rfInitTables(adopted); }
           if (window.rfInitSelects) { window.rfInitSelects(adopted); }

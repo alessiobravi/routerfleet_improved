@@ -177,7 +177,10 @@ the **Backup list** and **Backup Profiles**, **Fleet Commander** commands
 reload opens it again; on a phone the list comes first. Histories - **Jobs**,
 the **Audit Log**, a device's **availability**, **imports** - are one calm
 table under the same header and tabs. A state is a dot and a word
-everywhere; colour is kept for what needs attention.
+everywhere; colour is kept for what needs attention. Action buttons are coloured by what they
+do, the same on every page - teal console and backup, blue command, green
+system update, purple bootloader, amber edit, red abort or delete - and on a
+phone show their icon alone (its name in a tooltip).
 
 ### Sections
 

@@ -82,6 +82,7 @@
         var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('.rf-insp');
         if (!fresh) { throw new Error('empty'); }
         holder.replaceChildren(document.importNode(fresh, true));
+        if (window.rfNameButtons) { window.rfNameButtons(holder); }
         items().forEach(function (other) { other.classList.toggle('on', other === item); });
         var url = new URL(window.location.href);
         url.searchParams.set('device', uuid);

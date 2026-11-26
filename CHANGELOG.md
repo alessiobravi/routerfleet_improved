@@ -40,6 +40,12 @@ word everywhere.
   the actions on a row under the title, the state as a dot and a word.
 - The remaining card pages (forms, confirmations, comparisons) without the
   coloured stripe, with the same borders, titles and table headings.
+- **Action buttons coloured by what they do**, the same on every page: teal
+  console and backup, blue command and open, green system update and run,
+  purple bootloader, amber edit, red abort and delete, grey hide, copy and
+  export. On a phone a button shows its icon alone, its name in a tooltip.
+- Device list: the green system-update arrow sits rightmost, the purple
+  bootloader one to its left.
 
 ## [0.44.0] - 2026-11-26
 

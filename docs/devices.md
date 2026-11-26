@@ -267,8 +267,8 @@ a link or a reload opens it again. **↑** and **↓** move through the list.
 
 Each device in the list shows its name, address and type, and a dot for its
 state: green online, red offline, grey disabled or not monitored. At the right
-of the row, a green arrow marks a system update waiting and a purple one a
-bootloader update; a red lock after the name a backup or command lock.
+of the row, a green arrow marks a system update waiting (rightmost) and a
+purple one, to its left, a bootloader update; a red lock after the name a backup or command lock.
 
 On a phone the list is shown alone and a device opens its own page.
 
