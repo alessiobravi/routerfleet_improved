@@ -19,7 +19,6 @@ import logging
 import re
 import time
 
-import requests
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,6 @@ import datetime
 import logging
 import re
 import time
-from urllib.parse import urlsplit
 
 import requests
 from django.utils import timezone

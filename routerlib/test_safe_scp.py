@@ -1,7 +1,6 @@
 """A backup download takes exactly one file, at the path RouterFleet chose:
 whatever the device sends - directories, more files, names with a path, a
 huge size - nothing is written anywhere else."""
-import os
 import pathlib
 import tempfile
 
