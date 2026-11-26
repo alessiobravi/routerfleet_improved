@@ -3,6 +3,7 @@
 {% load custom_tags %}
 {% block content %}
 <div id="rf-live-task" data-rf-live="{% if task.status == 'pending' %}active{% else %}done{% endif %}" data-rf-live-reason="task running" data-rf-live-interval="3">
+{% include 'fleet_commander/nav_tabs.html' %}
 {% include 'includes/object_hero.html' %}
 <div class="rf-object rf-o-grid rf-o-split">
 <div class="rf-o-details">

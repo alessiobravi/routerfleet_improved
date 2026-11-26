@@ -13,13 +13,13 @@
         {% endif %}
         <div class="rf-o-title">
             <h2>{{ page.hero.title }}{% if page.hero.subtitle %} <span>· {{ page.hero.subtitle }}</span>{% endif %}</h2>
-            <span class="rf-o-chip rf-o-{{ page.hero.chip.0 }}">{{ page.hero.chip.0|state_icon }}{{ page.hero.chip.1 }}</span>
+            {% with c=page.hero.chip.0 %}<span class="rf-st rf-o-state {% if c == 'ok' %}ok{% elif c == 'bad' %}bad{% elif c == 'run' %}run{% else %}off{% endif %}"><i></i>{{ page.hero.chip.1 }}</span>{% endwith %}
             <div class="rf-o-meta">{% for item in page.hero.meta %}<span>{{ item }}</span>{% endfor %}</div>
         </div>
         <div class="rf-o-actions">
             {% for action in page.hero.actions %}
-                {% if action.href %}<a href="{{ action.href }}" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</a>
-                {% else %}<button type="button" class="btn {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-rf-post="{{ action.post }}" data-rf-confirm-word="{{ action.word }}" data-rf-confirm-sum="{{ action.confirm }}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</button>{% endif %}
+                {% if action.href %}<a href="{{ action.href }}" class="btn btn-sm {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</a>
+                {% else %}<button type="button" class="btn btn-sm {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-rf-post="{{ action.post }}" data-rf-confirm-word="{{ action.word }}" data-rf-confirm-sum="{{ action.confirm }}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</button>{% endif %}
             {% endfor %}
         </div>
     </div>

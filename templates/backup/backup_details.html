@@ -3,6 +3,7 @@
 
 {% block content %}
 <div id="rf-live-backup" data-rf-live="{% if not backup.success and not backup.error %}active{% else %}done{% endif %}" data-rf-live-reason="backup in progress" data-rf-live-interval="5">
+{% include 'backup/backup_nav_tabs.html' %}
 {% include 'includes/object_hero.html' %}
 <div class="rf-object rf-o-grid rf-o-split">
 <div class="rf-o-details">
