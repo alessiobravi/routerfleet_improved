@@ -1,19 +1,11 @@
-{% extends 'base.html' %}
+{% extends 'includes/table_page.html' %}
 
-{% block content %}
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    {% include 'audit_log/audit_log_nav_tabs.html' %}
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
+{% block page_heading %}Audit Log{% endblock %}
+{% block page_sub %}Every sign-in and attempt{% endblock %}
+{% block page_tabs %}{% include 'audit_log/audit_log_nav_tabs.html' %}{% endblock %}
+{% block page_table %}
+<div class="table-responsive">
+<table class="rf-tbl datatables-no-export">
                                 <thead>
                                 <tr>
                                     <th><i class="fas fa-sign-in-alt" title="Result"></i></th>
@@ -36,7 +28,7 @@
                                                 <i class="fas fa-times-circle text-danger" title="Refused"></i>
                                             {% endif %}
                                         </td>
-                                        <td class="min-width">{{ record.created }}</td>
+                                        <td class="min-width rf-mono text-nowrap" data-order="{{ record.created|date:'U' }}">{{ record.created|date:"Y-m-d H:i:s" }}</td>
                                         <td>
                                             {{ record.username }}
                                             {% if record.user_level is not None %}
@@ -69,11 +61,6 @@
                                 {% endfor %}
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <p class="small text-end fst-italic">The newest {{ row_limit }} sign-ins and attempts. Older ones stay in the database, and entries are not removed from here.</p>
-        </div>
-    </div>
+</div>
 {% endblock %}
+{% block page_foot %}<div class="rf-set-foot mt-2">The newest {{ row_limit }} sign-ins and attempts. Older ones stay in the database, and entries are not removed from here.</div>{% endblock %}

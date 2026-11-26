@@ -206,10 +206,14 @@ def view_message_history(request):
     if not UserAcl.objects.filter(user=request.user).filter(user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
     message_settings, _ = MessageSettings.objects.get_or_create(name='message_settings')
-    message_list = Message.objects.select_related('channel').order_by('-created')
+    message_list = list(Message.objects.select_related('channel').order_by('-created'))
+    chosen = next((m for m in message_list if str(m.uuid) == request.GET.get('message', '')), message_list[0] if message_list else None)
     context = {
         'message_settings': message_settings,
         'message_list': message_list,
+        'chosen': chosen,
+        'page_title': 'Message Center',
+        'can_configure': UserAcl.objects.filter(user=request.user, user_level__gte=50).exists(),
     }
     return render(request, 'message_center/message_history.html', context=context)
 
