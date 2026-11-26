@@ -339,3 +339,17 @@ def view_changes(request):
     response = JsonResponse({'stamp': newest.isoformat() if newest else ''})
     response['Cache-Control'] = 'no-store'
     return response
+
+
+@login_required
+def view_whats_new(request):
+    """What's new: what the releases ahead of this installation bring - and
+    what the one that runs brought - read in the app, laid out like About."""
+    from routerfleet_tools.release_notes import notes
+    from user_manager.models import UserAcl
+    state = update_check_state()
+    context = {'page_title': "What's new", 'state': state, 'notes': notes(),
+               'current': settings.ROUTERFLEET_RELEASE,
+               'repository': getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/'),
+               'is_administrator': UserAcl.objects.filter(user=request.user, user_level__gte=50).exists()}
+    return render(request, 'dashboard/whats_new.html', context)

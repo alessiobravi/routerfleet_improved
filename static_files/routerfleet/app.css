@@ -789,3 +789,12 @@ html.rf-dark { --rf-c-teal: #2dd4bf; --rf-c-blue: #7eb0ff; --rf-c-green: #4ade80
   background: var(--rf-pane-bad); transform: rotate(45deg); border-radius: 1px; }
 .rf-blocked-wrap { display: inline-block; cursor: help; }
 .rf-blocked-wrap .rf-blocked { opacity: .55; text-decoration: line-through; text-decoration-thickness: 1px; }
+/* What's new: one section per release, laid out like About */
+.rf-release { border-top: 1px solid var(--rf-line); padding: 16px 4px 4px; }
+.rf-release-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: var(--rf-text); }
+.rf-release-date { font-size: 13px; font-weight: 400; color: var(--rf-muted); margin-left: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.rf-release-notes .rf-notes-h { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--rf-muted); margin: 12px 0 4px; }
+.rf-release-notes ul { padding-left: 20px; margin-bottom: 6px; }
+.rf-release-notes li { margin-bottom: 4px; }
+.rf-release-how pre { background: var(--rf-line-soft); border-radius: 6px; padding: 8px 12px; }
+.rf-release-running { opacity: .85; }

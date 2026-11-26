@@ -51,15 +51,16 @@ def tag_update_state():
     state = update_check_state()
     release = settings.ROUTERFLEET_RELEASE
     if not state['enabled']:
-        return {'color': 'text-secondary', 'title': f'RouterFleet Improved {release} - update check off', 'href': '/about/', 'external': False}
+        return {'color': 'text-secondary', 'title': f'RouterFleet Improved {release} - update check off', 'href': '/updates/', 'external': False}
+    # The icon opens What's new in the app: what the newer releases bring
     if state['available']:
-        return {'color': 'text-warning', 'title': f"Update available: RouterFleet Improved {state['latest']} (running {release})",
-                'href': state['releases_url'], 'external': True}
+        return {'color': 'text-warning', 'title': f"Update available: RouterFleet Improved {state['latest']} (running {release}) - what's new",
+                'href': '/updates/', 'external': False}
     if state['checked']:
         return {'color': 'text-success', 'title': f'RouterFleet Improved {release} - the latest release',
-                'href': state['releases_url'], 'external': True}
+                'href': '/updates/', 'external': False}
     return {'color': 'text-secondary', 'title': f'RouterFleet Improved {release} - updates not checked yet',
-            'href': '/about/', 'external': False}
+            'href': '/updates/', 'external': False}
 
 
 @register.filter

@@ -38,6 +38,17 @@ and from `routerfleet` the line `- update_requests:/update`, then run
 `docker compose up -d`. The two volumes it leaves behind can be removed with
 `docker volume rm <project>_update_requests <project>_update_private`.
 
+## What's new
+
+The update icon in the top bar - and *Update available* in the status bar -
+opens **What's new**: what each release ahead of the installation brings, from
+the project's changelog, newest first, then how to update; below, what the
+installed release brought. Any signed-in user can read it. The changelog of
+newer releases is fetched only while the update check is on (`UPDATE_CHECK`),
+through the same outbound path, and kept for an hour; with the check off,
+nothing leaves the installation and the page shows the installed release only.
+`UPDATE_NOTES_URL` (a setting) points it at another copy of the changelog.
+
 ## Verifying a release image
 
 Every release image is signed by the release workflow of this repository with

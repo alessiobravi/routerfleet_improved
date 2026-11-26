@@ -13,6 +13,18 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.47.0] - 2026-11-26
+
+### Added
+- **What's new, in the app.** The update icon in the top bar - and *Update
+  available* in the status bar - opens a page laid out like About: what each
+  release ahead of the installation brings (added, changed, fixed), newest
+  first, then how to update; below, what the installed release brought. Any
+  signed-in user can read it. The newer releases' notes come from the
+  project's changelog, fetched only while the update check is on and kept for
+  an hour; with the check off nothing leaves the installation. The text is
+  rendered from escaped words only.
+
 ## [0.46.0] - 2026-11-26
 
 ### Added

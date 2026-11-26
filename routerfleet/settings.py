@@ -228,7 +228,7 @@ MEDIA_ROOT = '/var/lib/routerfleet/'
 # release with a new feature raises MINOR. Every push to main raises one of them
 # - scripts/version.py bump patch|minor. The integer is what the database
 # stores; it is derived, never edited by hand.
-ROUTERFLEET_RELEASE = '0.46.0'
+ROUTERFLEET_RELEASE = '0.47.0'
 from routerfleet.versioning import to_number as _release_number  # noqa: E402
 ROUTERFLEET_VERSION = _release_number(ROUTERFLEET_RELEASE)
 
@@ -264,6 +264,9 @@ UPDATE_CHECK = True
 UPDATE_CHECK_URL = ''
 UPDATE_CHANGELOG_URL = ''
 UPDATE_RELEASES_API = 'https://api.github.com/repos/alessiobravi/routerfleet_improved/releases/latest'
+# Where the "What's new" page reads what newer releases bring: the project's
+# changelog, fetched only while the update check is on (UPDATE_CHECK=off: never)
+UPDATE_NOTES_URL = 'https://raw.githubusercontent.com/alessiobravi/routerfleet_improved/main/CHANGELOG.md'
 
 # Where the links in the interface go: the "Update Instructions" button and the
 # two buttons on the welcome page.

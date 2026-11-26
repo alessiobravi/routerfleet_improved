@@ -107,12 +107,12 @@ class UpdateIndicatorTests(TestCase):
         href, title, color = self.indicator('/about/')
         self.assertEqual(color, 'text-warning')
         self.assertIn('99.1.2', title)
-        self.assertTrue(href.endswith('/releases/latest'))
+        self.assertEqual(href, '/updates/', 'opens What\'s new in the app')
 
     @override_settings(UPDATE_CHECK=False)
     def test_off_is_grey(self):
         href, title, color = self.indicator()
-        self.assertEqual((color, href), ('text-secondary', '/about/'))
+        self.assertEqual((color, href), ('text-secondary', '/updates/'))
         self.assertIn('update check off', title)
 
     def test_no_version_card_on_the_status_page(self):

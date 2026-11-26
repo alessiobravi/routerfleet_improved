@@ -1,5 +1,6 @@
 import re
 import datetime
+from unittest import mock
 
 from django.test import TestCase
 from django.utils import timezone
@@ -484,3 +485,55 @@ class ChangesStampTests(TestCase):
 
     def test_signed_in_only(self):
         self.assertEqual(self.client.get('/changes/').status_code, 302)
+
+
+class WhatsNewTests(TestCase):
+    """What's new: the releases ahead of the installation, read in the app -
+    fetched only while the update check is on, rendered from escaped text."""
+
+    CHANGELOG = (
+        '# Changelog\n\n'
+        '## [99.1.0] - 2099-01-02 - Big one\n\n### Added\n- **Shiny** thing with `code`\n  and a second line.\n'
+        '- <script>alert(1)</script> stays text\n\n'
+        '## [99.0.0] - 2099-01-01\n\n### Fixed\n- An older fix.\n\n'
+        '## [0.0.1] - 2020-01-01\n\n- Long ago.\n')
+
+    def setUp(self):
+        from django.core.cache import caches
+        caches['limits'].clear()
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(10))
+
+    def test_sections_and_safe_rendering(self):
+        from routerfleet_tools.release_notes import render, sections
+        found = sections(self.CHANGELOG)
+        self.assertEqual([s['version'] for s in found], ['99.1.0', '99.0.0', '0.0.1'])
+        self.assertEqual(found[0]['label'], 'Big one')
+        html = str(render(found[0]['body']))
+        self.assertIn('<strong>Shiny</strong>', html)
+        self.assertIn('<code>code</code>', html)
+        self.assertIn('and a second line.', html)
+        self.assertNotIn('<script>', html)
+        self.assertIn('&lt;script&gt;', html)
+
+    def test_the_page_lists_the_newer_releases(self):
+        from routerfleet_tools.models import WebadminSettings
+        WebadminSettings.objects.create(name='webadmin_settings', update_available=True, latest_version=99001000)
+        response_text = self.CHANGELOG
+        with mock.patch('routerlib.outbound.https_get') as get:
+            get.return_value = mock.Mock(text=response_text, raise_for_status=lambda: None)
+            page = self.client.get('/updates/')
+        self.assertContains(page, '99.1.0 is available')
+        self.assertContains(page, '2 releases ahead')
+        self.assertContains(page, 'An older fix.')
+        self.assertNotContains(page, 'Long ago.', msg_prefix='older than the installation')
+        self.assertContains(page, 'docker compose pull')
+
+    def test_no_request_while_the_update_check_is_off(self):
+        with self.settings(UPDATE_CHECK=False), mock.patch('routerlib.outbound.https_get') as get:
+            page = self.client.get('/updates/')
+        get.assert_not_called()
+        self.assertContains(page, 'the update check is off')
+
+    def test_the_top_bar_icon_opens_it(self):
+        self.assertContains(self.client.get('/about/'), 'href="/updates/" class="nav-link" id="update-indicator"')

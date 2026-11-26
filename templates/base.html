@@ -218,7 +218,7 @@
             <span class="rf-dot" aria-hidden="true"></span><span class="rf-label">Ready</span>
         </div>
         <div class="rf-sb-right">
-            {% if webadmin_version.update_available %}<a class="btn btn-sm btn-warning py-0" id="btn_update_changelog" href="{% tag_project_repository_url %}/releases/latest" target="_blank" rel="noopener"
+            {% if webadmin_version.update_available %}<a class="btn btn-sm btn-warning py-0" id="btn_update_changelog" href="/updates/" title="What the newer releases bring"
                data-changelog-url="{{ webadmin_version.changelog_url }}" data-version="{{ webadmin_version.current_version }}"
                data-instructions="{% tag_project_repository_url %}">Update available: {{ webadmin_version.latest_version }}</a>{% endif %}
             <span class="d-none d-sm-inline"><b>Version</b> {{ webadmin_version.current_version }}</span>

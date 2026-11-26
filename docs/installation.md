@@ -229,7 +229,8 @@ permanent override needs an image of your own.
 | Setting | Default | Effect |
 |---|---|---|
 | `UPDATE_CHECK_URL` | empty | An endpoint of your own asked whether a newer version exists, instead of GitHub |
-| `UPDATE_CHANGELOG_URL` | empty | Endpoint the "Update Available" button reads a changelog from |
+| `UPDATE_CHANGELOG_URL` | empty | An endpoint of your own the "Update available" button reads release notes from, in a popup, instead of opening What's new |
+| `UPDATE_NOTES_URL` | this repository's `CHANGELOG.md` | The changelog What's new reads newer releases from (only while the update check is on) |
 | `PROJECT_REPOSITORY_URL` | this repository | Where the interface's project links point |
 | `PROJECT_SUPPORT_URL` | this repository's issues | Where "Request Device Support" points |
 | `SCHEDULE_LATE_LIMIT_MINUTES` | `2` | How late a command schedule may still run |
