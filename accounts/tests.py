@@ -294,3 +294,32 @@ class SignInBetweenGuessesTests(TestCase):
             self.attempt('insider', 'typo')
         self.attempt('insider', 'Insider-pass-2026!')
         self.assertEqual(counted_failures(LoginRecord.objects.filter(ip='198.51.100.20')), 0)
+
+
+class BackAfterSignInTests(TestCase):
+    """An expired session sends the browser to sign in with ?next=: signing in
+    returns to that page - only ever a page of this installation."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+        User.objects.create_user('back', password='a-long-test-password-1')
+
+    def sign_in(self, next_url):
+        self.client.get('/accounts/login/', {'next': next_url})
+        return self.client.post('/accounts/login/', {'username': 'back', 'password': 'a-long-test-password-1'})
+
+    def test_back_to_the_page(self):
+        response = self.sign_in('/router/list/?filter_group=all')
+        self.assertRedirects(response, '/router/list/?filter_group=all', fetch_redirect_response=False)
+
+    def test_never_elsewhere(self):
+        for foreign in ('https://evil.example/', '//evil.example/x', '/\\\\evil.example', '/accounts/logout/', 'javascript:alert(1)', ''):
+            with self.subTest(foreign=foreign):
+                self.client.logout()
+                self.assertRedirects(self.sign_in(foreign), '/', fetch_redirect_response=False)
+
+    def test_used_once(self):
+        self.sign_in('/router/list/')
+        self.client.logout()
+        response = self.client.post('/accounts/login/', {'username': 'back', 'password': 'a-long-test-password-1'})
+        self.assertRedirects(response, '/', fetch_redirect_response=False)

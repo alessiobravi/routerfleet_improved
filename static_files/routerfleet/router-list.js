@@ -77,7 +77,11 @@
     if (!holder) { return; }
     holder.classList.add('rf-loading');
     fetch('/router/inspect/?uuid=' + encodeURIComponent(uuid), {credentials: 'same-origin'})
-      .then(function (response) { if (!response.ok) { throw new Error(response.status); } return response.text(); })
+      .then(function (response) {
+        if (window.rfSessionGone(response)) { throw new Error('signed out'); }
+        if (!response.ok) { throw new Error(response.status); }
+        return response.text();
+      })
       .then(function (html) {
         var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('.rf-insp');
         if (!fresh) { throw new Error('empty'); }
@@ -88,7 +92,7 @@
         url.searchParams.set('device', uuid);
         window.history.replaceState(null, '', url.pathname + url.search);
       })
-      .catch(function () { window.location.href = '/router/details/?uuid=' + encodeURIComponent(uuid); })
+      .catch(function () { if (!window.rfLeaving) { window.location.href = '/router/details/?uuid=' + encodeURIComponent(uuid); } })
       .then(function () { holder.classList.remove('rf-loading'); });
   }
   function setupInspector() {
@@ -257,8 +261,12 @@
     var last = page.dataset.lastStatusChange || '';
     var group = page.dataset.group || '';
     function getJson(url) {
-      return fetch(url, {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
-        .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
+      return fetch(url, {credentials: 'same-origin', headers: {'Accept': 'application/json', 'X-RF-Live': '1'}})
+        .then(function (r) {
+          if (window.rfSessionGone(r)) { throw new Error('signed out'); }
+          if (!r.ok) { throw new Error(r.status); }
+          return r.json();
+        });
     }
     function refresh() {
       var url = '/monitoring/export_router_list/' + (group ? '?filter_group=' + encodeURIComponent(group) : '');
@@ -302,7 +310,11 @@
     if (focused && list.contains(focused) && focused.tagName === 'INPUT' && focused.type !== 'checkbox') { return; }
     var ticked = selected();
     fetch(window.location.href, {credentials: 'same-origin', cache: 'no-store', headers: {'X-RF-Live': '1'}})
-      .then(function (response) { if (response.redirected || !response.ok) { throw new Error(response.status); } return response.text(); })
+      .then(function (response) {
+        if (window.rfSessionGone(response)) { throw new Error('signed out'); }
+        if (response.redirected || !response.ok) { throw new Error(response.status); }
+        return response.text();
+      })
       .then(function (html) {
         var fresh = new DOMParser().parseFromString(html, 'text/html');
         var freshList = fresh.getElementById('device-list'), freshInspector = fresh.getElementById('rf-inspector');

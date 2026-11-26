@@ -55,9 +55,37 @@ PASSKEY_COOKIE = 'rf_passkey_challenge'
 PASSKEY_SALT = 'routerfleet.passkey-login'
 
 
+NEXT_KEY = 'rf_after_login'
+
+
+def safe_next(request, url):
+    """Where to go after signing in, when it is a page of this installation
+    (?next=, set when an expired session was sent here) - '' otherwise: never
+    another site, never //host, never the sign-in pages themselves."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    url = (url or '').strip()
+    if (not url.startswith('/') or url.startswith('//') or url.startswith('/\\') or url.startswith('/accounts/')
+            or not url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure())):
+        return ''
+    return url
+
+
+def after_login(request):
+    """The page to open once signed in: the one the session expired on, once."""
+    return request.session.pop(NEXT_KEY, '') or '/'
+
+
 def view_login(request):
     if not User.objects.filter().all():
         return redirect('/accounts/create_first_user/')
+    if request.method == 'GET':
+        # Kept in the session, so it survives every way of signing in
+        # (password, password and code, passkey)
+        wanted = safe_next(request, request.GET.get('next'))
+        if wanted:
+            request.session[NEXT_KEY] = wanted
+        else:
+            request.session.pop(NEXT_KEY, None)
     if request.method == 'POST':
         form = LoginForm(request.POST, request=request)
         if form.is_valid():
@@ -69,7 +97,7 @@ def view_login(request):
                 request.session['mfa_pending'] = {'user_id': user.pk, 'at': time.time()}
                 return redirect('/accounts/login/verify/')
             auth.login(request, user, backend=BACKEND)
-            return redirect('/')
+            return redirect(after_login(request))
     else:
         form = LoginForm(request=request)
     from accounts.password_reset import available
@@ -122,7 +150,7 @@ def view_login_verify(request):
                     Q(last_used_step__isnull=True) | Q(last_used_step__lt=step)).update(last_used_step=step):
                 request.session.pop('mfa_pending', None)
                 auth.login(request, user, backend=BACKEND)
-                return redirect('/')
+                return redirect(after_login(request))
             # A wrong code is a refused sign-in: recorded, and counted by the lockout
             user_login_failed.send(sender=__name__, credentials={'username': user.username}, request=request)
             error = 'The code is not correct, or has already been used.'
@@ -189,7 +217,7 @@ def view_passkey_login(request):
         user_login_failed.send(sender=__name__, credentials={'username': '(passkey)'}, request=request)
         return refused
     auth.login(request, passkey.user, backend=BACKEND)
-    response = JsonResponse({'redirect': '/'})
+    response = JsonResponse({'redirect': after_login(request)})
     response.delete_cookie(PASSKEY_COOKIE, path='/accounts/passkey/', samesite='Strict')
     return response
 

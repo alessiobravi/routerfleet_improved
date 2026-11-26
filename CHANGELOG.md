@@ -13,6 +13,24 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.47.1] - 2026-11-26
+
+### Security
+- **A tab left open no longer keeps a sign-in alive.** The half-minute check
+  for changes (0.45.2) and the device list's status dots were counted as use,
+  so a page left open renewed its session indefinitely. Background requests
+  never count as use now: a sign-in ends when its time is up.
+- **An ended sign-in sends the page to the sign-in page.** Expired, signed out
+  in another tab, or the account switched off: an open page notices within
+  half a minute - also on forms and settings pages, as soon as the tab is back
+  in front - and goes to sign in; signing in again (password, code or passkey)
+  returns to the page it was on. Only a page of this installation is ever
+  returned to.
+- A full scan of the repository and its history for secrets and personal
+  data, and of the code (bandit) and the dependencies (pip-audit): nothing
+  found; three tool findings, all on paths on devices or on escaped text,
+  annotated, and the image-pruning script now calls GitHub's two hosts only.
+
 ## [0.47.0] - 2026-11-26
 
 ### Added

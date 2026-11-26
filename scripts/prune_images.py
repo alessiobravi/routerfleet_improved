@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 
 RELEASE_TAG = re.compile(r'^(latest|\d+\.\d+\.\d+)$')
@@ -84,14 +85,21 @@ def plan(versions, children_of, current):
     return kept, delete
 
 
+ALLOWED_HOSTS = ('api.github.com', 'ghcr.io')
+
+
 def _request(url, token=None, method='GET', accept=None):
+    # Only GitHub's API and registry, over https: never a file: or other scheme
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != 'https' or parts.hostname not in ALLOWED_HOSTS:
+        raise ValueError(f'refused: {url}')
     request = urllib.request.Request(url, method=method)
     if token:
         request.add_header('Authorization', f'Bearer {token}')
     if accept:
         request.add_header('Accept', accept)
     request.add_header('User-Agent', 'routerfleet-image-prune')
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosec B310 - https to the two hosts above only
         body = response.read()
         return json.loads(body) if body else None
 

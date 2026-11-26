@@ -1,3 +1,21 @@
+/* A request made in the background whose session is gone - expired, signed
+   out elsewhere, the account switched off - comes back redirected to the
+   sign-in page (Django's login_required). The browser then goes there, and
+   back to this page after signing in, instead of a page that silently stops
+   updating. Background requests carry X-RF-Live: they never count as use, so
+   a tab left open does not keep a sign-in alive. */
+window.rfSessionGone = function (response) {
+  if (!response) { return false; }
+  var landed = '';
+  try { landed = new URL(response.url, window.location.href).pathname; } catch (e) {}
+  var gone = (response.redirected && landed.indexOf('/accounts/login') === 0) || response.status === 401;
+  if (gone && !window.rfLeaving) {
+    window.rfLeaving = true;
+    window.location.assign('/accounts/login/?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+  }
+  return gone;
+};
+
 /* RouterFleet Improved: what every page needs, on AdminLTE 4 and Bootstrap 5.3.
    A static file and no jQuery: the Content-Security-Policy allows no inline
    script, and nothing here writes markup from data - text only. */
@@ -176,6 +194,7 @@
   }
   function getJson(url) {
     return fetch(url, {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+      .then(function (response) { if (window.rfSessionGone(response)) { throw new Error('signed out'); } return response; })
       .then(function (response) {
         return response.json().catch(function () { return {}; }).then(function (data) {
           if (!response.ok) { throw new Error(data.error || 'The change could not be loaded.'); }

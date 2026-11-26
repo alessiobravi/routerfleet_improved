@@ -105,7 +105,7 @@ def render(body):
             flush_items()
             paragraph.append(stripped)
     flush_items(); flush_paragraph()
-    return mark_safe('\n'.join(out))   # nosec B308 - built from escaped text above
+    return mark_safe('\n'.join(out))   # nosec B308 B703 - built from escaped text above
 
 
 def notes():

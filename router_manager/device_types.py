@@ -173,7 +173,7 @@ PRESETS = {
     },
     'ubiquiti-airos': {
         # Firmware (see docs/firmware.md for sources and caveats)
-        'firmware_upload_path': '/tmp/fwupdate.bin',
+        'firmware_upload_path': '/tmp/fwupdate.bin',  # nosec B108 - a path on the device
         'firmware_verify': 'size',
         'name': 'Ubiquiti airOS', 'vendor': 'Ubiquiti', 'position': 30,
         'description': 'airOS over SSH. Its configuration file is read as the text backup - nothing downloaded.',
@@ -236,7 +236,7 @@ PRESETS = {
     },
     'juniper-junos': {
         # Firmware (see docs/firmware.md for sources and caveats)
-        'firmware_upload_path': '/var/tmp/{{ firmware_name }}',
+        'firmware_upload_path': '/var/tmp/{{ firmware_name }}',  # nosec B108 - a path on the device
         'firmware_verify': 'sha256',
         'name': 'Juniper Junos', 'vendor': 'Juniper', 'position': 50,
         'description': 'Junos through an interactive SSH shell (CLI). Two text backups: the configuration and the '

@@ -79,6 +79,7 @@
     if (document.hidden) { return; }   // resumed by visibilitychange
     fetch(window.location.href, {credentials: 'same-origin', headers: {'X-RF-Live': '1'}, cache: 'no-store'})
       .then(function (response) {
+        if (window.rfSessionGone && window.rfSessionGone(response)) { throw {stop: true}; }
         if (response.redirected) { throw {stop: true}; }
         if (!response.ok) { throw new Error(response.status); }
         return response.text();
@@ -134,16 +135,19 @@
      itself, the device list). */
   var stamp = null;
   function checkChanges() {
-    if (document.hidden || stopped || !document.querySelector('[data-rf-changes], [data-rf-live]')) { return; }
-    fetch('/changes/', {credentials: 'same-origin', headers: {'Accept': 'application/json'}, cache: 'no-store'})
+    // Every signed-in page asks - also a heartbeat: a session gone while the
+    // page stays open sends the browser to the sign-in page
+    if (document.hidden || stopped || !document.body || document.body.dataset.rfSession !== '1') { return; }
+    fetch('/changes/', {credentials: 'same-origin', headers: {'Accept': 'application/json', 'X-RF-Live': '1'}, cache: 'no-store'})
       .then(function (response) {
+        if (window.rfSessionGone && window.rfSessionGone(response)) { throw new Error('signed out'); }
         if (response.redirected || !response.ok) { throw new Error(response.status); }
         return response.json();
       })
       .then(function (data) {
         var moved = stamp !== null && data.stamp !== stamp;
         stamp = data.stamp;
-        if (!moved) { return; }
+        if (!moved || !document.querySelector('[data-rf-changes], [data-rf-live]')) { return; }
         refresh(true);
         document.dispatchEvent(new CustomEvent('rf:changed'));
       })

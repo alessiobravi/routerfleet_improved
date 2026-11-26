@@ -537,3 +537,39 @@ class WhatsNewTests(TestCase):
 
     def test_the_top_bar_icon_opens_it(self):
         self.assertContains(self.client.get('/about/'), 'href="/updates/" class="nav-link" id="update-indicator"')
+
+
+class SessionGoneTests(TestCase):
+    """A session expired or invalid sends background requests to the sign-in
+    page (the page then follows); background checks never keep a session
+    alive."""
+
+    def setUp(self):
+        from routerfleet.testing import make_user
+        self.user = make_user(10)
+        self.client.force_login(self.user)
+
+    def test_an_invalid_session_is_sent_to_sign_in(self):
+        self.client.logout()
+        response = self.client.get('/changes/', HTTP_X_RF_LIVE='1')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].startswith('/accounts/login/?next=/changes/'))
+
+    def test_a_deactivated_account_is_sent_to_sign_in(self):
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.client.get('/changes/', HTTP_X_RF_LIVE='1').status_code, 302)
+
+    def test_background_checks_do_not_renew_the_session(self):
+        self.client.get('/status/')                       # real use: renewed
+        session = self.client.session
+        renewed = session['rf_renewed']
+        session['rf_renewed'] = renewed - 3600           # pretend the last use was an hour ago
+        session.save()
+        self.client.get('/changes/', HTTP_X_RF_LIVE='1')
+        self.assertEqual(self.client.session['rf_renewed'], renewed - 3600, 'the heartbeat is not use')
+        self.client.get('/status/')
+        self.assertGreater(self.client.session['rf_renewed'], renewed - 3600, 'a page the user opens is')
+
+    def test_signed_in_pages_carry_the_heartbeat_marker(self):
+        self.assertContains(self.client.get('/status/'), 'data-rf-session="1"')

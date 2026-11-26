@@ -566,10 +566,18 @@ to an SSH server on every push.
 
 Each user chooses in *My Settings → Security settings → Session expiration time*: from 1 hour to 2 weeks, **24 hours**
 unless changed, counted from the last use. Pages refreshing by themselves - the
-live parts of the status page, a rollout or a job - and the scheduler's calls do
-not count as use, so a tab left open does not keep a sign-in alive. The expiry
-is renewed at most every five minutes, so it may run up to five minutes longer.
-Before 0.31.0 every sign-in lasted two weeks from signing in.
+live parts, the half-minute check every open page makes for changes, the
+device list's status dots - and the scheduler's calls do not count as use, so a
+tab left open does not keep a sign-in alive. The expiry is renewed at most
+every five minutes, so it may run up to five minutes longer. Before 0.31.0
+every sign-in lasted two weeks from signing in.
+
+**When a sign-in ends** - it expired, the user signed out in another tab, an
+administrator switched the account off - an open page notices within half a
+minute (or as soon as its tab is back in front) and goes to the sign-in page;
+signing in again opens the page it was on. Only a page of this installation is
+ever returned to: an address of another site, `//host` or the sign-in pages
+themselves are refused, and the return address is used once.
 
 ### Browser cache
 
