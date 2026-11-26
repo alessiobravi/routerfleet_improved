@@ -1,40 +1,35 @@
-{% extends 'includes/pane_page.html' %}
+{% extends 'includes/xlist_page.html' %}
 
-{% block pane_sub %}Messages of the last 30 days · {{ message_list|length }}{% endblock %}
-{% block pane_actions %}{% if can_configure %}<a href="/system/notifications/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-bell me-1" aria-hidden="true"></i>Notification channels</a>
+{% block page_heading %}Message Center{% endblock %}
+{% block page_sub %}Messages of the last 30 days · {{ message_list|length }} · open a row to read it{% endblock %}
+{% block page_actions %}{% if can_configure %}<a href="/system/notifications/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-bell me-1" aria-hidden="true"></i>Notification channels</a>
 <a href="/message_center/manage_settings/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-sliders me-1" aria-hidden="true"></i>Settings</a>{% endif %}{% endblock %}
+{% block page_search %}{% if message_list %}<div class="rf-search mb-2"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+    <input type="search" id="message-filter" data-rf-filter=".rf-xrow" placeholder="Search subject, channel or status" aria-label="Search the messages"></div>{% endif %}{% endblock %}
 
-{% block pane_list %}
-{% if message_list %}<div class="rf-search mb-2"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-    <input type="search" id="message-filter" data-rf-filter=".rf-message" placeholder="Search subject, channel or status" aria-label="Search the messages"></div>{% endif %}
-<div class="rf-list" id="message-list" role="list">
-    {% for message in message_list %}
-    <a class="rf-li rf-message{% if chosen and chosen.pk == message.pk %} on{% endif %}" role="listitem" href="?message={{ message.uuid }}">
-        <span class="rf-li-main"><span class="rf-li-name">{{ message.subject|default:"(no subject)" }}</span>
-            <span class="rf-li-sub">{{ message.channel.name }} · <span class="rf-mono">{{ message.created|date:"m-d H:i" }}</span>{% if message.status != 'sent' %} · {{ message.get_status_display }}{% endif %}</span></span>
+{% block rows %}
+{% for message in message_list %}
+<details class="rf-xrow rf-message"{% if open_uuid == message.uuid|stringformat:"s" %} open{% endif %}>
+    <summary class="rf-set-row">
         <span class="rf-dot {% if message.status == 'sent' %}ok{% elif message.status == 'failed' %}bad{% else %}run{% endif %}" title="{{ message.get_status_display }}"></span>
-    </a>
-    {% empty %}
-    <div class="rf-empty">No message in the last 30 days.</div>
-    {% endfor %}
-</div>
-<div class="rf-set-foot">Older messages are removed automatically.</div>
+        <span class="rf-set-text"><span class="rf-set-label d-block">{{ message.subject|default:"(no subject)" }}</span>
+            <span class="rf-set-sub d-block">{{ message.channel.name }}{% if message.status != 'sent' %} · {{ message.get_status_display }}{% endif %}</span></span>
+        <span class="rf-set-value rf-mono small">{{ message.created|date:"Y-m-d H:i" }}</span>
+        <i class="fas fa-chevron-down rf-xchevron" aria-hidden="true"></i>
+    </summary>
+    <div class="rf-xbody">
+        <dl class="rf-facts">
+            <dt>State</dt><dd>{% if message.status == 'sent' %}<span class="rf-st ok"><i></i>Sent</span>{% elif message.status == 'failed' %}<span class="rf-st bad"><i></i>{{ message.get_status_display }}</span>{% else %}<span class="rf-st run"><i></i>{{ message.get_status_display }}</span>{% endif %}{% if message.retry_count > 1 %} <span class="text-muted">· after {{ message.retry_count }} attempts</span>{% endif %}</dd>
+            <dt>Channel</dt><dd>{{ message.channel.name }} <span class="text-muted">· {{ message.channel.get_channel_type_display }}</span></dd>
+            {% if message.completed %}<dt>Delivered</dt><dd class="rf-mono">{{ message.completed|date:"Y-m-d H:i:s" }}</dd>{% endif %}
+            {% if message.next_retry and message.status != 'sent' %}<dt>Next try</dt><dd class="rf-mono">{{ message.next_retry|date:"Y-m-d H:i" }}</dd>{% endif %}
+            {% if message.error_message %}<dt>Error</dt><dd class="text-danger">{% if message.error_status_code %}{{ message.error_status_code }}: {% endif %}{{ message.error_message }}</dd>{% endif %}
+        </dl>
+        <pre class="rf-message-text">{{ message.message }}</pre>
+    </div>
+</details>
+{% empty %}
+<div class="rf-set-row"><span class="rf-set-text text-muted">No message in the last 30 days.</span></div>
+{% endfor %}
 {% endblock %}
-
-{% block pane_detail %}
-{% if chosen %}
-<div class="rf-insp-head">
-    <div class="rf-insp-title"><h2>{{ chosen.subject|default:"(no subject)" }}</h2>
-        <div class="rf-page-sub">{{ chosen.channel.name }} · {{ chosen.channel.get_channel_type_display }}</div></div>
-</div>
-<dl class="rf-facts">
-    <dt>State</dt><dd>{% if chosen.status == 'sent' %}<span class="rf-st ok"><i></i>Sent</span>{% elif chosen.status == 'failed' %}<span class="rf-st bad"><i></i>{{ chosen.get_status_display }}</span>{% else %}<span class="rf-st run"><i></i>{{ chosen.get_status_display }}</span>{% endif %}{% if chosen.retry_count > 1 %} <span class="text-muted">· after {{ chosen.retry_count }} attempts</span>{% endif %}</dd>
-    <dt>Created</dt><dd class="rf-mono">{{ chosen.created|date:"Y-m-d H:i:s" }}</dd>
-    {% if chosen.completed %}<dt>Delivered</dt><dd class="rf-mono">{{ chosen.completed|date:"Y-m-d H:i:s" }}</dd>{% endif %}
-    {% if chosen.next_retry and chosen.status != 'sent' %}<dt>Next try</dt><dd class="rf-mono">{{ chosen.next_retry|date:"Y-m-d H:i" }}</dd>{% endif %}
-    {% if chosen.error_message %}<dt>Error</dt><dd class="text-danger">{% if chosen.error_status_code %}{{ chosen.error_status_code }}: {% endif %}{{ chosen.error_message }}</dd>{% endif %}
-</dl>
-<div class="rf-insp-section">Message</div>
-<pre class="rf-message-text">{{ chosen.message }}</pre>
-{% endif %}
-{% endblock %}
+{% block page_foot %}<div class="rf-set-foot">Older messages are removed automatically.</div>{% endblock %}

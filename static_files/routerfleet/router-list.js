@@ -291,6 +291,35 @@
     setInterval(check, 30000);
   }
 
+  /* --- Changes made elsewhere: the list and the inspector, fresh --------- */
+  // Asked for by live.js (rf:changed) when the data moved: the same page is
+  // fetched again and its list and inspector swapped in. What was ticked,
+  // typed in the search and chosen stays.
+  function refreshFromServer() {
+    var list = byId('device-list'), inspector = byId('rf-inspector');
+    if (!list) { return; }
+    var focused = document.activeElement;
+    if (focused && list.contains(focused) && focused.tagName === 'INPUT' && focused.type !== 'checkbox') { return; }
+    var ticked = selected();
+    fetch(window.location.href, {credentials: 'same-origin', cache: 'no-store', headers: {'X-RF-Live': '1'}})
+      .then(function (response) { if (response.redirected || !response.ok) { throw new Error(response.status); } return response.text(); })
+      .then(function (html) {
+        var fresh = new DOMParser().parseFromString(html, 'text/html');
+        var freshList = fresh.getElementById('device-list'), freshInspector = fresh.getElementById('rf-inspector');
+        if (freshList) {
+          list.replaceChildren.apply(list, Array.prototype.map.call(freshList.childNodes, function (n) { return document.importNode(n, true); }));
+          boxes().forEach(function (box) { box.checked = ticked.indexOf(box.dataset.uuid) > -1; });
+        }
+        if (freshInspector && inspector) {
+          inspector.replaceChildren.apply(inspector, Array.prototype.map.call(freshInspector.childNodes, function (n) { return document.importNode(n, true); }));
+          if (window.rfNameButtons) { window.rfNameButtons(inspector); }
+        }
+        applyFilters();
+      })
+      .catch(function () {});
+  }
+  document.addEventListener('rf:changed', refreshFromServer);
+
   document.addEventListener('DOMContentLoaded', function () {
     var page = byId('router-list-page');
     if (!page) { return; }

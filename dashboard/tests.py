@@ -463,3 +463,25 @@ class NoStoreTests(TestCase):
         self.client.force_login(make_user(50))
         self.assertIn('no-store', self.client.get('/status/')['Cache-Control'])
         self.assertIn('no-store', self.client.get('/user/settings/')['Cache-Control'])
+
+
+class ChangesStampTests(TestCase):
+    """/changes/: when the data the pages show last changed, so an open page
+    refreshes itself after a change made elsewhere."""
+
+    def test_the_stamp_moves_when_a_device_is_read_again(self):
+        from routerfleet.testing import make_router, make_user
+        from router_manager.models import RouterInformation
+        router = make_router(name='stamped')
+        self.client.force_login(make_user(10))
+        first = self.client.get('/changes/')
+        self.assertEqual(first['Cache-Control'], 'no-store')
+        before = first.json()['stamp']
+        self.assertTrue(before)
+        info, _ = RouterInformation.objects.get_or_create(router=router)
+        info.os_version = '7.25.2'
+        info.save()
+        self.assertGreater(self.client.get('/changes/').json()['stamp'], before)
+
+    def test_signed_in_only(self):
+        self.assertEqual(self.client.get('/changes/').status_code, 302)

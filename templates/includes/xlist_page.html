@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% comment %}
+A list in the settings style whose rows open on a click (Users, SSH Keys,
+Messages): the same header as the other pages, one row per item showing only
+its name and a short line; its details appear when the row is opened.
+{% endcomment %}
+{% block content %}
+<div class="rf-pane-page rf-xlist-page" {% block page_attrs %}id="rf-xlist"{% endblock %}>
+    <div class="rf-settings">
+        <div class="rf-page-head">
+            <div><h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+                <div class="rf-page-sub">{% block page_sub %}{% endblock %}</div></div>
+            <div class="rf-page-actions">{% block page_actions %}{% endblock %}</div>
+        </div>
+        {% block page_tabs %}{% endblock %}
+        {% block page_search %}{% endblock %}
+        <div class="rf-set-group rf-xlist">{% block rows %}{% endblock %}</div>
+        {% block page_foot %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

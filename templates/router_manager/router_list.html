@@ -2,7 +2,7 @@
 {% load static %}
 {% load router_tags %}
 
-{% block pane_attrs %}id="router-list-page" data-last-status-change="{{ last_status_change_timestamp }}" data-group="{{ filter_group.uuid|default_if_none:'' }}"{% endblock %}
+{% block pane_attrs %}id="router-list-page" data-rf-changes-mode="custom" data-last-status-change="{{ last_status_change_timestamp }}" data-group="{{ filter_group.uuid|default_if_none:'' }}"{% endblock %}
 {% block pane_sub %}{{ router_list|length }} device{{ router_list|length|pluralize }}{% if state_label %} · {{ state_label }}{% elif filter_group %} in {{ filter_group.name }}{% endif %}{% endblock %}
 {% block pane_actions %}
     {% if can_edit %}<a href="/router/import_tool/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-file-import me-1" aria-hidden="true"></i>Import</a>{% endif %}

@@ -318,3 +318,20 @@ def router_status_data(request):
     if days is None:
         return HttpResponseBadRequest("Invalid 'days' parameter. Must be one of: " + ', '.join(map(str, ALLOWED_DAYS)))
     return JsonResponse(online_series(days))
+
+
+@login_required
+def view_changes(request):
+    """When the data the pages show last changed - the devices, their
+    information and state, backups, groups, Fleet Commander jobs and tasks.
+    An open page asks every half minute and refreshes itself when it moves,
+    so a change made elsewhere (another browser, the scheduler) shows."""
+    from django.db.models import Max
+    from fleet_commander.models import CommandJob, CommandTask
+    from router_manager.models import RouterGroup, RouterInformation
+    stamps = [model.objects.aggregate(newest=Max('updated'))['newest']
+              for model in (Router, RouterInformation, RouterStatus, RouterBackup, RouterGroup, CommandJob, CommandTask)]
+    newest = max(filter(None, stamps), default=None)
+    response = JsonResponse({'stamp': newest.isoformat() if newest else ''})
+    response['Cache-Control'] = 'no-store'
+    return response

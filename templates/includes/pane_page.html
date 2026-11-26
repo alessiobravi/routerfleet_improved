@@ -5,7 +5,7 @@ a header with the page's actions, its tabs, the list on the left and the
 chosen item on the right. A page fills the blocks it needs.
 {% endcomment %}
 {% block content %}
-<div class="rf-pane-page" {% block pane_attrs %}{% endblock %}>
+<div class="rf-pane-page" data-rf-changes {% block pane_attrs %}id="rf-pane"{% endblock %}>
     <div class="rf-page-head">
         <div><h1>{% block pane_title %}{{ page_title }}{% endblock %}</h1>
             <div class="rf-page-sub">{% block pane_sub %}{% endblock %}</div></div>

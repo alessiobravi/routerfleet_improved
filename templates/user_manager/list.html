@@ -1,50 +1,39 @@
-{% extends 'includes/pane_page.html' %}
+{% extends 'includes/xlist_page.html' %}
 
-{% block pane_title %}Users{% endblock %}
-{% block pane_sub %}{{ user_acl_list|length }} user{{ user_acl_list|length|pluralize }}{% endblock %}
-{% block pane_actions %}<a href="/user/manage/" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1" aria-hidden="true"></i>Add user</a>{% endblock %}
+{% block page_heading %}Users{% endblock %}
+{% block page_sub %}{{ user_acl_list|length }} user{{ user_acl_list|length|pluralize }} · open a row for the details{% endblock %}
+{% block page_actions %}<a href="/user/manage/" class="btn btn-primary btn-sm"><i class="fas fa-user-plus me-1" aria-hidden="true"></i>Add user</a>{% endblock %}
+{% block page_search %}{% if user_acl_list|length > 8 %}<div class="rf-search mb-2"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+    <input type="search" data-rf-filter=".rf-xrow" placeholder="Search users" aria-label="Search the users"></div>{% endif %}{% endblock %}
 
-{% block pane_list %}
-{% if user_acl_list|length > 8 %}<div class="rf-search mb-2"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-    <input type="search" data-rf-filter=".rf-user" placeholder="Search users" aria-label="Search the users"></div>{% endif %}
-<div class="rf-list" role="list">
-    {% for acl in user_acl_list %}
-    <a class="rf-li rf-user{% if chosen and chosen.pk == acl.pk %} on{% endif %}{% if not acl.user.is_active %} rf-li-off{% endif %}" role="listitem" href="?user={{ acl.uuid }}">
-        <span class="rf-li-main"><span class="rf-li-name">{{ acl.user.username }}</span>
-            <span class="rf-li-sub">{{ acl.get_user_level_display }}{% if not acl.user.is_active %} · inactive{% endif %}</span></span>
-        {% if acl.app or acl.passkeys %}<i class="fas fa-shield-halved rf-li-shield" role="img" aria-label="Second factor" title="{% if acl.app %}Authenticator app{% endif %}{% if acl.app and acl.passkeys %} and {% endif %}{% if acl.passkeys %}{{ acl.passkeys }} passkey{{ acl.passkeys|pluralize }}{% endif %}"></i>{% endif %}
-    </a>
-    {% endfor %}
-</div>
-{% endblock %}
-
-{% block pane_detail %}
-{% if chosen %}{% with u=chosen.user %}
-<div class="rf-insp-head">
-    <div class="rf-insp-title"><h2>{{ u.username }}</h2>
-        <div class="rf-page-sub">{% if u.get_full_name %}{{ u.get_full_name }} · {% endif %}{{ chosen.get_user_level_display }}</div></div>
-    <div class="rf-insp-actions"><a class="btn btn-sm btn-outline-secondary" href="/user/manage/?uuid={{ chosen.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a></div>
-</div>
-<dl class="rf-facts">
-    <dt>State</dt><dd>{% if u.is_active %}<span class="rf-st ok"><i></i>Active</span>{% else %}<span class="rf-st off"><i></i>Inactive - can not sign in</span>{% endif %}</dd>
-    <dt>Level</dt><dd>{{ chosen.get_user_level_display }} <span class="text-muted">· {{ chosen.user_level }}</span></dd>
-    <dt>Email</dt><dd>{{ u.email|default:"—" }}</dd>
-    {% if chosen.phone %}<dt>Phone</dt><dd class="rf-mono">{{ chosen.phone }}</dd>{% endif %}
-    <dt>Second factor</dt><dd>{% if chosen.app or chosen.passkeys %}{% if chosen.app %}authenticator app{% endif %}{% if chosen.app and chosen.passkeys %} · {% endif %}{% if chosen.passkeys %}{{ chosen.passkeys }} passkey{{ chosen.passkeys|pluralize }}{% endif %}{% else %}<span class="text-muted">password only</span>{% endif %}</dd>
-    <dt>Session</dt><dd>{{ chosen.get_session_hours_display }}</dd>
-    <dt>Last sign-in</dt><dd>{% if u.last_login %}<span class="rf-mono">{{ u.last_login|date:"Y-m-d H:i" }}</span> <span class="text-muted">· {{ u.last_login|timesince }} ago</span>{% else %}<span class="text-muted">never</span>{% endif %}</dd>
-    <dt>Created</dt><dd class="rf-mono">{{ u.date_joined|date:"Y-m-d" }}</dd>
-</dl>
-<div class="rf-insp-section">Recent sign-ins</div>
-<div class="rf-object rf-o-timeline rf-insp-timeline">
-    {% for record in sign_ins %}
-    <div class="rf-o-t {% if record.successful %}rf-o-ok{% else %}rf-o-bad{% endif %}">
-        <div>{% if record.successful %}Signed in{% else %}Refused{% endif %} <span class="text-muted rf-mono" title="{{ record.address_title }}">{{ record.ip }}</span></div>
-        <small>{{ record.created|date:"Y-m-d H:i" }}</small>
+{% block rows %}
+{% for acl in user_acl_list %}{% with u=acl.user %}
+<details class="rf-xrow"{% if open_uuid == acl.uuid|stringformat:"s" %} open{% endif %}>
+    <summary class="rf-set-row">
+        <span class="rf-set-icon {% if acl.user_level >= 50 %}red{% elif acl.user_level >= 40 %}purple{% elif acl.user_level >= 30 %}blue{% elif acl.user_level >= 20 %}teal{% else %}sky{% endif %}">{{ u.username|slice:":1"|upper }}</span>
+        <span class="rf-set-text"><span class="rf-set-label d-block">{{ u.username }}{% if not u.is_active %} <span class="text-muted fw-normal">· inactive</span>{% endif %}</span>
+            <span class="rf-set-sub d-block">{{ acl.get_user_level_display }}</span></span>
+        {% if acl.app or acl.passkeys %}<i class="fas fa-shield-halved rf-li-shield" role="img" aria-label="Second factor" title="Second factor"></i>{% endif %}
+        <i class="fas fa-chevron-down rf-xchevron" aria-hidden="true"></i>
+    </summary>
+    <div class="rf-xbody">
+        <dl class="rf-facts">
+            <dt>State</dt><dd>{% if u.is_active %}<span class="rf-st ok"><i></i>Active</span>{% else %}<span class="rf-st off"><i></i>Inactive - can not sign in</span>{% endif %}</dd>
+            <dt>Level</dt><dd>{{ acl.get_user_level_display }} <span class="text-muted">· {{ acl.user_level }}</span></dd>
+            {% if u.get_full_name %}<dt>Name</dt><dd>{{ u.get_full_name }}</dd>{% endif %}
+            <dt>Email</dt><dd>{{ u.email|default:"—" }}</dd>
+            {% if acl.phone %}<dt>Phone</dt><dd class="rf-mono">{{ acl.phone }}</dd>{% endif %}
+            <dt>Second factor</dt><dd>{% if acl.app or acl.passkeys %}{% if acl.app %}authenticator app{% endif %}{% if acl.app and acl.passkeys %} · {% endif %}{% if acl.passkeys %}{{ acl.passkeys }} passkey{{ acl.passkeys|pluralize }}{% endif %}{% else %}<span class="text-muted">password only</span>{% endif %}</dd>
+            <dt>Session</dt><dd>{{ acl.get_session_hours_display }}</dd>
+            <dt>Last sign-in</dt><dd>{% if u.last_login %}<span class="rf-mono">{{ u.last_login|date:"Y-m-d H:i" }}</span> <span class="text-muted">· {{ u.last_login|timesince }} ago</span>{% else %}<span class="text-muted">never</span>{% endif %}</dd>
+            <dt>Created</dt><dd class="rf-mono">{{ u.date_joined|date:"Y-m-d" }}</dd>
+        </dl>
+        {% if acl.sign_ins %}<div class="rf-insp-section">Recent sign-ins</div>
+        <div class="rf-object rf-o-timeline rf-insp-timeline">
+            {% for record in acl.sign_ins %}<div class="rf-o-t {% if record.successful %}rf-o-ok{% else %}rf-o-bad{% endif %}"><div>{% if record.successful %}Signed in{% else %}Refused{% endif %} <span class="text-muted rf-mono" title="{{ record.address_title }}">{{ record.ip }}</span></div><small>{{ record.created|date:"Y-m-d H:i" }}</small></div>{% endfor %}
+        </div>{% endif %}
+        <div class="rf-xactions"><a class="btn btn-sm btn-outline-secondary" href="/user/manage/?uuid={{ acl.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a></div>
     </div>
-    {% empty %}
-    <p class="text-muted mb-0">No sign-in recorded.</p>
-    {% endfor %}
-</div>
-{% endwith %}{% endif %}
+</details>
+{% endwith %}{% endfor %}
 {% endblock %}

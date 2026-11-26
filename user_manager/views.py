@@ -226,12 +226,12 @@ def view_user_list(request):
     user_acl_list = list(UserAcl.objects.select_related('user').annotate(
         passkeys=Count('user__passkeys', distinct=True),
         app=Exists(UserTotp.objects.filter(user=OuterRef('user'), confirmed=True))).order_by('user__username'))
-    chosen = next((a for a in user_acl_list if str(a.uuid) == request.GET.get('user', '')), user_acl_list[0] if user_acl_list else None)
-    sign_ins = []
-    if chosen:
-        from audit_log.models import LoginRecord
-        sign_ins = list(LoginRecord.objects.filter(username__iexact=chosen.user.username).order_by('-created')[:6])
-    context = {'page_title': page_title, 'user_acl_list': user_acl_list, 'chosen': chosen, 'sign_ins': sign_ins}
+    # Each row opens on a click with the user's details and recent sign-ins;
+    # a link naming a user (?user=) opens that row
+    from audit_log.models import LoginRecord
+    for acl in user_acl_list:
+        acl.sign_ins = list(LoginRecord.objects.filter(username__iexact=acl.user.username).order_by('-created')[:5])
+    context = {'page_title': page_title, 'user_acl_list': user_acl_list, 'open_uuid': request.GET.get('user', '')}
     return render(request, 'user_manager/list.html', context)
 
 

@@ -5,6 +5,16 @@
 (function () {
   'use strict';
   document.addEventListener('DOMContentLoaded', function () {
+    // On the list: each opened key's own Copy button copies its public key
+    document.querySelectorAll('.rf-copy-key').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var area = button.closest('.rf-xbody').querySelector('.rf-public-key');
+        var text = area.value.trim();
+        function done() { button.lastChild.textContent = 'Copied'; setTimeout(function () { button.lastChild.textContent = 'Copy the public key'; }, 2000); }
+        if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done, function () {}); }
+        else { area.focus(); area.select(); try { if (document.execCommand('copy')) { done(); } } catch (e) {} }
+      });
+    });
     // Copy the public key, to put it on the devices
     var copy = document.getElementById('copy-public-key');
     if (copy) {

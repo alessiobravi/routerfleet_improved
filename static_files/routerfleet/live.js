@@ -14,6 +14,13 @@
   var timer = null, failures = 0, stopped = false, pill = null;
 
   function parts(root) { return Array.prototype.slice.call((root || document).querySelectorAll('[data-rf-live][id]')); }
+  // Parts swapped when the data changed elsewhere (see /changes/): the live
+  // ones, and the pages that say they follow changes - not one that does it
+  // itself (data-rf-changes-mode="custom", the device list)
+  function changeParts(root) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(
+      '[data-rf-live][id], [data-rf-changes][id]:not([data-rf-changes-mode="custom"])'));
+  }
   function activeParts() { return parts().filter(function (p) { return p.getAttribute('data-rf-live') === 'active'; }); }
   // What is running, as the page says (data-rf-live-reason); a part marked
   // data-rf-live-quiet - the status page's cards - refreshes without the pill
@@ -68,7 +75,7 @@
     timer = setTimeout(refresh, wait * 1000);
   }
 
-  function refresh() {
+  function refresh(all) {
     if (document.hidden) { return; }   // resumed by visibilitychange
     fetch(window.location.href, {credentials: 'same-origin', headers: {'X-RF-Live': '1'}, cache: 'no-store'})
       .then(function (response) {
@@ -78,7 +85,7 @@
       })
       .then(function (html) {
         var fresh = new DOMParser().parseFromString(html, 'text/html');
-        parts().forEach(function (old) {
+        (all ? changeParts() : parts()).forEach(function (old) {
           var next = fresh.getElementById(old.id);
           if (!next) { return; }
           var focused = document.activeElement;
@@ -117,6 +124,32 @@
 
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && !stopped && activeParts().length) { clearTimeout(timer); refresh(); }
+    if (!document.hidden) { checkChanges(); }
   });
+
+  /* Changes made elsewhere - another browser, the scheduler, a firmware
+     update - reach an open page: every half minute, and when the tab comes
+     back to the front, it asks when the data last changed; when that moved,
+     its parts are swapped as above (rf:changed tells a page that refreshes
+     itself, the device list). */
+  var stamp = null;
+  function checkChanges() {
+    if (document.hidden || stopped || !document.querySelector('[data-rf-changes], [data-rf-live]')) { return; }
+    fetch('/changes/', {credentials: 'same-origin', headers: {'Accept': 'application/json'}, cache: 'no-store'})
+      .then(function (response) {
+        if (response.redirected || !response.ok) { throw new Error(response.status); }
+        return response.json();
+      })
+      .then(function (data) {
+        var moved = stamp !== null && data.stamp !== stamp;
+        stamp = data.stamp;
+        if (!moved) { return; }
+        refresh(true);
+        document.dispatchEvent(new CustomEvent('rf:changed'));
+      })
+      .catch(function () {});
+  }
+  setInterval(checkChanges, 30000);
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', checkChanges); } else { checkChanges(); }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', schedule); } else { schedule(); }
 })();

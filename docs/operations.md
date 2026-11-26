@@ -171,10 +171,15 @@ yet.
 
 Every collection of objects opens the same way: the list on the left, the
 chosen item on the right - **Devices**, **Device Groups**, **Discovered**,
-the **Backup list** and **Backup Profiles**, **Fleet Commander** commands
-(with their schedules and variants), **Users**, **SSH Keys** and the
-**Message Center**. The address bar keeps the chosen item, so a link or a
-reload opens it again; on a phone the list comes first. Histories - **Jobs**,
+the **Backup list** and **Backup Profiles**, and **Fleet Commander** commands
+(with their schedules and variants). The address bar keeps the chosen item,
+so a link or a reload opens it again; on a phone the list comes first.
+**Users**, **SSH Keys** and the **Message Center** are lists whose rows open
+on a click: nothing about a user, key or message shows until its row is
+opened. An open page keeps itself current: every half minute, and when its
+tab comes back to the front, it checks whether devices, backups or jobs
+changed - in another browser, by the scheduler, after a firmware update -
+and refreshes what it shows, keeping what was ticked or typed. Histories - **Jobs**,
 the **Audit Log**, a device's **availability**, **imports** - are one calm
 table under the same header and tabs. A state is a dot and a word
 everywhere; colour is kept for what needs attention. Action buttons are coloured by what they

@@ -10,7 +10,7 @@ from backup.views import view_backup_profile_list, view_manage_backup_profile, v
     view_backup_config_change
 from backup_data.views import view_cron_generate_backup_schedule, view_cron_create_backup_tasks, \
     view_cron_perform_backup_tasks, view_cron_housekeeping
-from dashboard.views import view_dashboard, view_status, view_about, backup_statistics_data, router_status_data
+from dashboard.views import view_dashboard, view_status, view_about, backup_statistics_data, router_status_data, view_changes
 from fleet_commander.views import view_command_list, view_command_details, view_manage_command, \
     view_manage_command_variant, view_manage_command_schedule, view_job_list, view_job_details, view_task_details, \
     view_cron_create_command_jobs, view_cron_perform_command_tasks, view_execute_command, view_run_command_multiple, view_execute_on_router, view_edit_system_variant, \
@@ -99,6 +99,7 @@ urlpatterns = [
     path('router/details/', view_router_details, name='router_details'),
     path('router/availability/', view_router_availability, name='router_availability'),
     path('router/inspect/', router_views.view_router_inspect, name='router_inspect'),
+    path('changes/', view_changes, name='changes'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),
     # SSH keys have a menu item of their own (0.42); the old addresses lead there
     path('ssh_keys/', view_ssh_key_list, name='ssh_keys_list'),

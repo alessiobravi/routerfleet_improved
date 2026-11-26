@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.45.2] - 2026-11-26
+
+### Fixed
+- **A page open in another browser showed old data** - after a firmware
+  update, say, the version stayed the old one until a reload. An open page
+  now checks every half minute, and as soon as its tab is back in front,
+  whether devices, backups or jobs changed, and refreshes what it shows in
+  place - the device list keeping what was ticked, searched and chosen.
+
+### Changed
+- **Users, SSH Keys and Messages are lists again, rows opening on a click**:
+  nothing about a user (e-mail, sign-ins), a key or a message shows until its
+  row is opened. A link naming one opens its row.
+
 ## [0.45.1] - 2026-11-26
 
 ### Added

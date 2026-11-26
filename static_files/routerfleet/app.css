@@ -766,3 +766,18 @@ html.rf-dark { --rf-c-teal: #2dd4bf; --rf-c-blue: #7eb0ff; --rf-c-green: #4ade80
 .app-content .btn:has(> .fa-key) { --rf-act: var(--rf-c-purple); }
 .app-content .btn:has(> .fa-network-wired), .app-content .btn:has(> .fa-toggle-off), .app-content .btn:has(> .fa-arrow-left),
 .app-content .btn:has(> .fa-arrow-right), .app-content .btn:has(> .fa-xmark) { --rf-act: var(--rf-c-grey); }
+
+/* Lists whose rows open on a click (Users, SSH Keys, Messages) */
+.rf-xlist-page .rf-settings { max-width: 860px; }
+.rf-xrow { border-top: 1px solid var(--rf-line-soft); }
+.rf-xrow:first-child { border-top: 0; }
+.rf-xrow > summary { list-style: none; cursor: pointer; border-top: 0; }
+.rf-xrow > summary::-webkit-details-marker { display: none; }
+.rf-xrow > summary:hover { background: var(--rf-hover); }
+.rf-xrow > summary:focus-visible { outline: 2px solid #14a89a; outline-offset: -2px; }
+.rf-xchevron { color: #b9c1cb; transition: transform .2s; }
+.rf-xrow[open] > summary { background: var(--rf-hover); }
+.rf-xrow[open] .rf-xchevron { transform: rotate(180deg); }
+.rf-xbody { border-top: 1px solid var(--rf-line-soft); padding-bottom: 6px; }
+.rf-xbody .rf-facts { grid-template-columns: 130px minmax(0, 1fr); }
+.rf-xactions { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 20px 12px; }

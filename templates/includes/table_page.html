@@ -4,7 +4,7 @@ A log or history page (Jobs, Change log, Login history, ...): the same header
 and tabs as the list-and-detail pages, then one calm table at full width.
 {% endcomment %}
 {% block content %}
-<div class="rf-pane-page" {% block page_attrs %}{% endblock %}>
+<div class="rf-pane-page" data-rf-changes {% block page_attrs %}id="rf-table-page"{% endblock %}>
     <div class="rf-page-head">
         <div><h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
             <div class="rf-page-sub">{% block page_sub %}{% endblock %}</div></div>
