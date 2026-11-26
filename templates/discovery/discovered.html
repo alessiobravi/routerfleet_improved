@@ -3,7 +3,9 @@
 
 {% block pane_attrs %}id="rf-live-discovered" data-rf-live="{% if busy %}active{% else %}done{% endif %}" data-rf-live-reason="discovering devices" data-rf-live-interval="5"{% endblock %}
 {% block pane_sub %}{{ new|length }} new · {{ known|length }} in RouterFleet · {{ dismissed|length }} hidden{% endblock %}
-{% block pane_actions %}<a href="/discovery/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-tower-broadcast me-1" aria-hidden="true"></i>Device Discovery</a>{% endblock %}
+{% block pane_actions %}{% if rows %}<button type="button" class="btn btn-outline-danger btn-sm" data-rf-post="?view={{ view }}" data-rf-field-action="clear"
+        data-rf-confirm-word="clear" data-rf-confirm-sum="Remove all {{ rows|length }} {% if view == 'new' %}new{% elif view == 'known' %}already-known{% else %}hidden{% endif %} discovered device{{ rows|length|pluralize }}? Only RouterFleet's list is cleared: a device heard again comes back as new."><i class="fas fa-trash me-1" aria-hidden="true"></i>Clear these</button>{% endif %}
+<a href="/discovery/" class="btn btn-outline-secondary btn-sm"><i class="fas fa-tower-broadcast me-1" aria-hidden="true"></i>Device Discovery</a>{% endblock %}
 {% block pane_tabs %}{% include 'router_manager/router_nav_tabs.html' %}{% endblock %}
 {% block pane_notices %}{% if busy %}<div class="rf-notice"><span><span class="rf-st run"><i></i>A discovery is running</span> - new devices appear here as they are found.</span><a href="/discovery/">Follow it</a></div>{% endif %}{% endblock %}
 
@@ -43,6 +45,8 @@
             <button type="submit" class="btn btn-sm btn-outline-secondary">{% if d.dismissed %}<i class="fas fa-eye me-1" aria-hidden="true"></i>Show again{% else %}<i class="fas fa-eye-slash me-1" aria-hidden="true"></i>Hide{% endif %}</button></form>
         {% if d.reachable and can_add and not d.dismissed %}<a class="btn btn-sm btn-primary" href="/router/discovered/add/?uuid={{ d.uuid }}"><i class="fas fa-wand-magic-sparkles me-1" aria-hidden="true"></i>Add device</a>{% endif %}
         {% endif %}
+        <form method="post" class="d-inline">{% csrf_token %}<input type="hidden" name="action" value="remove"><input type="hidden" name="uuid" value="{{ d.uuid }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove it from this list - it comes back if it is heard again"><i class="fas fa-trash me-1" aria-hidden="true"></i>Remove</button></form>
     </div>
 </div>
 {% if not r and d.address and d.reachable is False %}

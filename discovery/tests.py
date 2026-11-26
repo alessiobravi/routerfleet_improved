@@ -762,3 +762,49 @@ class StartAndProbeTests(TestCase):
             self.assertFalse(is_ip('172.30.0.5'))
             self.assertFalse(is_ip('172.30.0.1'))
             self.assertTrue(is_ip('192.0.2.5'))
+
+
+class ClearDiscoveredTests(TestCase):
+    """Remove one discovered device, or clear the view shown: only
+    RouterFleet's record goes - a device heard again comes back as new."""
+
+    def setUp(self):
+        from django.utils import timezone
+        now = timezone.now()
+        self.new1 = DiscoveredDevice.objects.create(key='addr:198.51.100.11|n1', identity='n1', address='198.51.100.11', last_seen=now)
+        self.new2 = DiscoveredDevice.objects.create(key='addr:198.51.100.12|n2', identity='n2', address='198.51.100.12', last_seen=now)
+        self.hidden = DiscoveredDevice.objects.create(key='addr:198.51.100.13|h1', identity='h1', address='198.51.100.13', last_seen=now, dismissed=True)
+        make_router(name='known-1', address='198.51.100.20')
+        self.known_a = DiscoveredDevice.objects.create(key='mac:aa|k', identity='known-1', address='198.51.100.20', protocols='lldp', last_seen=now)
+        self.known_b = DiscoveredDevice.objects.create(key='mac:bb|k', identity='known-1', address='198.51.100.20', protocols='mndp', last_seen=now)
+        self.client.force_login(make_user(30))
+
+    def test_remove_one(self):
+        response = self.client.post(f'/router/discovered/?view=new&device={self.new1.uuid}', {'action': 'remove', 'uuid': str(self.new1.uuid)})
+        self.assertRedirects(response, '/router/discovered/?view=new', fetch_redirect_response=False)
+        self.assertFalse(DiscoveredDevice.objects.filter(pk=self.new1.pk).exists())
+        self.assertTrue(DiscoveredDevice.objects.filter(pk=self.new2.pk).exists())
+
+    def test_removing_a_known_row_removes_every_record_behind_it(self):
+        page = self.client.get('/router/discovered/?view=known')
+        self.assertEqual(len(page.context['rows']), 1, 'two protocols, one row')
+        self.client.post('/router/discovered/?view=known', {'action': 'remove', 'uuid': str(self.known_a.uuid)})
+        self.assertFalse(DiscoveredDevice.objects.filter(pk__in=[self.known_a.pk, self.known_b.pk]).exists())
+
+    def test_a_device_of_another_view_is_not_removed(self):
+        response = self.client.post('/router/discovered/?view=new', {'action': 'remove', 'uuid': str(self.hidden.uuid)})
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(DiscoveredDevice.objects.filter(pk=self.hidden.pk).exists())
+
+    def test_clear_asks_for_the_word_and_clears_only_the_view(self):
+        self.client.post('/router/discovered/?view=new', {'action': 'clear', 'confirmation': 'nope'})
+        self.assertEqual(DiscoveredDevice.objects.count(), 5, 'a wrong word clears nothing')
+        self.client.post('/router/discovered/?view=new', {'action': 'clear', 'confirmation': 'clear'})
+        self.assertEqual(set(DiscoveredDevice.objects.values_list('identity', flat=True)), {'h1', 'known-1'},
+                         'the new ones went; hidden and known stay')
+        self.assertContains(self.client.get('/router/discovered/?view=hidden'), 'Clear these')
+
+    def test_below_the_page_level_nothing_is_removed(self):
+        self.client.force_login(make_user(20))
+        self.client.post('/router/discovered/?view=new', {'action': 'clear', 'confirmation': 'clear'})
+        self.assertEqual(DiscoveredDevice.objects.count(), 5)

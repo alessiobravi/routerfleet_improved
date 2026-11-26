@@ -13,6 +13,14 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.45.1] - 2026-11-26
+
+### Added
+- **Clear discovered devices.** *Remove* takes one off the list, *Clear
+  these* every device of the view shown (new, in RouterFleet or hidden),
+  after a small sum. Only RouterFleet's record goes: a device heard again
+  comes back as new.
+
 ## [0.45.0] - 2026-11-26
 
 One design for every page. Collections are a list with the chosen item

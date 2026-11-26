@@ -2,10 +2,11 @@
 RouterFleet in one click - the device form prefilled, the device type guessed."""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from router_manager.models import DeviceType, Router, RouterGroup
+from routerlib.actions import posted_confirmation
 from routerlib.decorators import cron_endpoint
 from user_manager.models import UserAcl
 
@@ -106,6 +107,34 @@ def _start_discovery(request):
 VIEWS = ('new', 'known', 'hidden')
 
 
+def _classify():
+    """The discovered devices as rows of the three views: new, already in
+    RouterFleet, hidden. A device in RouterFleet heard by several protocols is
+    one row; row['ids'] holds every record behind a row."""
+    routers = list(Router.objects.only('uuid', 'name', 'address'))
+    new, known, dismissed = [], [], []
+    known_rows = {}   # one row per device in RouterFleet, however many protocols heard it
+    for device in DiscoveredDevice.objects.select_related('seen_by_router'):
+        router = known_router(device, routers)
+        row = {'device': device, 'router': router, 'type': guess_type(device), 'ids': [device.pk], 'uuids': [str(device.uuid)],
+               'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)}
+        if router:
+            same = known_rows.get((router.pk, (device.identity or '').lower(), device.address))
+            if same:
+                merged = {p.strip() for p in (same['protocols'] + ', ' + row['protocols']).split(',') if p.strip()}
+                same['protocols'] = ', '.join(sorted(merged))
+                same['ids'].append(device.pk)
+                same['uuids'].append(str(device.uuid))
+                continue
+            known_rows[(router.pk, (device.identity or '').lower(), device.address)] = row
+            known.append(row)
+        elif device.dismissed:
+            dismissed.append(row)
+        else:
+            new.append(row)
+    return new, known, dismissed
+
+
 def _back(view, device=None):
     """The list again, on the same view and device - only values it knows."""
     query = f'?view={view}' if view in VIEWS else ''
@@ -128,6 +157,25 @@ def view_discovered(request):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         check([device])
         return _back(view, device)
+    if request.method == 'POST' and request.POST.get('action') in ('remove', 'clear'):
+        # Only RouterFleet's record goes: a device heard again comes back as new
+        rows = dict(zip(VIEWS, _classify()))[view]
+        if request.POST.get('action') == 'remove':
+            # Any record behind the row names it - which one the row shows depends on the database's order
+            row = next((r for r in rows if request.POST.get('uuid', '') in r['uuids']), None)
+            if row is None:
+                raise Http404
+            ids, label = row['ids'], (row['router'].name if row['router'] else row['device'].identity or row['device'].address or row['device'].mac)
+        elif posted_confirmation(request) == 'clear':
+            ids, label = [pk for r in rows for pk in r['ids']], None
+        else:
+            messages.warning(request, 'Not cleared|The confirmation was missing or wrong.')
+            return _back(view)
+        removed = DiscoveredDevice.objects.filter(pk__in=ids).delete()[0]
+        messages.success(request, (f'Removed|{label} - it comes back if it is heard again.' if label else
+                                   f'List cleared|{removed} discovered device{"s" if removed != 1 else ""} removed; '
+                                   'they come back if they are heard again.'))
+        return _back(view)
     if request.method == 'POST' and request.POST.get('action') in ('dismiss', 'restore'):
         device = get_object_or_404(DiscoveredDevice, uuid=request.POST.get('uuid'))
         device.dismissed = request.POST.get('action') == 'dismiss'
@@ -142,25 +190,7 @@ def view_discovered(request):
     if getattr(settings, 'DISCOVERY_CHECK_ON_PAGE', True):
         from .reach import check_stale
         check_stale()        # reachability of what was not checked lately (parallel, bounded)
-    routers = list(Router.objects.only('uuid', 'name', 'address'))
-    new, known, dismissed = [], [], []
-    known_rows = {}   # one row per device in RouterFleet, however many protocols heard it
-    for device in DiscoveredDevice.objects.select_related('seen_by_router'):
-        router = known_router(device, routers)
-        row = {'device': device, 'router': router, 'type': guess_type(device),
-               'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)}
-        if router:
-            same = known_rows.get((router.pk, (device.identity or '').lower(), device.address))
-            if same:
-                merged = {p.strip() for p in (same['protocols'] + ', ' + row['protocols']).split(',') if p.strip()}
-                same['protocols'] = ', '.join(sorted(merged))
-                continue
-            known_rows[(router.pk, (device.identity or '').lower(), device.address)] = row
-            known.append(row)
-        elif device.dismissed:
-            dismissed.append(row)
-        else:
-            new.append(row)
+    new, known, dismissed = _classify()
     rows = {'new': new, 'known': known, 'hidden': dismissed}[view]
     chosen = next((row for row in rows if str(row['device'].uuid) == request.GET.get('device', '')), rows[0] if rows else None)
     return render(request, 'discovery/discovered.html', {
