@@ -13,6 +13,34 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.45.0] - 2026-11-26
+
+One design for every page. Collections are a list with the chosen item
+beside it; histories are one calm table; object pages keep their header,
+figures and timeline; forms keep their settings rows. A state is a dot and a
+word everywhere.
+
+### Changed
+- **Discovered devices** as list and detail: New / In RouterFleet / Hidden,
+  a dot for SSH reachability, the chosen device's address, MAC, version,
+  protocols, where it was seen, and Add device, Check again, Hide, Show again.
+- **Users**: the chosen user's level, contact, second factors, session, last
+  sign-in and recent sign-ins as a timeline.
+- **SSH Keys**: the chosen key's type, fingerprint, public key with Copy, and
+  the devices using it.
+- **Fleet Commander**: commands and system commands on the left, the chosen
+  command with its schedules and variants on the right (the command page and
+  the list are one page now); **Jobs** as one table; tabs Commands / Jobs /
+  Schedule defaults.
+- **Message Center**: messages on the left, the chosen one's full text,
+  channel, state, attempts and error on the right - no more hovering to read.
+- **Audit Log**, a device's **availability** and **imports** as calm tables
+  under the same header and tabs; dates as 2026-11-26 09:30 everywhere.
+- **Object pages** (device, backup, job, task): their section's tabs on top,
+  the actions on a row under the title, the state as a dot and a word.
+- The remaining card pages (forms, confirmations, comparisons) without the
+  coloured stripe, with the same borders, titles and table headings.
+
 ## [0.44.0] - 2026-11-26
 
 Includes 0.43.1, which was not released on its own.

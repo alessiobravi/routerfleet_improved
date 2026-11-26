@@ -167,6 +167,18 @@ yet.
 
 ## Finding your way around the interface
 
+### Lists and objects
+
+Every collection of objects opens the same way: the list on the left, the
+chosen item on the right - **Devices**, **Device Groups**, **Discovered**,
+the **Backup list** and **Backup Profiles**, **Fleet Commander** commands
+(with their schedules and variants), **Users**, **SSH Keys** and the
+**Message Center**. The address bar keeps the chosen item, so a link or a
+reload opens it again; on a phone the list comes first. Histories - **Jobs**,
+the **Audit Log**, a device's **availability**, **imports** - are one calm
+table under the same header and tabs. A state is a dot and a word
+everywhere; colour is kept for what needs attention.
+
 ### Sections
 
 Settings, forms and tool pages are made of **sections that start closed**:

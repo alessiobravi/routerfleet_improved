@@ -114,23 +114,25 @@ own segment is heard: switches do not forward these protocols.
 
 ## The list
 
-**Devices Manager → Discovered** lists the devices only - the actions are in
-Device Discovery. While a discovery runs, it updates by itself.
+**Devices Manager → Discovered** lists the discovered devices on the left and
+shows the chosen one on the right; while a discovery runs, it updates by
+itself. A switch above the list picks which ones:
 
-- **Not in RouterFleet yet**: name, address, platform, model and version as
-  announced, the protocols, and which device (and port) saw it. **Add device** opens
-  a wizard filled in - name, address, the device type guessed (RouterOS,
-  Cisco, Junos, Huawei, OpenWrt, airOS) - to be completed with the credentials,
-  the backup profile and monitoring, and the **groups** it joins: tick existing
-  ones (the device list's default group is ticked to begin with) or name a new
-  one, created with the device.
-  A device without a management address can not be added from here. One that
-  RouterFleet's host can not reach on SSH is framed in yellow, saying why,
-  with **Check again** for that device alone. The eye hides a device of no
-  interest at once, without reloading; **Show hidden devices**, right under
-  the list, brings them back.
-- **Already in RouterFleet**: matched by address or name, with a link to the
-  device - one row per device, however many protocols heard it.
+- **New** (not in RouterFleet yet): a dot says whether RouterFleet's host
+  reaches it on SSH - green yes, red no, grey not checked yet. On the right:
+  address, MAC, identity, version, the protocols that heard it, which device
+  (and port) saw it, first and last seen. **Add device** opens a wizard filled
+  in - name, address, the device type guessed (RouterOS, Cisco, Junos, Huawei,
+  OpenWrt, airOS) - to be completed with the credentials, the backup profile
+  and monitoring, and the **groups** it joins: tick existing ones (the device
+  list's default group is ticked to begin with) or name a new one, created
+  with the device. A device without a management address can not be added
+  from here. One RouterFleet's host can not reach on SSH is framed in yellow,
+  saying why, with **Check again**. **Hide** puts a device of no interest
+  aside.
+- **In RouterFleet**: matched by address or name, with a link to the device -
+  one row per device, however many protocols heard it.
+- **Hidden**: the devices put aside; **Show again** makes one new again.
 
 A device is one row: merged by its MAC address when known, else by address
 and name, whichever source saw it.
