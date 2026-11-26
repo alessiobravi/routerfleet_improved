@@ -24,9 +24,13 @@ def _account_hint():
     docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/devices.md#a-dedicated-account'
     return format_html(
         '<i class="fas fa-shield-halved me-1" aria-hidden="true"></i>Best a dedicated account with only the rights '
-        'RouterFleet needs, not the administrator: reading the configuration is enough for backups and device '
-        'information; updates, commands and the console need more. '
-        '<a href="{}" target="_blank" rel="noopener">Examples per vendor</a>', docs)
+        'RouterFleet needs, not the administrator. <b>A read-only account</b> is enough for backups, device '
+        'information and the connection test (passwords and keys appear in backups only if it may read them - '
+        'RouterOS: <code>sensitive</code>). With it, <b>firmware and bootloader updates fail</b>, and so do '
+        'Fleet Commander commands and console commands that change something - each with the device\'s own '
+        '"not permitted" message, nothing else affected. On some RouterOS versions even the update check is '
+        'refused: <i>Available version</i> then shows the device\'s message. '
+        '<a href="{}" target="_blank" rel="noopener">The rights each feature needs, per vendor</a>', docs)
 
 
 ACCOUNT_HINT = _account_hint()
@@ -43,7 +47,7 @@ class RouterForm(forms.ModelForm):
     class Meta:
         model = Router
         fields = ['name', 'port', 'address', 'username', 'password', 'ssh_key', 'monitoring', 'router_type', 'enabled',
-                  'backup_profile', 'keep_unchanged', 'console_telnet', 'telnet_port', 'enable_password']
+                  'backup_profile', 'keep_unchanged', 'file_backups', 'console_telnet', 'telnet_port', 'enable_password']
 
     def __init__(self, *args, **kwargs):
         super(RouterForm, self).__init__(*args, **kwargs)
@@ -71,6 +75,9 @@ class RouterForm(forms.ModelForm):
         else:
             delete_html = ''
         self.fields['keep_unchanged'].required = False
+        self.fields['file_backups'].required = False
+        self.fields['file_backups'].help_text = ('Whether backups take the binary file as well (RouterOS .backup, '
+                                                 'OpenWrt archive), or the text backup only.')
         self.fields['keep_unchanged'].help_text = ('Whether a scheduled backup is stored again when the configuration '
                                                    'did not change. Instant backups are always stored.')
         self.helper.layout = Layout(
@@ -93,6 +100,10 @@ class RouterForm(forms.ModelForm):
             Row(
                 Column('backup_profile', css_class='col-md-6 mb-0'),
                 Column('keep_unchanged', css_class='col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('file_backups', css_class='col-md-6 mb-0'),
                 css_class='form-row'
             ),
             'router_type',
@@ -118,6 +129,10 @@ class RouterForm(forms.ModelForm):
     def clean_keep_unchanged(self):
         # Not sent (an older form, a script): as the backup profile says
         return self.cleaned_data.get('keep_unchanged') or 'profile'
+
+    def clean_file_backups(self):
+        # Not sent (an older form, a script): as the backup profile says
+        return self.cleaned_data.get('file_backups') or 'profile'
 
     def clean(self):
         cleaned_data = super().clean()

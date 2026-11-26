@@ -877,3 +877,63 @@ class HousekeepingPrunesTests(TestCase):
         data = self.client.get('/cron/housekeeping/').json()
         self.assertEqual((data['discovery_runs_removed'], data['discovered_devices_removed'], data['bans_removed']), (1, 1, 1))
         self.assertEqual(sorted(DiscoveredDevice.objects.values_list('identity', flat=True)), ['hidden', 'recent'])
+
+
+class FileBackupsOffTests(TestCase):
+    """File backups switched off - on the profile, or for one device: the
+    text backup only; the file is not made on the device, nor downloaded or
+    stored. The device's own setting wins over the profile's."""
+
+    def setUp(self):
+        with_routeros_binary()
+        self.profile = make_profile()
+        self.router = make_router(router_type='routeros', backup_profile=self.profile)
+        FakeSCPClient.files = {}
+        FakeSCPClient.fetched = []
+
+    def run_backup(self):
+        RouterStatus.objects.filter(router=self.router).update(backup_lock=timezone.now())
+        backup = RouterBackup.objects.create(router=self.router, schedule_type='daily', schedule_time=timezone.now())
+        name = backup_functions.gen_backup_name(backup)
+        client = FakeSSHClient({'/export': RSC})
+        FakeSCPClient.files = {f'/{name}.backup': b'\x00binary'}
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client), mock.patch(f'{SSH}.SafeSCPClient', FakeSCPClient):
+            backup_functions.perform_backup(backup)
+            backup_functions.perform_backup(backup)
+        backup.refresh_from_db()
+        self.name = name
+        return backup, client
+
+    def test_the_rule(self):
+        self.assertTrue(self.router.takes_file_backups(), 'as before: the profile takes them')
+        self.profile.file_backups = False
+        self.assertFalse(self.router.takes_file_backups())
+        self.router.file_backups = 'on'
+        self.assertTrue(self.router.takes_file_backups(), 'the device decides over its profile')
+        self.router.file_backups = 'off'
+        self.profile.file_backups = True
+        self.assertFalse(self.router.takes_file_backups())
+        self.router.file_backups, self.router.backup_profile = 'profile', None
+        self.assertTrue(self.router.takes_file_backups(), 'no profile: as every device had before')
+
+    def test_off_on_the_profile_takes_the_text_only(self):
+        self.profile.file_backups = False
+        self.profile.save()
+        with temporary_media_root():
+            backup, client = self.run_backup()
+        self.assertTrue(backup.success)
+        self.assertIn('add address=10.0.0.1/24', backup.backup_text)
+        self.assertFalse(backup.backup_binary, 'no file stored')
+        self.assertFalse(any('system backup save' in c for c in client.commands), 'nothing made on the device')
+        self.assertFalse(any(f'{self.name}.backup' in c for c in client.commands), 'no command touches its file')
+
+    def test_on_for_the_device_takes_the_file_as_well(self):
+        self.profile.file_backups = False
+        self.profile.save()
+        self.router.file_backups = 'on'
+        self.router.save()
+        with temporary_media_root():
+            backup, client = self.run_backup()
+        self.assertTrue(backup.success)
+        self.assertTrue(backup.backup_binary)
+        self.assertTrue(any('system backup save' in c for c in client.commands))

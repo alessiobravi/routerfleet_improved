@@ -130,6 +130,24 @@ class Router(models.Model):
     keep_unchanged = models.CharField(max_length=8, choices=KEEP_UNCHANGED_CHOICES, default='profile',
                                       verbose_name='Unchanged backups')
 
+    # Whether the binary file backup (RouterOS .backup, OpenWrt archive) is
+    # taken: as the backup profile says (what every device had before), or
+    # decided for this device. The text backup is taken either way.
+    FILE_BACKUP_CHOICES = [('profile', 'As the backup profile says'),
+                           ('on', 'Take them'),
+                           ('off', 'Skip them - text backups only')]
+    file_backups = models.CharField(max_length=8, choices=FILE_BACKUP_CHOICES, default='profile',
+                                    verbose_name='File backups')
+
+    def takes_file_backups(self):
+        """Whether backups of this device take the binary file as well."""
+        if self.file_backups == 'on':
+            return True
+        if self.file_backups == 'off':
+            return False
+        profile = self.backup_profile
+        return profile.file_backups if profile else True
+
     def keeps_unchanged(self, profile):
         """Whether this device stores unchanged scheduled backups in full."""
         if self.keep_unchanged == 'keep':

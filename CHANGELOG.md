@@ -13,6 +13,27 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.46.0] - 2026-11-26
+
+### Added
+- **File backups can be switched off** - in a backup profile, or for one
+  device (*As the backup profile says / Take them / Skip them*). Off, a backup
+  is the text alone: the binary file (RouterOS `.backup`, OpenWrt archive) is
+  not made on the device, nor downloaded or stored. On by default, as before.
+
+### Changed
+- **About**: the supported platforms are the device types the installation
+  offers - Cisco IOS / IOS-XE, Huawei VRP, Juniper Junos, MikroTik RouterOS,
+  OpenWrt, Ubiquiti airOS, and any type added - read from the device types,
+  so the list never goes stale; both buttons in the same colour; the
+  introduction centred.
+- **What a read-only device account can and can not do** is said where the
+  account is entered (device form, add-device wizard): backups, information
+  and the connection test work; firmware and bootloader updates, and commands
+  that change something, fail with the device's own message; some RouterOS
+  versions refuse even the update check. The device documentation lists the
+  RouterOS policies each feature needs.
+
 ## [0.45.2] - 2026-11-26
 
 ### Fixed

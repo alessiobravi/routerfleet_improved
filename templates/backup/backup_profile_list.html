@@ -39,6 +39,8 @@
     <dd>{{ chosen.max_retry }}, every {{ chosen.get_retry_interval_display|lower }}</dd>
     <dt>Unchanged</dt>
     <dd>{% if chosen.keep_unchanged %}stored in full{% else %}recorded, not stored again{% endif %}</dd>
+    <dt>File backups</dt>
+    <dd>{% if chosen.file_backups %}taken as well, where the device type makes one{% else %}off - text backups only{% endif %}</dd>
     <dt>While failing</dt>
     <dd>{% if chosen.retain_backups_on_error %}nothing is deleted{% else %}retention applies{% endif %}</dd>
     <dt>Export</dt>

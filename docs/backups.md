@@ -232,6 +232,16 @@ Where this shows up:
 Backups that already existed before this was introduced are filled in by a data
 migration that walks each device's history applying the same rule.
 
+## File backups
+
+Besides the text backup, a device type can take a **binary file** - RouterOS
+`.backup`, an OpenWrt archive. **File backups** in the backup profile (on by
+default) decides whether it is taken; a device can decide otherwise in its own
+settings - *As the backup profile says*, *Take them*, *Skip them*. Off, the
+backup is the text alone: the file is not made on the device, nor downloaded or
+stored. (A device type whose text backup is itself a downloaded file still
+makes that file - it carries the text.)
+
 ## Unchanged backups
 
 Each backup's configuration text is fingerprinted (SHA-256). A profile that

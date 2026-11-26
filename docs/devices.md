@@ -99,8 +99,24 @@ the device's own "not permitted" message - nothing else is affected.
 /user add name=routerfleet group=routerfleet-read password=<a long random password>
 ```
 
-Without `sensitive` the export leaves passwords and keys out. For system and
-RouterBOOT updates add `write,reboot` to the group's policies.
+Without `sensitive` the export leaves passwords and keys out. What each
+RouterFleet feature needs from the group's policies:
+
+| Feature | RouterOS policies |
+|---|---|
+| Connection test, device information, text backups | `ssh,read` |
+| Passwords and keys in the backups | adds `sensitive` |
+| Update check (*Available version*) | `read`; some RouterOS versions refuse `check-for-updates` to a read-only group - *Available version* then shows the device's message, and adding `write` lets it through |
+| System update from the firmware repository | adds `ftp` (the file is uploaded with SCP), `write`, `reboot` |
+| System update online (the device downloads it) | adds `write` (the channel is set), `reboot` |
+| RouterBOOT upgrade | adds `write`, `reboot` |
+| Fleet Commander, console | whatever the commands - or the person typing - do |
+
+**Limitations of a read-only account**, in short: backups, information and the
+connection test work; firmware and RouterBOOT updates fail, as do commands
+that change something - each with the device's own "not permitted" message,
+which RouterFleet shows; nothing else is affected. The device form and the
+add-device wizard say the same under the username.
 
 **Juniper Junos** - read-only:
 

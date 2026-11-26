@@ -17,7 +17,7 @@
                         <h2 class="h4 mt-3 mb-0"><strong>RouterFleet</strong> Improved</h2>
                         <div class="text-muted small">by Alessio Bravi &middot; version {{ routerfleet_version }}</div>
                     </div>
-                    <p class="lead mb-3">
+                    <p class="lead mb-3 text-center">
                         <strong>RouterFleet Improved</strong> by Alessio Bravi is an open-source, self-hosted platform
                         for managing a fleet of network devices.
                     </p>
@@ -33,10 +33,13 @@
                         <div class="col-md-6">
                             <h5>Supported devices</h5>
                             <ul>
-                                <li>MikroTik (RouterOS, including branded RouterOS devices)</li>
-                                <li>OpenWrt</li>
-                                <li>Ubiquiti (airOS)</li>
+                                {% for device_type in device_types %}
+                                <li>{{ device_type.name }}{% if not device_type.managed %} <span class="text-muted">- availability only</span>{% endif %}</li>
+                                {% empty %}
+                                <li class="text-muted">No device type is offered on this installation.</li>
+                                {% endfor %}
                             </ul>
+                            <p class="text-muted small">The device types this installation offers: the shipped ones and any added in System settings → Device types.</p>
                             <p class="text-muted">
                                 Support for more devices is welcome: request it with the button below, describing the
                                 device and how it can be backed up.
@@ -61,11 +64,11 @@
 
                     <div class="text-center my-3">
                         <a href="{% tag_project_repository_url %}" target="_blank" rel="noopener" class="btn btn-outline-primary m-1">
-                            <i class="fab fa-github"></i>
+                            <i class="fab fa-github me-1" aria-hidden="true"></i>
                             Project Repository
                         </a>
-                        <a href="{% tag_project_support_url %}" target="_blank" rel="noopener" class="btn btn-outline-info m-1">
-                            <i class="fas fa-plus-circle"></i>
+                        <a href="{% tag_project_support_url %}" target="_blank" rel="noopener" class="btn btn-outline-primary m-1">
+                            <i class="fas fa-plus-circle me-1" aria-hidden="true"></i>
                             Request Device Support
                         </a>
                     </div>

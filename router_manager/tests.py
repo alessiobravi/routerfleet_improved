@@ -1110,3 +1110,14 @@ class GroupAndProfilePaneTests(TestCase):
         self.assertContains(page, 'every day at')
         self.assertContains(page, 'Add profile')
         self.assertContains(self.client.get('/backup/profile_list/'), 'default', msg_prefix='the default profile exists')
+
+
+class FileBackupsFieldTests(TestCase):
+    def test_the_device_form_and_the_profile_form_carry_it(self):
+        from backup.forms import BackupProfileForm
+        from router_manager.forms import RouterForm
+        self.assertIn('file_backups', RouterForm().fields)
+        self.assertIn('file_backups', BackupProfileForm().fields)
+        self.assertTrue(BackupProfileForm().fields['file_backups'].initial in (True, None))
+        router = make_router(name='fb')
+        self.assertEqual(router.file_backups, 'profile', 'what every device had before')

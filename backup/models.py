@@ -30,6 +30,14 @@ class BackupProfile(models.Model):
         help_text='Store every scheduled backup in full, also when the configuration did not change. '
                   'Off: an unchanged backup is recorded, but its content is not stored again.')
 
+    # The binary file backup (RouterOS .backup, OpenWrt archive) besides the
+    # text one; a device can decide otherwise in its own settings
+    file_backups = models.BooleanField(
+        default=True, verbose_name='File backups',
+        help_text='Take the binary file backup as well, for the device types that make one (RouterOS .backup, '
+                  'OpenWrt archive). Off: text backups only - nothing is created on the device, downloaded or '
+                  'stored. A device can decide otherwise in its own settings (File backups).')
+
     parameter_sensitive = models.BooleanField(default=False)
     parameter_terse = models.BooleanField(default=False)
 

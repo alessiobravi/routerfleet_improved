@@ -79,7 +79,11 @@ def view_dashboard(request):
 
 @login_required
 def view_about(request):
-    context = {'page_title': 'About', 'routerfleet_version': settings.ROUTERFLEET_RELEASE}
+    # The supported platforms are the device types offered - read here, so the
+    # list follows the types an installation has (shipped presets and its own)
+    from router_manager.models import DeviceType
+    context = {'page_title': 'About', 'routerfleet_version': settings.ROUTERFLEET_RELEASE,
+               'device_types': DeviceType.objects.filter(enabled=True).order_by('-managed', 'name')}
     return render(request, 'dashboard/about.html', context=context)
 
 

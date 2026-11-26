@@ -285,6 +285,11 @@ def execute_backup(router_backup: RouterBackup):
     try:
         texts = _named_texts(router.router_type, values)
         create = system_commands.lines('backup_create', router.router_type, **values)
+        if create and texts and not router.takes_file_backups():
+            # File backups off: the text comes from commands, so the file is
+            # not made at all (a type whose text is a file still makes it)
+            append_task_console_output(router_backup, '=== File backups are off for this device: text backup only ===')
+            create = []
         if not texts and not create:
             append_task_console_output(router_backup, '=== Nothing to create on the device: the files are downloaded as they are ===')
             return True, [], error_message
@@ -358,6 +363,12 @@ def retrieve_backup(router_backup: RouterBackup):
 
     try:
         downloads = system_commands.lines('backup_download', router.router_type, **values)
+        files_off = not router.takes_file_backups()
+        if files_off:
+            # Text backups only: nothing but a text file is downloaded, and
+            # with the text already taken from commands, nothing at all
+            downloads = [] if router_backup.backup_text else [
+                d for d in downloads if d.strip().endswith('.' + file_extension['text'])]
         if not downloads:
             if router_backup.backup_text:
                 return True, error_message
