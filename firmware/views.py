@@ -214,9 +214,12 @@ def _choices(routers, kind='system'):
     one entry per distinct option, each with the devices it is for and the
     version each of them would get."""
     from .options import options_for
+    from router_manager.rights import missing_for_update
     choices, without = {}, []
     for router in routers:
-        options = [o for o in options_for(router) if (o['kind'] == 'bootloader') == (kind == 'bootloader')]
+        # An account that may not install an update is offered none
+        options = [] if missing_for_update(router) else \
+            [o for o in options_for(router) if (o['kind'] == 'bootloader') == (kind == 'bootloader')]
         if not options:
             without.append(router)
         for option in options:
@@ -287,8 +290,10 @@ def view_update_devices(request):
     rows = []
     for router in routers:
         info = getattr(router, 'routerinformation', None)
+        from router_manager.rights import missing_for_update
         rows.append({'router': router, 'running': getattr(info, 'os_version', '') or 'not read yet',
-                     'busy': router.id in busy, 'without': router in without})
+                     'busy': router.id in busy, 'without': router in without,
+                     'missing': missing_for_update(router, info)})
     return render(request, 'firmware/update_devices.html', {
         'page_title': 'Update bootloader firmware' if kind == 'bootloader' else 'Update system',
         'routers': routers, 'rows': rows, 'choices': choices, 'without': without, 'single': len(routers) == 1,

@@ -134,6 +134,7 @@ def _inspector_context(request, router):
     """What the inspector beside the device list shows of one device: its
     facts, its recent activity and the actions this user may take."""
     from routerfleet.object_pages import router_page
+    from router_manager.rights import missing_for_update
     router_status, _ = RouterStatus.objects.get_or_create(router=router)
     information = RouterInformation.objects.filter(router=router).first()
     level = UserAcl.objects.filter(user=request.user).values_list('user_level', flat=True).first() or 0
@@ -145,6 +146,8 @@ def _inspector_context(request, router):
     last_backup = max(filter(None, [router_status.last_backup] + list(newest or [])), default=None)
     return {
         'last_backup': last_backup,
+        'missing': missing_for_update(router, information),
+        'rights': ', '.join(r for r in (getattr(information, 'account_rights', '') or '').split(',') if r),
         'router': router, 'status': router_status, 'information': information, 'page': page,
         'groups': ', '.join(router.routergroup_set.order_by('name').values_list('name', flat=True)),
         'last_change': last_change,

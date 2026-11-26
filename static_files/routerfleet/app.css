@@ -782,3 +782,10 @@ html.rf-dark { --rf-c-teal: #2dd4bf; --rf-c-blue: #7eb0ff; --rf-c-green: #4ade80
 .rf-xbody .rf-facts { grid-template-columns: 130px minmax(0, 1fr); }
 .rf-xactions { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 20px 12px; }
 .app-content .btn:has(> .fa-github), .app-content .btn:has(> .fa-plus-circle) { --rf-act: var(--rf-c-blue); }
+/* An update the device account may not install: the arrow crossed out, the
+   action greyed - the reason in the tooltip */
+.rf-up-blocked { position: relative; opacity: .8; }
+.rf-up-blocked::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; margin-left: -1px;
+  background: var(--rf-pane-bad); transform: rotate(45deg); border-radius: 1px; }
+.rf-blocked-wrap { display: inline-block; cursor: help; }
+.rf-blocked-wrap .rf-blocked { opacity: .55; text-decoration: line-through; text-decoration-thickness: 1px; }

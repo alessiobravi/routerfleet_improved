@@ -27,12 +27,19 @@ the Zabbix kit reads, says so under **Monitoring**.
   OpenWrt, Ubiquiti airOS, and any type added - read from the device types,
   so the list never goes stale; both buttons in the same colour; the
   introduction centred.
+- **The device account's own rights are checked.** Every device information
+  read also reads what the account may do (RouterOS: its group's policies). An
+  update it may not install is shown **crossed out**: the arrows in the device
+  list and on the device page with a slash, *Update system* and *Update
+  bootloader* greyed, the missing rights (RouterOS: `write`, `reboot`) in the
+  tooltip and in the device's panel; the update pages offer it nothing. The
+  check is two settings of the device type, filled in for RouterOS; an answer
+  that is not a list of rights blocks nothing.
 - **What a read-only device account can and can not do** is said where the
-  account is entered (device form, add-device wizard): backups, information
-  and the connection test work; firmware and bootloader updates, and commands
-  that change something, fail with the device's own message; some RouterOS
-  versions refuse even the update check. The device documentation lists the
-  RouterOS policies each feature needs.
+  account is entered (device form, add-device wizard): backups, information,
+  the connection test and the update check work; updates are shown, not
+  installable. The device documentation lists the RouterOS policies each
+  feature needs.
 
 ## [0.45.2] - 2026-11-26
 

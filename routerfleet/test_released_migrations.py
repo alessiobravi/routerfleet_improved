@@ -147,6 +147,7 @@ RELEASED = {
     'router_manager/migrations/0035_routerinformation_update_status.py': '8de826f95b70e4b3452168138b0c439163d54f14bd7e129760282d6e21b04f4a',
     'router_manager/migrations/0036_sshkey_passphrase.py': '1c0d9e621656dec2770792c795c9cbfcfa590a5835106b068659032414e0e8c1',
     'router_manager/migrations/0037_file_backups.py': 'acdd0cbb546fd231fb6c4621bab52a968485476b3f04933ef2e95882d45e88e2',
+    'router_manager/migrations/0038_account_rights.py': '7dbce083483e93f873b024ff2a97123238621fb0517eec40700e532b4a6594ed',
     'routerfleet_tools/migrations/0001_initial.py': '489d86f5f2fd075b4e838bcbdfc384b05cc96e1a09774868204fb493c526a24f',
     'routerfleet_tools/migrations/0002_webadminsettings_cron_last_run.py': 'd5ea9f1aacfa393f3041d72b78520f13f647defcf92a59a3f33d96e8e5315634',
     'routerfleet_tools/migrations/0003_webadminsettings_monitoring_last_run_and_more.py': '56a53e01f52b9daf0696d9a090ae63a9bb4d911ef12f5a7d3c7353eeb93a57d5',

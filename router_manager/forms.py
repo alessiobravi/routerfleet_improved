@@ -25,11 +25,11 @@ def _account_hint():
     return format_html(
         '<i class="fas fa-shield-halved me-1" aria-hidden="true"></i>Best a dedicated account with only the rights '
         'RouterFleet needs, not the administrator. <b>A read-only account</b> is enough for backups, device '
-        'information and the connection test (passwords and keys appear in backups only if it may read them - '
-        'RouterOS: <code>sensitive</code>). With it, <b>firmware and bootloader updates fail</b>, and so do '
-        'Fleet Commander commands and console commands that change something - each with the device\'s own '
-        '"not permitted" message, nothing else affected. On some RouterOS versions even the update check is '
-        'refused: <i>Available version</i> then shows the device\'s message. '
+        'information, the connection test and the update check (passwords and keys appear in backups only if it '
+        'may read them - RouterOS: <code>sensitive</code>). It can not <b>install firmware or bootloader '
+        'updates</b>: RouterFleet reads the account\'s rights and shows such an update crossed out, not '
+        'installable. Fleet Commander and console commands that change something fail with the device\'s own '
+        '"not permitted" message - nothing else is affected. '
         '<a href="{}" target="_blank" rel="noopener">The rights each feature needs, per vendor</a>', docs)
 
 

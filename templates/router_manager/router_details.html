@@ -191,7 +191,8 @@
                                             <span class="float-end">
                                                 {% if router_information.firmware_version %}{{ router_information.firmware_version }}{% if router_information|bootloader_behind %}
                                                     <span class="rf-boot-mark ms-1">→ {{ router_information.firmware_available }}</span>
-                                                    {% if can_start_update %}<a href="/system/firmware/update/?kind=bootloader&amp;uuid={{ router.uuid }}" class="rf-boot-mark rf-update-link" title="Upgrade the bootloader firmware to {{ router_information.firmware_available }}" aria-label="Upgrade the bootloader firmware to {{ router_information.firmware_available }}"><i class="fas fa-arrow-alt-circle-up"></i></a>
+                                                    {% if can_start_update and router|update_blocked %}<i class="fas fa-arrow-alt-circle-up rf-boot-mark rf-up-blocked" role="img" title="{{ router|update_blocked }}" aria-label="Not installable with this account"></i>
+                                                    {% elif can_start_update %}<a href="/system/firmware/update/?kind=bootloader&amp;uuid={{ router.uuid }}" class="rf-boot-mark rf-update-link" title="Upgrade the bootloader firmware to {{ router_information.firmware_available }}" aria-label="Upgrade the bootloader firmware to {{ router_information.firmware_available }}"><i class="fas fa-arrow-alt-circle-up"></i></a>
                                                     {% else %}<i class="fas fa-arrow-alt-circle-up rf-boot-mark" title="{{ router_information.firmware_available }} can be installed" aria-hidden="true"></i>{% endif %}{% endif %}{% else %}<span class="text-body-secondary" title="The device answered without this value - RouterOS on x86 or CHR, for example, has no model, serial or firmware">not reported by the device</span>{% endif %}
                                             </span>
                                         </li>
@@ -201,7 +202,8 @@
                                             <span class="float-end">
                                                 {% if router_information.update_available %}
                                                     <span class="rf-update-mark">{{ router_information.available_version }}</span>
-                                                    {% if can_start_update %}<a href="/system/firmware/update/?uuid={{ router.uuid }}" class="rf-update-mark rf-update-link" title="Update the system to {{ router_information.available_version }} (the options it has)" aria-label="Update the system to {{ router_information.available_version }}"><i class="fas fa-arrow-alt-circle-up"></i></a>
+                                                    {% if can_start_update and router|update_blocked %}<i class="fas fa-arrow-alt-circle-up rf-update-mark rf-up-blocked" role="img" title="{{ router|update_blocked }}" aria-label="Not installable with this account"></i>
+                                                    {% elif can_start_update %}<a href="/system/firmware/update/?uuid={{ router.uuid }}" class="rf-update-mark rf-update-link" title="Update the system to {{ router_information.available_version }} (the options it has)" aria-label="Update the system to {{ router_information.available_version }}"><i class="fas fa-arrow-alt-circle-up"></i></a>
                                                     {% else %}<i class="fas fa-arrow-alt-circle-up rf-update-mark" title="Upgrade available" aria-hidden="true"></i>{% endif %}
                                                 {% elif router_information.available_version %}
                                                     {{ router_information.available_version }}

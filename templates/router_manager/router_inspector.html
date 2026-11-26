@@ -5,7 +5,7 @@
         <div class="rf-insp-title"><h2><a href="/router/details/?uuid={{ r.uuid }}">{{ r.name }}</a></h2>
             <div class="rf-page-sub">{{ r.get_router_type_display }}{% if inspector.groups %} · {{ inspector.groups }}{% endif %}</div></div>
         <div class="rf-insp-actions">
-            {% for action in inspector.page.hero.actions %}{% if action.label != 'Edit' %}<a class="btn btn-sm btn-outline-secondary" href="{{ action.href }}"><i class="fas {{ action.icon }} me-1{% if action.label == 'Update system' %} rf-up-os{% elif action.label == 'Update bootloader' %} rf-up-boot{% endif %}" aria-hidden="true"></i>{{ action.label }}</a>{% endif %}{% endfor %}
+            {% for action in inspector.page.hero.actions %}{% if action.blocked %}<span class="rf-blocked-wrap" tabindex="0" title="{{ action.blocked }}"><span class="btn btn-sm btn-outline-secondary disabled rf-blocked" aria-disabled="true"><i class="fas {{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}</span></span>{% elif action.label != 'Edit' %}<a class="btn btn-sm btn-outline-secondary" href="{{ action.href }}"><i class="fas {{ action.icon }} me-1{% if action.label == 'Update system' %} rf-up-os{% elif action.label == 'Update bootloader' %} rf-up-boot{% endif %}" aria-hidden="true"></i>{{ action.label }}</a>{% endif %}{% endfor %}
             {% if inspector.can_backup %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/router/create_instant_backup/?uuid={{ r.uuid }}" data-rf-field-next="/router/list/?device={{ r.uuid }}" title="Back up now"><i class="fas fa-box-open me-1" aria-hidden="true"></i>Back up now</a>{% endif %}
             {% if inspector.can_edit %}<a class="btn btn-sm btn-outline-secondary" href="/router/manage/?uuid={{ r.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
             <a class="btn btn-sm btn-primary" href="/router/details/?uuid={{ r.uuid }}"><i class="fas fa-up-right-from-square me-1" aria-hidden="true"></i>Open</a>
@@ -31,7 +31,9 @@
         {% if inspector.schedule.next_daily_backup %}<dt>Next backup</dt>
         <dd class="rf-mono">{{ inspector.schedule.next_daily_backup|date:"Y-m-d H:i" }}</dd>{% endif %}
         <dt>Login</dt>
-        <dd>{{ r.username|default:'—' }} <span class="text-muted">· {% if r.ssh_key %}SSH key {{ r.ssh_key }}{% elif r.password %}password{% else %}no credentials{% endif %}</span></dd>
+        <dd>{{ r.username|default:'—' }} <span class="text-muted">· {% if r.ssh_key %}SSH key {{ r.ssh_key }}{% elif r.password %}password{% else %}no credentials{% endif %}</span>
+            {% if inspector.rights %}<span class="d-block small text-muted">rights on the device: <span class="rf-mono">{{ inspector.rights }}</span></span>{% endif %}
+            {% if inspector.missing %}<span class="d-block small text-danger" title="{{ r|update_blocked }}"><i class="fas fa-ban me-1" aria-hidden="true"></i>may not install updates - lacks {{ inspector.missing|join:", " }}</span>{% endif %}</dd>
         {% if status.backup_lock or status.command_lock %}<dt>Locks</dt>
         <dd class="text-danger">{% if status.backup_lock %}<i class="fas fa-lock text-danger" role="img" aria-label="Backup locked"></i> Backup locked since {{ status.backup_lock|date:"Y-m-d H:i" }}{% endif %}{% if status.command_lock %} <i class="fas fa-lock text-danger" role="img" aria-label="Command locked"></i> Command locked since {{ status.command_lock|date:"Y-m-d H:i" }}{% endif %}</dd>{% endif %}
         {% endif %}

@@ -163,11 +163,14 @@ def router_page(router, router_status, router_information, availability, can_exe
                         'href': f'/fleet_commander/router/execute/?uuid={router.uuid}', 'style': 'primary'})
     from router_manager.templatetags.router_tags import bootloader_behind
     if can_update_firmware and router.is_managed and router.enabled:
+        # An account without the rights an update needs: shown, not offered
+        from router_manager.rights import blocked_reason
+        blocked = blocked_reason(router, router_information)
         if getattr(router_information, 'update_available', False):
-            actions.append({'label': 'Update system', 'icon': 'fa-arrow-alt-circle-up',
+            actions.append({'label': 'Update system', 'icon': 'fa-arrow-alt-circle-up', 'blocked': blocked,
                             'href': f'/system/firmware/update/?uuid={router.uuid}', 'style': 'primary'})
         if bootloader_behind(router_information):
-            actions.append({'label': 'Update bootloader', 'icon': 'fa-microchip',
+            actions.append({'label': 'Update bootloader', 'icon': 'fa-microchip', 'blocked': blocked,
                             'href': f'/system/firmware/update/?kind=bootloader&uuid={router.uuid}', 'style': ''})
     hero = {'title': router.name, 'subtitle': '', 'chip': chip,
             'ring': round(availability) if router.monitoring else None,

@@ -178,6 +178,11 @@
                         <span class="rf-set-sub d-block">On for OpenWrt, where 24.10 to 25.12 is the usual upgrade. Off: only the device's own major version - RouterOS 6 to 7 takes a procedure of its own.</span></span>
                     <span class="form-check form-switch mb-0"><input type="checkbox" class="form-check-input" id="update_any_major" name="update_any_major" {% if device_type.update_any_major %}checked{% endif %}></span>
                 </label>
+                <div class="rf-set-row"><div class="rf-set-text"><label class="small mb-0" for="rights_command">The account's rights (a command printing them as a comma-separated list; <code>{% templatetag openvariable %} username {% templatetag closevariable %}</code> is the device's account)</label>
+                    <input type="text" class="form-control rf-mono" id="rights_command" name="rights_command" spellcheck="false" maxlength="300" value="{{ device_type.rights_command }}" placeholder=":put [/user group get [/user get [find name=&quot;{% templatetag openvariable %} username {% templatetag closevariable %}&quot;] group] policy]">
+                    <label class="small mb-0 mt-2" for="update_rights">Rights an update needs (comma-separated)</label>
+                    <input type="text" class="form-control rf-mono" id="update_rights" name="update_rights" spellcheck="false" maxlength="100" value="{{ device_type.update_rights }}" placeholder="write,reboot">
+                    <small class="text-muted">Read with every device information read. An account without these rights sees an update as available but crossed out, not installable, the reason in its tooltip. Empty: not checked.</small></div></div>
             </div>
             </details>
         </section>

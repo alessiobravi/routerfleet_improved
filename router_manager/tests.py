@@ -1121,3 +1121,75 @@ class FileBackupsFieldTests(TestCase):
         self.assertTrue(BackupProfileForm().fields['file_backups'].initial in (True, None))
         router = make_router(name='fb')
         self.assertEqual(router.file_backups, 'profile', 'what every device had before')
+
+
+class AccountRightsTests(TestCase):
+    """The device account's own rights, read with every inventory: an update
+    it may not install is shown crossed out and not offered - only a known
+    lack blocks, never an unknown or unreadable answer."""
+
+    def setUp(self):
+        from router_manager.models import DeviceType
+        DeviceType.objects.filter(slug='routeros').update(
+            rights_command=':put [/user group get [/user get [find name="{{ username }}"] group] policy]',
+            update_rights='write,reboot')
+        self.router = make_router(name='rights-1', router_type='routeros', username='routerfleet')
+        self.info = RouterInformation.objects.create(router=self.router, os_version='7.24.5', available_version='7.25.2',
+                                                     update_available=True, firmware_version='7.24.1',
+                                                     firmware_available='7.24.5')
+
+    def test_reading_the_answer(self):
+        from router_manager.rights import granted
+        self.assertEqual(granted('local,telnet,ssh,read,!write,!reboot,sensitive\n'), ['local', 'telnet', 'ssh', 'read', 'sensitive'])
+        self.assertEqual(granted('bad command name group (line 1 column 19)'), [], 'an error is not a list of rights')
+        self.assertEqual(granted(''), [])
+
+    def test_the_command_never_carries_an_unsafe_username(self):
+        from router_manager.rights import command_for
+        self.assertIn('find name="routerfleet"', command_for(self.router))
+        self.router.username = 'x"] ; /system reboot ; ["'
+        self.assertEqual(command_for(self.router), '', 'not sent at all')
+
+    def test_only_a_known_lack_blocks(self):
+        from router_manager.rights import missing_for_update
+        self.assertEqual(missing_for_update(self.router, self.info), [], 'not read yet: nothing blocked')
+        self.info.account_rights = 'ssh,read,sensitive'
+        self.assertEqual(missing_for_update(self.router, self.info), ['write', 'reboot'])
+        self.info.account_rights = 'ssh,read,write,reboot'
+        self.assertEqual(missing_for_update(self.router, self.info), [])
+
+    def test_the_inventory_reads_and_stores_the_rights(self):
+        from routerlib.router_functions import get_router_information
+        from routerfleet.testing import FakeSSHClient
+        client = FakeSSHClient({'/system resource print': 'version: 7.24.5\nboard-name: hAP\n',
+                                ':put [/user group get [/user get [find name="routerfleet"] group] policy]':
+                                    'local,ssh,read,!write,!reboot\n'})
+        with mock.patch('routerlib.device_session.connect_to_ssh', return_value=client):
+            ok, error = get_router_information(self.info)
+        self.assertTrue(ok, error)
+        self.info.refresh_from_db()
+        self.assertEqual(self.info.account_rights, 'local,ssh,read')
+
+    def test_crossed_out_and_not_offered(self):
+        self.info.account_rights = 'ssh,read,sensitive'
+        self.info.save()
+        self.client.force_login(make_user(50))
+        listing = self.client.get(f'/router/list/?filter_group=all&device={self.router.uuid}').content.decode()
+        self.assertIn('rf-up-blocked rf-up-os', listing)
+        self.assertIn('rf-up-blocked rf-up-boot', listing)
+        self.assertIn('lacks write, reboot', listing)
+        self.assertIn('rf-blocked', listing, 'the inspector greys its update actions')
+        self.assertNotIn(f'href="/system/firmware/update/?uuid={self.router.uuid}"', listing)
+        details = self.client.get(f'/router/details/?uuid={self.router.uuid}').content.decode()
+        self.assertIn('rf-up-blocked', details)
+        page = self.client.get(f'/system/firmware/update/?uuid={self.router.uuid}')
+        self.assertContains(page, 'its account may not install updates (lacks write, reboot)')
+        self.assertEqual(page.context['choices'], [], 'nothing to start, even from a link')
+
+    def test_with_the_rights_nothing_changes(self):
+        self.info.account_rights = 'ssh,read,write,reboot'
+        self.info.save()
+        self.client.force_login(make_user(50))
+        listing = self.client.get(f'/router/list/?filter_group=all&device={self.router.uuid}').content.decode()
+        self.assertNotIn('rf-up-blocked', listing)
+        self.assertIn(f'href="/system/firmware/update/?uuid={self.router.uuid}"', listing)

@@ -106,17 +106,28 @@ RouterFleet feature needs from the group's policies:
 |---|---|
 | Connection test, device information, text backups | `ssh,read` |
 | Passwords and keys in the backups | adds `sensitive` |
-| Update check (*Available version*) | `read`; some RouterOS versions refuse `check-for-updates` to a read-only group - *Available version* then shows the device's message, and adding `write` lets it through |
+| Update check (*Available version*) | `read` |
 | System update from the firmware repository | adds `ftp` (the file is uploaded with SCP), `write`, `reboot` |
 | System update online (the device downloads it) | adds `write` (the channel is set), `reboot` |
 | RouterBOOT upgrade | adds `write`, `reboot` |
 | Fleet Commander, console | whatever the commands - or the person typing - do |
 
-**Limitations of a read-only account**, in short: backups, information and the
-connection test work; firmware and RouterBOOT updates fail, as do commands
-that change something - each with the device's own "not permitted" message,
-which RouterFleet shows; nothing else is affected. The device form and the
-add-device wizard say the same under the username.
+**Limitations of a read-only account**, in short: backups, information, the
+connection test and the update check work. Firmware and RouterBOOT updates
+can not be installed: RouterFleet **reads the account's own rights** with
+every device information read (RouterOS: the policies of its group) and shows
+an update it may not install **crossed out** - the arrow in the device list
+and on the device page, *Update system* and *Update bootloader* greyed, the
+missing rights in the tooltip - and the update pages offer such a device
+nothing. Commands that change something fail with the device's own "not
+permitted" message, which RouterFleet shows; nothing else is affected. The
+device form and the add-device wizard say the same under the username.
+
+Which command reads the rights and which rights an update needs are settings
+of the device type (System settings → Device types → Update checks); the
+shipped RouterOS type reads its group's policies and needs `write,reboot`. A
+type without them is not checked, and an answer that is not a list of rights
+(an error message) blocks nothing.
 
 **Juniper Junos** - read-only:
 

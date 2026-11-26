@@ -30,7 +30,7 @@ TEXT_FIELDS = ('name', 'vendor', 'description', 'prompt_pattern', 'session_setup
                'option_sensitive', 'option_terse', 'option_hide_sensitive', 'legacy_before_version',
                'legacy_option_sensitive', 'legacy_option_hide_sensitive', 'update_channels', 'update_channel_pattern',
                'vendor_url', 'vendor_keys', 'vendor_confirm_url', 'vendor_target',
-               'vendor_version_field', 'firmware_upload_path')
+               'vendor_version_field', 'firmware_upload_path', 'rights_command', 'update_rights')
 BOOL_FIELDS = ('enabled', 'check_device', 'check_vendor', 'check_repository', 'update_any_major')
 PATTERN_FIELDS = (('prompt_pattern', 'Prompt'), ('test_pattern', 'Recognition pattern'),
                   ('update_channel_pattern', 'Version in the channel answer'),

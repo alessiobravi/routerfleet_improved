@@ -218,3 +218,11 @@ def device_state(router):
     except ObjectDoesNotExist:
         online = False
     return {'key': 'online', 'css': 'ok', 'label': 'Online'} if online else {'key': 'offline', 'css': 'bad', 'label': 'Offline'}
+
+
+@register.filter
+def update_blocked(router):
+    """Why this device's account may not install an update - '' when it may
+    (router_manager/rights.py)."""
+    from router_manager.rights import blocked_reason
+    return blocked_reason(router)

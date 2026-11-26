@@ -211,6 +211,18 @@ def get_router_information(router_information: RouterInformation):
             offered, update_available = '', False
         router_information.available_version = fit(offered)
         router_information.update_available = update_available
+        # The account's own rights, when the device type says how to read them:
+        # an update it may not install is shown so, not offered (rights.py)
+        from router_manager import rights
+        rights_command = rights.command_for(router)
+        if rights_command:
+            try:
+                router_information.account_rights = ','.join(rights.granted(_read_line(session, rights_command)))[:500]
+            except Exception as e:
+                logger.warning(f'Rights check failed for {router.name}: {e}')
+                router_information.account_rights = ''
+        else:
+            router_information.account_rights = ''
         success = True
 
         router_information.success        = True

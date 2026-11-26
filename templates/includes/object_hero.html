@@ -18,7 +18,8 @@
         </div>
         <div class="rf-o-actions">
             {% for action in page.hero.actions %}
-                {% if action.href %}<a href="{{ action.href }}" class="btn btn-sm {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</a>
+                {% if action.blocked %}<span class="rf-blocked-wrap" tabindex="0" title="{{ action.blocked }}"><span class="btn btn-sm btn-outline-secondary disabled rf-blocked" aria-disabled="true"><i class="fas {{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}</span></span>
+                {% elif action.href %}<a href="{{ action.href }}" class="btn btn-sm {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</a>
                 {% else %}<button type="button" class="btn btn-sm {% if action.style == 'danger' %}btn-outline-danger{% elif action.style == 'primary' %}btn-primary{% else %}btn-outline-secondary{% endif %}" data-rf-post="{{ action.post }}" data-rf-confirm-word="{{ action.word }}" data-rf-confirm-sum="{{ action.confirm }}"><i class="fas {{ action.icon }} me-1"></i>{{ action.label }}</button>{% endif %}
             {% endfor %}
         </div>

@@ -133,6 +133,10 @@ PRESETS = {
             'update_status': ['key:status'],
         },
         'inventory_repeat': r'package update print',
+        # The account's group policies: checking for updates needs read only,
+        # installing one needs write and reboot
+        'rights_command': ':put [/user group get [/user get [find name="{{ username }}"] group] policy]',
+        'update_rights': 'write,reboot',
         'text_extension': 'rsc', 'binary_extension': '',
         'text_ignore_pattern': r'^\s*#',
         'option_sensitive': 'show-sensitive', 'option_terse': 'terse',
@@ -279,7 +283,7 @@ FIELD_DEFAULTS = {
     'legacy_option_hide_sensitive': '', 'update_channels': '', 'update_channel_pattern': '', 'update_any_major': False,
     'check_device': False, 'check_vendor': False, 'check_repository': False, 'vendor_url': '',
     'vendor_keys': '', 'vendor_confirm_url': '', 'vendor_target': '', 'vendor_version_field': 'os_version',
-    'firmware_upload_path': '', 'firmware_verify': 'none',
+    'firmware_upload_path': '', 'firmware_verify': 'none', 'rights_command': '', 'update_rights': '',
 }
 
 

@@ -59,6 +59,12 @@ class DeviceType(models.Model):
     # upgrade); off: only the device's own major version (RouterOS 6 to 7
     # takes a procedure of its own)
     update_any_major = models.BooleanField(default=False)
+    # The device account's own rights, read with every inventory: a command
+    # printing them ({{ username }} is the account), and the rights an update
+    # needs. An account without them sees the update offered but not
+    # installable. Empty: not checked, as before.
+    rights_command = models.CharField(max_length=300, blank=True)
+    update_rights = models.CharField(max_length=100, blank=True)
     # Which version the device could run
     check_device = models.BooleanField(default=False)
     check_vendor = models.BooleanField(default=False)
@@ -272,6 +278,9 @@ class RouterInformation(models.Model):
 
     json_data = models.TextField(null=True, blank=True)
 
+    # The rights the device account has, as its last inventory read them
+    # (device type: rights command), granted ones only; empty: not known
+    account_rights = models.CharField(max_length=500, blank=True, default='')
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
     uuid = models.UUIDField(unique=True, editable=False, default=uuid.uuid4)

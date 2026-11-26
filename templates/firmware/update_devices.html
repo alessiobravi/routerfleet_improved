@@ -37,7 +37,7 @@
             {% for row in rows %}
             <div class="rf-set-row">
                 <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.router.name }}</span>
-                    <span class="rf-set-sub d-block">runs {{ row.running }}{% if row.busy %} - already in a running update, left out{% elif row.without %} - nothing newer to offer{% endif %}</span></span>
+                    <span class="rf-set-sub d-block">runs {{ row.running }}{% if row.busy %} - already in a running update, left out{% elif row.missing %} - <span class="text-danger">its account may not install updates (lacks {{ row.missing|join:", " }})</span>{% elif row.without %} - nothing newer to offer{% endif %}</span></span>
                 {% if not single and choices and not row.busy and not row.without %}<span class="small text-muted me-1">first</span><input type="radio" name="canary" value="{{ row.router.uuid }}" {% if forloop.first %}checked{% endif %} title="Goes first, alone" aria-label="{{ row.router.name }} goes first">{% endif %}
             </div>
             {% endfor %}

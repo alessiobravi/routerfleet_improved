@@ -55,7 +55,7 @@
             </div>
             <div class="rf-list" id="device-list" role="list">
                 {% for router in router_list %}
-                {% with info=router.routerinformation status=router.routerstatus version=router.routerinformation|os_version_state state=router|device_state %}
+                {% with info=router.routerinformation status=router.routerstatus version=router.routerinformation|os_version_state state=router|device_state blocked=router|update_blocked %}
                 <div class="rf-li{% if inspector and inspector.router.pk == router.pk %} on{% endif %}{% if not router.enabled %} rf-li-off{% endif %}" role="listitem"
                      data-uuid="{{ router.uuid }}"
                      data-state="{{ state.key }}"
@@ -74,7 +74,7 @@
                         <span class="rf-li-name">{{ router.name }}{% if status.backup_lock or status.command_lock %}<i class="fas fa-lock rf-li-lock" role="img" aria-label="Locked" title="{% if status.backup_lock %}Backup locked since {{ status.backup_lock }}{% endif %}{% if status.command_lock %} Command locked since {{ status.command_lock }}{% endif %}"></i>{% endif %}</span>
                         <span class="rf-li-sub"><span class="rf-mono">{{ router.address }}</span> · {{ router.get_router_type_display }}</span>
                     </a>
-                    <span class="rf-li-marks">{% if router.is_managed and info|bootloader_behind %}<i class="fas fa-arrow-alt-circle-up rf-up-boot" role="img" title="Bootloader firmware {{ info.firmware_version }} - {{ info.firmware_available }} can be installed" aria-label="Bootloader update available"></i>{% endif %}{% if router.is_managed and version.css_class == 'text-danger' %}<i class="fas fa-arrow-alt-circle-up rf-up-os" role="img" title="{{ version.title }}" aria-label="System update available"></i>{% endif %}</span>
+                    <span class="rf-li-marks">{% if router.is_managed and info|bootloader_behind %}{% if blocked %}<i class="fas fa-arrow-alt-circle-up rf-up-blocked rf-up-boot" role="img" title="Bootloader firmware {{ info.firmware_available }} can be installed. {{ blocked }}" aria-label="Bootloader update available, not installable with this account"></i>{% else %}<i class="fas fa-arrow-alt-circle-up rf-up-boot" role="img" title="Bootloader firmware {{ info.firmware_version }} - {{ info.firmware_available }} can be installed" aria-label="Bootloader update available"></i>{% endif %}{% endif %}{% if router.is_managed and version.css_class == 'text-danger' %}{% if blocked %}<i class="fas fa-arrow-alt-circle-up rf-up-blocked rf-up-os" role="img" title="{{ version.title }}. {{ blocked }}" aria-label="System update available, not installable with this account"></i>{% else %}<i class="fas fa-arrow-alt-circle-up rf-up-os" role="img" title="{{ version.title }}" aria-label="System update available"></i>{% endif %}{% endif %}</span>
                     <span class="rf-dot {{ state.css }}" id="status-{{ router.uuid }}" title="{{ state.label }}"
                           data-monitored="{% if router.enabled and router.monitoring %}1{% endif %}"></span>
                 </div>
