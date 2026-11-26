@@ -182,7 +182,7 @@
 
     <div class="row">
         <div class="col-lg-12">
-            <a href="/fleet_commander/job/details/?uuid={{ task.job.uuid }}" class="btn btn-secondary">Back</a>
+            <a href="/fleet_commander/job/details/?uuid={{ task.job.uuid }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a>
             {% if task.status == 'pending' %}
                 <a href="#" class="btn btn-outline-danger"
                    data-rf-post="/fleet_commander/task/abort/?uuid={{ task.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this task?"

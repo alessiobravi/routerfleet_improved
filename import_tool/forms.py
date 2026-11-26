@@ -39,7 +39,7 @@ class CsvDataForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/router/import_tool/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/router/import_tool/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     css_class='col-md-12'),
                 css_class='form-row'
             )

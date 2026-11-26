@@ -60,7 +60,7 @@
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control" id="reveal-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                             <button type="button" class="btn btn-danger" id="reveal-ok">Reveal</button>
-                            <button type="button" class="btn btn-outline-secondary" id="reveal-cancel">Cancel</button>
+                            <button type="button" class="btn btn-outline-secondary" id="reveal-cancel"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</button>
                         </div>
                         <div class="text-danger small mt-1" id="reveal-error" role="alert"></div>
                     </div>
@@ -103,13 +103,13 @@
             <div class="input-group input-group-sm">
                 <input type="text" class="form-control" id="save-answer" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
                 <button type="button" class="btn btn-danger" id="save-ok">Save</button>
-                <button type="button" class="btn btn-outline-secondary" id="save-cancel">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary" id="save-cancel"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</button>
             </div>
         </div>
 
         <div class="rf-set-actions">
             <button type="submit" class="btn btn-success" id="sshkey-save">Save</button>
-            <a class="btn btn-secondary" href="/ssh_keys/">Back</a>
+            <a class="btn btn-secondary" href="/ssh_keys/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a>
             {% if instance %}<a href="#" class="btn btn-outline-danger" data-command="delete" data-rf-call="openCommandDialog">Delete</a>{% endif %}
         </div>
     </form>

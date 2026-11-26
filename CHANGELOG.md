@@ -16,9 +16,14 @@ the Zabbix kit reads, says so under **Monitoring**.
 ## [0.45.1] - 2026-11-26
 
 ### Added
-- **Clear Discovered Devices** empties the whole list - new, in RouterFleet
+- **Clear List** empties the whole list of discovered devices - new, in RouterFleet
   and hidden - after a small sum; *Remove* takes one device off. Only
   RouterFleet's record goes: a device heard again comes back as new.
+
+### Changed
+- Cancel and Back buttons carry an icon (✕, ←), and the confirmations' own
+  buttons too (✓, ✕): on a phone they shrink to the icon like every other
+  button.
 
 ## [0.45.0] - 2026-11-26
 

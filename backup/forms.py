@@ -146,7 +146,7 @@ class BackupProfileForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/backup/profile_list/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/backup/profile_list/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     css_class='col-md-12'
                 )

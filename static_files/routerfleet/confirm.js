@@ -88,11 +88,22 @@
       var ok = document.createElement('button');
       ok.type = 'button';
       ok.className = 'btn btn-danger' + (withSum ? '' : ' btn-sm');
-      ok.textContent = confirmLabel || label(word);
+      // An icon on each, so on a phone they shrink to it like every other button
+      var okIcon = document.createElement('i');
+      okIcon.className = 'fas fa-check me-1';
+      okIcon.setAttribute('aria-hidden', 'true');
+      ok.appendChild(okIcon);
+      ok.appendChild(document.createTextNode(confirmLabel || label(word)));
+      ok.title = confirmLabel || label(word);
       var cancel = document.createElement('button');
       cancel.type = 'button';
       cancel.className = 'btn btn-outline-secondary' + (withSum ? '' : ' btn-sm');
-      cancel.textContent = 'Cancel';
+      var cancelIcon = document.createElement('i');
+      cancelIcon.className = 'fas fa-xmark me-1';
+      cancelIcon.setAttribute('aria-hidden', 'true');
+      cancel.appendChild(cancelIcon);
+      cancel.appendChild(document.createTextNode('Cancel'));
+      cancel.title = 'Cancel';
       group.appendChild(ok);
       group.appendChild(cancel);
       panel.appendChild(group);

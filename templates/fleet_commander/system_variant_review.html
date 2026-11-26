@@ -20,7 +20,7 @@
                     <button type="button" class="btn btn-danger btn-lg" data-rf-toggle="#confirmSystemChange">
                         <i class="fas fa-lock-open"></i> Apply change to the system command
                     </button>
-                    <a href="/fleet_commander/system/variant/?uuid={{ variant.uuid }}" class="btn btn-secondary btn-lg ms-2">Back</a>
+                    <a href="/fleet_commander/system/variant/?uuid={{ variant.uuid }}" class="btn btn-secondary btn-lg ms-2"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a>
                 </div>
                 <form method="post" class="rf-confirm rf-confirm-inline d-none" id="confirmSystemChange" aria-label="Confirm the change">
                     {% csrf_token %}
@@ -31,7 +31,7 @@
                     <div class="input-group input-group-sm">
                         <input type="text" inputmode="numeric" pattern="[0-9]*" class="form-control" id="system-change-answer" name="answer" autocomplete="off" required>
                         <button type="submit" class="btn btn-danger">Apply</button>
-                        <button type="button" class="btn btn-outline-secondary" data-rf-toggle="#confirmSystemChange">Cancel</button>
+                        <button type="button" class="btn btn-outline-secondary" data-rf-toggle="#confirmSystemChange"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</button>
                     </div>
                     <div class="small text-muted mt-1">One attempt: a wrong result cancels the change, and nothing is modified.</div>
                 </form>

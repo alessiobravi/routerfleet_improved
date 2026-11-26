@@ -797,13 +797,13 @@ class ClearDiscoveredTests(TestCase):
         self.assertTrue(DiscoveredDevice.objects.filter(pk=self.hidden.pk).exists())
 
     def test_clear_asks_for_the_confirmation_and_clears_the_whole_list(self):
-        self.assertContains(self.client.get('/router/discovered/?view=hidden'), 'Clear Discovered Devices')
+        self.assertContains(self.client.get('/router/discovered/?view=hidden'), 'Clear List')
         self.client.post('/router/discovered/?view=known', {'action': 'clear', 'confirmation': 'nope'})
         self.assertEqual(DiscoveredDevice.objects.count(), 5, 'a wrong confirmation clears nothing')
         response = self.client.post('/router/discovered/?view=known', {'action': 'clear', 'confirmation': 'clear'})
         self.assertRedirects(response, '/router/discovered/?view=new', fetch_redirect_response=False)
         self.assertEqual(DiscoveredDevice.objects.count(), 0, 'new, in RouterFleet and hidden alike')
-        self.assertNotContains(self.client.get('/router/discovered/'), 'Clear Discovered Devices', msg_prefix='nothing left to clear')
+        self.assertNotContains(self.client.get('/router/discovered/'), 'Clear List', msg_prefix='nothing left to clear')
 
     def test_below_the_page_level_nothing_is_removed(self):
         self.client.force_login(make_user(20))

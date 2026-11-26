@@ -21,7 +21,7 @@
                         </select>
                     </div>
                     <button type="submit" class="btn btn-primary"><i class="fas fa-eye"></i> Review the command</button>
-                    <a href="{{ back_url }}" class="btn btn-secondary">Cancel</a>
+                    <a href="{{ back_url }}" class="btn btn-secondary"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</a>
                 </form>
                 {% else %}
                 <div class="alert alert-info mb-0">No enabled command has a variant for {{ router.get_router_type_display }}.

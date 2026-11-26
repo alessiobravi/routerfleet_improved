@@ -134,7 +134,7 @@ itself. A switch above the list picks which ones:
   one row per device, however many protocols heard it.
 - **Hidden**: the devices put aside; **Show again** makes one new again.
 
-**Remove** takes the chosen device off the list; **Clear Discovered Devices**
+**Remove** takes the chosen device off the list; **Clear List**
 empties the whole list - new, in RouterFleet and hidden - after a small sum.
 Only RouterFleet's record goes: a device heard again by a later discovery
 comes back as new, hidden ones included. Housekeeping also removes, by itself, a

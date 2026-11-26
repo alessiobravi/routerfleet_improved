@@ -107,7 +107,7 @@ class RouterForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/router/list/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/router/list/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     HTML(TEST_CONNECTION_HTML),
                     css_class='col-md-12'),
@@ -245,7 +245,7 @@ class RouterBulkEditForm(forms.Form):
             Row(
                 Column(
                     Submit('submit', 'Apply Changes', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/router/list/">Cancel</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/router/list/"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</a> '),
                     css_class='col-md-12'),
                 css_class='form-row'
             )
@@ -294,7 +294,7 @@ class RouterGroupForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/router/group_list/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/router/group_list/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     css_class='col-md-12'),
                 css_class='form-row'
@@ -383,7 +383,7 @@ class SSHKeyForm(forms.ModelForm):
             rows.append(Row(Column('remove_passphrase', css_class='col-md-12 mb-0')))
         rows += [Row(Column('public_key', css_class='col-md-12 mb-0')),
                  Row(Column(Submit('submit', 'Save', css_class='btn btn-success'),
-                            HTML(' <a class="btn btn-secondary" href="/ssh_keys/">Back</a> '),
+                            HTML(' <a class="btn btn-secondary" href="/ssh_keys/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                             HTML(delete_html), css_class='col-md-12'), css_class='form-row')]
         self.helper.layout = Layout(*rows)
 

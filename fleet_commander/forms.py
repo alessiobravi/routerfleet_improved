@@ -69,7 +69,7 @@ class CommandForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(f' <a class="btn btn-secondary" href="{back_url}">Back</a> '),
+                    HTML(f' <a class="btn btn-secondary" href="{back_url}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     css_class='col-md-12'
                 )
@@ -109,7 +109,7 @@ class CommandExecuteForm(forms.Form):
             Row(
                 Column(
                     Submit('submit', 'Execute Now', css_class='btn btn-primary'),
-                    HTML(f' <a class="btn btn-secondary" href="{back_url}">Back</a> '),
+                    HTML(f' <a class="btn btn-secondary" href="{back_url}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     css_class='col-md-12'
                 )
             ),
@@ -191,7 +191,7 @@ class CommandVariantForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(f' <a class="btn btn-secondary" href="/fleet_commander/command/details/?uuid={back_uuid}">Back</a> '),
+                    HTML(f' <a class="btn btn-secondary" href="/fleet_commander/command/details/?uuid={back_uuid}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     css_class='col-md-12'
                 )
@@ -300,7 +300,7 @@ class CommandScheduleForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(f' <a class="btn btn-secondary" href="/fleet_commander/command/details/?uuid={back_uuid}">Back</a> '),
+                    HTML(f' <a class="btn btn-secondary" href="/fleet_commander/command/details/?uuid={back_uuid}"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     HTML(delete_html),
                     css_class='col-md-12'
                 )
@@ -385,7 +385,7 @@ class ScheduleDefaultsForm(forms.ModelForm):
             Row(
                 Column(
                     Submit('submit', 'Save', css_class='btn btn-success'),
-                    HTML(' <a class="btn btn-secondary" href="/fleet_commander/">Back</a> '),
+                    HTML(' <a class="btn btn-secondary" href="/fleet_commander/"><i class="fas fa-arrow-left me-1" aria-hidden="true"></i>Back</a> '),
                     css_class='col-md-12'
                 )
             ),

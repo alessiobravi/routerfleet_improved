@@ -33,7 +33,7 @@
                     {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
                     <input type="hidden" name="fingerprint" value="{{ plan.fingerprint }}">
                     <button type="submit" name="confirmed" value="1" class="btn btn-danger m-1"><i class="fas fa-play"></i> Confirm and execute</button>
-                    <a href="{{ back_url }}" class="btn btn-secondary m-1">Cancel</a>
+                    <a href="{{ back_url }}" class="btn btn-secondary m-1"><i class="fas fa-xmark me-1" aria-hidden="true"></i>Cancel</a>
                 </form>
             </div>
         </div>
