@@ -1,0 +1,5 @@
+<nav class="rf-tabs" aria-label="Fleet Commander">
+    <a class="{% if request.path == '/fleet_commander/' or request.path|slice:':29' == '/fleet_commander/command/deta' %}on{% endif %}" href="/fleet_commander/">Commands</a>
+    <a class="{% if request.path|slice:':21' == '/fleet_commander/job/' %}on{% endif %}" href="/fleet_commander/job/list/">Jobs{% if jobs_running %} <b class="rf-tab-count">{{ jobs_running }}</b>{% endif %}</a>
+    <a href="/fleet_commander/schedule/defaults/">Schedule defaults</a>
+</nav>

@@ -87,7 +87,8 @@ class ProtectionTests(TestCase):
     def test_shown_in_their_own_section(self):
         page = self.client.get('/fleet_commander/')
         self.assertContains(page, 'System commands')
-        self.assertContains(page, 'System: backup - create')
+        self.assertNotContains(page, 'System: backup - create', msg_prefix='apart from the commands')
+        self.assertContains(self.client.get('/fleet_commander/?view=system'), 'System: backup - create')
 
 
 class EditTests(TestCase):

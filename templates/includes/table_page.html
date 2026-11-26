@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% comment %}
+A log or history page (Jobs, Change log, Login history, ...): the same header
+and tabs as the list-and-detail pages, then one calm table at full width.
+{% endcomment %}
+{% block content %}
+<div class="rf-pane-page" {% block page_attrs %}{% endblock %}>
+    <div class="rf-page-head">
+        <div><h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+            <div class="rf-page-sub">{% block page_sub %}{% endblock %}</div></div>
+        <div class="rf-page-actions">{% block page_actions %}{% endblock %}</div>
+    </div>
+    {% block page_tabs %}{% endblock %}
+    {% block page_notices %}{% endblock %}
+    {% block page_filters %}{% endblock %}
+    <div class="rf-split-detail rf-table-panel">{% block page_table %}{% endblock %}</div>
+    {% block page_foot %}{% endblock %}
+</div>
+{% endblock %}

@@ -5,16 +5,6 @@
 (function () {
   'use strict';
   document.addEventListener('DOMContentLoaded', function () {
-    var form = document.getElementById('sshkey-form');
-    if (!form) { return; }
-    var box = document.getElementById('secret-box');
-    var key = document.getElementById('id_private_key');
-    var passphrase = document.getElementById('id_passphrase');
-    var remove = document.getElementById('id_remove_passphrase');
-    var revealUrl = form.dataset.revealUrl;
-    var original = null;          // the revealed key, to tell whether it changed
-    var saveSum = null;
-
     // Copy the public key, to put it on the devices
     var copy = document.getElementById('copy-public-key');
     if (copy) {
@@ -29,6 +19,16 @@
         }
       });
     }
+
+    var form = document.getElementById('sshkey-form');
+    if (!form) { return; }
+    var box = document.getElementById('secret-box');
+    var key = document.getElementById('id_private_key');
+    var passphrase = document.getElementById('id_passphrase');
+    var remove = document.getElementById('id_remove_passphrase');
+    var revealUrl = form.dataset.revealUrl;
+    var original = null;          // the revealed key, to tell whether it changed
+    var saveSum = null;
 
     function csrf() { return form.querySelector('input[name=csrfmiddlewaretoken]').value; }
     function show(id, on) { var el = document.getElementById(id); if (el) { el.classList.toggle('d-none', !on); } }

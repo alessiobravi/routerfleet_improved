@@ -1,64 +1,87 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
 
-{% block content %}
-<div class="rf-settings">
-    <div class="rf-set-group mt-2">
-        <a class="rf-set-row" href="/fleet_commander/job/list/">
-            <span class="rf-set-icon blue"><i class="fas fa-history"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Job history</span>
-                <span class="rf-set-sub d-block">Every run, by hand or scheduled, with each device's result</span></span>
-            {% if jobs_running %}<span class="rf-set-pill on">{{ jobs_running }} running</span>{% endif %}
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        <a class="rf-set-row" href="/fleet_commander/schedule/defaults/">
-            <span class="rf-set-icon purple"><i class="fas fa-clock"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Schedule defaults</span>
-                <span class="rf-set-sub d-block">The start time and repeat interval a new schedule starts with</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-    </div>
+{% block pane_title %}Fleet Commander{% endblock %}
+{% block pane_sub %}{{ command_list|length }} command{{ command_list|length|pluralize }}{% if jobs_running %} · {{ jobs_running }} job{{ jobs_running|pluralize }} running{% endif %}{% endblock %}
+{% block pane_actions %}{% if can_manage %}<a href="/fleet_commander/command/manage/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add command</a>{% endif %}{% endblock %}
+{% block pane_tabs %}{% include 'fleet_commander/nav_tabs.html' %}{% endblock %}
 
-    <details class="rf-set-section" data-rf-remember="commands">
-        <summary class="rf-set-summary"><span class="rf-set-icon green" aria-hidden="true"><i class="fas fa-terminal"></i></span><span class="rf-set-summary-title">Commands</span><span class="rf-set-summary-sub">{{ command_list|length }} command{{ command_list|length|pluralize }}</span></summary>
-    <div class="rf-set-group">
-        {% for command in command_list %}
-        <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
-            <span class="rf-set-icon green"><i class="fas fa-terminal"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ command.name }}</span>
-                <span class="rf-set-sub d-block">{{ command.variant_count }} device type{{ command.variant_count|pluralize }}{% if command.schedule_count %} · {{ command.schedule_count }} schedule{{ command.schedule_count|pluralize }}{% endif %}{% if command.description %} · {{ command.description|truncatewords:12 }}{% endif %}</span></span>
-            <span class="rf-set-pill {% if command.enabled %}on{% endif %}">{% if command.enabled %}On{% else %}Off{% endif %}</span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% empty %}
-        <div class="rf-set-row"><span class="rf-set-text text-muted">No command yet.</span></div>
-        {% endfor %}
-        {% if can_manage %}
-        <a class="rf-set-row rf-set-add" href="/fleet_commander/command/manage/">
-            <span class="rf-set-icon green"><i class="fas fa-plus"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Add a command</span>
-                <span class="rf-set-sub d-block">Something to run on devices: a payload per device type, by hand or on a schedule</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
+{% block pane_list %}
+<nav class="rf-seg" aria-label="Which commands">
+    <a class="{% if view == 'commands' %}on{% endif %}" href="/fleet_commander/">Commands <b>{{ command_list|length }}</b></a>
+    <a class="{% if view == 'system' %}on{% endif %}" href="/fleet_commander/?view=system">System commands <b>{{ system_command_list|length }}</b></a>
+</nav>
+<div class="rf-list" role="list">
+    {% for item in rows %}
+    <a class="rf-li{% if command and command.pk == item.pk %} on{% endif %}{% if not item.enabled %} rf-li-off{% endif %}" role="listitem" href="/fleet_commander/command/details/?uuid={{ item.uuid }}">
+        <span class="rf-li-main"><span class="rf-li-name" title="{{ item.name }}">{% if item.system_key %}{{ item.name|cut:"System: " }}{% else %}{{ item.name }}{% endif %}</span>
+            <span class="rf-li-sub">{{ item.variant_count }} device type{{ item.variant_count|pluralize }}{% if item.schedule_count %} · {{ item.schedule_count }} schedule{{ item.schedule_count|pluralize }}{% endif %}{% if not item.enabled %} · off{% endif %}</span></span>
+        {% if item.system_key %}<i class="fas fa-lock rf-li-lock" role="img" aria-label="Protected"></i>{% endif %}
+    </a>
+    {% empty %}
+    <div class="rf-empty">No command yet.{% if can_manage %} <a href="/fleet_commander/command/manage/">Add one</a>.{% endif %}</div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block pane_detail %}
+{% if command %}
+<div class="rf-insp-head">
+    <div class="rf-insp-title"><h2>{% if command.system_key %}<i class="fas fa-lock text-danger me-1" role="img" aria-label="System command, protected" title="System command, protected"></i>{% endif %}{{ command.name }}</h2>
+        <div class="rf-page-sub">{% if command.system_key %}System command - RouterFleet sends it; it can not be deleted, disabled, scheduled or run by hand{% else %}{{ command.description|default:"Command"|truncatechars:120 }}{% endif %}</div></div>
+    <div class="rf-insp-actions">
+        {% if not command.system_key %}
+        {% if command.can_execute %}<a href="/fleet_commander/command/execute/?command_uuid={{ command.uuid }}" class="btn btn-sm btn-primary"><i class="fas fa-play me-1" aria-hidden="true"></i>Execute</a>
+        {% else %}<a href="#" class="btn btn-sm btn-outline-secondary"
+           data-rf-alert="{% if not command.enabled %}This command is disabled. Please enable it before executing it.{% elif not command.variants.exists %}Please add at least one command variant for a device type.{% else %}This command cannot be executed because some requirements are not met. Please review the command details.{% endif %}"><i class="fas fa-play me-1" aria-hidden="true"></i>Execute</a>{% endif %}
+        {% if can_manage %}<a href="/fleet_commander/command/manage/?uuid={{ command.uuid }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
         {% endif %}
     </div>
-    </details>
-
-    {% if system_command_list %}
-    <details class="rf-set-section" data-rf-remember="system-commands">
-        <summary class="rf-set-summary"><span class="rf-set-icon red" aria-hidden="true"><i class="fas fa-lock"></i></span><span class="rf-set-summary-title">System commands</span><span class="rf-set-summary-sub">{{ system_command_list|length }} commands RouterFleet itself sends to devices - protected</span></summary>
-    <div class="rf-set-group">
-        {% for command in system_command_list %}
-        <a class="rf-set-row" href="/fleet_commander/command/details/?uuid={{ command.uuid }}">
-            <span class="rf-set-icon red"><i class="fas fa-lock" role="img" aria-label="Protected"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block" title="{{ command.name }}">{{ command.name|cut:"System: " }}</span>
-                <span class="rf-set-sub d-block">{{ command.description|truncatewords:18 }}</span></span>
-            <span class="rf-set-value">{{ command.variant_count }}</span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% endfor %}
-    </div>
-    <div class="rf-set-foot">What RouterFleet itself sends to devices: the connection test, the inventory, every step of a backup, and firmware updates - one variant per device type. They can not be deleted, disabled or run by hand; an administrator edits a variant after reviewing the change.</div>
-    </details>
-    {% endif %}
 </div>
+<dl class="rf-facts">
+    <dt>State</dt><dd>{% if command.enabled %}<span class="rf-st ok"><i></i>Enabled</span>{% else %}<span class="rf-st off"><i></i>Disabled</span>{% endif %}</dd>
+    <dt>Output</dt><dd>{% if command.capture_output %}captured{% else %}not captured{% endif %}</dd>
+    <dt>Retries</dt><dd>{{ command.max_retry }}, every {{ command.retry_interval }} s</dd>
+    <dt>Created</dt><dd class="rf-mono">{{ command.created|date:"Y-m-d H:i" }}</dd>
+    {% if command.description and not command.system_key %}<dt>Description</dt><dd class="rf-notes">{{ command.description|linebreaksbr }}</dd>{% endif %}
+    {% if command.system_key %}<dt>What it does</dt><dd class="rf-notes">{{ command.description }}</dd>{% endif %}
+</dl>
+{% if not command.system_key %}
+<div class="rf-insp-section d-flex justify-content-between align-items-center">Schedules{% if can_manage %}<a class="text-uppercase-none small" href="/fleet_commander/schedule/manage/?command_uuid={{ command.uuid }}"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add schedule</a>{% endif %}</div>
+<table class="rf-tbl">
+    <tbody>
+    {% for schedule in schedule_list %}
+    <tr>
+        <td class="w1">{% if schedule.enabled %}<span class="rf-st ok"><i></i>On</span>{% else %}<span class="rf-st off"><i></i>Off</span>{% endif %}</td>
+        <td>{{ schedule.repeat_interval_display }} <span class="text-muted">· {{ schedule.target_summary }}</span></td>
+        <td class="rf-mono text-nowrap">{{ schedule.next_run|date:"Y-m-d H:i"|default:"—" }}{% if schedule.last_missed %}
+            <div class="text-warning small" title="Nothing was running when this run was due, and a command is not sent hours later than it was meant to. The schedule carries on with its next run."><i class="fas fa-exclamation-triangle" aria-hidden="true"></i> missed {{ schedule.last_missed }}</div>{% endif %}</td>
+        <td class="w1">{% if can_manage %}<a class="rf-kebab" href="/fleet_commander/schedule/manage/?command_uuid={{ command.uuid }}&amp;uuid={{ schedule.uuid }}" title="Edit the schedule" aria-label="Edit the schedule"><i class="fas fa-pen"></i></a>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td class="text-muted">No schedule.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+<div class="rf-insp-section d-flex justify-content-between align-items-center">Variants - one per device type{% if not command.system_key and can_manage %}<a class="small" href="/fleet_commander/variant/manage/?command_uuid={{ command.uuid }}"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add variant</a>{% endif %}</div>
+<div class="rf-variants">
+    {% for variant in variant_list %}
+    <div class="rf-variant">
+        <div class="rf-variant-head"><b>{{ variant.get_router_type_display }}</b>
+            <span>{% if variant.enabled %}<span class="rf-st ok"><i></i>On</span>{% else %}<span class="rf-st off"><i></i>Off</span>{% endif %}
+                {% if not command.system_key %}{% if can_manage %}<a class="ms-2" href="/fleet_commander/variant/manage/?command_uuid={{ command.uuid }}&amp;uuid={{ variant.uuid }}" title="Edit the variant" aria-label="Edit the variant"><i class="fas fa-pen"></i></a>{% endif %}
+                {% elif is_administrator %}<a class="ms-2 text-danger" href="/fleet_commander/system/variant/?uuid={{ variant.uuid }}" title="Edit system command (administrators)" aria-label="Edit system command"><i class="fas fa-lock-open"></i></a>{% endif %}</span></div>
+        <pre class="m-0 rf-plain-area"><code>{% if command.system_key and not variant.payload %}(nothing is run for this device type){% else %}{{ variant.payload }}{% endif %}</code></pre>
+        {% if variant.has_verification %}
+        <div class="rf-variant-verify"><b>Verification</b> <span class="text-muted">- the result is checked on the device</span>
+            <pre class="m-0 mt-2 rf-plain-area"><code>{{ variant.verify_payload }}</code></pre>
+            <div class="mt-2">Expected result:<ul class="mb-0">{% for expectation in variant.verify_expect.splitlines %}{% if expectation.strip %}<li><code>{{ expectation.strip }}</code></li>{% endif %}{% endfor %}</ul></div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <p class="text-muted px-3">No variant yet.</p>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

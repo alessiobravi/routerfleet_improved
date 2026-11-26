@@ -1046,17 +1046,18 @@ class SSHKeyListTests(TestCase):
         make_router(name='second', ssh_key=key)
         self.client.force_login(make_user(40))
         page = self.client.get('/ssh_keys/')
-        self.assertContains(page, 'class="rf-set-row rf-sshkey"')
-        self.assertContains(page, 'Ed25519 · <span class="rf-mono">SHA256:')
-        self.assertContains(page, '2 devices')
+        self.assertEqual(page.context['chosen']['key'], key)
+        self.assertContains(page, 'Ed25519 · 2 devices')
+        self.assertContains(page, '<dd class="rf-mono">SHA256:')
+        self.assertEqual(len(page.context['members']), 2)
         self.assertContains(page, 'Protected by a passphrase')
-        self.assertContains(page, 'Add an SSH key')
+        self.assertContains(page, 'Add SSH key')
         self.assertNotContains(page, '<table')
         self.assertNotContains(page, 'FAKE-TEST-PRIVATE-KEY-MATERIAL')
         self.client.force_login(make_user(10))
         viewer = self.client.get('/ssh_keys/')
         self.assertContains(viewer, 'fleet key')
-        self.assertNotContains(viewer, 'Add an SSH key')
+        self.assertNotContains(viewer, 'Add SSH key')
 
 
 class DeviceStateFilterTests(TestCase):

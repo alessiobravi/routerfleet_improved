@@ -437,8 +437,10 @@ def view_ssh_key_list(request):
     for sshkey in SSHKey.objects.annotate(devices=Count('router')).order_by('name'):
         kind, label, fingerprint = describe(sshkey.public_key)
         rows.append({'key': sshkey, 'kind': kind, 'label': label, 'fingerprint': fingerprint})
+    chosen = next((row for row in rows if str(row['key'].uuid) == request.GET.get('key', '')), rows[0] if rows else None)
     context = {
-        'rows': rows, 'page_title': 'SSH Keys',
+        'rows': rows, 'page_title': 'SSH Keys', 'chosen': chosen,
+        'members': list(chosen['key'].router_set.select_related('routerstatus').order_by('name')) if chosen else [],
         'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
     }
     return render(request, 'router_manager/sshkey_list.html', context=context)

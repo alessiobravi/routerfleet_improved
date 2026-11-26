@@ -223,10 +223,15 @@ def view_user_list(request):
     page_title = 'User Manager'
     from django.db.models import Count, Exists, OuterRef
     from .models import UserTotp
-    user_acl_list = UserAcl.objects.select_related('user').annotate(
+    user_acl_list = list(UserAcl.objects.select_related('user').annotate(
         passkeys=Count('user__passkeys', distinct=True),
-        app=Exists(UserTotp.objects.filter(user=OuterRef('user'), confirmed=True))).order_by('user__username')
-    context = {'page_title': page_title, 'user_acl_list': user_acl_list}
+        app=Exists(UserTotp.objects.filter(user=OuterRef('user'), confirmed=True))).order_by('user__username'))
+    chosen = next((a for a in user_acl_list if str(a.uuid) == request.GET.get('user', '')), user_acl_list[0] if user_acl_list else None)
+    sign_ins = []
+    if chosen:
+        from audit_log.models import LoginRecord
+        sign_ins = list(LoginRecord.objects.filter(username__iexact=chosen.user.username).order_by('-created')[:6])
+    context = {'page_title': page_title, 'user_acl_list': user_acl_list, 'chosen': chosen, 'sign_ins': sign_ins}
     return render(request, 'user_manager/list.html', context)
 
 

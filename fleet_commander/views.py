@@ -95,30 +95,43 @@ def view_command_list(request):
         messages.success(request, 'Default commands created successfully')
         command_list = counted.order_by('system_key', 'name')
 
-    context = {
-        'command_list': [c for c in command_list if not c.system_key],
-        'system_command_list': sorted((c for c in command_list if c.system_key),
-                                      key=lambda c: SYSTEM_ORDER.index(c.system_key) if c.system_key in SYSTEM_ORDER else 99),
+    return render(request, 'fleet_commander/command_list.html', _commands_context(request, list(command_list)))
+
+
+def _commands_context(request, command_list, chosen_uuid=None):
+    """The Commands page: the commands (or the system commands) on the left,
+    the chosen one on the right with its schedules and variants."""
+    commands = [c for c in command_list if not c.system_key]
+    system = sorted((c for c in command_list if c.system_key),
+                    key=lambda c: SYSTEM_ORDER.index(c.system_key) if c.system_key in SYSTEM_ORDER else 99)
+    wanted = chosen_uuid or request.GET.get('command', '')
+    chosen = next((c for c in command_list if str(c.uuid) == wanted), None)
+    view = 'system' if (chosen and chosen.system_key) or (not chosen and request.GET.get('view') == 'system') else 'commands'
+    rows = system if view == 'system' else commands
+    chosen = chosen or (rows[0] if rows else None)
+    return {
+        'command_list': commands, 'system_command_list': system, 'rows': rows, 'view': view, 'command': chosen,
+        'variant_list': chosen.variants.all().order_by('router_type') if chosen else [],
+        'schedule_list': chosen.schedules.all().order_by('-created') if chosen else [],
         'page_title': 'Fleet Commander',
         'jobs_running': CommandJob.objects.filter(completed__isnull=True).count(),
         'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'is_administrator': UserAcl.objects.filter(user=request.user, user_level__gte=50).exists(),
     }
-    return render(request, 'fleet_commander/command_list.html', context)
 
 
 @login_required()
 def view_command_details(request):
     if not UserAcl.objects.filter(user=request.user, user_level__gte=20).exists():
         return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+    # The command's page is the Commands page with this command chosen
     command = get_object_or_404(Command, uuid=request.GET.get('uuid'))
-    context = {
-        'command': command,
-        'variant_list': command.variants.all().order_by('router_type'),
-        'schedule_list': command.schedules.all().order_by('-created'),
-        'page_title': command.name,
-        'is_administrator': UserAcl.objects.filter(user=request.user, user_level__gte=50).exists(),
-    }
-    return render(request, 'fleet_commander/command_details.html', context)
+    from django.db.models import Count
+    command_list = list(Command.objects.annotate(variant_count=Count('variants', distinct=True),
+                                                 schedule_count=Count('schedules', distinct=True)).order_by('system_key', 'name'))
+    context = _commands_context(request, command_list, chosen_uuid=str(command.uuid))
+    context['page_title'] = command.name
+    return render(request, 'fleet_commander/command_list.html', context)
 
 
 @login_required()

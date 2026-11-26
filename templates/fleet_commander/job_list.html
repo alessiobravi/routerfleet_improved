@@ -1,99 +1,32 @@
-{% extends 'base.html' %}
-{% load custom_tags %}
+{% extends 'includes/table_page.html' %}
 
-{% block content %}
-<div id="rf-live-jobs" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="jobs running" data-rf-live-interval="5">
-    <div class='row'>
-        <div class='col-lg-12'>
-            <div class="card card-primary card-outline">
-                {% if page_title %}
-                    <div class="card-header">
-                        <h3 class="card-title">{{ page_title }}</h3>
-                    </div>
-                {% endif %}
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <table class="table table-hover datatables-no-export">
-                                <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Command</th>
-                                    <th><i class="fas fa-tachometer-alt" title="Status"></i></th>
-                                    <th>Source</th>
-                                    <th><i class="fas fa-check-circle" title="Completed tasks"></i></th>
-                                    <th><i class="fas fa-exclamation-triangle" title="Failed tasks"></i></th>
-                                    <th><i class="fas fa-hand-paper" title="Aborted tasks"></i></th>
-                                    <th>Progress</th>
-                                    <th>Created</th>
-                                    <th></th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {% for job in job_list %}
-                                    <tr>
-                                        <td class="min-width">
-                                            <a href="/fleet_commander/job/details/?uuid={{ job.uuid }}">{{ job.id }}</a>
-                                        </td>
-                                        <td><a href="/fleet_commander/job/details/?uuid={{ job.uuid }}">{{ job.command.name }}</a></td>
-                                        <td class="min-width">
-                                            {% if job.completed %}
-                                                {% if job.error_count > 0 %}{{ 'bad'|state_icon:'Completed with failures' }}
-                                                {% elif job.aborted_count > 0 %}{{ 'warn'|state_icon:'Completed, some tasks aborted' }}
-                                                {% else %}{{ 'ok'|state_icon:'Completed' }}{% endif %}
-                                            {% else %}
-                                                {% if job.error_count > 0 or job.aborted_count > 0 %}{{ 'high'|state_icon:'Running, with failures so far' }}
-                                                {% else %}{{ 'run'|state_icon:'Running' }}{% endif %}
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if job.exec_source == 'schedule' %}
-                                                <i class="far fa-calendar-alt text-warning"></i> Schedule
-                                            {% else %}
-                                                <i class="fas fa-user text-info"></i>
-                                                {% if job.user_source %}
-                                                    {{ job.user_source.username }}
-                                                {% else %}
-                                                    {{ job.user_source_name|default_if_none:"—" }}
-                                                {% endif %}
-                                            {% endif %}
-                                        </td>
-                                        <td class="min-width">{{ job.success_count }}</td>
-                                        <td class="min-width">
-                                        <span{% if job.error_count > 0 %} class="text-danger"{% endif %}>
-                                            {{ job.error_count }}
-                                        </span>
-                                        </td>
-                                        <td class="min-width">
-                                        <span{% if job.aborted_count > 0 %} class="text-warning"{% endif %}>
-                                            {{ job.aborted_count }}
-                                        </span>
-                                        <td class="min-width">{{ job.progress_percentage }}%</td>
-                                        <td class="min-width">{{ job.created }}</td>
-                                        <td class="min-width">
-                                            {% if not job.completed %}
-                                                <a href="#"
-                                                   data-rf-post="/fleet_commander/job/abort/?uuid={{ job.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this job? A command already running on a device finishes; nothing after it runs."
-                                                   title="Stop this job">
-                                                    <i class="fas fa-hand-paper text-danger"></i>
-                                                </a>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="row mt-3">
-                        <div class="col-lg-12">
-                            <a href="/fleet_commander/" class="btn btn-secondary">Back</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+{% block page_attrs %}id="rf-live-jobs" data-rf-live="{% if live_active %}active{% else %}done{% endif %}" data-rf-live-reason="jobs running" data-rf-live-interval="5"{% endblock %}
+{% block page_heading %}Fleet Commander{% endblock %}
+{% block page_sub %}Jobs - every run, by hand or scheduled · {{ job_list|length }}{% endblock %}
+{% block page_tabs %}{% include 'fleet_commander/nav_tabs.html' %}{% endblock %}
+
+{% block page_table %}
+<div class="table-responsive">
+<table class="rf-tbl rf-tbl-nowrap datatables-no-export" data-order='[[5, "desc"]]'>
+    <thead><tr>
+        <th class="w1">#</th><th>Command</th><th>State</th><th>Started by</th><th>Tasks</th><th>Created</th><th class="w1"></th>
+    </tr></thead>
+    <tbody>
+    {% for job in job_list %}
+    <tr>
+        <td class="w1"><a class="rf-mono text-muted" href="/fleet_commander/job/details/?uuid={{ job.uuid }}">{{ job.id }}</a></td>
+        <td class="rf-cell-name"><a class="rf-cell-link" href="/fleet_commander/job/details/?uuid={{ job.uuid }}" title="{{ job.command.name }}">{{ job.command.name }}</a></td>
+        <td>{% if job.completed %}{% if job.error_count > 0 %}<span class="rf-st bad"><i></i>Completed with failures</span>{% elif job.aborted_count > 0 %}<span class="rf-st off"><i></i>Completed, some aborted</span>{% else %}<span class="rf-st ok"><i></i>Completed</span>{% endif %}
+            {% else %}<span class="rf-st run"><i></i>Running · {{ job.progress_percentage }}%</span>{% if job.error_count > 0 %} <span class="text-danger small">with failures</span>{% endif %}{% endif %}</td>
+        <td>{% if job.exec_source == 'schedule' %}<i class="far fa-calendar-alt text-muted me-1" aria-hidden="true"></i>Schedule{% else %}<i class="fas fa-user text-muted me-1" aria-hidden="true"></i>{% if job.user_source %}{{ job.user_source.username }}{% else %}{{ job.user_source_name|default_if_none:"—" }}{% endif %}{% endif %}</td>
+        <td class="rf-mono" data-order="{{ job.success_count }}">{{ job.success_count }} done{% if job.error_count %} · <span class="text-danger">{{ job.error_count }} failed</span>{% endif %}{% if job.aborted_count %} · <span class="text-muted">{{ job.aborted_count }} aborted</span>{% endif %}</td>
+        <td class="rf-mono" data-order="{{ job.created|date:'U' }}">{{ job.created|date:"Y-m-d H:i" }}</td>
+        <td class="w1">{% if not job.completed %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/fleet_commander/job/abort/?uuid={{ job.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this job? A command already running on a device finishes; nothing after it runs." title="Stop this job"><i class="fas fa-hand-paper me-1 text-danger" aria-hidden="true"></i>Abort</a>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-muted p-3">No job yet. Execute a command from Commands, or schedule one.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
 </div>
 {% endblock %}
-

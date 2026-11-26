@@ -1,35 +1,48 @@
-{% extends 'base.html' %}
+{% extends 'includes/pane_page.html' %}
+{% load static %}
 
-{% block content %}
-<div class="rf-settings">
-    <div class="rf-set-title">SSH keys</div>
-    <div class="rf-set-group">
-        {% if rows|length > 8 %}
-        <div class="rf-set-row rf-set-search">
-            <span class="rf-set-icon sky"><i class="fas fa-search"></i></span>
-            <input type="search" class="form-control" data-rf-filter=".rf-sshkey" placeholder="Filter by name, type or fingerprint" aria-label="Filter the SSH keys">
-        </div>
-        {% endif %}
-        {% for row in rows %}
-        <a class="rf-set-row rf-sshkey" href="/ssh_keys/manage/?uuid={{ row.key.uuid }}">
-            <span class="rf-set-icon {% if row.kind == 'ed25519' %}green{% elif row.kind == 'ecdsa' %}teal{% elif row.kind == 'rsa' %}indigo{% else %}sky{% endif %}"><i class="fas fa-key"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">{{ row.key.name }}{% if row.key.passphrase %} <i class="fas fa-lock text-danger ms-1" role="img" aria-label="Protected by a passphrase" title="Protected by a passphrase"></i>{% endif %}</span>
-                <span class="rf-set-sub d-block">{% if row.label %}{{ row.label }} · <span class="rf-mono">{{ row.fingerprint }}</span>{% else %}No public key{% endif %}</span></span>
-            <span class="rf-set-value">{{ row.key.devices }} device{{ row.key.devices|pluralize }}</span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% empty %}
-        <div class="rf-set-row"><span class="rf-set-text text-muted">No SSH key yet.</span></div>
-        {% endfor %}
-        {% if can_manage %}
-        <a class="rf-set-row rf-set-add" href="/ssh_keys/manage/">
-            <span class="rf-set-icon amber"><i class="fas fa-plus"></i></span>
-            <span class="rf-set-text"><span class="rf-set-label d-block">Add an SSH key</span>
-                <span class="rf-set-sub d-block">Generate a new one - Ed25519, ECDSA or RSA - or paste an existing key</span></span>
-            <i class="fas fa-chevron-right rf-set-chevron" aria-hidden="true"></i>
-        </a>
-        {% endif %}
-    </div>
-    <div class="rf-set-foot">A key is stored once and used by as many devices as you choose in their settings. The fingerprint is the one <code>ssh-keygen -l</code> and the devices show. A red lock: protected by a passphrase. Private keys are shown only to administrators, in the key's page.</div>
+{% block pane_sub %}{{ rows|length }} key{{ rows|length|pluralize }}{% endblock %}
+{% block pane_actions %}{% if can_manage %}<a href="/ssh_keys/manage/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add SSH key</a>{% endif %}{% endblock %}
+
+{% block pane_list %}
+<div class="rf-list" role="list">
+    {% for row in rows %}
+    <a class="rf-li{% if chosen and chosen.key.pk == row.key.pk %} on{% endif %}" role="listitem" href="?key={{ row.key.uuid }}">
+        <span class="rf-li-main"><span class="rf-li-name">{{ row.key.name }}{% if row.key.passphrase %}<i class="fas fa-lock rf-li-lock" role="img" aria-label="Protected by a passphrase" title="Protected by a passphrase"></i>{% endif %}</span>
+            <span class="rf-li-sub">{{ row.label|default:"No public key" }} · {{ row.key.devices }} device{{ row.key.devices|pluralize }}</span></span>
+    </a>
+    {% empty %}
+    <div class="rf-empty">No SSH key yet.{% if can_manage %} <a href="/ssh_keys/manage/">Add or generate one</a>.{% endif %}</div>
+    {% endfor %}
 </div>
 {% endblock %}
+
+{% block pane_detail %}
+{% if chosen %}{% with k=chosen.key %}
+<div class="rf-insp-head">
+    <div class="rf-insp-title"><h2>{{ k.name }}</h2>
+        <div class="rf-page-sub">{{ chosen.label|default:"SSH key" }}{% if k.passphrase %} · protected by a passphrase{% endif %}</div></div>
+    <div class="rf-insp-actions">
+        {% if k.public_key %}<button type="button" class="btn btn-sm btn-outline-secondary" id="copy-public-key"><i class="fas fa-copy me-1" aria-hidden="true"></i>Copy the public key</button>{% endif %}
+        {% if can_manage %}<a class="btn btn-sm btn-outline-secondary" href="/ssh_keys/manage/?uuid={{ k.uuid }}"><i class="fas fa-pen me-1" aria-hidden="true"></i>Edit</a>{% endif %}
+    </div>
+</div>
+<dl class="rf-facts">
+    <dt>Type</dt><dd>{{ chosen.label|default:"—" }}</dd>
+    <dt>Fingerprint</dt><dd class="rf-mono">{{ chosen.fingerprint|default:"—" }}</dd>
+    <dt>Public key</dt><dd><textarea class="form-control rf-mono rf-fs-12" id="id_public_key" rows="3" readonly aria-label="Public key">{{ k.public_key }}</textarea></dd>
+    <dt>Created</dt><dd class="rf-mono">{{ k.created|date:"Y-m-d H:i" }}</dd>
+</dl>
+<div class="rf-insp-section">Devices using it</div>
+<div class="rf-member-list">
+    {% for router in members %}
+    {% with device_id=router.uuid|stringformat:"s" %}{% with href='/router/list/?filter_group=all&device='|add:device_id %}{% include 'includes/device_row.html' %}{% endwith %}{% endwith %}
+    {% empty %}
+    <div class="rf-empty">No device uses this key. A device's key is chosen in its settings.</div>
+    {% endfor %}
+</div>
+<div class="rf-set-foot px-3 pb-3">The fingerprint is the one <code>ssh-keygen -l</code> and the devices show. Private keys are shown only to administrators, in the key's page.</div>
+{% endwith %}{% endif %}
+{% endblock %}
+
+{% block custom_page_scripts %}<script src="{% static 'routerfleet/sshkey.js' %}"></script>{% endblock %}
