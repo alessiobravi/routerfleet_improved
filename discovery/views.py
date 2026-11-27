@@ -114,7 +114,9 @@ def _classify():
     routers = list(Router.objects.only('uuid', 'name', 'address'))
     new, known, dismissed = [], [], []
     known_rows = {}   # one row per device in RouterFleet, however many protocols heard it
-    for device in DiscoveredDevice.objects.select_related('seen_by_router'):
+    # Devices heard in the same run share their last_seen: name and address
+    # break the tie, so the list keeps its order from one load to the next
+    for device in DiscoveredDevice.objects.select_related('seen_by_router').order_by('-last_seen', 'identity', 'address', 'pk'):
         router = known_router(device, routers)
         row = {'device': device, 'router': router, 'type': guess_type(device), 'ids': [device.pk], 'uuids': [str(device.uuid)],
                'protocols': ', '.join(p.upper() for p in device.protocols.split(',') if p)}

@@ -298,7 +298,7 @@ class ReachabilityAndWizardTests(TestCase):
         self.assertContains(self.client.get(f'/router/discovered/add/?uuid={self.device.uuid}'), 'Access Denied')
         from unittest import mock
         with mock.patch('discovery.reach.check_stale'):
-            page = self.client.get('/router/discovered/').content.decode()
+            page = self.client.get(f'/router/discovered/?device={self.device.uuid}').content.decode()
         self.assertNotIn('/router/discovered/add/', page, 'no add button below administrator')
         self.assertIn('<span class="rf-st ok"><i></i>Reachable</span>', page)
 
@@ -810,3 +810,18 @@ class ClearDiscoveredTests(TestCase):
         self.client.force_login(make_user(20))
         self.client.post('/router/discovered/?view=new', {'action': 'clear', 'confirmation': 'clear'})
         self.assertEqual(DiscoveredDevice.objects.count(), 5)
+
+
+class StableOrderTests(TestCase):
+    """Devices heard in the same run share their last-seen time: the list
+    still keeps one order, by name, on every database."""
+
+    def test_ties_ordered_by_name(self):
+        from django.utils import timezone
+        from .views import _classify
+        store(sample('routeros_terse.txt'), seen_by='seer')
+        DiscoveredDevice.objects.update(last_seen=timezone.now())
+        new, _, _ = _classify()
+        names = [row['device'].identity or '' for row in new]
+        self.assertGreater(len(names), 1, 'the sample has several devices')
+        self.assertEqual(names, sorted(names))

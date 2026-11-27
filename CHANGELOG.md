@@ -30,6 +30,12 @@ the Zabbix kit reads, says so under **Monitoring**.
 - `app_secrets/`, `service_keys/` and `certificates/` are ignored by git and by
   image builds, should someone keep them as folders instead of Docker volumes.
 
+### Fixed
+- **Discovered devices keep their order.** Devices heard in the same discovery
+  share their last-seen time, and PostgreSQL returned those ties in any order:
+  the list could reshuffle between loads, and the device shown on the right
+  changed with it. They are now ordered by name, then address.
+
 ## [0.49.2] - 2026-11-27
 
 ### Changed
