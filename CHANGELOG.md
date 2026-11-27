@@ -13,6 +13,17 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.47.3] - 2026-11-27
+
+### Added
+- **Migration timing** (Actions, started by hand): how long the automatic move
+  of a PostgreSQL 16 database to PostgreSQL 18 takes, and how much disk it
+  uses, on databases of realistic size - by default 1 GB and 5 GB: years of
+  backups over 200 devices, a long audit log and availability history. It
+  also reports whether the move stays within the time the database's health
+  check allows. The numbers will replace the estimates in the upgrade guide.
+  Changes nothing in the app or its images.
+
 ## [0.47.2] - 2026-11-27
 
 ### Fixed
