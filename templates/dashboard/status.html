@@ -63,8 +63,9 @@
             {% for column in this_week %}
             <div class="rf-week-col">
                 <div class="rf-week-head"><i class="fas {{ column.icon }}" aria-hidden="true"></i> {{ column.title }} <span class="rf-week-count">{{ column.count }}</span></div>
+                {% if column.legend %}<div class="rf-week-legend">{% for item in column.legend %}<span><i class="fas fa-arrow-alt-circle-up {{ item.css }}" aria-hidden="true"></i> {{ item.text }}</span>{% endfor %}</div>{% endif %}
                 {% for row in column.rows %}
-                <a class="rf-week-row{% if row.open %} rf-week-open{% endif %}" href="{{ row.href }}"><span class="rf-week-name">{{ row.name }}</span><span class="rf-week-detail">{{ row.detail }}</span></a>
+                <a class="rf-week-row{% if row.open %} rf-week-open{% endif %}" href="{{ row.href }}"><span class="rf-week-name">{{ row.name }}{% for mark in row.marks %}<i class="fas fa-arrow-alt-circle-up rf-week-mark {{ mark.css }}" role="img" aria-label="{{ mark.title }}" title="{{ mark.title }}"></i>{% endfor %}</span><span class="rf-week-detail">{{ row.detail }}</span></a>
                 {% empty %}
                 <div class="rf-week-empty">{{ column.empty }}</div>
                 {% endfor %}

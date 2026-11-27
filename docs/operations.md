@@ -164,9 +164,12 @@ in the state badges of lists. **Every card opens the list of exactly what it cou
   counted.
 
 **This week**, below the cards, is what happened in the last 7 days, per
-device: the configuration changes (how many), the firmware updates (from which
-version to which) and the outages (how many, how long - a device down right now
-first, in red). Each name opens the device - an outage its availability page.
+device: the configuration changes (how many), the updates and the outages (how
+many, how long - a device down right now first, in red). An update is marked as
+in the device list - green for the system (OS), purple for the bootloader
+firmware, both when a rollout did both - and says what changed ("System 7.24.5
+→ 7.25.2", "Bootloader → 7.25.2"). Each column shows its first 10 devices and
+counts the rest. Each name opens the device - an outage its availability page.
 
 **On every page**, the status bar shows the installation's own problems: the
 scheduler or the monitoring stopped (red), the backup disk 80% full or filling

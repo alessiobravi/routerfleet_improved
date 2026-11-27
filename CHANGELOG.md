@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.49.1] - 2026-11-27
+
+### Changed
+- **This week: what kind of update.** An update is marked as in the device
+  list - green for the system (OS), purple for the bootloader firmware, both
+  when a rollout did both - with a legend, and says what changed ("System
+  7.24.5 → 7.25.2", "Bootloader → 7.25.2"). Each column now shows its first 10
+  devices (was 6); a long line wraps instead of cutting the device's name.
+
 ## [0.49.0] - 2026-11-27
 
 ### Added

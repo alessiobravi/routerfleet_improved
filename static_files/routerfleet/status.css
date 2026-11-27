@@ -64,3 +64,9 @@ html.rf-dark .rf-status { --rf-navy: #8fb3e0; }
 .rf-week-open .rf-week-detail { color: var(--rf-bad); font-weight: 600; }
 .rf-week-empty { color: var(--rf-muted); font-size: 14px; padding: 6px 0; }
 .rf-week-more { display: inline-block; font-size: 13px; margin-top: 4px; }
+.rf-week-mark { margin-left: 6px; font-size: 13px; }
+.rf-week-legend { display: flex; gap: 12px; font-size: 12px; color: var(--rf-muted); margin: -2px 0 6px; }
+/* The name and its marks stay whole; a long detail wraps under itself */
+.rf-week-row { align-items: baseline; }
+.rf-week-name { flex: 0 0 auto; max-width: 60%; }
+.rf-week-detail { white-space: normal; text-align: right; min-width: 0; }
