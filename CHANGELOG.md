@@ -13,7 +13,9 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
-## [0.49.3] - 2026-11-27
+## [0.49.3] - 2026-11-28
+
+Includes 0.49.2, which was not released on its own.
 
 ### Security
 - **A stored mail server password or ntfy token is only sent to the server it
@@ -30,14 +32,6 @@ the Zabbix kit reads, says so under **Monitoring**.
 - `app_secrets/`, `service_keys/` and `certificates/` are ignored by git and by
   image builds, should someone keep them as folders instead of Docker volumes.
 
-### Fixed
-- **Discovered devices keep their order.** Devices heard in the same discovery
-  share their last-seen time, and PostgreSQL returned those ties in any order:
-  the list could reshuffle between loads, and the device shown on the right
-  changed with it. They are now ordered by name, then address.
-
-## [0.49.2] - 2026-11-27
-
 ### Changed
 - **This week is three cards** - Configuration changed, Updated, Outages - side
   by side, stacked on a phone. Each row is the device's name with what
@@ -47,6 +41,10 @@ the Zabbix kit reads, says so under **Monitoring**.
   are on the device's page.
 
 ### Fixed
+- **Discovered devices keep their order.** Devices heard in the same discovery
+  share their last-seen time, and PostgreSQL returned those ties in any order:
+  the list could reshuffle between loads, and the device shown on the right
+  changed with it. They are now ordered by name, then address.
 - The red of a stopped scheduler in the status bar, and of a device down now in
   This week, showed as dark text: the colour was only defined on object pages.
 
