@@ -34,7 +34,7 @@ def _probe(address, port=SSH_PORT):
     try:
         with socket.create_connection((address, port), timeout=TIMEOUT):
             return True, f'SSH (port {port}) answers'
-    except socket.timeout:
+    except TimeoutError:
         return False, f'no answer on SSH (port {port})'
     except ConnectionRefusedError:
         return False, f'SSH (port {port}) refused: reachable, but no SSH there'
@@ -50,7 +50,7 @@ def check(devices, port=SSH_PORT):
     with ThreadPoolExecutor(max_workers=min(16, len(devices))) as pool:
         results = list(pool.map(lambda d: _probe(d.address, port), devices))
     now = timezone.now()
-    for device, (reachable, detail) in zip(devices, results):
+    for device, (reachable, detail) in zip(devices, results, strict=True):
         device.reachable, device.reachable_detail, device.checked_at = reachable, detail[:120], now
         device.save(update_fields=['reachable', 'reachable_detail', 'checked_at'])
     return len(devices)

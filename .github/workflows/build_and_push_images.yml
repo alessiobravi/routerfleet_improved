@@ -56,6 +56,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
 
+      # The rules are in ruff.toml: likely bugs, unused names, outdated constructs
+      - name: Lint
+        run: ruff check --output-format github .
+
       # In the container entrypoint.sh writes this file; the tests need one too
       - name: Write test settings
         run: |

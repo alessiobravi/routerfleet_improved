@@ -1,7 +1,9 @@
 """System settings: HTTPS."""
 import datetime
+import io
 import json
 import os
+import pathlib
 import shutil
 import tempfile
 
@@ -23,7 +25,7 @@ from user_manager.models import UserPasskey
 
 def make_certificate(names=('rf.example.net',), days=90, key=None):
     key = key or ec.generate_private_key(ec.SECP256R1())
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, names[0])])
     certificate = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject).public_key(key.public_key())
                    .serial_number(x509.random_serial_number()).not_valid_before(now - datetime.timedelta(days=max(1, 1 - days)))
@@ -202,13 +204,12 @@ class CookieTests(VolumeTestCase):
 
 class CommandTests(VolumeTestCase):
     def test_reset_and_mode(self):
-        call_command('https', 'mode', 'plain', stdout=open(os.devnull, 'w'))
+        call_command('https', 'mode', 'plain', stdout=io.StringIO())
         self.assertEqual(self.state()['mode'], 'plain')
-        import io
         out = io.StringIO()
         call_command('https', 'status', stdout=out)
         self.assertIn('"configured": "plain"', out.getvalue())
-        call_command('https', 'reset', stdout=open(os.devnull, 'w'))
+        call_command('https', 'reset', stdout=io.StringIO())
         self.assertEqual(self.state()['mode'], 'env')
         self.assertEqual(HttpsSettings.load().mode, 'env')
 
@@ -230,12 +231,12 @@ class DeployedCertificateTests(VolumeTestCase):
         for name, content in (('nginx.pem', certificate), ('nginx.key', key)):
             with open(os.path.join(self.volume, name), 'w') as handle:
                 handle.write(content)
-        before = {n: open(os.path.join(self.volume, n)).read() for n in ('nginx.pem', 'nginx.key')}
+        before = {n: pathlib.Path(self.volume, n).read_text() for n in ('nginx.pem', 'nginx.key')}
         current = HttpsSettings.load()
         for mode in ('selfsigned', 'plain', 'env'):
             current.mode = mode
             https.write_state(current)
-        self.assertEqual(before, {n: open(os.path.join(self.volume, n)).read() for n in ('nginx.pem', 'nginx.key')})
+        self.assertEqual(before, {n: pathlib.Path(self.volume, n).read_text() for n in ('nginx.pem', 'nginx.key')})
 
 
 class SystemSettingsTests(TestCase):

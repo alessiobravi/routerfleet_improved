@@ -17,4 +17,4 @@ omit =
 [report]
 skip_covered = True
 sort = Cover
-fail_under = 93
+fail_under = 97

@@ -27,6 +27,28 @@ the Zabbix kit reads, says so under **Monitoring**.
 - Removing a host key - here or on a device's page - is recorded in the Audit
   Log.
 
+### Security
+- **The password change page did not require signing in.** A signed-out
+  visitor saw the form, and sending it ended in an error page; no password
+  could be changed that way. It now sends the visitor to sign in, like every
+  other page - and a test now checks every address of the application this
+  way, so a page that forgets it fails before a release.
+
+### Fixed
+- An encrypted value read back from the database as a memory view (as some
+  database drivers return binary values) failed to decode.
+
+### Engineering
+- **Lint in CI**: `ruff check` with the rules in `ruff.toml` (likely bugs,
+  unused names, outdated constructs); about a hundred findings fixed, none
+  changing what the application does.
+- **Branch coverage from 93% to 97.75%**, about 360 new tests; the release gate
+  is raised to 97%.
+- Tests no longer reach the internet: the update page's test read MikroTik's
+  real version pages (its stand-in was never used) and would have failed as
+  soon as MikroTik published a new beta; and a test run no longer shares the
+  temporary cache of an installation running on the same machine.
+
 ## [0.47.4] - 2026-11-27
 
 ### Removed

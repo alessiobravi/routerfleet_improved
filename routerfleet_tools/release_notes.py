@@ -92,9 +92,11 @@ def render(body):
     for line in (body or '').splitlines():
         stripped = line.strip()
         if not stripped:
-            flush_items(); flush_paragraph()
+            flush_items()
+            flush_paragraph()
         elif stripped.startswith('### '):
-            flush_items(); flush_paragraph()
+            flush_items()
+            flush_paragraph()
             out.append(f'<h6 class="rf-notes-h">{_inline(stripped[4:])}</h6>')
         elif stripped.startswith('- '):
             flush_paragraph()
@@ -104,7 +106,8 @@ def render(body):
         else:
             flush_items()
             paragraph.append(stripped)
-    flush_items(); flush_paragraph()
+    flush_items()
+    flush_paragraph()
     return mark_safe('\n'.join(out))   # nosec B308 B703 - built from escaped text above
 
 

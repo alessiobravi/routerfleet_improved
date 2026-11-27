@@ -159,7 +159,7 @@ def view_discovered(request):
         return _back(view, device)
     if request.method == 'POST' and request.POST.get('action') in ('remove', 'clear'):
         # Only RouterFleet's record goes: a device heard again comes back as new
-        views = dict(zip(VIEWS, _classify()))
+        views = dict(zip(VIEWS, _classify(), strict=True))
         rows = views[view]
         if request.POST.get('action') == 'remove':
             # Any record behind the row names it - which one the row shows depends on the database's order

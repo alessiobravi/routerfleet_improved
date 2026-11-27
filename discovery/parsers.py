@@ -63,8 +63,8 @@ def _routeros(text):
     found = []
     for record in records:
         # A value runs to the next key=: terse output does not quote "7.16.2 (stable)"
-        pairs = dict((k, v.strip().strip('"')) for k, v in
-                     re.findall(r'([\w-]+)=("[^"]*"|.*?)(?=\s+[\w-]+=|\s*$)', record))
+        pairs = {k: v.strip().strip('"') for k, v in
+                     re.findall(r'([\w-]+)=("[^"]*"|.*?)(?=\s+[\w-]+=|\s*$)', record)}
         if not pairs:
             continue
         found.append(_clean({

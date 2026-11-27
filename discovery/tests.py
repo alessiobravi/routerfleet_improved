@@ -118,7 +118,8 @@ class ListenerPacketTests(TestCase):
     built byte by byte after the protocols' layouts."""
 
     def test_mndp(self):
-        tlv = lambda kind, value: struct.pack('>HH', kind, len(value)) + value
+        def tlv(kind, value):
+            return struct.pack('>HH', kind, len(value)) + value
         data = b'\x00\x00\x00\x01' + tlv(1, bytes.fromhex('48a98a010203')) + tlv(5, b'hap-lan') + tlv(7, b'7.16.2 (stable)') \
             + tlv(8, b'MikroTik') + tlv(12, b'hAP ax3') + tlv(17, bytes([192, 168, 88, 1]))
         record = listener().parse_mndp(data, '192.168.88.1')

@@ -21,8 +21,7 @@ FOLD_AFTER = 10
 
 def findings(report):
     for result in report.get('Results') or []:
-        for vuln in result.get('Vulnerabilities') or []:
-            yield vuln
+        yield from result.get('Vulnerabilities') or []
 
 
 def section(trivy_version, reports):

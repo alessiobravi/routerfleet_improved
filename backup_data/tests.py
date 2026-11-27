@@ -76,7 +76,7 @@ class NextBackupTests(TestCase):
         for day in ('monday', 'tuesday', 'wednesday', 'thursday', 'friday'):
             setattr(profile, f'daily_day_{day}', False)
         # Monday 2026-06-01 10:00 UTC
-        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.timezone.utc)):
+        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.UTC)):
             daily, weekly, monthly = cron.calculate_next_backup(profile)
         self.assertEqual(daily.date(), datetime.date(2026, 6, 6))  # Saturday
         self.assertEqual(daily.hour, 3)
@@ -86,7 +86,7 @@ class NextBackupTests(TestCase):
     @override_settings(TIME_ZONE='UTC')
     def test_daily_later_today(self):
         profile = make_profile(daily_hour=23)
-        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.timezone.utc)):
+        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.UTC)):
             daily, _, _ = cron.calculate_next_backup(profile)
         self.assertEqual((daily.date(), daily.hour), (datetime.date(2026, 6, 1), 23))
 
@@ -94,7 +94,7 @@ class NextBackupTests(TestCase):
     def test_weekly_and_monthly(self):
         profile = make_profile(weekly_backup=True, weekly_day='sunday', weekly_hour=1,
                                monthly_backup=True, monthly_day=1, monthly_hour=0)
-        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.timezone.utc)):
+        with at(timezone.make_aware(datetime.datetime(2026, 6, 1, 10), datetime.UTC)):
             _, weekly, monthly = cron.calculate_next_backup(profile)
         self.assertEqual((weekly.date(), weekly.hour), (datetime.date(2026, 6, 7), 1))
         self.assertEqual((monthly.date(), monthly.hour), (datetime.date(2026, 7, 1), 0))
@@ -102,7 +102,7 @@ class NextBackupTests(TestCase):
     @override_settings(TIME_ZONE='UTC')
     def test_monthly_in_december_rolls_into_january(self):
         profile = make_profile(monthly_backup=True, monthly_day=1, monthly_hour=0)
-        with at(timezone.make_aware(datetime.datetime(2026, 12, 5, 10), datetime.timezone.utc)):
+        with at(timezone.make_aware(datetime.datetime(2026, 12, 5, 10), datetime.UTC)):
             _, _, monthly = cron.calculate_next_backup(profile)
         self.assertEqual(monthly.date(), datetime.date(2027, 1, 1))
 

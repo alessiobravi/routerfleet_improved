@@ -150,5 +150,5 @@ class EncryptedTextField(models.TextField):
         if value is None:
             return value
         if isinstance(value, (bytes, memoryview)):
-            value = value.decode()
+            value = bytes(value).decode()   # a memoryview has no decode()
         return decrypt_value(value)

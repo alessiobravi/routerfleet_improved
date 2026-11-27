@@ -8,7 +8,7 @@ from fleet_commander.models import (Command, CommandJob, CommandSchedule, Comman
                                     ScheduleDefaults, format_interval, parse_interval)
 from routerfleet.testing import make_group, make_router
 
-NOW = timezone.make_aware(datetime.datetime(2026, 6, 1, 12, 0, 0), datetime.timezone.utc)
+NOW = timezone.make_aware(datetime.datetime(2026, 6, 1, 12, 0, 0), datetime.UTC)
 
 
 def at(moment):
@@ -237,7 +237,7 @@ class JobAndTaskTests(ScheduleFixture):
         self.assertEqual((job.task_count, job.progress_percentage), (4, 0))
         self.assertIsNone(job.completed)
 
-        for task, status in zip(tasks, ('success', 'error', 'aborted')):
+        for task, status in zip(tasks, ('success', 'error', 'aborted'), strict=False):
             task.status = status
             task.save()
         job.refresh_from_db()

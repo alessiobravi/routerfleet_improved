@@ -97,7 +97,7 @@ class ShellSession:
                 continue
             if done(buffer):
                 return buffer
-        raise SessionError('No prompt from the device within %d seconds' % (timeout or self.timeout))
+        raise SessionError(f'No prompt from the device within {timeout or self.timeout:d} seconds')
 
     def _at_prompt(self, text):
         last = text.rstrip('\n').rsplit('\n', 1)[-1]

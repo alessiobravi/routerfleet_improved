@@ -345,7 +345,7 @@ class DevicesStatusChartTests(TestCase):
         RouterDownTime.objects.create(router=old, start_time=midnight - timezone.timedelta(days=4) + timezone.timedelta(hours=12),
                                       end_time=midnight - timezone.timedelta(days=3) + timezone.timedelta(hours=12))
         data = online_series(7)
-        totals = [a + b + c for a, b, c in zip(data['online_data'], data['offline_data'], data['disabled_data'])]
+        totals = [a + b + c for a, b, c in zip(data['online_data'], data['offline_data'], data['disabled_data'], strict=True)]
         self.assertEqual(totals, [1, 1, 1, 1, 1, 1, 2])
         self.assertEqual(data['offline_data'][-4:], [0, 0, 0, 0])
         self.assertEqual(sum(data['offline_data']), 1, 'offline only on the day it ended down')

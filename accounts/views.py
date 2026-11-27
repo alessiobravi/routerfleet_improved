@@ -64,7 +64,7 @@ def safe_next(request, url):
     another site, never //host, never the sign-in pages themselves."""
     from django.utils.http import url_has_allowed_host_and_scheme
     url = (url or '').strip()
-    if (not url.startswith('/') or url.startswith('//') or url.startswith('/\\') or url.startswith('/accounts/')
+    if (not url.startswith('/') or url.startswith(('//', '/\\', '/accounts/'))
             or not url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure())):
         return ''
     return url

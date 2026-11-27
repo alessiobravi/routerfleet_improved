@@ -88,7 +88,6 @@ def view_user_settings(request):
     return render(request, 'user_manager/user_settings.html', context)
 
 
-@login_required
 def password_attempt_refused(request, password):
     """The current password typed again in a signed-in session (to add a
     passkey, to change it): counted like a sign-in - wrong ones recorded in
@@ -105,6 +104,7 @@ def password_attempt_refused(request, password):
     return ''
 
 
+@login_required
 def view_password_change(request):
     """A user changes their own password: the current one first, then the new
     one twice, checked against the password rules. The other sessions of the

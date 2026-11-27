@@ -1,6 +1,7 @@
 """HTTP access lists: ordered allow and deny entries, IPv4 and IPv6, the
 first match decides, then the final policy; nginx renders them; a change
 that would shut out its author is refused; a command opens access again."""
+import io
 import json
 import pathlib
 import subprocess
@@ -114,7 +115,7 @@ class PageTests(TestCase):
     def test_the_command_opens_access_again(self):
         AccessRule.objects.create(action='deny', network='0.0.0.0/0')
         HttpsSettings.objects.filter(pk=HttpsSettings.load().pk).update(access_default='deny')
-        call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
+        call_command('http_access', '--reset', stdout=io.StringIO())
         self.assertFalse(AccessRule.objects.exists())
         self.assertEqual(HttpsSettings.load().access_default, 'allow')
         self.assertEqual(self.state(), {'rules': [], 'default': 'allow', 'bans': []})
@@ -174,7 +175,7 @@ class BanTests(TestCase):
         row = HttpsSettings.load()
         self.assertEqual((row.ban_failures, row.ban_window_minutes, row.ban_minutes), (3, 5, 30))
         AddressBan.objects.create(address='203.0.113.9', until=row.updated + __import__('datetime').timedelta(hours=1))
-        call_command('http_access', '--reset', stdout=open('/dev/null', 'w'))
+        call_command('http_access', '--reset', stdout=io.StringIO())
         self.assertFalse(AddressBan.objects.exists())
 
 

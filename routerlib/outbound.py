@@ -68,13 +68,12 @@ def https_get(url, headers=None, limit=MAX_BYTES):
     host_header = parts.hostname if port == 443 else f'{parts.hostname}:{port}'
     session = requests.Session()
     session.mount('https://', _PinnedAdapter(parts.hostname))
-    with session:
-        with session.get(pinned, headers={**(headers or {}), 'Host': host_header}, timeout=TIMEOUT,
-                         allow_redirects=False, stream=True) as response:
-            chunks, total = [], 0
-            for chunk in response.iter_content(65536):
-                total += len(chunk)
-                if total > limit:
-                    raise ValueError(f'the answer is larger than {limit // 1024} kB')
-                chunks.append(chunk)
-            return Answer(response.status_code, b''.join(chunks), response.encoding)
+    with session, session.get(pinned, headers={**(headers or {}), 'Host': host_header}, timeout=TIMEOUT,
+                              allow_redirects=False, stream=True) as response:
+        chunks, total = [], 0
+        for chunk in response.iter_content(65536):
+            total += len(chunk)
+            if total > limit:
+                raise ValueError(f'the answer is larger than {limit // 1024} kB')
+            chunks.append(chunk)
+        return Answer(response.status_code, b''.join(chunks), response.encoding)

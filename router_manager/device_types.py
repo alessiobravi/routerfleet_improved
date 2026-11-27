@@ -16,6 +16,7 @@ as migrations must; "Restore preset" uses this one.
 """
 import json
 import re
+import threading
 
 INVENTORY_FIELDS = (
     ('model_name', 'Model'),
@@ -300,7 +301,6 @@ def preset_values(slug):
 # Read on every row of a device list: kept for the duration of one request
 # only (router_manager/apps.py clears it when a request starts and ends, and
 # when a type is saved or deleted). Outside a request nothing is kept.
-import threading
 
 _local = threading.local()
 

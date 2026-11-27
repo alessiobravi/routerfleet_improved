@@ -139,7 +139,7 @@ class FakeSCPClient:
 
     def get(self, remote_path, local_path):
         if remote_path not in self.files:
-            raise IOError(f'No such file on the fake device: {remote_path}')
+            raise OSError(f'No such file on the fake device: {remote_path}')
         FakeSCPClient.fetched.append(remote_path)
         content = self.files[remote_path]
         with open(local_path, 'wb') as fh:

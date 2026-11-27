@@ -19,7 +19,7 @@ class CommandForm(forms.ModelForm):
                   'verify_timeout', 'verify_interval']
 
     def __init__(self, *args, **kwargs):
-        super(CommandForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
 
@@ -91,15 +91,15 @@ class CommandExecuteForm(forms.Form):
 
     def __init__(self, *args, command=None, **kwargs):
         from router_manager.models import RouterGroup
-        super(CommandExecuteForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.command = command
         self.fields['router_groups'].queryset = RouterGroup.objects.all().order_by('name')
-        
+
         self.helper = FormHelper()
         self.helper.form_method = 'post'
-        
+
         back_url = f'/fleet_commander/command/details/?uuid={command.uuid}' if command else '/fleet_commander/'
-        
+
         self.helper.layout = Layout(
             Div(
                 Div(Field('routers'), css_class='col-md-6'),
@@ -122,9 +122,9 @@ class CommandVariantForm(forms.ModelForm):
         fields = ['router_type', 'payload', 'verify_payload', 'verify_expect', 'enabled']
 
     def __init__(self, *args, command=None, **kwargs):
-        super(CommandVariantForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.command = command
-        
+
         existing_types = []
         if self.command:
             existing_types = list(
@@ -243,7 +243,7 @@ class CommandScheduleForm(forms.ModelForm):
         }
 
     def __init__(self, *args, command=None, **kwargs):
-        super(CommandScheduleForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.command = command
         self.helper = FormHelper()
         self.helper.form_method = 'post'
@@ -367,7 +367,7 @@ class ScheduleDefaultsForm(forms.ModelForm):
         fields = ['start_time', 'repeat_interval']
 
     def __init__(self, *args, **kwargs):
-        super(ScheduleDefaultsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:

@@ -275,7 +275,7 @@ def export_latest(include_binary=True, group=None):
     routers = Router.objects.order_by('name')
     if group is not None:
         routers = routers.filter(routergroup=group)
-    archive_file = tempfile.TemporaryFile()
+    archive_file = tempfile.TemporaryFile()  # noqa: SIM115 - handed to the response, which closes it
     manifest = io.StringIO()
     writer = csv.writer(manifest)
     writer.writerow(['router', 'address', 'type', 'backup_time', 'unchanged_since', 'sha256', 'files'])

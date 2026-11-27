@@ -425,6 +425,8 @@ What it covers:
   must come out encrypted and readable, change flags backfilled, and a
   user-written update command kept line for line.
 
-CI runs the system check, the migration-drift check and the suite on every push
-and pull request, and fails below 93% branch coverage. Docker images are only
+CI runs the lint (`ruff check`, rules in `ruff.toml`), the system check, the
+migration-drift check and the suite on every push and pull request, and fails
+below 97% branch coverage. Tests never reach the internet: what a page would
+fetch is replaced in the test, and a test run keeps its own temporary cache. Docker images are only
 built and published once the tests have passed.

@@ -139,7 +139,7 @@ def send_notification_message(message: Message):
         return
 
     message_response = {'status': 'pending', 'error_message': '', 'error_status_code': 0}
-    
+
     channel = message.channel
     smtp = None
     try:

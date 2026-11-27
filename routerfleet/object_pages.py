@@ -277,7 +277,7 @@ def backup_page(backup):
         if not match:
             continue
         text = match.group(2).strip()
-        if not (text.startswith('$ ') or text.startswith('===') or text.startswith('Backup failed')):
+        if not text.startswith(('$ ', '===', 'Backup failed')):
             continue
         try:
             when = timezone.make_aware(datetime.datetime.strptime(match.group(1), '%Y-%m-%d %H:%M:%S'))

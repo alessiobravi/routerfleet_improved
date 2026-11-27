@@ -232,7 +232,7 @@ class BackupScheduleBranchTests(TestCase):
     @override_settings(TIME_ZONE='UTC')
     def test_weekly_on_the_same_day_after_the_hour_is_next_week(self):
         from backup_data.views import next_weekday
-        monday_noon = timezone.make_aware(datetime.datetime(2026, 6, 1, 12), datetime.timezone.utc)
+        monday_noon = timezone.make_aware(datetime.datetime(2026, 6, 1, 12), datetime.UTC)
         with mock.patch('django.utils.timezone.now', return_value=monday_noon):
             self.assertEqual(next_weekday(None, 0, 3).date(), datetime.date(2026, 6, 8))
 

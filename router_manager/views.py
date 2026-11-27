@@ -54,9 +54,9 @@ ROUTER_STATES = {
 @login_required
 def view_router_list(request):
     router_list = Router.objects.all().prefetch_related(
-        'routerstatus', 
-        'routerinformation', 
-        'backupschedule', 
+        'routerstatus',
+        'routerinformation',
+        'backupschedule',
         'routergroup_set'
     ).order_by('name')
 

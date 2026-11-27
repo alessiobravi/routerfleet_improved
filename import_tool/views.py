@@ -179,7 +179,7 @@ def view_import_details(request):
                     'backup_profile_name': task['backup_profile'],
                     'router_group_name': task['router_group'],
                     'ssh_key_name': task['ssh_key'],
-                    'monitoring': True if task['monitoring'] == 'true' else False,
+                    'monitoring': task['monitoring'] == 'true',
                 }
             )
             if import_task_created:
@@ -193,7 +193,6 @@ def view_import_details(request):
     elif request.GET.get('action') == 'start_import':
         action = 'start_import'
         import_view = 'tasks'
-        pass
 
     elif posted_action(request, 'delete_errors'):
         tasks_deleted = 0
@@ -234,17 +233,17 @@ def view_import_csv_file(request):
     The header line is required, and the order of the columns must match the following:<br>
     "name","username","password","ssh_key","address","port","router_type","backup_profile","router_group","monitoring"
     </p>
-    
+
     <strong>Example</strong>
     <pre>
     "name","username","password","ssh_key","address","port","router_type","backup_profile","router_group","monitoring"
     "example host A","admin","","ssh key name","192.168.2.17","22","routeros","default","","true"
     "example host B","admin","mysecret","","192.168.2.18","22","routeros","default","group a","false"
     </pre>
-    
+
     <strong>After importing</strong>
     <p>After importing, you will be able to review the data and create the import tasks.</p>
-    
+
     <strong>Delete CSV</strong>
     <p>If you want to delete the CSV data and all tasks, you can do so from the details page. Successfully imported devices will not be removed.</p>
     '''

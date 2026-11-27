@@ -157,9 +157,9 @@ class PinnedHttpsTests(SimpleTestCase):
             def __enter__(self): return self
             def __exit__(self, *exc): return False
         with mock.patch('console.network.check', return_value='2001:db8::7'), \
-                mock.patch('requests.Session.get', return_value=Big()) as get:
-            with self.assertRaises(ValueError):
-                outbound.https_get('https://vendor.example:8443/x', limit=1024)
+                mock.patch('requests.Session.get', return_value=Big()) as get, \
+                self.assertRaises(ValueError):
+            outbound.https_get('https://vendor.example:8443/x', limit=1024)
         self.assertEqual(get.call_args.args[0], 'https://[2001:db8::7]:8443/x')
         self.assertEqual(get.call_args.kwargs['headers']['Host'], 'vendor.example:8443')
 
@@ -212,12 +212,15 @@ class DeviceIoTests(SimpleTestCase):
 
         class Channel:
             def settimeout(self, seconds): order.append(('timeout', seconds))
-            def recv_exit_status(self): order.append('exit'); return 0
+            def recv_exit_status(self):
+                order.append('exit')
+                return 0
 
         class Stream(io.BytesIO):
             channel = Channel()
             def read(self, size=-1):
-                order.append('read'); return super().read(size)
+                order.append('read')
+                return super().read(size)
         session = mock.Mock()
         session.exec_command.return_value = (None, Stream(b'output'), Stream(b''))
         self.assertEqual(device_io.run(session, 'show'), (0, 'output', ''))

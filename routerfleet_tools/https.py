@@ -141,7 +141,7 @@ def check_certificate(certificate_pem, key_pem, domain):
     if leaf.public_key().public_bytes(serialization.Encoding.DER, public) != \
             key.public_key().public_bytes(serialization.Encoding.DER, public):
         raise ValidationError('The private key does not belong to the certificate.')
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     if leaf.not_valid_after_utc <= now:
         raise ValidationError(f'The certificate expired on {leaf.not_valid_after_utc:%Y-%m-%d}.')
     if leaf.not_valid_before_utc > now:

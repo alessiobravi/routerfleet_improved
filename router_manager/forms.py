@@ -50,7 +50,7 @@ class RouterForm(forms.ModelForm):
                   'backup_profile', 'keep_unchanged', 'file_backups', 'console_telnet', 'telnet_port', 'enable_password']
 
     def __init__(self, *args, **kwargs):
-        super(RouterForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         from router_manager import device_types
         self.fields['router_type'] = forms.ChoiceField(
             choices=[('', '---------')] + device_types.choices(include=self.instance.router_type or None),
@@ -226,7 +226,7 @@ class RouterBulkEditForm(forms.Form):
     internal_notes = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 4, 'cols': 40}))
 
     def __init__(self, *args, **kwargs):
-        super(RouterBulkEditForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['ssh_key'].choices = (
             [('', 'Unchanged'), ('clear', 'Clear SSH key')]
             + [(str(ssh_key.uuid), ssh_key.name) for ssh_key in SSHKey.objects.all().order_by('name')]
@@ -294,7 +294,7 @@ class RouterGroupForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
-        super(RouterGroupForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         if self.instance.pk:
@@ -369,7 +369,7 @@ class SSHKeyForm(forms.ModelForm):
         widgets = {'public_key': forms.Textarea(attrs={'rows': 3, 'cols': 40, 'spellcheck': 'false'})}
 
     def __init__(self, *args, secrets_allowed=True, **kwargs):
-        super(SSHKeyForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         from router_manager.sshkeys import KEY_TYPES
         self.fields['key_type'].choices = [(value, label) for value, label, _ in KEY_TYPES]
         self.key_types = KEY_TYPES

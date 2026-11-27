@@ -24,7 +24,7 @@ class CsvDataForm(forms.ModelForm):
         fields = ['raw_csv_data']
 
     def __init__(self, *args, **kwargs):
-        super(CsvDataForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.layout = Layout(

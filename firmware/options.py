@@ -120,8 +120,11 @@ def current_channel(router):
     return ''
 
 
-def options_for(router, fetch=fetch_channel_version):
+def options_for(router, fetch=None):
     """The update options of one device, in order (see the module)."""
+    # Looked up at the call, not bound when the module loads: a test that
+    # replaces fetch_channel_version replaces it here too
+    fetch = fetch or fetch_channel_version
     from fleet_commander import system_commands
     from router_manager.templatetags.router_tags import compare_versions
     from .models import FirmwareImage

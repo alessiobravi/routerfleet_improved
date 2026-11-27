@@ -19,7 +19,7 @@ class MessageSettingsForm(forms.ModelForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        super(MessageSettingsForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
@@ -102,7 +102,7 @@ class MessageChannelForm(forms.ModelForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        super(MessageChannelForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.fields['enabled'].label = 'Channel Enabled'
         self.fields['server_url'].required = False

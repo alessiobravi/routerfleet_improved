@@ -73,7 +73,7 @@ class UpdateCheckTests(TestCase):
 
     @override_settings(UPDATE_CHECK_URL='https://updates.example.org/check?token=x')
     def test_existing_query_string_is_extended(self):
-        _, get = self.check(mock.Mock(json=lambda: {}, raise_for_status=lambda: None))
+        _, get = self.check(mock.Mock(json=dict, raise_for_status=lambda: None))
         self.assertIn('?token=x&app=routerfleet', get.call_args.args[0])
 
 
@@ -180,9 +180,12 @@ class VersioningTests(TestCase):
         self.assertEqual(settings.ROUTERFLEET_VERSION, to_number(settings.ROUTERFLEET_RELEASE))
 
     def test_release_script(self):
-        import pathlib, subprocess, sys
+        import pathlib
+        import subprocess
+        import sys
         script = pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'version.py'
-        run = lambda *a: subprocess.run([sys.executable, '-I', str(script), *a], capture_output=True, text=True)
+        def run(*a):
+            return subprocess.run([sys.executable, '-I', str(script), *a], capture_output=True, text=True)
         from django.conf import settings
         self.assertEqual(run().stdout.strip(), settings.ROUTERFLEET_RELEASE)
         self.assertEqual(run('check').returncode, 0)
@@ -221,7 +224,8 @@ class ImagePruneTests(TestCase):
         self.assertEqual({v['id'] for v in delete}, {5, 6}, 'the old release goes with its signature')
 
     def script(self):
-        import importlib.util, pathlib
+        import importlib.util
+        import pathlib
         spec = importlib.util.spec_from_file_location(
             'prune_images', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'prune_images.py')
         module = importlib.util.module_from_spec(spec)
@@ -289,7 +293,8 @@ class ImagePruneTests(TestCase):
 
 class CveReportTests(TestCase):
     def script(self):
-        import importlib.util, pathlib
+        import importlib.util
+        import pathlib
         spec = importlib.util.spec_from_file_location(
             'cve_report', pathlib.Path(__file__).resolve().parent.parent / 'scripts' / 'cve_report.py')
         module = importlib.util.module_from_spec(spec)

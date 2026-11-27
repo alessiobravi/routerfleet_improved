@@ -1,4 +1,8 @@
+import os
+import shutil
 from datetime import datetime, time, timedelta
+
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest, JsonResponse
@@ -11,10 +15,6 @@ from router_manager.models import Router, RouterStatus
 from router_manager.templatetags.router_tags import update_state_counts
 
 ALLOWED_DAYS = [3,5,7,10, 15, 30]  # Define allowed values
-
-import os
-import shutil
-from django.conf import settings
 
 def human_readable_size(size):
     """Convert bytes to a human-readable format (KB, MB, GB)."""
@@ -36,7 +36,7 @@ def get_directory_statistics(directory_path):
 
     # Get total disk usage
     total, used, free = shutil.disk_usage(directory_path)
-    
+
     # The size of the backups: every file is read, which grows with the backups
     # kept - so it is reckoned at most every 10 minutes, not at every page
     from django.core.cache import cache
@@ -46,7 +46,7 @@ def get_directory_statistics(directory_path):
         directory_used = sum(os.path.getsize(os.path.join(root, file))
                              for root, dirs, files in os.walk(directory_path) for file in files)
         cache.set(key, directory_used, 600)
-    
+
     # Get sizes in a human-readable format
     total_human = human_readable_size(total)
     used_human = human_readable_size(directory_used)

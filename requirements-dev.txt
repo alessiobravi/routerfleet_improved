@@ -1,4 +1,5 @@
 # What running the test suite needs on top of requirements.txt
 -r requirements.txt
 coverage==7.17.4
+ruff==0.17.6
 PyYAML==6.0.4

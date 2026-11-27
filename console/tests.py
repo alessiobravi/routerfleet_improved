@@ -51,7 +51,7 @@ class WebsocketCommunicator(ApplicationCommunicator):
         await self.send_input({'type': 'websocket.disconnect', 'code': code})
         try:
             await self.wait(timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 

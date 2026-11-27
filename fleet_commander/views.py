@@ -172,10 +172,10 @@ def view_manage_command(request):
     form_description_content = '''
     <strong>Enabled</strong>
     <p>Enable or disable the command. Disabled commands cannot be executed.</p>
-    
+
     <strong>Capture Output</strong>
     <p>If unchecked, RouterFleet executes the command and immediately closes the connection. If checked, RouterFleet will wait for the command to finish to capture its output. Wait times can be long and may delay the execution queue if you have many commands pending. <strong>Only check this if you really need the output.</strong> The output of a command with a verification is always captured, it is what the verification is checked against.</p>
-    
+
     <strong>Max Retry and Retry Interval</strong>
     <p>Maximum number of retries if the command fails, and the interval (in seconds) between each attempt.</p>
 
@@ -484,10 +484,10 @@ def view_manage_command_schedule(request):
     form_description_content = '''
     <strong>Start At</strong>
     <p>The designated date and time when the schedule should begin execution. All schedules require a starting point.</p>
-    
+
     <strong>End At</strong>
     <p>Optional. If set, the schedule will not execute after this date and time.</p>
-    
+
     <strong>Repeat Interval</strong>
     <p>How frequently the command should run. You must specify a letter indicating the unit of time:</p>
     <ul>
@@ -496,7 +496,7 @@ def view_manage_command_schedule(request):
         <li><strong>m</strong> for minutes (e.g., <code>30m</code>, <code>90m</code>)</li>
     </ul>
     <p>Leave it empty or set to <code>0</code> for a one-time execution.</p>
-    
+
     <strong>Target</strong>
     <p>You must select at least one device or one device group to execute the scheduled command.</p>
 

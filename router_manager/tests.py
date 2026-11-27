@@ -926,7 +926,8 @@ class SSHKeyGenerationTests(TestCase):
                     self.assertIsInstance(key, paramiko.PKey)
                     self.assertTrue(key.sign_ssh_data(b'login'))   # what an SSH login asks of it
                     if passphrase:
-                        with self.assertRaises(Exception):
+                        from routerlib.functions import KeyPassphraseError
+                        with self.assertRaises(KeyPassphraseError):
                             load_private_key_from_string(stored, None)
         rsa = load_private_key_from_string(checked(generate('rsa-3072'), '')[0])
         self.assertEqual(rsa.get_bits(), 3072)

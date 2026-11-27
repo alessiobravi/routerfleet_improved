@@ -18,4 +18,9 @@ class FastHashingRunner(DiscoverRunner):
         # The shared limits cache: empty for every run, never the one in /tmp
         import tempfile
         settings.CACHES['limits']['LOCATION'] = tempfile.mkdtemp(prefix='routerfleet-test-limits-')
+        # The cache connections are made on first use, which may already have
+        # happened (start-up checks): rebuilt, so no test reads the folder a
+        # running installation on the same machine writes
+        from django.test.signals import setting_changed
+        setting_changed.send(sender=type(self), setting='CACHES', value=settings.CACHES, enter=True)
         super().setup_test_environment(**kwargs)

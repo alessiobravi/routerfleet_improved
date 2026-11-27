@@ -1,0 +1,27 @@
+# Lint rules the CI enforces (the Lint step). Real problems and outdated
+# constructs, not taste: long lines are the project's style, and the shape of
+# an if/else or a return is left to whoever writes it.
+target-version = "py314"
+extend-exclude = ["static_files", "containers", "*/migrations/*"]
+
+[lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes: unused names, undefined names
+    "B",        # bugbear: likely bugs
+    "UP",       # constructs a newer Python replaced
+    "C4",       # comprehensions
+    "PIE",      # unnecessary statements
+    "SIM",      # simplifications
+]
+ignore = [
+    "E501",     # line length: long lines are the project's style
+    "SIM102",   # nested ifs read better than one long condition at times
+    "SIM105",   # try/except/pass is as clear as contextlib.suppress
+    "SIM108",   # if/else instead of a conditional expression: a choice
+    "C408",     # dict(key=value) is as clear as a literal
+]
+
+[lint.per-file-ignores]
+# Settings import their base and the production overrides where they apply
+"routerfleet/settings.py" = ["E402", "F403"]

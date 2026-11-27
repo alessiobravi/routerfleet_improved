@@ -35,7 +35,7 @@ def store(records, seen_by='', router=None):
         seen_at = now
         try:
             if record.get('last_seen'):
-                seen_at = min(now, datetime.datetime.fromtimestamp(float(record['last_seen']), tz=datetime.timezone.utc))
+                seen_at = min(now, datetime.datetime.fromtimestamp(float(record['last_seen']), tz=datetime.UTC))
         except (TypeError, ValueError, OverflowError, OSError):
             seen_at = now
         device, created = DiscoveredDevice.objects.get_or_create(key=key, defaults={'last_seen': seen_at})

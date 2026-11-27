@@ -799,7 +799,8 @@ class HashedStaticFilesTests(TestCase):
             self.assertEqual(HashedStaticFiles(location=root).stored_name('routerfleet/app.js'), 'routerfleet/app.js')
 
     def test_templates_name_static_files_through_the_static_tag(self):
-        import pathlib, re
+        import pathlib
+        import re
         root = pathlib.Path(__file__).resolve().parent.parent / 'templates'
         written = [str(p.relative_to(root)) for p in root.rglob('*.html') if re.search(r'"/static/', p.read_text())]
         self.assertEqual(written, [], 'a path written by hand is never hashed')
@@ -822,3 +823,59 @@ class DataTablesMarkupTests(SimpleTestCase):
                 if 'colspan' in table:
                     offenders.append(str(path.relative_to(ROOT_DIR)))
         self.assertEqual(offenders, [])
+
+
+class TestCacheIsolationTests(SimpleTestCase):
+    """Tests never read the limits cache of an installation running on the
+    same machine: the runner gives them a folder of their own."""
+
+    def test_the_limits_cache_is_private_to_the_run(self):
+        import tempfile
+        from django.core.cache import caches
+        shared = str(Path(tempfile.gettempdir(), 'routerfleet-limits'))
+        self.assertNotEqual(caches['limits']._dir, shared)
+        self.assertIn('routerfleet-test-limits-', caches['limits']._dir)
+
+
+class EveryPageNeedsSignInTests(TestCase):
+    """Every address answers a signed-out visitor with the sign-in page, except
+    the few that must work without one. A view that forgets @login_required
+    fails here (the password change page once did)."""
+
+    PUBLIC = {
+        '/accounts/login/', '/accounts/logout/', '/accounts/password_reset/sent/', '/accounts/reset/done/',
+        '/accounts/passkey/options/', '/accounts/passkey/login/',
+    }
+
+    def routes(self):
+        from django.urls import URLPattern, URLResolver, get_resolver
+
+        def walk(patterns, prefix=''):
+            for pattern in patterns:
+                if isinstance(pattern, URLResolver):
+                    yield from walk(pattern.url_patterns, prefix + str(pattern.pattern))
+                elif isinstance(pattern, URLPattern):
+                    yield prefix + str(pattern.pattern), pattern.callback
+        for route, view in walk(get_resolver().url_patterns):
+            if '<' not in route and not route.startswith(('static', 'media', 'admin')):
+                yield '/' + route.lstrip('^').rstrip('$'), view
+
+    def test_signed_out_visitors_are_sent_to_sign_in(self):
+        from django.contrib.auth.models import User
+        User.objects.create_user('someone', password='test-only-password-1')
+        answered = []
+        for url, _view in self.routes():
+            # The scheduler's endpoints have their own lock (routerlib/decorators.py)
+            if url in self.PUBLIC or url.startswith('/cron/'):
+                continue
+            for method in ('get', 'post'):
+                response = getattr(self.client, method)(url)
+                location = response.get('Location', '')
+                if response.status_code == 301:
+                    continue   # an old address forwarding to a page checked here too
+                if response.status_code in (302, 303) and location.startswith('/accounts/login/'):
+                    continue
+                if response.status_code in (403, 404, 405):
+                    continue
+                answered.append(f'{method.upper()} {url} -> {response.status_code} {location}')
+        self.assertEqual(answered, [])

@@ -12,7 +12,6 @@ from django.core.files.base import ContentFile
 
 from message_center.functions import notify_backup_fail
 from routerlib.functions import gen_backup_name, get_router_backup_file_extension
-from typing import Optional, Tuple
 
 
 def append_task_console_output(router_backup: RouterBackup, text: str, *, new_line: bool = True,) -> None:
@@ -26,7 +25,7 @@ def append_task_console_output(router_backup: RouterBackup, text: str, *, new_li
     router_backup.save(update_fields=["task_console_output"])
 
 
-def run_scp_get(scp_client: SCPClient, remote_path: str, local_path: str, router_backup: Optional["RouterBackup"] = None,) -> None:
+def run_scp_get(scp_client: SCPClient, remote_path: str, local_path: str, router_backup: RouterBackup | None = None,) -> None:
     if router_backup is not None:
         if router_backup.task_console_output is None:
             router_backup.task_console_output = ""
@@ -76,8 +75,8 @@ def output_limit():
     return int(getattr(settings, 'BACKUP_OUTPUT_MAX_BYTES', OUTPUT_MAX_BYTES))
 
 
-def run_ssh_command(ssh_client, command: str, router_backup: Optional["RouterBackup"] = None, *, skip_stdout: bool = False,
-                    text_fallback: bool = False) -> Tuple[int, str, str]:
+def run_ssh_command(ssh_client, command: str, router_backup: RouterBackup | None = None, *, skip_stdout: bool = False,
+                    text_fallback: bool = False) -> tuple[int, str, str]:
     # 1) Log command BEFORE executing, and persist it (so it survives failures)
     if router_backup is not None:
         if router_backup.task_console_output is None:

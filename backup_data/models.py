@@ -176,5 +176,5 @@ class RouterBackup(models.Model):
         else:
             self.backup_text_hash = ''
         self.config_change_detected = self.config_change_check()
-        super(RouterBackup, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
