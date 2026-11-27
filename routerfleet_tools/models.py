@@ -12,6 +12,9 @@ class WebadminSettings(models.Model):
     router_config_last_updated = models.DateTimeField(blank=True, null=True)
     cron_last_run = models.DateTimeField(blank=True, null=True)
     monitoring_last_run = models.DateTimeField(blank=True, null=True)
+    # One sample a day of the backup disk, [[date, bytes used], ...], the last
+    # 30: how fast it fills (routerfleet_tools/health.py)
+    disk_samples = models.JSONField(default=list, blank=True)
 
     updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)

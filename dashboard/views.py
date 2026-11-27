@@ -135,16 +135,41 @@ def _ago(moment, now):
 def _scheduler_card(now):
     """Whether the scheduler and monitoring containers are working. Either
     stopping is silent otherwise: backups, or reachability checks, just cease."""
-    from routerfleet_tools.models import WebadminSettings
-    webadmin_settings, _ = WebadminSettings.objects.get_or_create(name='webadmin_settings')
-    cron, monitoring = webadmin_settings.cron_last_run, webadmin_settings.monitoring_last_run
-    cron_ok = cron is not None and now - cron < timedelta(minutes=5)
-    monitoring_ok = monitoring is not None and now - monitoring < timedelta(minutes=10)
-    stopped = [name for name, ok in (('scheduler', cron_ok), ('monitoring', monitoring_ok)) if not ok]
+    from routerfleet_tools import health
+    state = health.scheduler(now)
+    cron, monitoring, stopped = state['cron'], state['monitoring'], state['stopped']
     docs = getattr(settings, 'PROJECT_REPOSITORY_URL', '').rstrip('/') + '/blob/main/docs/operations.md#troubleshooting'
     return _card('Scheduler & monitoring', 'Running' if not stopped else 'Stopped',
                  *(('ok', 'OK') if not stopped else ('bad', 'Act now')), docs,
                  f'scheduler {_ago(cron, now)} \u00b7 monitoring {_ago(monitoring, now)}', external=True)
+
+
+def _disk_card(storage):
+    """How full the disk holding the backups is - the disk, not only the
+    backups' share of it: a disk filled by something else stops backups just
+    the same - and how fast it fills, from one sample a day."""
+    from routerfleet_tools import health
+    space = health.disk()
+    if space is None:
+        return _card('Backup disk', '?', 'info', 'Not readable', '/backup/backup_list/', 'the backup folder could not be read')
+    pct, days = space['percent'], space['days_left']
+    if pct >= health.DISK_BAD or (days is not None and days <= health.DAYS_BAD):
+        state = ('bad', 'Act now')
+    elif pct >= health.DISK_WARN or (days is not None and days <= health.DAYS_WARN):
+        state = ('high', 'Needs attention soon')
+    elif pct >= 75:
+        state = ('warn', 'Worth a look')
+    else:
+        state = ('ok', 'OK')
+    if space['per_day']:
+        pace = f"fills ~{health.human(space['per_day'])} a day, full in ~{days} days"
+    elif len(health._settings().disk_samples or []) < 2:
+        pace = 'how fast it fills is known after a few days'
+    else:
+        pace = 'not filling'
+    return _card('Backup disk', f'{pct:.0f}%', *state, '/backup/backup_list/',
+                 f"{health.human(space['free'])} free of {health.human(space['total'])} \u00b7 backups "
+                 f"{storage['used']} \u00b7 {pace}")
 
 
 def status_cards():
@@ -168,9 +193,7 @@ def status_cards():
     total = Router.objects.count()
     versions = update_state_counts()
 
-    pct = storage['usage_percentage']
-    storage_state = ('bad', 'Act now') if pct >= 90 else ('high', 'Needs attention soon') if pct >= 85 \
-        else ('warn', 'Worth a look') if pct >= 75 else ('ok', 'OK')
+    storage_card = _disk_card(storage)
     cards = [
         _card('Failed backups \u00b7 24h', error_24, *(('bad', 'Act now') if error_24 else ('ok', 'OK')),
               '/router/list/?state=backup_failed', _delta(error_24, error_before), backups['error_data'], '--rf-red'),
@@ -178,8 +201,7 @@ def status_cards():
               '/backup/backup_list/?since=24h', _delta(success_24, success_before), backups['success_data'], '--rf-teal'),
         _card('Backup queue', queue, *(('ok', 'Nothing waiting') if not queue else ('run', 'Running')),
               '/backup/backup_list/?type=queue', 'nothing waiting' if not queue else f'{queue} waiting to run'),
-        _card('Backup storage', f'{pct}%', *storage_state, '/backup/backup_list/',
-              f"{storage['used']} of {storage['total']}" + (f" \u00b7 {storage['storage_warning']}" if storage['storage_warning'] else '')),
+        storage_card,
         _card('Devices online', f'{online} / {online + offline}', *(('ok', 'OK') if not offline else ('bad', 'Act now')),
               '/router/list/?state=online', f'{total} devices in all', devices['online_data'], '--rf-navy'),
         _card('Devices offline', offline, *(('ok', 'OK') if not offline else ('bad', 'Act now')),
@@ -204,11 +226,78 @@ def status_cards():
     return cards
 
 
+WEEK_SHOWN = 6   # names per column of "This week"; the rest are counted
+
+
+def _duration(seconds):
+    seconds = int(seconds)
+    if seconds < 3600:
+        return f'{max(seconds // 60, 1)} min'
+    if seconds < 86400:
+        return f'{seconds // 3600} h {seconds % 3600 // 60:02d} min'
+    return f'{seconds // 86400} d {seconds % 86400 // 3600} h'
+
+
+def this_week(now=None):
+    """What happened in the last 7 days, per device: configuration changes,
+    firmware updates, outages - what someone away for a while wants to know."""
+    from django.db.models import Count, Max
+    from firmware.models import RolloutTarget
+    from monitoring.models import RouterDownTime
+    now = now or timezone.now()
+    since = now - timedelta(days=7)
+
+    changed = list(RouterBackup.objects.filter(config_change_detected=True, created__gte=since)
+                   .values('router__uuid', 'router__name').annotate(n=Count('id'), last=Max('created'))
+                   .order_by('-last'))
+    changes = [{'href': f"/router/details/?uuid={row['router__uuid']}", 'name': row['router__name'],
+                'detail': f"{row['n']} change{'s' if row['n'] != 1 else ''}"} for row in changed]
+
+    updates = []
+    seen = set()
+    for target in (RolloutTarget.objects.filter(state='done', finished_at__gte=since)
+                   .select_related('router').order_by('-finished_at')):
+        if target.router_id in seen:
+            continue
+        seen.add(target.router_id)
+        version = target.to_version or target.to_firmware
+        detail = f'{target.from_version} \u2192 {version}' if target.from_version and version else (version or 'updated')
+        updates.append({'href': f'/router/details/?uuid={target.router.uuid}', 'name': target.router.name, 'detail': detail})
+
+    downtime = {}
+    for outage in (RouterDownTime.objects.filter(start_time__gte=since).select_related('router')
+                   .order_by('-start_time')):
+        entry = downtime.setdefault(outage.router_id, {'uuid': outage.router.uuid, 'name': outage.router.name,
+                                                       'count': 0, 'seconds': 0, 'open': False})
+        entry['count'] += 1
+        if outage.end_time:
+            entry['seconds'] += outage.total_down_time or (outage.end_time - outage.start_time).total_seconds()
+        else:
+            entry['open'] = True
+            entry['seconds'] += (now - outage.start_time).total_seconds()
+    outages = []
+    for entry in sorted(downtime.values(), key=lambda e: (not e['open'], -e['seconds'])):
+        times = f"{entry['count']} outage{'s' if entry['count'] != 1 else ''}"
+        detail = f"{times} \u00b7 {_duration(entry['seconds'])}" + (' \u00b7 down now' if entry['open'] else '')
+        outages.append({'href': f"/router/availability/?uuid={entry['uuid']}", 'name': entry['name'],
+                        'detail': detail, 'open': entry['open']})
+
+    def column(title, icon, rows, empty, href):
+        return {'title': title, 'icon': icon, 'count': len(rows), 'rows': rows[:WEEK_SHOWN],
+                'more': max(len(rows) - WEEK_SHOWN, 0), 'empty': empty, 'href': href}
+    return [
+        column('Configuration changed', 'fa-pen-to-square', changes, 'No configuration changed.', '/backup/backup_list/'),
+        column('Updated', 'fa-arrow-alt-circle-up', updates, 'No device updated.', '/system/firmware/'),
+        column('Outages', 'fa-plug-circle-xmark', outages, 'No outage.', '/router/list/?filter_group=all'),
+    ]
+
+
 @login_required
 def view_status(request):
     context = {
         'page_title': 'Status',
         'cards': status_cards(),
+        'this_week': this_week(),
         'chart_days': [7, 15, 30],
         # Kept for anything that still reads the plain numbers
         'queue': RouterBackup.objects.filter(success=False, error=False).count(),

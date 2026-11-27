@@ -354,4 +354,7 @@ def view_cron_housekeeping(request):
     data['discovered_devices_removed'] = DiscoveredDevice.objects.filter(
         last_seen__lt=now - timedelta(days=90), dismissed=False).delete()[0]
     data['bans_removed'] = AddressBan.objects.filter(until__lt=now - timedelta(days=30)).delete()[0]
+    # How full the backup disk is, once a day: how fast it fills (status bar, status page)
+    from routerfleet_tools import health
+    data['disk_sample_taken'] = health.record_sample()
     return JsonResponse(data)

@@ -43,6 +43,7 @@ from accounts import password_reset  # noqa: E402
 import router_manager.views as router_views  # noqa: E402
 import discovery.views as discovery_views  # noqa: E402
 import routerfleet_tools.access_views as access_views  # noqa: E402
+from dashboard import search as dashboard_search  # noqa: E402
 urlpatterns = [
     path('debug/run_backups/', view_debug_run_backups, name='debug_run_backups'),
     path('debug/test_messages/', view_debug_test_messages, name='debug_test_messages'),
@@ -102,6 +103,7 @@ urlpatterns = [
     path('router/inspect/', router_views.view_router_inspect, name='router_inspect'),
     path('changes/', view_changes, name='changes'),
     path('updates/', view_whats_new, name='whats_new'),
+    path('search/', dashboard_search.view_search, name='search'),
     path('router/group_list/', view_router_group_list, name='router_group_list'),
     # SSH keys have a menu item of their own (0.42); the old addresses lead there
     path('ssh_keys/', view_ssh_key_list, name='ssh_keys_list'),

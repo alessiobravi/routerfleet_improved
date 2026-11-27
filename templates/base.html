@@ -38,6 +38,11 @@
             </ul>
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
+                    <a href="#" class="nav-link" id="rf-search-open" title="Search everything (Ctrl+K or /)" aria-label="Search everything" aria-haspopup="dialog">
+                        <i class="fas fa-magnifying-glass"></i>
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a href="#" class="nav-link" id="theme-toggle" title="Dark mode" aria-label="Switch between light and dark mode">
                         <i class="fas fa-moon"></i>
                     </a>
@@ -218,6 +223,7 @@
             <span class="rf-dot" aria-hidden="true"></span><span class="rf-label">Ready</span>
         </div>
         <div class="rf-sb-right">
+            {% for warning in rf_system_warnings %}<a class="rf-sb-warn rf-sb-is-{{ warning.level }}" href="/status/" title="{{ warning.title }}"><i class="fas {{ warning.icon }}" aria-hidden="true"></i><span class="rf-sb-warn-text">{{ warning.text }}</span></a>{% endfor %}
             {% if webadmin_version.update_available %}<a class="btn btn-sm btn-warning py-0" id="btn_update_changelog" href="/updates/" title="What the newer releases bring"
                data-changelog-url="{{ webadmin_version.changelog_url }}" data-version="{{ webadmin_version.current_version }}"
                data-instructions="{% tag_project_repository_url %}">Update available: {{ webadmin_version.latest_version }}</a>{% endif %}
@@ -239,6 +245,17 @@
 <script src="{% static 'routerfleet/live.js' %}"></script>
 <script src="{% static 'routerfleet/theme.js' %}"></script>
 <script src="{% static 'routerfleet/confirm.js' %}"></script>
+{% if request.user.is_authenticated %}
+<dialog class="rf-search" id="rf-search" aria-label="Search everything">
+    <div class="rf-search-box"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="search" id="rf-search-input" placeholder="Search devices, groups, commands, keys, users, pages" autocomplete="off"
+               aria-label="Search" aria-controls="rf-search-results" role="combobox" aria-expanded="false">
+        <kbd>Esc</kbd></div>
+    <div class="rf-search-results" id="rf-search-results" role="listbox"></div>
+    <div class="rf-search-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd> anywhere</span></div>
+</dialog>
+<script src="{% static 'routerfleet/search.js' %}"></script>
+{% endif %}
 {% block custom_page_scripts %}{% endblock %}
 </body>
 </html>

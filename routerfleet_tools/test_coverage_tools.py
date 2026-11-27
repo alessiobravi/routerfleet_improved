@@ -458,24 +458,27 @@ class DisplayContextTests(TestCase):
         self.assertEqual(display(self.request(AnonymousUser())), {'rf_page_size': 10})
         self.assertEqual(display(RequestFactory().get('/')), {'rf_page_size': 10})
 
+    def display(self, request):
+        from routerfleet_tools.context import display
+        # The system warnings have tests of their own (routerfleet_tools/test_health.py)
+        return {key: value for key, value in display(request).items() if key != 'rf_system_warnings'}
+
     def test_the_chosen_page_size_and_the_administrator(self):
         from routerfleet.testing import make_user
-        from routerfleet_tools.context import display
         from routerfleet_tools.models import DisplaySettings
         DisplaySettings.objects.create(default_page_size=50)
-        self.assertEqual(display(self.request(make_user(50))), {'rf_page_size': 50, 'rf_is_admin': True})
-        self.assertEqual(display(self.request(make_user(10, username='viewer'))),
+        self.assertEqual(self.display(self.request(make_user(50))), {'rf_page_size': 50, 'rf_is_admin': True})
+        self.assertEqual(self.display(self.request(make_user(10, username='viewer'))),
                          {'rf_page_size': 50, 'rf_is_admin': False})
 
     def test_before_the_migrations_ran(self):
         from routerfleet.testing import make_user
-        from routerfleet_tools.context import display
         from routerfleet_tools.models import DisplaySettings
         from user_manager.models import UserAcl
         user = make_user(50)
         with mock.patch.object(DisplaySettings.objects, 'values_list', side_effect=RuntimeError('no table')), \
                 mock.patch.object(UserAcl.objects, 'filter', side_effect=RuntimeError('no table')):
-            self.assertEqual(display(self.request(user)), {'rf_page_size': 10, 'rf_is_admin': False})
+            self.assertEqual(self.display(self.request(user)), {'rf_page_size': 10, 'rf_is_admin': False})
 
     def test_an_unknown_page_size_falls_back(self):
         from routerfleet.testing import make_user

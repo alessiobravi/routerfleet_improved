@@ -13,6 +13,32 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.49.0] - 2026-11-27
+
+### Added
+- **One search for everything.** The magnifying glass in the top bar, or
+  Ctrl+K (Cmd+K), or / anywhere outside a text field: devices by name or
+  address, device groups, backup profiles, Fleet Commander commands, SSH keys,
+  users and the pages of the menu ("certificate" finds HTTPS), each opening
+  where it is shown. Arrows move, Enter opens, Esc closes. It shows only what
+  the user may open.
+- **This week**, on the status page: per device, the configuration changes,
+  firmware updates and outages of the last 7 days - a device down right now
+  first, in red. Each name opens the device, an outage its availability page.
+- **The installation's own problems on every page.** The status bar shows when
+  the scheduler or the monitoring has stopped (backups, checks and messages
+  then just cease), and when the backup disk is 80% full or would be full
+  within 30 days; red from 90% or 7 days. Before, the scheduler's state was
+  only on the status page.
+
+### Changed
+- **Backup disk** (was Backup storage) on the status page shows how full the
+  disk is, not the backups' share of it: a disk filled by something else
+  stopped backups while the card said a few percent. It also says how much is
+  free, how much the backups take and how fast the disk fills - from one
+  sample a day, taken by the housekeeping run (a new migration adds where they
+  are kept).
+
 ## [0.48.0] - 2026-11-27
 
 ### Added

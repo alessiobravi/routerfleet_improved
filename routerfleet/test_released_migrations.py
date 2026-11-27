@@ -155,6 +155,7 @@ RELEASED = {
     'routerfleet_tools/migrations/0005_display_settings.py': 'd078ae7becaf745b2e2d094818fc881d4d3bd7f64706e6902517681bcd9f96c3',
     'routerfleet_tools/migrations/0006_update_run.py': '4eaf10784a56bbbce730b0b2f8f8f08e1c6b20045a7162c9074c3a059d5cfbb0',
     'routerfleet_tools/migrations/0007_http_access.py': 'e3edfbe7b5ec1364cb9482feec77b0706272f005ff9b404c3fee4dd5854f447b',
+    'routerfleet_tools/migrations/0008_disk_samples.py': '5ae4bdb8b8cdd8bae6a5322d2f9e95f706b877c41fb715285917cc75f6255d04',
     'user_manager/migrations/0001_initial.py': 'e9ad460c42c6fa79d3d14e1cad8b7f6ffd2c29808637985a567f7a9f93af5947',
     'user_manager/migrations/0002_alter_useracl_user_level.py': 'cde66a426048ff5b5994c6ea63e77df0060053b75cbf8dfb347aa50fcc164aea',
     'user_manager/migrations/0003_useracl_address_link.py': '78d80aecdcddf7a2dcf5f883766178c298ce1521f5ac2c4df2f841a8c844d821',

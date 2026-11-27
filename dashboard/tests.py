@@ -1,5 +1,6 @@
 import re
 import datetime
+from datetime import timedelta
 from unittest import mock
 
 from django.test import TestCase
@@ -419,10 +420,11 @@ class StateIconTests(TestCase):
     def test_storage_gets_more_serious_in_steps(self):
         from unittest import mock
         from dashboard import views
-        for pct, state in ((10, 'ok'), (76, 'warn'), (86, 'high'), (95, 'bad')):
-            with mock.patch.object(views, 'get_directory_statistics', return_value={
-                    'usage_percentage': pct, 'used': '1', 'total': '2', 'storage_warning': ''}):
-                card = next(c for c in views.status_cards() if c['title'] == 'Backup storage')
+        from routerfleet_tools import health
+        for pct, state in ((10, 'ok'), (76, 'warn'), (85, 'high'), (95, 'bad')):
+            with mock.patch.object(health, 'disk', return_value={
+                    'percent': pct, 'total': 100, 'used': pct, 'free': 100 - pct, 'per_day': None, 'days_left': None}):
+                card = next(c for c in views.status_cards() if c['title'] == 'Backup disk')
             self.assertEqual(card['state'], state, pct)
 
     def test_the_status_page_shows_icons_not_words(self):
@@ -573,3 +575,69 @@ class SessionGoneTests(TestCase):
 
     def test_signed_in_pages_carry_the_heartbeat_marker(self):
         self.assertContains(self.client.get('/status/'), 'data-rf-session="1"')
+
+
+class ThisWeekTests(TestCase):
+    """The status page's "This week": per device, the configuration changes,
+    firmware updates and outages of the last 7 days."""
+
+    def setUp(self):
+        from routerfleet.testing import make_router, make_user
+        self.client.force_login(make_user(10))
+        self.a = make_router(name='edge-a', address='192.0.2.1')
+        self.b = make_router(name='edge-b', address='192.0.2.2')
+
+    def changed(self, router, days_ago=0):
+        # The flag is worked out when a backup is saved: set as the app stores it
+        backup = RouterBackup.objects.create(router=router, schedule_type='daily', success=True)
+        RouterBackup.objects.filter(pk=backup.pk).update(
+            config_change_detected=True, created=timezone.now() - timedelta(days=days_ago))
+
+    def week(self):
+        from dashboard.views import this_week
+        return {column['title']: column for column in this_week()}
+
+    def test_configuration_changes_counted_per_device(self):
+        self.changed(self.a)
+        self.changed(self.a)
+        RouterBackup.objects.create(router=self.b, schedule_type='daily', success=True)
+        self.changed(self.b, days_ago=8)
+        column = self.week()['Configuration changed']
+        self.assertEqual([(r['name'], r['detail']) for r in column['rows']], [('edge-a', '2 changes')])
+
+    def test_updates_with_their_versions(self):
+        from firmware.models import FirmwareRollout, RolloutTarget
+        rollout = FirmwareRollout.objects.create()
+        RolloutTarget.objects.create(rollout=rollout, router=self.a, state='done', from_version='7.24.5',
+                                     to_version='7.25.2', finished_at=timezone.now())
+        RolloutTarget.objects.create(rollout=rollout, router=self.b, state='failed', finished_at=timezone.now())
+        rows = self.week()['Updated']['rows']
+        self.assertEqual([(r['name'], r['detail']) for r in rows], [('edge-a', '7.24.5 → 7.25.2')])
+
+    def test_outages_the_open_one_first(self):
+        from monitoring.models import RouterDownTime
+        now = timezone.now()
+        RouterDownTime.objects.create(router=self.a, start_time=now - timedelta(hours=5),
+                                      end_time=now - timedelta(hours=4), total_down_time=3600)
+        RouterDownTime.objects.create(router=self.a, start_time=now - timedelta(hours=2),
+                                      end_time=now - timedelta(hours=2) + timedelta(minutes=10), total_down_time=600)
+        RouterDownTime.objects.create(router=self.b, start_time=now - timedelta(minutes=30))
+        rows = self.week()['Outages']['rows']
+        self.assertEqual([r['name'] for r in rows], ['edge-b', 'edge-a'])
+        self.assertIn('down now', rows[0]['detail'])
+        self.assertEqual(rows[1]['detail'], '2 outages · 1 h 10 min')
+        self.assertTrue(rows[0]['href'].startswith('/router/availability/?uuid='))
+
+    def test_long_lists_are_cut_and_counted(self):
+        from routerfleet.testing import make_router
+        for n in range(9):
+            router = make_router(name=f'many-{n}', address=f'192.0.2.{10 + n}')
+            self.changed(router)
+        column = self.week()['Configuration changed']
+        self.assertEqual((len(column['rows']), column['more'], column['count']), (6, 3, 9))
+
+    def test_the_page_shows_it_and_a_quiet_week(self):
+        page = self.client.get('/status/').content.decode()
+        self.assertIn('This week', page)
+        self.assertIn('No configuration changed.', page)
+        self.assertIn('No outage.', page)

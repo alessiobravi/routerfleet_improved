@@ -142,15 +142,18 @@ is well; the warning sign in yellow (worth a look), orange (needs attention
 soon) or red (act now); grey for information - and a sparkline where
 RouterFleet keeps the history. Pointing at the icon says it in words. The same
 icons mark states everywhere: beside the words of a state on object pages and
-in the state badges of lists. Backup storage turns yellow from 75 %, orange
-from 85 %, red from 90 %. **Every card opens the list of exactly what it counts.**
+in the state badges of lists. **Every card opens the list of exactly what it counts.**
 
 - **Failed / successful backups, last 24 hours** — compared with the 24 hours
   before. Failed opens the devices with a failed backup.
 - **Backup queue** — backups neither succeeded nor failed yet. A number that only
   grows means backups are not completing.
-- **Backup storage** — disk usage under `MEDIA_ROOT`: yellow from 75%, orange
-  from 85%, red from 90%. Binary backups are what fills it.
+- **Backup disk** — how full the disk holding the backups (`MEDIA_ROOT`) is:
+  the whole disk, since a disk filled by something else stops backups just the
+  same. Yellow from 75%, orange from 80% or when it would be full within 30
+  days, red from 90% or within 7 days. The note says how much is free, how much
+  the backups take, and how fast the disk fills: one sample a day, taken by the
+  housekeeping run, so the pace is known after a few days.
 - **Scheduler & monitoring** — red when the scheduler has not run for 5 minutes
   or the monitoring for 10: that container has stopped, and with it the
   backups or the reachability checks.
@@ -160,12 +163,32 @@ from 85 %, red from 90 %. **Every card opens the list of exactly what it counts.
   the device list. airOS devices, which can not be checked for updates, are not
   counted.
 
+**This week**, below the cards, is what happened in the last 7 days, per
+device: the configuration changes (how many), the firmware updates (from which
+version to which) and the outages (how many, how long - a device down right now
+first, in red). Each name opens the device - an outage its availability page.
+
+**On every page**, the status bar shows the installation's own problems: the
+scheduler or the monitoring stopped (red), the backup disk 80% full or filling
+up within 30 days (yellow; red from 90% or within 7 days). Each opens the status
+page. Nothing is shown when all is well.
+
 Whether a newer release of RouterFleet Improved exists is shown by the download
 icon in the top bar, on every page: green on the latest release, yellow when an
 update is available, grey when the check is off (`UPDATE_CHECK`) or has not run
 yet.
 
 ## Finding your way around the interface
+
+### Search
+
+**One search for everything**: the magnifying glass in the top bar, or
+**Ctrl+K** (⌘K on a Mac), or **/** anywhere outside a text field. It finds
+devices (by name or address), device groups, backup profiles, Fleet Commander
+commands, SSH keys, users and the pages of the menu (by their name and what
+they are about: "certificate" finds HTTPS), and opens each where it is shown.
+↑ and ↓ move, Enter opens, Esc closes. It shows only what you may open: commands
+from level 20, users and System settings for administrators.
 
 ### Lists and objects
 
