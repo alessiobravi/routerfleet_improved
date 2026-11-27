@@ -288,6 +288,10 @@ def build():
     watch(apps.get_model('router_manager', 'SSHKey'),
           fields=['name', 'public_key', 'private_key', 'passphrase'],
           create=True, redact=('private_key', 'passphrase'))
+    # A device's host key is stored by a connection, not by a person; removing
+    # one is: the next key at that address is then trusted unseen
+    watch(apps.get_model('router_manager', 'SSHHostKey'),
+          fields=['address', 'port', 'key_type', 'fingerprint'])
 
     # A profile is created for the installation when one is first needed, so only
     # the changes to it are a person's doing

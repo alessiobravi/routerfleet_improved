@@ -431,20 +431,52 @@ def view_manage_router_group(request):
     return render(request, 'generic_form.html', context=context)
 
 
+def _host_key_rows():
+    """Every stored device host key with the devices at its address and port;
+    one no device uses (the device was deleted or moved, or only a connection
+    test was made) is unused - the unused first."""
+    from router_manager.models import SSHHostKey
+    devices = {}
+    for router in Router.objects.only('uuid', 'name', 'address', 'port').order_by('name'):
+        devices.setdefault((router.address, router.port), []).append(router)
+    rows = [{'key': key, 'devices': devices.get((key.address, key.port), [])}
+            for key in SSHHostKey.objects.order_by('address', 'port')]
+    rows.sort(key=lambda row: bool(row['devices']))
+    return rows
+
+
 @login_required()
 def view_ssh_key_list(request):
-    """The SSH keys, one row each: type and size, fingerprint, devices using it."""
+    """The SSH keys, one row each: type and size, fingerprint, devices using
+    it; below, the host keys of the devices, the unused marked."""
     from django.db.models import Count
+    from router_manager.models import SSHHostKey
     from router_manager.sshkeys import describe
+    if posted_action(request, 'forget_host_key'):
+        # Forgetting makes the next key trusted unseen: administrators only
+        if not _is_admin(request):
+            return render(request, 'access_denied.html', {'page_title': 'Access Denied'})
+        host_key = SSHHostKey.objects.filter(pk=request.POST.get('host_key') or 0).first()
+        if host_key is None:
+            messages.warning(request, 'Host key not found|It was removed already')
+        elif posted_confirmation(request) != 'forget':
+            messages.warning(request, 'Host key kept|Invalid confirmation')
+        else:
+            host_key.delete()
+            messages.success(request, f'Host key removed|{host_key.address}:{host_key.port}')
+        return redirect('/ssh_keys/#host-keys')
     rows = []
     for sshkey in SSHKey.objects.annotate(devices=Count('router')).order_by('name'):
         kind, label, fingerprint = describe(sshkey.public_key)
         rows.append({'key': sshkey, 'kind': kind, 'label': label, 'fingerprint': fingerprint})
     for row in rows:
         row['members'] = list(row['key'].router_set.select_related('routerstatus').order_by('name'))
+    host_rows = _host_key_rows()
     context = {
         'rows': rows, 'page_title': 'SSH Keys', 'open_uuid': request.GET.get('key', ''),
         'can_manage': UserAcl.objects.filter(user=request.user, user_level__gte=40).exists(),
+        'host_rows': host_rows, 'unused_host_keys': sum(1 for row in host_rows if not row['devices']),
+        'is_admin': _is_admin(request),
     }
     return render(request, 'router_manager/sshkey_list.html', context=context)
 

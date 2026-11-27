@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.48.0] - 2026-11-27
+
+### Added
+- **Device host keys on the SSH Keys page.** Every stored host key, with the
+  device at its address and port. A key no device uses - left by a deleted
+  device, a device moved to another address, or a connection test - is marked
+  **Unused**, listed first and counted in the page's header, so it is clear it
+  should go; administrators remove it there, confirmed with a small sum.
+  Before, a host key was visible only on its own device's page, so one left
+  behind by a deleted device could not be seen, and a device added later at
+  that address would have been held to the old key.
+- Removing a host key - here or on a device's page - is recorded in the Audit
+  Log.
+
 ## [0.47.4] - 2026-11-27
 
 ### Removed

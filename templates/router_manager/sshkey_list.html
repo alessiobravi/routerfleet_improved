@@ -1,7 +1,7 @@
 {% extends 'includes/xlist_page.html' %}
 {% load static %}
 
-{% block page_sub %}{{ rows|length }} key{{ rows|length|pluralize }} · open a row for the details{% endblock %}
+{% block page_sub %}{{ rows|length }} key{{ rows|length|pluralize }} · open a row for the details{% if unused_host_keys %} · <a href="#host-keys">{{ unused_host_keys }} unused host key{{ unused_host_keys|pluralize }}</a>{% endif %}{% endblock %}
 {% block page_actions %}{% if can_manage %}<a href="/ssh_keys/manage/" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1" aria-hidden="true"></i>Add SSH key</a>{% endif %}{% endblock %}
 
 {% block rows %}
@@ -31,6 +31,23 @@
 <div class="rf-set-row"><span class="rf-set-text text-muted">No SSH key yet.{% if can_manage %} <a href="/ssh_keys/manage/">Add or generate one</a>.{% endif %}</span></div>
 {% endfor %}
 {% endblock %}
-{% block page_foot %}<div class="rf-set-foot">The fingerprint is the one <code>ssh-keygen -l</code> and the devices show. Private keys are shown only to administrators, in the key's page.</div>{% endblock %}
+{% block page_foot %}<div class="rf-set-foot">The fingerprint is the one <code>ssh-keygen -l</code> and the devices show. Private keys are shown only to administrators, in the key's page.</div>
+
+<div class="rf-set-title" id="host-keys">Device host keys</div>
+<div class="rf-set-group">
+{% for row in host_rows %}{% with h=row.key %}
+    <div class="rf-set-row">
+        <span class="rf-set-icon {% if row.devices %}grey{% else %}amber{% endif %}"><i class="fas fa-fingerprint"></i></span>
+        <span class="rf-set-text"><span class="rf-set-label d-block"><span class="rf-mono">{{ h.address }}:{{ h.port }}</span>
+            {% if not row.devices %}<span class="rf-o-chip rf-o-wait ms-1" title="No device uses this address and port: the device was deleted or moved, or only a connection test was made. Remove it.">Unused</span>{% endif %}</span>
+            <span class="rf-set-sub d-block">{{ h.key_type }} · <span class="rf-mono">{{ h.fingerprint }}</span> · since {{ h.first_seen|date:"Y-m-d" }}{% if row.devices %} · {% for router in row.devices %}<a href="/router/list/?filter_group=all&amp;device={{ router.uuid }}">{{ router.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}{% else %} · no device - should be removed{% endif %}</span></span>
+        {% if is_admin %}<button type="button" class="btn btn-sm btn-outline-danger" data-rf-post="/ssh_keys/" data-rf-field-action="forget_host_key" data-rf-field-host-key="{{ h.pk }}" data-rf-confirm-word="forget"
+                data-rf-confirm-sum="{% if row.devices %}Remove the host key of {{ h.address }}:{{ h.port }}? The key the device presents on the next connection will be trusted unseen. Only do this after resetting or replacing the device.{% else %}Remove the unused host key of {{ h.address }}:{{ h.port }}?{% endif %}"><i class="fas fa-trash-can me-1" aria-hidden="true"></i>Remove</button>{% endif %}
+    </div>
+{% endwith %}{% empty %}
+    <div class="rf-set-row"><span class="rf-set-text text-muted">No host key yet: a device's key is stored the first time RouterFleet connects to it.</span></div>
+{% endfor %}
+</div>
+<div class="rf-set-foot">A device's host key is trusted the first time RouterFleet connects to it; afterwards a connection that presents another key is refused. A key no device uses is <b>unused</b> and can be removed: a device added later at that address then has its own key trusted.</div>{% endblock %}
 
 {% block custom_page_scripts %}<script src="{% static 'routerfleet/sshkey.js' %}"></script>{% endblock %}

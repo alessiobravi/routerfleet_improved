@@ -157,3 +157,55 @@ class ForgetHostKeyViewTests(TestCase):
         self.client.post(url, {'action': 'forget_host_key', 'confirmation': 'forget'})
         self.assertFalse(SSHHostKey.objects.exists())
         self.assertNotContains(self.client.get(f'/router/details/?uuid={self.router.uuid}'), 'SHA256:abc')
+
+
+class HostKeyListTests(TestCase):
+    """The SSH Keys page lists the devices' host keys; one no device uses -
+    left by a deleted device - is marked unused and can be removed."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user('admin', password='x')
+        UserAcl.objects.create(user=self.admin, user_level=50)
+        self.client.force_login(self.admin)
+        Router.objects.create(name='kept', address='10.0.0.1', port=22, router_type='routeros')
+        self.used = SSHHostKey.objects.create(address='10.0.0.1', port=22, key_type='ssh-ed25519',
+                                              key_base64='AAAA', fingerprint='SHA256:used')
+        self.orphan = SSHHostKey.objects.create(address='10.0.0.9', port=2222, key_type='ssh-rsa',
+                                                key_base64='BBBB', fingerprint='SHA256:orphan')
+
+    def test_unused_keys_are_marked_and_listed_first(self):
+        page = self.client.get('/ssh_keys/').content.decode()
+        self.assertIn('1 unused host key', page)
+        section = page.split('id="host-keys"')[1]
+        self.assertLess(section.index('10.0.0.9:2222'), section.index('10.0.0.1:22'), 'the unused first')
+        orphan_row = section.split('10.0.0.9:2222')[1].split('rf-set-row')[0]
+        self.assertIn('Unused', orphan_row)
+        used_row = section.split('10.0.0.1:22')[1].split('rf-set-row')[0]
+        self.assertNotIn('Unused', used_row)
+        self.assertIn('kept', used_row)
+
+    def test_a_deleted_device_leaves_an_unused_key(self):
+        Router.objects.get(name='kept').delete()
+        self.assertIn('2 unused host keys', self.client.get('/ssh_keys/').content.decode())
+
+    def test_remove_needs_an_administrator_and_the_confirmation(self):
+        viewer = User.objects.create_user('viewer', password='x')
+        UserAcl.objects.create(user=viewer, user_level=40)
+        self.client.force_login(viewer)
+        self.assertNotContains(self.client.get('/ssh_keys/'), 'forget_host_key')
+        self.client.post('/ssh_keys/', {'action': 'forget_host_key', 'host_key': self.orphan.pk, 'confirmation': 'forget'})
+        self.assertTrue(SSHHostKey.objects.filter(pk=self.orphan.pk).exists(), 'not for a non-administrator')
+        self.client.force_login(self.admin)
+        self.client.post('/ssh_keys/', {'action': 'forget_host_key', 'host_key': self.orphan.pk})
+        self.assertTrue(SSHHostKey.objects.filter(pk=self.orphan.pk).exists(), 'not without the confirmation')
+        response = self.client.post('/ssh_keys/', {'action': 'forget_host_key', 'host_key': self.orphan.pk, 'confirmation': 'forget'})
+        self.assertRedirects(response, '/ssh_keys/#host-keys', fetch_redirect_response=False)
+        self.assertFalse(SSHHostKey.objects.filter(pk=self.orphan.pk).exists())
+        self.assertTrue(SSHHostKey.objects.filter(pk=self.used.pk).exists())
+
+    def test_the_removal_is_in_the_audit_log(self):
+        from audit_log.models import ChangeRecord
+        self.client.post('/ssh_keys/', {'action': 'forget_host_key', 'host_key': self.orphan.pk, 'confirmation': 'forget'})
+        record = ChangeRecord.objects.filter(action='deleted', model_label='router_manager.SSHHostKey').first()
+        self.assertIsNotNone(record)
+        self.assertEqual(record.actor, self.admin)

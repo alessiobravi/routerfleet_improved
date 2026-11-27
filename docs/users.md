@@ -50,7 +50,7 @@ sees only *My Settings* (see [Accounts without an access level](#accounts-withou
 | | [Firmware repository](firmware.md): upload, switch off, delete | 50 |
 | Device Discovery | See discovered devices, hide them, discover adjacent devices, read chosen devices' neighbours | 30 |
 | | Add a discovered device (the wizard, its groups included) | 50 |
-| Devices | Forget a device's host key (confirmed with a small sum) | 50 |
+| Devices | Forget a device's host key, or remove an unused one on the SSH Keys page (confirmed with a small sum) | 50 |
 | Firmware updates | Start and follow updates of devices (the arrows in the device list and on the device page), abort a rollout | 40 |
 | | [Device types](device-types.md): edit, create (wizard), try on a device, delete | 50 |
 | | HTTPS, [HTTP access and banning](security.md#http-access-lists-and-banning), [Updates](updating.md) (the update check) | 50 |

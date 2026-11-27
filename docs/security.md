@@ -209,6 +209,14 @@ confirming that is what happened, use the eraser next to the fingerprint
 presented on the next connection is then trusted. A key change you cannot explain is what this exists
 to catch — do not forget the key until you know why it changed.
 
+**Every stored host key** is listed on the **SSH Keys** page, under *Device
+host keys*, with the device at its address and port. A key no device uses - its
+device was deleted or moved to another address, or only a connection test was
+made - is marked **Unused**, listed first, and counted in the page's header;
+remove it there (administrators, confirmed with a small sum). Until then a
+device added later at that address and port would be held to the old key.
+Removing a host key, here or on a device's page, is recorded in the Audit Log.
+
 An installation upgraded from a release that did not check host keys has none
 stored; each device's key is learned on its next connection.
 
