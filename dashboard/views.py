@@ -251,30 +251,28 @@ def this_week(now=None):
                    .values('router__uuid', 'router__name').annotate(n=Count('id'), last=Max('created'))
                    .order_by('-last'))
     changes = [{'href': f"/router/details/?uuid={row['router__uuid']}", 'name': row['router__name'],
-                'detail': f"{row['n']} change{'s' if row['n'] != 1 else ''}"} for row in changed]
+                'lines': [{'text': f"{row['n']} change{'s' if row['n'] != 1 else ''}"}]} for row in changed]
 
-    # Per device, the newest system (OS) update and the newest bootloader
-    # firmware update of the week - marked as the device list marks them
+    # Per device, whether its firmware (the OS) and its bootloader were updated
+    # this week - marked as the device list marks them; the versions are on
+    # the device's page
     per_device = {}
     for target in (RolloutTarget.objects.filter(state='done', finished_at__gte=since)
                    .select_related('router', 'rollout').order_by('-finished_at')):
         entry = per_device.setdefault(target.router_id, {'router': target.router, 'os': None, 'boot': None})
         bootloader_only = target.rollout.source == 'bootloader'
-        if not bootloader_only and entry['os'] is None:
-            to = target.to_version or 'a new version'
-            entry['os'] = f'System {target.from_version} \u2192 {to}' if target.from_version else f'System \u2192 {to}'
-        if (bootloader_only or target.rollout.then_bootloader) and target.to_firmware and entry['boot'] is None:
-            entry['boot'] = f'Bootloader \u2192 {target.to_firmware}'
+        if not bootloader_only:
+            entry['os'] = 'Firmware'
+        if bootloader_only or (target.rollout.then_bootloader and target.to_firmware):
+            entry['boot'] = 'Bootloader'
     updates = []
     for entry in per_device.values():
-        marks = []
+        # One line per kind, each with the mark the device list uses for it
+        lines = [{'text': entry['os'], 'icon': 'rf-up-os', 'title': 'Firmware (OS) updated'}] if entry['os'] else []
         if entry['boot']:
-            marks.append({'css': 'rf-up-boot', 'title': 'Bootloader firmware updated'})
-        if entry['os']:
-            marks.append({'css': 'rf-up-os', 'title': 'System (OS) updated'})
-        detail = ' \u00b7 '.join(text for text in (entry['os'], entry['boot']) if text) or 'Updated'
+            lines.append({'text': entry['boot'], 'icon': 'rf-up-boot', 'title': 'Bootloader updated'})
         updates.append({'href': f"/router/details/?uuid={entry['router'].uuid}", 'name': entry['router'].name,
-                        'detail': detail, 'marks': marks})
+                        'lines': lines or [{'text': 'Updated'}]})
 
     downtime = {}
     for outage in (RouterDownTime.objects.filter(start_time__gte=since).select_related('router')
@@ -292,15 +290,14 @@ def this_week(now=None):
         times = f"{entry['count']} outage{'s' if entry['count'] != 1 else ''}"
         detail = f"{times} \u00b7 {_duration(entry['seconds'])}" + (' \u00b7 down now' if entry['open'] else '')
         outages.append({'href': f"/router/availability/?uuid={entry['uuid']}", 'name': entry['name'],
-                        'detail': detail, 'open': entry['open']})
+                        'lines': [{'text': detail, 'bad': entry['open']}]})
 
-    def column(title, icon, rows, empty, href, legend=None):
+    def column(title, icon, rows, empty, href):
         return {'title': title, 'icon': icon, 'count': len(rows), 'rows': rows[:WEEK_SHOWN],
-                'more': max(len(rows) - WEEK_SHOWN, 0), 'empty': empty, 'href': href, 'legend': legend if rows else None}
+                'more': max(len(rows) - WEEK_SHOWN, 0), 'empty': empty, 'href': href}
     return [
         column('Configuration changed', 'fa-pen-to-square', changes, 'No configuration changed.', '/backup/backup_list/'),
-        column('Updated', 'fa-arrow-alt-circle-up', updates, 'No device updated.', '/system/firmware/',
-               legend=[{'css': 'rf-up-os', 'text': 'system (OS)'}, {'css': 'rf-up-boot', 'text': 'bootloader firmware'}]),
+        column('Updated', 'fa-arrow-alt-circle-up', updates, 'No device updated.', '/system/firmware/'),
         column('Outages', 'fa-plug-circle-xmark', outages, 'No outage.', '/router/list/?filter_group=all'),
     ]
 

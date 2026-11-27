@@ -578,7 +578,7 @@ td .rf-confirm-inline { min-width: 260px; }
 .rf-sb-right { display: flex; align-items: center; gap: 8px; }
 .rf-sb-warn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; text-decoration: none; white-space: nowrap; }
 .rf-sb-warn.rf-sb-is-warn { background: rgba(232, 163, 23, .16); color: #9a6a0f; }
-.rf-sb-warn.rf-sb-is-bad { background: rgba(214, 69, 69, .14); color: var(--rf-bad); }
+.rf-sb-warn.rf-sb-is-bad { background: rgba(214, 69, 69, .14); color: var(--rf-bad, #c03a3a); }
 .rf-sb-warn:hover { filter: brightness(.95); text-decoration: none; }
 @media (max-width: 575.98px) { .rf-sb-warn-text { display: none; } .rf-sb-warn { padding: 4px 8px; } }
 .rf-sb-live { display: flex; align-items: center; gap: 8px; font-size: .85rem; font-weight: 600; min-width: 0; }

@@ -13,6 +13,20 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.49.2] - 2026-11-27
+
+### Changed
+- **This week is three cards** - Configuration changed, Updated, Outages - side
+  by side, stacked on a phone. Each row is the device's name with what
+  happened under it, so a long name no longer collides with the details.
+- **Updated says what was updated, not the versions**: Firmware (green, the
+  OS) and Bootloader (purple), each on its own line with its mark; the versions
+  are on the device's page.
+
+### Fixed
+- The red of a stopped scheduler in the status bar, and of a device down now in
+  This week, showed as dark text: the colour was only defined on object pages.
+
 ## [0.49.1] - 2026-11-27
 
 ### Changed

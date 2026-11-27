@@ -593,6 +593,10 @@ class ThisWeekTests(TestCase):
         RouterBackup.objects.filter(pk=backup.pk).update(
             config_change_detected=True, created=timezone.now() - timedelta(days=days_ago))
 
+    @staticmethod
+    def text(row):
+        return ' | '.join(line['text'] for line in row['lines'])
+
     def week(self):
         from dashboard.views import this_week
         return {column['title']: column for column in this_week()}
@@ -603,9 +607,9 @@ class ThisWeekTests(TestCase):
         RouterBackup.objects.create(router=self.b, schedule_type='daily', success=True)
         self.changed(self.b, days_ago=8)
         column = self.week()['Configuration changed']
-        self.assertEqual([(r['name'], r['detail']) for r in column['rows']], [('edge-a', '2 changes')])
+        self.assertEqual([(r['name'], self.text(r)) for r in column['rows']], [('edge-a', '2 changes')])
 
-    def test_updates_with_their_kind_and_versions(self):
+    def test_updates_one_line_per_kind_with_its_mark(self):
         from firmware.models import FirmwareRollout, RolloutTarget
         from routerfleet.testing import make_router
         system = FirmwareRollout.objects.create(source='online', then_bootloader=True)
@@ -618,11 +622,10 @@ class ThisWeekTests(TestCase):
         RolloutTarget.objects.create(rollout=system, router=failed, state='failed', finished_at=timezone.now())
         rows = {r['name']: r for r in self.week()['Updated']['rows']}
         self.assertEqual(set(rows), {'edge-a', 'edge-b'}, 'a failed update is not one')
-        self.assertEqual(rows['edge-a']['detail'], 'System 7.24.5 \u2192 7.25.2 \u00b7 Bootloader \u2192 7.25.2')
-        self.assertEqual([m['css'] for m in rows['edge-a']['marks']], ['rf-up-boot', 'rf-up-os'], 'green rightmost')
-        self.assertEqual(rows['edge-b']['detail'], 'Bootloader \u2192 7.25')
-        self.assertEqual([m['css'] for m in rows['edge-b']['marks']], ['rf-up-boot'])
-        self.assertTrue(self.week()['Updated']['legend'])
+        self.assertEqual([(line['icon'], line['text']) for line in rows['edge-a']['lines']],
+                         [('rf-up-os', 'Firmware'), ('rf-up-boot', 'Bootloader')], 'the versions are on the device page')
+        self.assertEqual([(line['icon'], line['text']) for line in rows['edge-b']['lines']],
+                         [('rf-up-boot', 'Bootloader')])
 
     def test_outages_the_open_one_first(self):
         from monitoring.models import RouterDownTime
@@ -634,8 +637,9 @@ class ThisWeekTests(TestCase):
         RouterDownTime.objects.create(router=self.b, start_time=now - timedelta(minutes=30))
         rows = self.week()['Outages']['rows']
         self.assertEqual([r['name'] for r in rows], ['edge-b', 'edge-a'])
-        self.assertIn('down now', rows[0]['detail'])
-        self.assertEqual(rows[1]['detail'], '2 outages · 1 h 10 min')
+        self.assertIn('down now', self.text(rows[0]))
+        self.assertTrue(rows[0]['lines'][0]['bad'])
+        self.assertEqual(self.text(rows[1]), '2 outages · 1 h 10 min')
         self.assertTrue(rows[0]['href'].startswith('/router/availability/?uuid='))
 
     def test_long_lists_are_cut_and_counted(self):
@@ -646,8 +650,9 @@ class ThisWeekTests(TestCase):
         column = self.week()['Configuration changed']
         self.assertEqual((len(column['rows']), column['more'], column['count']), (10, 3, 13))
 
-    def test_the_page_shows_it_and_a_quiet_week(self):
+    def test_the_page_shows_three_cards_and_a_quiet_week(self):
         page = self.client.get('/status/').content.decode()
-        self.assertIn('This week', page)
+        section = page.split('id="rf-this-week"')[1].split('<script')[0]
+        self.assertEqual(section.count('class="rf-panel'), 3)
         self.assertIn('No configuration changed.', page)
         self.assertIn('No outage.', page)

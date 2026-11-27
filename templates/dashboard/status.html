@@ -56,23 +56,26 @@
         {% endfor %}
     </div>
 
-    <!-- What happened while nobody was looking: the last 7 days, per device -->
-    <div class="rf-panel rf-week mb-3" id="rf-this-week" data-rf-changes>
-        <h3><span><i class="fas fa-calendar-week"></i> This week</span><span class="rf-hint m-0">the last 7 days</span></h3>
-        <div class="rf-week-cols">
-            {% for column in this_week %}
-            <div class="rf-week-col">
-                <div class="rf-week-head"><i class="fas {{ column.icon }}" aria-hidden="true"></i> {{ column.title }} <span class="rf-week-count">{{ column.count }}</span></div>
-                {% if column.legend %}<div class="rf-week-legend">{% for item in column.legend %}<span><i class="fas fa-arrow-alt-circle-up {{ item.css }}" aria-hidden="true"></i> {{ item.text }}</span>{% endfor %}</div>{% endif %}
+    <!-- What happened while nobody was looking: the last 7 days, per device,
+         one card per kind of event (side by side, stacked on a phone) -->
+    <div class="row rf-week" id="rf-this-week" data-rf-changes>
+        {% for column in this_week %}
+        <div class="col-lg-4 mb-3">
+            <div class="rf-panel h-100">
+                <h3><span><i class="fas {{ column.icon }}" aria-hidden="true"></i> {{ column.title }}</span><span class="rf-week-count" title="devices, the last 7 days">{{ column.count }}</span></h3>
+                <div class="rf-week-since">The last 7 days</div>
                 {% for row in column.rows %}
-                <a class="rf-week-row{% if row.open %} rf-week-open{% endif %}" href="{{ row.href }}"><span class="rf-week-name">{{ row.name }}{% for mark in row.marks %}<i class="fas fa-arrow-alt-circle-up rf-week-mark {{ mark.css }}" role="img" aria-label="{{ mark.title }}" title="{{ mark.title }}"></i>{% endfor %}</span><span class="rf-week-detail">{{ row.detail }}</span></a>
+                <a class="rf-week-row" href="{{ row.href }}">
+                    <span class="rf-week-name">{{ row.name }}</span>
+                    {% for line in row.lines %}<span class="rf-week-line{% if line.bad %} rf-week-bad{% endif %}">{% if line.icon %}<i class="fas fa-arrow-alt-circle-up {{ line.icon }}" role="img" aria-label="{{ line.title }}" title="{{ line.title }}"></i>{% endif %}{{ line.text }}</span>{% endfor %}
+                </a>
                 {% empty %}
                 <div class="rf-week-empty">{{ column.empty }}</div>
                 {% endfor %}
                 {% if column.more %}<a class="rf-week-more" href="{{ column.href }}">and {{ column.more }} more</a>{% endif %}
             </div>
-            {% endfor %}
         </div>
+        {% endfor %}
     </div>
 </div>
 
