@@ -102,7 +102,7 @@ class UpgradeFromOriginalProjectTests(TransactionTestCase):
         key = SSHKey.objects.create(name='fleet-key', public_key='ssh-ed25519 AAAA',
                                     private_key='FAKE-TEST-PRIVATE-KEY-MATERIAL')
         Channel = old.get_model('message_center', 'MessageChannel')
-        callmebot = Channel.objects.create(name='whatsapp-alerts', channel_type='callmebot', destination='+391234567',
+        callmebot = Channel.objects.create(name='whatsapp-alerts', channel_type='callmebot', destination='+12025550143',
                                            token='FAKE-CALLMEBOT-KEY', enabled=True)
         old_ntfy = Channel.objects.create(name='old-ntfy', channel_type='ntfy', destination='my-topic', enabled=True)
         channel = Channel.objects.create(name='tg', channel_type='telegram', destination='42',

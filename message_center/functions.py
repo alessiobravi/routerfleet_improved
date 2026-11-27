@@ -1,4 +1,5 @@
 import datetime
+import re
 
 from router_manager.models import Router
 from .models import MessageChannel, Notification, MessageSettings, Message
@@ -6,6 +7,15 @@ from backup_data.models import RouterBackup
 from . import channels
 from .email import scrub as email_scrub
 from django.utils import timezone
+
+
+# An address in a stored error: a mail server refusing a recipient names it, and
+# Message Center is read by every operator, not only the person it belongs to
+EMAIL_ADDRESS = re.compile(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}')
+
+
+def without_addresses(text):
+    return EMAIL_ADDRESS.sub('[address]', str(text))
 
 
 def concatenate_notifications(notification_type: str):
@@ -158,7 +168,7 @@ def send_notification_message(message: Message):
             message_response['error_status_code'] = response.status_code
     except ValueError as e:
         message_response['status'] = 'failed'
-        message_response['error_message'] = (f'Failed to send message: {e}' if channel.channel_type in ('email', 'callmebot', 'ntfy')
+        message_response['error_message'] = (f'Failed to send message: {without_addresses(e)}' if channel.channel_type in ('email', 'callmebot', 'ntfy')
                                              else 'Failed to send message: the channel type, token or destination is not valid')
         message_response['error_status_code'] = 0
     except Exception as e:
@@ -166,7 +176,7 @@ def send_notification_message(message: Message):
         # error, which may echo the login: never stored as is
         message_response['status'] = 'failed'
         message_response['error_message'] = 'Failed to send message: Request exception ' + \
-            email_scrub(channels.scrub(e, channel.token), smtp)
+            without_addresses(email_scrub(channels.scrub(e, channel.token), smtp))
         message_response['error_status_code'] = 0
 
     if message_response['status'] == 'sent':

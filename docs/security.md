@@ -440,6 +440,22 @@ removed in 0.23.1.
   `data:` and `file:` are refused, and the values filled in are URL-encoded.
 - **The enable password** is encrypted, never shown again, and - like the device
   password - only sent to the address it was stored for.
+- **The mail server password and an ntfy access token** follow the same rule:
+  never shown again, and only sent to the server they were typed for. Changing
+  the mail server's address, port, security or login, or the ntfy server, asks
+  for the password or token again.
+- **Message Center errors** are read by every operator from level 20: a mail
+  server's refusal names the recipient, so stored errors have email addresses
+  replaced with `[address]` (and tokens and passwords removed, as before).
+- **Backups and command output are shown as they are, from level 20.** A
+  backup taken with sensitive values (a profile's *show sensitive*), a binary
+  backup and a command's output can hold the device's passwords and keys;
+  Backup Operators restore devices from them, so they see the real
+  configuration. Give level 20 only to people who may see it. Stored as taken,
+  not encrypted: protect the database and its backups accordingly.
+- **An ntfy topic is stored and logged as it is.** On a public ntfy server the
+  topic is what keeps a feed private; it is visible to administrators only (the
+  channel page and the change log) - use an access token for a private feed.
 - **Firmware uploads** are accepted on one page only, up to 1 GB (nginx keeps
   1 MB everywhere else). The SHA-256 is computed on upload and compared with the
   vendor's when given; the file name is reduced to letters, digits, `.`, `_`

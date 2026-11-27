@@ -259,7 +259,7 @@ class SystemSettingsTests(TestCase):
         self.assertNotContains(self.client.get('/status/'), 'href="/system/"', msg_prefix='not in the menu')
 
     def test_removed_callmebot_channels_are_listed(self):
-        self.Channel.objects.create(name='whatsapp', channel_type='callmebot', destination='+391234', enabled=False)
+        self.Channel.objects.create(name='whatsapp', channel_type='callmebot', destination='+1202555', enabled=False)
         page = self.client.get('/system/notifications/')
         self.assertContains(page, 'CallMeBot is no longer supported')
         self.assertContains(page, 'whatsapp')

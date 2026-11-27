@@ -103,13 +103,25 @@ def view_notification_channel(request):
                 messages.warning(request, 'Channel not deleted|Invalid confirmation')
             return redirect('/system/notifications/')
     data = None
+    retype_token = False
     if request.method == 'POST':
         data = request.POST.copy()
-        # A stored token is never shown again: empty keeps it
+        # A stored token is never shown again: empty keeps it - for the same
+        # server only, so it is never sent to one it was not given for
         if channel and not data.get('token') and channel.token and data.get('channel_type') == channel.channel_type:
-            data['token'] = channel.token
+            same_server = (channel.channel_type != 'ntfy' or (data.get('server_url') or '').strip().rstrip('/')
+                           == (channel.server_url or '').strip().rstrip('/'))
+            if same_server:
+                data['token'] = channel.token
+            else:
+                retype_token = True
     form = MessageChannelForm(data, instance=channel)
-    if request.method == 'POST' and form.is_valid():
+    valid = request.method == 'POST' and form.is_valid()
+    if valid and retype_token:
+        form.add_error('token', 'The server changed: type the token again (the stored one is only sent to the '
+                                'server it was given for).')
+        valid = False
+    if valid:
         saved = form.save()
         messages.success(request, f'Channel saved|{saved.name}: ' + ('a test message was sent.' if saved.enabled else 'switched off.'))
         return redirect('/system/notifications/')

@@ -147,7 +147,7 @@ class SendTests(TestCase):
         self.assertEqual(get.call_args.kwargs['params'], {'chat_id': '42', 'text': 'hi'})
 
     def test_callmebot_is_refused_with_its_reason(self):
-        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+391234567', token='K'), message='yo')
+        cb = Message.objects.create(channel=channel('cb', 'callmebot', destination='+12025550143', token='K'), message='yo')
         with mock.patch('message_center.channels.requests.get') as get:
             cb = self.send(cb)
         get.assert_not_called()
@@ -364,7 +364,7 @@ class ChannelFormTests(TestCase):
         return MessageChannelForm(values)
 
     def test_callmebot_can_not_be_chosen_any_more(self):
-        form = self.form(channel_type='callmebot', destination='+391234', token='k')
+        form = self.form(channel_type='callmebot', destination='+1202555', token='k')
         self.assertFalse(form.is_valid())
         self.assertIn('channel_type', form.errors, 'not among the choices')
 

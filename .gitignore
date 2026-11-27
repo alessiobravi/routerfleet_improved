@@ -28,3 +28,8 @@ CLAUDE.local.md
 test.sqlite3
 .coverage
 htmlcov/
+
+# Secrets kept in folders instead of Docker volumes: never committed, never in an image
+app_secrets/
+service_keys/
+certificates/

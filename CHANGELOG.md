@@ -13,6 +13,23 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.49.3] - 2026-11-27
+
+### Security
+- **A stored mail server password or ntfy token is only sent to the server it
+  was typed for.** Changing the mail server's address, port, security or
+  login - or the ntfy server - now asks for it again; before, the stored one
+  was used to log in to the new server. Only administrators could do this, but
+  the interface treats these secrets as never shown again.
+- **No email address in Message Center errors.** A mail server refusing a
+  recipient names it, and Message Center is read from level 20: a user's
+  personal address could be read there by other operators. Addresses are now
+  replaced with `[address]`.
+- The example phone number of the user form, and test data, no longer use a
+  real country's local format.
+- `app_secrets/`, `service_keys/` and `certificates/` are ignored by git and by
+  image builds, should someone keep them as folders instead of Docker volumes.
+
 ## [0.49.2] - 2026-11-27
 
 ### Changed

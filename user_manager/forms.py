@@ -42,7 +42,7 @@ class UserAclForm(UserCreationForm):
     def clean_phone(self):
         phone = (self.cleaned_data.get('phone') or '').strip()
         if phone and not PHONE.match(phone):
-            raise ValidationError('Enter a phone number such as +39 055 123 4567.')
+            raise ValidationError('Enter a phone number such as +1 202 555 0143.')
         return phone
 
     def clean_username(self):

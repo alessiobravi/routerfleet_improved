@@ -223,3 +223,66 @@ class MailServerCheckedBeforeSavingTests(TestCase):
         SmtpSettings.objects.update(verified_at=None)
         self.client.post('/user/settings/', {'action': 'email', 'email': 'g2@example.net'})
         self.assertTrue(MessageChannel.objects.get(user=user).backup_fail, 'kept while greyed out')
+
+
+@override_settings(ROUTERFLEET_EMAIL_BACKEND=LOCMEM)
+class StoredSecretsStayWithTheirServerTests(TestCase):
+    """A stored SMTP password or ntfy token is only ever sent to the server it
+    was typed for; an error stored for every operator to read names no one's
+    email address."""
+
+    def setUp(self):
+        self.client.force_login(make_user(50))
+
+    def save_smtp(self, **data):
+        base = {'action': 'save', 'host': 'smtp.example.net', 'port': '587', 'security': 'starttls',
+                'username': 'rf', 'password': '', 'sender_address': 'routerfleet@example.net',
+                'sender_name': 'RouterFleet Improved', 'enabled': 'on'}
+        base.update(data)
+        with mock.patch('message_center.email.check') as check:
+            response = self.client.post('/system/notifications/email/', base)
+        return response, check
+
+    def test_the_smtp_password_is_not_sent_to_another_server(self):
+        configure()
+        for change in ({'host': 'smtp.attacker.example'}, {'port': '25'}, {'security': 'none'}, {'username': 'other'}):
+            with self.subTest(change=change):
+                response, check = self.save_smtp(**change)
+                check.assert_not_called()
+                self.assertContains(response, 'type the password again')
+                self.assertEqual(SmtpSettings.load().host, 'smtp.example.net')
+        response, check = self.save_smtp()                                  # same server: kept
+        check.assert_called_once()
+        self.assertEqual(SmtpSettings.load().password, 'smtp-secret-1')
+        self.save_smtp(host='smtp2.example.net', password='typed-again-1')  # typed again: saved
+        self.assertEqual((SmtpSettings.load().host, SmtpSettings.load().password), ('smtp2.example.net', 'typed-again-1'))
+
+    def test_the_ntfy_token_is_not_sent_to_another_server(self):
+        channel = MessageChannel.objects.create(name='noc', channel_type='ntfy', destination='noc-topic',
+                                                server_url='https://ntfy.example.net', token='ntfy-secret-1',
+                                                enabled=False)
+        url = f'/system/notifications/channel/?uuid={channel.uuid}'
+        form = {'name': 'noc', 'channel_type': 'ntfy', 'destination': 'noc-topic', 'token': ''}
+        # The servers resolve (to a documentation address): only the new rule refuses
+        self.enterContext(mock.patch('console.network.check', return_value='203.0.113.7'))
+        response = self.client.post(url, {**form, 'server_url': 'https://ntfy.attacker.example'})
+        self.assertContains(response, 'type the token again')
+        channel.refresh_from_db()
+        self.assertEqual((channel.server_url, channel.token), ('https://ntfy.example.net', 'ntfy-secret-1'))
+        self.client.post(url, {**form, 'server_url': 'https://ntfy.example.net/'})   # same server: kept
+        channel.refresh_from_db()
+        self.assertEqual(channel.token, 'ntfy-secret-1')
+
+    def test_a_refused_recipient_is_not_stored(self):
+        import smtplib
+        configure()
+        user = make_user(10, username='quiet')
+        self.client.force_login(user)
+        self.client.post('/user/settings/', {'action': 'email', 'email': 'private.person@example.net', 'backup_fail': 'on'})
+        message = Message.objects.create(channel=MessageChannel.objects.get(user=user), subject='s', message='m')
+        refused = smtplib.SMTPRecipientsRefused({'private.person@example.net': (550, b'5.1.1 user unknown')})
+        with mock.patch('message_center.email.EmailMessage.send', side_effect=refused):
+            send_notification_message(message)
+        message.refresh_from_db()
+        self.assertNotIn('private.person@example.net', message.error_message)
+        self.assertIn('[address]', message.error_message)

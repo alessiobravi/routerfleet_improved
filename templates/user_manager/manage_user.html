@@ -25,7 +25,7 @@
                     <small class="text-muted">{{ form.email.help_text }}</small></div></div>
             <div class="rf-set-row"><span class="rf-set-icon teal"><i class="fas fa-phone"></i></span>
                 <div class="rf-set-text"><label class="small mb-0" for="{{ form.phone.id_for_label }}">Phone</label>
-                    <input type="tel" class="form-control" id="{{ form.phone.id_for_label }}" name="{{ form.phone.html_name }}" maxlength="30" placeholder="+39 055 123 4567" value="{{ form.phone.value|default_if_none:'' }}">
+                    <input type="tel" class="form-control" id="{{ form.phone.id_for_label }}" name="{{ form.phone.html_name }}" maxlength="30" placeholder="+1 202 555 0143" value="{{ form.phone.value|default_if_none:'' }}">
                     <small class="text-muted">Optional: to reach the person; shown to administrators only.</small></div></div>
         </div>
         </details>

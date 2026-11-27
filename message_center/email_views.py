@@ -65,7 +65,13 @@ def view_email_settings(request):
                 candidate.password = ''
             elif data.get('password'):
                 candidate.password = data['password']
-            if enabled:
+            elif smtp.password and (candidate.host, candidate.port, candidate.security, candidate.username) != \
+                    (smtp.host, smtp.port, smtp.security, smtp.username):
+                # The stored password goes only to the server it was typed for: a
+                # new server, port, security or login needs it typed again
+                errors.append('Not saved - the server or the login changed: type the password again '
+                              '(the stored one is only sent to the server it was given for).')
+            if enabled and not errors:
                 # Checked before anything is saved: the connection and the login
                 try:
                     email.check(candidate)
