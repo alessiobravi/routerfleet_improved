@@ -13,6 +13,12 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.47.4] - 2026-11-27
+
+### Removed
+- The Migration timing workflow of 0.47.3: a one-off measurement does not
+  belong in the software. Nothing in the app or its images changes.
+
 ## [0.47.3] - 2026-11-27
 
 ### Added
