@@ -383,3 +383,12 @@ class LivePageTests(TestCase):
     def test_every_page_loads_the_live_script(self):
         self.assertContains(self.client.get('/status/'), '/static/routerfleet/live.js')
         self.assertContains(self.client.get('/status/'), 'id="rf-live-cards" data-rf-live="active"')
+
+
+class EmptyJobListTests(TestCase):
+    def test_no_job_yet_renders_a_table_datatables_can_read(self):
+        from routerfleet.testing import make_user
+        self.client.force_login(make_user(20))
+        page = self.client.get('/fleet_commander/job/list/')
+        self.assertContains(page, 'data-empty="No job yet.')
+        self.assertNotContains(page, 'colspan')

@@ -7,7 +7,7 @@
 
 {% block page_table %}
 <div class="table-responsive">
-<table class="rf-tbl rf-tbl-nowrap datatables-no-export" data-order='[[5, "desc"]]'>
+<table class="rf-tbl rf-tbl-nowrap datatables-no-export" data-order='[[5, "desc"]]' data-empty="No job yet. Execute a command from Commands, or schedule one.">
     <thead><tr>
         <th class="w1">#</th><th>Command</th><th>State</th><th>Started by</th><th>Tasks</th><th>Created</th><th class="w1"></th>
     </tr></thead>
@@ -23,8 +23,6 @@
         <td class="rf-mono" data-order="{{ job.created|date:'U' }}">{{ job.created|date:"Y-m-d H:i" }}</td>
         <td class="w1">{% if not job.completed %}<a href="#" class="btn btn-sm btn-outline-secondary" data-rf-post="/fleet_commander/job/abort/?uuid={{ job.uuid }}" data-rf-confirm-word="abort" data-rf-confirm-sum="Abort this job? A command already running on a device finishes; nothing after it runs." title="Stop this job"><i class="fas fa-hand-paper me-1 text-danger" aria-hidden="true"></i>Abort</a>{% endif %}</td>
     </tr>
-    {% empty %}
-    <tr><td colspan="7" class="text-muted p-3">No job yet. Execute a command from Commands, or schedule one.</td></tr>
     {% endfor %}
     </tbody>
 </table>

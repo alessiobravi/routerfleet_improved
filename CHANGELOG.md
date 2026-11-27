@@ -13,6 +13,15 @@ with their tags and images. Use `:latest`.
 A release that changes how backup rows are written, or the database columns
 the Zabbix kit reads, says so under **Monitoring**.
 
+## [0.47.2] - 2026-11-27
+
+### Fixed
+- **Jobs with no job yet showed a "DataTables warning ... Requested unknown
+  parameter '1'" popup** (since 0.45.0). The "No job yet" line was a row of its
+  own across the columns, which the table's sorting and paging can not read; the
+  table now says it is empty itself, in the same words. A test keeps every
+  sortable table free of such rows.
+
 ## [0.47.1] - 2026-11-26
 
 ### Security

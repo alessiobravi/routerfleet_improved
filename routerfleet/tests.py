@@ -6,7 +6,9 @@ permission model of the application; docs/users.md describes the same table.
 """
 from unittest import mock
 
-from django.test import TestCase, override_settings
+from pathlib import Path
+
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import get_resolver
 
 from audit_log.models import ChangeRecord
@@ -801,3 +803,22 @@ class HashedStaticFilesTests(TestCase):
         root = pathlib.Path(__file__).resolve().parent.parent / 'templates'
         written = [str(p.relative_to(root)) for p in root.rglob('*.html') if re.search(r'"/static/', p.read_text())]
         self.assertEqual(written, [], 'a path written by hand is never hashed')
+
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+
+
+class DataTablesMarkupTests(SimpleTestCase):
+    """A table DataTables takes over (datatables-*) never holds a row spanning
+    its columns - an empty list once showed "Requested unknown parameter '1'
+    for row 0" - it says it is empty with data-empty instead."""
+
+    def test_no_spanning_row_in_a_datatables_table(self):
+        import re
+        offenders = []
+        for path in (ROOT_DIR / 'templates').rglob('*.html'):
+            text = path.read_text()
+            for table in re.findall(r'<table[^>]*datatables[^>]*>.*?</table>', text, re.S):
+                if 'colspan' in table:
+                    offenders.append(str(path.relative_to(ROOT_DIR)))
+        self.assertEqual(offenders, [])

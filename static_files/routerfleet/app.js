@@ -90,7 +90,10 @@ window.rfSessionGone = function (response) {
         autoWidth: false,
         // The wording and the pager of the release before
         pagingType: 'simple_numbers',
-        language: {lengthMenu: 'Show _MENU_ entries', paginate: {previous: 'Previous', next: 'Next'}},
+        // An empty table says so in its own words (data-empty): never a row of
+        // its own spanning the columns, which DataTables can not read
+        language: {lengthMenu: 'Show _MENU_ entries', paginate: {previous: 'Previous', next: 'Next'},
+                   emptyTable: table.dataset.empty || 'Nothing here yet.'},
         // On a narrow screen the columns that do not fit are left out instead
         // of folding behind a "+": the name (which opens the details), the
         // selection and the quick actions always stay on the row; a header
